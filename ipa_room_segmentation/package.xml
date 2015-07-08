@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package>
+	<name>ipa_room_segmentation</name>
+	<version>0.1.0</version>
+	<description>
+		Segmentation procedures for dividing floor maps into single rooms or areas.
+	</description>
+	<author email="florian.jordan@ipa.fraunhofer.de">Florian Jordan</author>
+	<maintainer email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</maintainer>
+	<license>LGPL</license>
+	<url>http://ros.org/wiki/ipa_room_segmentation</url>
+
+	<buildtool_depend>catkin</buildtool_depend>
+	
+	<build_depend>cmake_modules</build_depend>
+	<build_depend>roscpp</build_depend>
+	<build_depend>rospy</build_depend>
+	<build_depend>std_msgs</build_depend>
+	<build_depend>message_generation</build_depend>
+	<!--build_depend>genmsg</build_depend-->
+	
+	<run_depend>roscpp</run_depend>
+	<run_depend>rospy</run_depend>
+	<run_depend>std_msgs</run_depend>
+	<run_depend>message_runtime</run_depend>
+	<!--run_depend>genmsg</run_depend-->
+
+</package>
