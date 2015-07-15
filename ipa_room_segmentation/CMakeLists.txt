@@ -84,10 +84,6 @@ add_executable(distance_segmentation_server ros/src/distance_segmentation_server
 target_link_libraries(distance_segmentation_server ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 add_dependencies(distance_segmentation_server ${catkin_EXPORTED_TARGETS})
 
-add_executable(segmentation_test ros/src/testsegmentation.cpp common/src/)
-target_link_libraries(segmentation_test ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
-add_dependencies(segmentation_test ${catkin_EXPORTED_TARGETS})
-
 add_executable(voronoi_segmentation_server ros/src/voronoi_segmentation_server.cpp common/src/voronoi_segmentation.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp)
 target_link_libraries(voronoi_segmentation_server ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 add_dependencies(voronoi_segmentation_server ${catkin_EXPORTED_TARGETS})
@@ -109,7 +105,7 @@ add_dependencies(evaluation ${catkin_EXPORTED_TARGETS})
 ## Install ##
 #############
 ## Mark executables and/or libraries for installation
-install(TARGETS morpholigical_segmentation_server distance_segmentation_server segmentation_test voronoi_segmentation_server semantic opencv_semantic evaluation
+install(TARGETS morpholigical_segmentation_server distance_segmentation_server voronoi_segmentation_server semantic opencv_semantic evaluation
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
