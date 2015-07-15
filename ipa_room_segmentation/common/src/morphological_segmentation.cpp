@@ -52,7 +52,7 @@ void morphological_segmentation::segmentationAlgorithm(cv::Mat map_to_be_labeled
 		std::vector < std::vector<cv::Point> > temporary_contours;//temporary saving-variable
 		//hierarchy saves if the contours are hole-contours:
 		//hierarchy[{0,1,2,3}]={next contour (same level), previous contour (same level), child contour, parent contour}
-		//child-contour = 1 if it has one, = 1 if not, same for parent_contour
+		//child-contour = 1 if it has one, = -1 if not, same for parent_contour
 		std::vector < cv::Vec4i > hierarchy;
 		cv::findContours(contour_map, temporary_contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE);
 		if (temporary_contours.size() != 0)
