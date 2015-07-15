@@ -10,10 +10,26 @@
 #include <string>
 
 #include <ctime>
+#include <stdlib.h>
 
 #include <ipa_room_segmentation/features.h>
+#include <ipa_room_segmentation/watershed_region_spreading.h>
 
 #define PI 3.14159265
+
+
+bool contains(std::vector<cv::Scalar> vector, cv::Scalar element)
+{
+	//this functions checks, if the given element is in the given vector (in this case for cv::Sclar elements)
+	if (!vector.empty())
+	{
+		return vector.end() != std::find(vector.begin(), vector.end(), element);
+	}
+	else
+	{
+		return false;
+	}
+}
 
 std::vector<double> bresenham_raycasting(cv::Mat map, cv::Point location)
 {
@@ -193,6 +209,39 @@ std::vector<double> raycasting(cv::Mat map, cv::Point location)
 	return distances;
 }
 
+cv::Mat watershed_region_spread(cv::Mat spreading_image)
+{
+	//This function spreads the coloured regions of the given Map to the neighboring white Pixels a large enough number of times.
+	cv::Mat spreading_map = spreading_image.clone();
+	cv::Mat temporary_map_to_fill_white_pixels_ = spreading_image.clone();
+	for (int loop_counter = 0; loop_counter < 730; loop_counter++)
+	{
+		for (int column = 0; column < spreading_map.cols; column++)
+		{
+			for (int row = 0; row < spreading_map.rows; row++)
+			{
+				if (spreading_map.at<unsigned char>(row, column) == 255)
+				{
+					//check 3x3 area around white pixel for fillcolour, if filled Pixel around fill white pixel with that colour
+					for (int row_counter = -1; row_counter <= 1; row_counter++)
+					{
+						for (int column_counter = -1; column_counter <= 1; column_counter++)
+						{
+							if (temporary_map_to_fill_white_pixels_.at<unsigned char>(row + row_counter, column + column_counter) != 0
+							        && temporary_map_to_fill_white_pixels_.at<unsigned char>(row + row_counter, column + column_counter) != 255)
+							{
+								spreading_map.at<unsigned char>(row, column) = spreading_map.at<unsigned char>(row + row_counter, column + column_counter);
+							}
+						}
+					}
+				}
+			}
+		}
+		temporary_map_to_fill_white_pixels_ = spreading_map.clone();
+	}
+	return temporary_map_to_fill_white_pixels_;
+}
+
 int Boost_training(cv::Mat first_room_training_map, cv::Mat second_room_training_map, cv::Mat first_hallway_training_map, cv::Mat second_hallway_training_map)
 {
 	std::vector<float> labels_for_hallways, labels_for_rooms;
@@ -203,7 +252,7 @@ int Boost_training(cv::Mat first_room_training_map, cv::Mat second_room_training
 	{
 		angles_for_simulation.push_back(angle);
 	}
-	//get the labels for every training point. 1.0 means it belongs to a room and -1.0 means it belongs to a hallway
+	//Get the labels for every training point. 1.0 means it belongs to a room and -1.0 means it belongs to a hallway
 	//first room training map:
 	for (int y = 82; y < 357; y++)
 	{
@@ -317,7 +366,7 @@ int Boost_training(cv::Mat first_room_training_map, cv::Mat second_room_training
 		}
 	}
 	// Set up boosting parameters
-	CvBoostParams params(CvBoost::DISCRETE, 120, 0, 1, false, 0);
+	CvBoostParams params(CvBoost::DISCRETE, 400, 0, 2, false, 0);
 	//*********hallway***************
 	//save the found labels and features in Matrices
 	cv::Mat hallway_labels_Mat(labels_for_hallways.size(), 1, CV_32FC1);
@@ -336,7 +385,7 @@ int Boost_training(cv::Mat first_room_training_map, cv::Mat second_room_training
 	//save the trained booster
 	// todo: do not use fixed paths! use a relative path --> data will end up in ~/.ros/...
 	//hallway_boost.save("/home/rmb-fj/roomsegmentation/src/segmentation/src/training_results/trained_hallway_boost.xml", "boost");
-	hallway_boost.save("ipa_room_segmentation/training_results/trained_hallway_boost.xml", "boost");
+	hallway_boost.save("src/autopnp/ipa_room_segmentation/training_results/trained_hallway_boost.xml", "boost");
 	ROS_INFO("Done hallway classifiers.");
 	//*********room***************
 	//save the found labels and features in Matrices
@@ -355,7 +404,7 @@ int Boost_training(cv::Mat first_room_training_map, cv::Mat second_room_training
 	room_boost.train(room_features_Mat, CV_ROW_SAMPLE, room_labels_Mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params);
 	//save the trained booster
 	//room_boost.save("/home/rmb-fj/roomsegmentation/src/segmentation/src/training_results/trained_room_boost.xml", "boost");
-	room_boost.save("ipa_room_segmentation/training_results/trained_room_boost.xml", "boost");
+	room_boost.save("src/autopnp/ipa_room_segmentation/training_results/trained_room_boost.xml", "boost");
 	ROS_INFO("Done room classifiers.");
 
 	return 0;
@@ -487,7 +536,7 @@ int SVM_training(cv::Mat first_room_training_map, cv::Mat second_room_training_m
 	CvSVMParams params;
 	params.svm_type = CvSVM::ONE_CLASS;
 	params.kernel_type = CvSVM::LINEAR;
-	params.term_crit = cvTermCriteria(CV_TERMCRIT_ITER, 100, 1e-7);
+	params.term_crit = cvTermCriteria(CV_TERMCRIT_ITER, 100, 1e-6);
 	params.nu = 0.6;
 	//*********hallway***************
 	//save the found labels and features in Matrices
@@ -506,7 +555,7 @@ int SVM_training(cv::Mat first_room_training_map, cv::Mat second_room_training_m
 	hallway_SVM.train(hallway_features_Mat, hallway_labels_Mat, cv::Mat(), cv::Mat(), params);
 	//save the trained classifier
 	//hallway_SVM.save("/home/rmb-fj/roomsegmentation/src/segmentation/src/training_results/trained_hallway_SVM.xml");
-	hallway_SVM.save("ipa_room_segmentation/training_results/trained_hallway_SVM.xml");
+	hallway_SVM.save("src/autopnp/ipa_room_segmentation/training_results/trained_hallway_SVM.xml");
 	ROS_INFO("Done hallway classifiers.");
 	//*********room***************
 	//save the found labels and features in Matrices
@@ -525,7 +574,7 @@ int SVM_training(cv::Mat first_room_training_map, cv::Mat second_room_training_m
 	room_SVM.train(hallway_features_Mat, hallway_labels_Mat, cv::Mat(), cv::Mat(), params);
 	//save the trained classifier
 	//room_SVM.save("/home/rmb-fj/roomsegmentation/src/segmentation/src/training_results/trained_room_SVM.xml");
-	room_SVM.save("ipa_room_segmentation/training_results/trained_room_SVM.xml");
+	room_SVM.save("src/autopnp/ipa_room_segmentation/training_results/trained_room_SVM.xml");
 	ROS_INFO("Done room classifiers.");
 
 	return 0;
@@ -534,11 +583,13 @@ int SVM_training(cv::Mat first_room_training_map, cv::Mat second_room_training_m
 int classify_Points_boost(cv::Mat map_to_be_labeled)
 {
 	CvBoost strong_room_classifier, strong_hallway_classifier;
+	cv::Mat original_Map_to_be_labeled = map_to_be_labeled.clone();
+	std::vector < cv::Scalar > already_used_colours;
 
 //	strong_room_classifier.load("/home/rmb-fj/roomsegmentation/src/segmentation/src/training_results/trained_room_boost.xml");
 //	strong_hallway_classifier.load("/home/rmb-fj/roomsegmentation/src/segmentation/src/training_results/trained_hallway_boost.xml");
-	strong_room_classifier.load("ipa_room_segmentation/training_results/trained_room_boost.xml");
-	strong_hallway_classifier.load("ipa_room_segmentation/training_results/trained_hallway_boost.xml");
+	strong_room_classifier.load("src/autopnp/ipa_room_segmentation/training_results/trained_room_boost.xml");
+	strong_hallway_classifier.load("src/autopnp/ipa_room_segmentation/training_results/trained_hallway_boost.xml");
 	ROS_INFO("Loaded training results.");
 	std::vector<double> angles_for_simulation;
 	//get the angles-vector for calculating the features
@@ -547,13 +598,13 @@ int classify_Points_boost(cv::Mat map_to_be_labeled)
 		angles_for_simulation.push_back(angle);
 	}
 	//go trough each Point and label it
-	for (int x = 0; x < map_to_be_labeled.rows; x++)
+	for (int x = 0; x < original_Map_to_be_labeled.rows; x++)
 	{
-		for (int y = 0; y < map_to_be_labeled.cols; y++)
+		for (int y = 0; y < original_Map_to_be_labeled.cols; y++)
 		{
-			if (map_to_be_labeled.at<unsigned char>(x, y) == 255)
+			if (original_Map_to_be_labeled.at<unsigned char>(x, y) == 255)
 			{
-				std::vector<double> temporary_beams = raycasting(map_to_be_labeled, cv::Point(x, y));
+				std::vector<double> temporary_beams = raycasting(original_Map_to_be_labeled, cv::Point(x, y));
 				std::vector<float> temporary_features;
 				cv::Mat featuresMat(1, 23, CV_32FC1);
 				for (int f = 1; f <= 23; f++)
@@ -572,50 +623,173 @@ int classify_Points_boost(cv::Mat map_to_be_labeled)
 				double probability_for_hallway = hallway_certanity * (1.0 - probability_for_room);
 				if (probability_for_room > probability_for_hallway)
 				{
-					map_to_be_labeled.at<unsigned char>(x, y) = 150; //label it as room
+					original_Map_to_be_labeled.at<unsigned char>(x, y) = 150; //label it as room
 				}
 				else
 				{
-					map_to_be_labeled.at<unsigned char>(x, y) = 100; //label it as hallway
+					original_Map_to_be_labeled.at<unsigned char>(x, y) = 100; //label it as hallway
 				}
 			}
 		}
 	}
 	//apply a median filter over the image to smooth the results
-	cv::Mat temporary_map = map_to_be_labeled.clone();
+	cv::Mat temporary_map = original_Map_to_be_labeled.clone();
 	cv::medianBlur(temporary_map, temporary_map, 3);
+	for (int x = 0; x < original_Map_to_be_labeled.rows; x++)
+	{
+		for (int y = 0; y < original_Map_to_be_labeled.cols; y++)
+		{
+			if (original_Map_to_be_labeled.at<unsigned char>(x, y) == 0)
+			{
+				temporary_map.at<unsigned char>(x, y) = 0;
+			}
+		}
+	}
+	cv::Mat labeling_Map = map_to_be_labeled.clone();
+	cv::Mat blured_image_for_thresholding = temporary_map.clone();
+	// todo: no absolute paths
+	cv::imwrite("/home/rmb-fj/Pictures/maps/semantic/opencv/opencvboost.png", temporary_map);
+	//fill the large enough rooms with a random color and split the hallways into smaller regions
+	std::vector<std::vector<cv::Point> > contours, temporary_contours, saved_room_contours, saved_hallway_contours;
+	std::vector < cv::Vec4i > hierarchy;
+	double map_resolution = 0.0500;
+
+	//find the contours, which are labeled as a room
+	cv::threshold(temporary_map, temporary_map, 120, 255, cv::THRESH_BINARY); //find rooms (value = 150)
+	cv::findContours(temporary_map, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
+	cv::drawContours(blured_image_for_thresholding, contours, -1, cv::Scalar(0), CV_FILLED); //make the found regions at the original map black, because they have been looked at already
+
+	//only take rooms that are large enough and that are not a hole-contour
+	for (int c = 0; c < contours.size(); c++)
+	{
+		if (map_resolution * map_resolution * cv::contourArea(contours[c]) > 1.0 && hierarchy[c][3] != 1)
+		{
+			saved_room_contours.push_back(contours[c]);
+		}
+	}
+
+	//find the contours, which are labeled as a hallway
+	temporary_map = blured_image_for_thresholding.clone();
+	cv::threshold(temporary_map, temporary_map, 90, 255, cv::THRESH_BINARY); //find hallways (value = 100)
+	cv::findContours(temporary_map, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
+	//if the hallway-contours are too big split them into smaller regions, also don't take too small regions
+	for (int contour_counter = 0; contour_counter < contours.size(); contour_counter++)
+	{
+		if (map_resolution * map_resolution * cv::contourArea(contours[contour_counter]) > 40.0)
+		{
+			//Generate a black map to draw the hallway-contour in. Then use this map to ckeck if the generated random Points
+			// are inside the contour.
+			cv::Mat contour_Map = cv::Mat::zeros(temporary_map.cols, temporary_map.rows, CV_8UC1);
+			cv::drawContours(contour_Map, contours, contour_counter, cv::Scalar(255), CV_FILLED);
+			//center-counter so enough centers could be found
+			int center_counter = 0;
+			//saving-vector for watershed centers
+			std::vector < cv::Point > temporary_watershed_centers;
+			//find random watershed centers
+			do
+			{
+				int random_x = rand() % temporary_map.rows;
+				int random_y = rand() % temporary_map.cols;
+				if (contour_Map.at<unsigned char>(random_y, random_x) == 255)
+				{
+					temporary_watershed_centers.push_back(cv::Point(random_x, random_y));
+					center_counter++;
+				}
+			} while (center_counter <= (map_resolution * map_resolution * cv::contourArea(contours[contour_counter])) / 8);
+			//draw the centers as white circles into a black map and give the center-map and the contour-map to the opencv watershed-algorithm
+			for (int current_center = 0; current_center < temporary_watershed_centers.size(); current_center++)
+			{
+				bool coloured = false;
+				do
+				{
+					cv::Scalar fill_colour(rand() % 200 + 53);
+					if (!contains(already_used_colours, fill_colour))
+					{
+						cv::circle(contour_Map, temporary_watershed_centers[current_center], 2, fill_colour, CV_FILLED);
+						already_used_colours.push_back(fill_colour);
+						coloured = true;
+					}
+				} while (!coloured);
+			}
+			//make sure all previously black Pixels are still black
+			for (int x = 0; x < map_to_be_labeled.rows; x++)
+			{
+				for (int y = 0; y < map_to_be_labeled.cols; y++)
+				{
+					if (map_to_be_labeled.at<unsigned char>(x, y) == 0)
+					{
+						contour_Map.at<unsigned char>(x, y) = 0;
+					}
+				}
+			}
+			cv::imwrite("/home/rmb-fj/Pictures/maps/semantic/contour.png", contour_Map);
+			temporary_map = watershed_region_spread(contour_Map);
+			cv::imwrite("/home/rmb-fj/Pictures/maps/semantic/spreading.png", temporary_map);
+			//draw the seperated contour into the map, which should be labeled
+			for (int x = 0; x < labeling_Map.rows; x++)
+			{
+				for (int y = 0; y < labeling_Map.cols; y++)
+				{
+					if (temporary_map.at<unsigned char>(x, y) != 0)
+					{
+						labeling_Map.at<unsigned char>(x, y) = temporary_map.at<unsigned char>(x, y);
+					}
+				}
+			}
+		}
+		else if (map_resolution * map_resolution * cv::contourArea(contours[contour_counter]) > 1.0)
+		{
+			saved_hallway_contours.push_back(contours[contour_counter]);
+		}
+	}
+	//draw every last room and hallway contour witch a random colour into the map, which should be labeled
+	for (int room = 0; room < saved_room_contours.size(); room++)
+	{
+		bool coloured = false;
+		do
+		{
+			cv::Scalar fill_colour(rand() % 200 + 53);
+			if (!contains(already_used_colours, fill_colour))
+			{
+				cv::drawContours(labeling_Map, saved_room_contours, room, fill_colour, CV_FILLED);
+				already_used_colours.push_back(fill_colour);
+				coloured = true;
+			}
+		} while (!coloured);
+	}
+	for (int hallway = 0; hallway < saved_hallway_contours.size(); hallway++)
+	{
+		bool coloured = false;
+		do
+		{
+			cv::Scalar fill_colour(rand() % 200 + 53);
+			if (!contains(already_used_colours, fill_colour))
+			{
+				cv::drawContours(labeling_Map, saved_hallway_contours, hallway, fill_colour, CV_FILLED);
+				already_used_colours.push_back(fill_colour);
+				coloured = true;
+			}
+		} while (!coloured);
+	}
+	//spread the coloured regions to regions, which were too small and aren't drawn into the map
+	labeling_Map = watershed_region_spread(labeling_Map);
+	//make sure previously black Pixels are still black
 	for (int x = 0; x < map_to_be_labeled.rows; x++)
 	{
 		for (int y = 0; y < map_to_be_labeled.cols; y++)
 		{
 			if (map_to_be_labeled.at<unsigned char>(x, y) == 0)
 			{
-				temporary_map.at<unsigned char>(x, y) = 0;
+				labeling_Map.at<unsigned char>(x, y) = 0;
 			}
 		}
 	}
-	// todo: no absolute paths
-	cv::imwrite("/home/rmb-fj/Pictures/maps/semantic/opencv/opencvboost.png", temporary_map);
-	//fill the large enough rooms with a random color and split the hallways into smaller regions
-	std::vector<std::vector<cv::Point> > contours, saved_contours;
-	std::vector < cv::Vec4i > hierarchy;
-	double map_resolution = 0.0500;
-	temporary_map = map_to_be_labeled.clone();
-
-	cv::threshold(temporary_map, temporary_map, 120, 254, cv::THRESH_BINARY); //find rooms (value = 150)
-	cv::findContours(temporary_map, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
-	cv::drawContours(map_to_be_labeled, contours, -1, cv::Scalar(0), CV_FILLED); //make the found regions at the original map black, because they have been looked at already
-
-	//only take rooms that are large enough
-	for (int c = 0; c < contours.size(); c++)
+	cv::Mat tmp = labeling_Map.clone();
+	for(int t = 0; t < 255; t++)
 	{
-		if (map_resolution * map_resolution * cv::contourArea(contours[c]) > 1.0)
-		{
-			saved_contours.push_back(contours[c]);
-		}
+		cv::threshold(labeling_Map, tmp, t, 255, cv::THRESH_BINARY);
 	}
-
-	cv::imwrite("/home/rmb-fj/Pictures/maps/semantic/opencv/boost_labeled.png", temporary_map);
+	cv::imwrite("/home/rmb-fj/Pictures/maps/semantic/opencv/boost_labeled.png", labeling_Map);
 	return 0;
 }
 
@@ -625,8 +799,8 @@ int classify_Points_SVM(cv::Mat map_to_be_labeled)
 
 //	strong_room_classifier.load("/home/rmb-fj/roomsegmentation/src/segmentation/src/training_results/trained_room_SVM.xml");
 //	strong_hallway_classifier.load("/home/rmb-fj/roomsegmentation/src/segmentation/src/training_results/trained_hallway_SVM.xml");
-	strong_room_classifier.load("ipa_room_segmentation/training_results/trained_room_SVM.xml");
-	strong_hallway_classifier.load("ipa_room_segmentation/training_results/trained_hallway_SVM.xml");
+	strong_room_classifier.load("src/autopnp/ipa_room_segmentation/training_results/trained_room_SVM.xml");
+	strong_hallway_classifier.load("src/autopnp/ipa_room_segmentation/training_results/trained_hallway_SVM.xml");
 	ROS_INFO("Loaded training results.");
 	std::vector<double> angles_for_simulation;
 	//get the angles-vector for calculating the features
@@ -689,10 +863,11 @@ int classify_Points_SVM(cv::Mat map_to_be_labeled)
 
 int main(int argc, char **argv)
 {
+//	srand(time(NULL));
 	ros::init(argc, argv, "opencv_semantic");
 	ros::NodeHandle n;
 //	ros::Subscriber semantic_labeler = n.Subscribe("Laser_scanner", 1000, segmentation_algorithm);
-	ROS_INFO("Semantic labeling of places using the generalized AdaBoost-Algorithm from opencv. Detects rooms and hallways.");
+	ROS_INFO("Semantic labeling of places using the generalized AdaBoost-Algorithm from OpenCV. Detects rooms and hallways.");
 //	ros::spin();
 	// todo: no absolute paths
 	cv::Mat first_room_training_map = cv::imread("/home/rmb-fj/Pictures/maps/room_training_map.png", 0);
@@ -718,8 +893,30 @@ int main(int argc, char **argv)
 	std::time(&start_t);
 
 	int done, classified;
-//	ROS_INFO("Starting training the algorithm.");
-//	done = Boost_training(first_room_training_map, second_room_training_map, first_hallway_training_map, second_hallway_training_map);
+
+	ROS_INFO("Starting training the algorithm.");
+	done = Boost_training(first_room_training_map, second_room_training_map, first_hallway_training_map, second_hallway_training_map);
+	if (done == 0)
+	{
+		ROS_INFO("Finished training the algorithm.");
+	}
+	else
+	{
+		std::cout << "something was wrong, check training-algortihm" << std::endl;
+	}
+	cv::waitKey(1000);
+	ROS_INFO("Starting labeling the map.");
+	classified = classify_Points_boost(map_to_be_labeled);
+	if (classified == 0)
+	{
+		ROS_INFO("Finished labeling the map.");
+	}
+	else
+	{
+		std::cout << "something was wrong, check labeling-algortihm" << std::endl;
+	}
+//	ROS_INFO("Starting training the SVM algorithm.");
+//	done = SVM_training(first_room_training_map, second_room_training_map, first_hallway_training_map, second_hallway_training_map);
 //	if (done == 0)
 //	{
 //		ROS_INFO("Finished training the algorithm.");
@@ -730,7 +927,7 @@ int main(int argc, char **argv)
 //	}
 //	cv::waitKey(500);
 //	ROS_INFO("Starting labeling the map.");
-//	classified = classify_Points_boost(map_to_be_labeled);
+//	classified = classify_Points_SVM(map_to_be_labeled);
 //	if (classified == 0)
 //	{
 //		ROS_INFO("Finished labeling the map.");
@@ -739,27 +936,6 @@ int main(int argc, char **argv)
 //	{
 //		std::cout << "something was wrong, check labeling-algortihm" << std::endl;
 //	}
-	ROS_INFO("Starting training the SVM algorithm.");
-	done = SVM_training(first_room_training_map, second_room_training_map, first_hallway_training_map, second_hallway_training_map);
-	if (done == 0)
-	{
-		ROS_INFO("Finished training the algorithm.");
-	}
-	else
-	{
-		std::cout << "something was wrong, check training-algortihm" << std::endl;
-	}
-	cv::waitKey(500);
-	ROS_INFO("Starting labeling the map.");
-	classified = classify_Points_SVM(map_to_be_labeled);
-	if (classified == 0)
-	{
-		ROS_INFO("Finished labeling the map.");
-	}
-	else
-	{
-		std::cout << "something was wrong, check labeling-algortihm" << std::endl;
-	}
 
 	std::time(&ende_t);
 	sek_t = (float) (ende_t - start_t);

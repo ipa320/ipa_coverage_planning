@@ -41,7 +41,7 @@ void draw_voronoi(cv::Mat &img, std::vector<std::vector<cv::Point2f> > facets, c
 			}
 			if (inside)
 			{
-				line(img, last, p, voronoi_color, 1);
+				cv::line(img, last, p, voronoi_color, 1);
 			}
 			last = p;
 		}
@@ -74,7 +74,7 @@ cv::Mat create_delaunay_and_voronoi_graph(cv::Mat original_map)
 
 	//get contour of the map
 	cv::findContours(img, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
-	cv::drawContours(img, contours, -1, cv::Scalar(254), CV_FILLED);
+	cv::drawContours(img, contours, -1, cv::Scalar(255), CV_FILLED);
 
 	//draw found contours in the delaunay-subdivision graph
 	for (int i = 0; i < contours.size(); i++)
@@ -222,7 +222,7 @@ cv::Mat segmentation_algorithm(cv::Mat voronoi_map, cv::Mat original_Map)
 
 					if (!real_voronoi_point)
 					{
-						map.at<unsigned char>(x, y) = 254;
+						map.at<unsigned char>(x, y) = 255;
 					}
 				}
 			}
@@ -273,8 +273,8 @@ cv::Mat segmentation_algorithm(cv::Mat voronoi_map, cv::Mat original_Map)
 					for (int tp = 0; tp < temporary_Points.size(); tp++)
 					{
 						neighbor_Points.push_back(temporary_Points[tp]);
-						map.at<unsigned char>(cv::Point(temporary_Points[tp].y, temporary_Points[tp].x)) = 254;
-						map.at<unsigned char>(cv::Point(y, x)) = 254;
+						map.at<unsigned char>(cv::Point(temporary_Points[tp].y, temporary_Points[tp].x)) = 255;
+						map.at<unsigned char>(cv::Point(y, x)) = 255;
 					}
 					temporary_Points.clear();
 					//check if enough neighbors has been checked or checked enough times (e.g. at a small segment of the graph)
@@ -299,9 +299,9 @@ cv::Mat segmentation_algorithm(cv::Mat voronoi_map, cv::Mat original_Map)
 	//
 	// 1. Get the Points of the contour, which are the possible closest Points for a critical Point
 	cv::findContours(temporary_map, contours, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
-	cv::drawContours(temporary_map, contours, -1, cv::Scalar(254), CV_FILLED);
+	cv::drawContours(temporary_map, contours, -1, cv::Scalar(255), CV_FILLED);
 
-	//2. Get the basis-points for each critical-point
+	// 2. Get the basis-points for each critical-point
 	for (int cp = 0; cp < critical_Points.size(); cp++)
 	{
 		//set inital Points and values for the basis-Points so the distance comparisation can be done
@@ -371,8 +371,8 @@ cv::Mat segmentation_algorithm(cv::Mat voronoi_map, cv::Mat original_Map)
 	}
 
 	//3. check which critical Points should be used for the segmentation. This is done by cheking the Points that are
-	//in a specified distance to each other and take the Point with the largest calculated angle, because larger angles
-	//corresponend to a seperation across the room, which is more useful
+	//   in a specified distance to each other and take the Point with the largest calculated angle, because larger angles
+	//   corresponend to a seperation across the room, which is more useful
 	for (int cp = 0; cp < critical_Points.size(); cp++)
 	{
 		//reset variable for checking if the line should be drawn
@@ -393,6 +393,8 @@ cv::Mat segmentation_algorithm(cv::Mat voronoi_map, cv::Mat original_Map)
 					{
 						draw = false;
 					}
+					//if the angles of the two neighborhood Points are the same the one which is more at the beginning
+					//of the list shouldn't be drawn (Point at the end made better test-results, so it's only subjective oppinion)
 					if (angles[cp] == angles[i] && i < cp)
 					{
 						draw = false;
@@ -438,7 +440,7 @@ cv::Mat segmentation_algorithm(cv::Mat voronoi_map, cv::Mat original_Map)
 		{
 			for (int row = 0; row < temporary_map.rows; row++)
 			{
-				if (temporary_map.at<unsigned char>(row, column) == 254)
+				if (temporary_map.at<unsigned char>(row, column) == 255)
 				{
 					//check 3x3 area around white pixel for fillcolor, if filled Pixel around fill white pixel with that color
 					for (int row_counter = -1; row_counter <= 1; row_counter++)
@@ -446,7 +448,7 @@ cv::Mat segmentation_algorithm(cv::Mat voronoi_map, cv::Mat original_Map)
 						for (int column_counter = -1; column_counter <= 1; column_counter++)
 						{
 							if (temporary_map.at<unsigned char>(row + row_counter, column + column_counter) != 0
-							        && temporary_map.at<unsigned char>(row + row_counter, column + column_counter) != 254)
+							        && temporary_map.at<unsigned char>(row + row_counter, column + column_counter) != 255)
 							{
 								temporary_map_to_fill_white_pixels_.at<unsigned char>(row, column) = temporary_map.at<unsigned char>(row + row_counter,
 								        column + column_counter);
@@ -474,7 +476,7 @@ int main(int argc, char **argv)
 //		for (int x_coordinate = 0; x_coordinate < map.rows; x_coordinate++)
 //		{
 //			//find not reachable regions andmake them black
-//			if (map.at<unsigned char>(x_coordinate, y_coordinate) != 254)
+//			if (map.at<unsigned char>(x_coordinate, y_coordinate) != 255)
 //			{
 //				map.at<unsigned char>(x_coordinate, y_coordinate) = 0;
 //			}
