@@ -12,7 +12,7 @@ adaboost_classifier::adaboost_classifier(cv::Mat original_map_from_subscription,
 		angles_for_simulation_.push_back(angle);
 	}
 	// Set up boosting parameters
-	CvBoostParams params(CvBoost::DISCRETE, 400, 0, 2, false, 0);
+	CvBoostParams params(CvBoost::DISCRETE, 300, 0, 2, false, 0);
 	params_ = params;
 	//set the initial value for trained-shower
 	trained_ = false;
@@ -49,7 +49,7 @@ void adaboost_classifier::trainClassifiers(cv::Mat first_room_training_map, cv::
 				}
 				//simulate the beams and features for every position and save it
 				temporary_beams = raycasting(first_room_training_map, cv::Point(x, y));
-				for (int f = 1; f <= 23; f++)
+				for (int f = 1; f <= get_feature_count(); f++)
 				{
 					temporary_features.push_back((float) get_feature(temporary_beams, angles_for_simulation_, cv::Point(x, y), f));
 				}
@@ -77,7 +77,7 @@ void adaboost_classifier::trainClassifiers(cv::Mat first_room_training_map, cv::
 				}
 				//simulate the beams and features for every position and save it
 				temporary_beams = raycasting(second_room_training_map, cv::Point(x, y));
-				for (int f = 1; f <= 23; f++)
+				for (int f = 1; f <= get_feature_count(); f++)
 				{
 					temporary_features.push_back((float) get_feature(temporary_beams, angles_for_simulation_, cv::Point(x, y), f));
 				}
@@ -105,7 +105,7 @@ void adaboost_classifier::trainClassifiers(cv::Mat first_room_training_map, cv::
 				}
 				//simulate the beams and features for every position and save it
 				temporary_beams = raycasting(first_hallway_training_map, cv::Point(x, y));
-				for (int f = 1; f <= 23; f++)
+				for (int f = 1; f <= get_feature_count(); f++)
 				{
 					temporary_features.push_back(get_feature(temporary_beams, angles_for_simulation_, cv::Point(x, y), f));
 				}
@@ -133,7 +133,7 @@ void adaboost_classifier::trainClassifiers(cv::Mat first_room_training_map, cv::
 				}
 				//simulate the beams and features for every position and save it
 				temporary_beams = raycasting(second_hallway_training_map, cv::Point(x, y));
-				for (int f = 1; f <= 23; f++)
+				for (int f = 1; f <= get_feature_count(); f++)
 				{
 					temporary_features.push_back(get_feature(temporary_beams, angles_for_simulation_, cv::Point(x, y), f));
 				}
@@ -147,11 +147,11 @@ void adaboost_classifier::trainClassifiers(cv::Mat first_room_training_map, cv::
 	//*********hallway***************
 	//save the found labels and features in Matrices
 	cv::Mat hallway_labels_Mat(labels_for_hallways.size(), 1, CV_32FC1);
-	cv::Mat hallway_features_Mat(hallway_features.size(), 23, CV_32FC1);
+	cv::Mat hallway_features_Mat(hallway_features.size(), get_feature_count(), CV_32FC1);
 	for (int i = 0; i < labels_for_hallways.size(); i++)
 	{
 		hallway_labels_Mat.at<float>(i, 0) = labels_for_hallways[i];
-		for (int f = 0; f < 23; f++)
+		for (int f = 0; f < get_feature_count(); f++)
 		{
 			hallway_features_Mat.at<float>(i, f) = (float) hallway_features[i][f];
 		}
@@ -166,11 +166,11 @@ void adaboost_classifier::trainClassifiers(cv::Mat first_room_training_map, cv::
 	//*************room***************
 	//save the found labels and features in Matrices
 	cv::Mat room_labels_Mat(labels_for_rooms.size(), 1, CV_32FC1);
-	cv::Mat room_features_Mat(room_features.size(), 23, CV_32FC1);
+	cv::Mat room_features_Mat(room_features.size(), get_feature_count(), CV_32FC1);
 	for (int i = 0; i < labels_for_rooms.size(); i++)
 	{
 		room_labels_Mat.at<float>(i, 0) = labels_for_rooms[i];
-		for (int f = 0; f < 23; f++)
+		for (int f = 0; f < get_feature_count(); f++)
 		{
 			room_features_Mat.at<float>(i, f) = (float) room_features[i][f];
 		}
@@ -183,7 +183,7 @@ void adaboost_classifier::trainClassifiers(cv::Mat first_room_training_map, cv::
 	//set the trained-variabel true, so the labeling-algorithm knows the classifiers have been trained already
 	trained_ = true;
 	ROS_INFO("Done room classifiers.");
-	ROS_INFO("Finsihed training the algorithm.");
+	ROS_INFO("Finished training the algorithm.");
 }
 
 cv::Mat adaboost_classifier::semanticLabeling(cv::Mat map_to_be_labeled)
@@ -193,7 +193,16 @@ cv::Mat adaboost_classifier::semanticLabeling(cv::Mat map_to_be_labeled)
 	//using the AdaBoost-algorithm from OpenCV. It does the following steps:
 	//	I. If the classifiers hasn't been trained before they should load the training-results saved in the
 	//	   training_results folder
-	//	II.
+	//	II. Go trough each Pixel of the given map. If this Pixel is white simulate the laser-beams for it and calculate each
+	//		of the implemented features.
+	//	III. Apply a median-Filter on the labeled map to smooth the output of it.
+	//	IV. Find the contours of the segments given by III. by thresholding the map. First set the threshold so high that
+	//		only room-areas are shown in the map and find them. Then make these room-areas black and finally set the threshold
+	//		a little lower than the hallway-colour. The function only takes contours that are larger than the minimum value
+	//		and splits too large hallway-areas into smaller areas by putting random Points into the too large hallway contour
+	//		and apply a watershed-algorithm on it. At last the saved room and hallway contours are drawn with a random
+	//		colour into the map that hasn't been used already.
+
 	cv::Mat original_Map_to_be_labeled = map_to_be_labeled.clone();
 	ROS_INFO("Starting to label the map.");
 	//***********************I. check if classifiers has already been trained*****************************
@@ -212,8 +221,8 @@ cv::Mat adaboost_classifier::semanticLabeling(cv::Mat map_to_be_labeled)
 			{
 				std::vector<double> temporary_beams = raycasting(original_Map_to_be_labeled, cv::Point(x, y));
 				std::vector<float> temporary_features;
-				cv::Mat featuresMat(1, 23, CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
-				for (int f = 1; f <= 23; f++)
+				cv::Mat featuresMat(1, get_feature_count(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
+				for (int f = 1; f <= get_feature_count(); f++)
 				{
 					//get the features for each room and put it in the featuresMat
 					featuresMat.at<float>(0, f - 1) = (float) get_feature(temporary_beams, angles_for_simulation_, cv::Point(x, y), f);
@@ -239,7 +248,7 @@ cv::Mat adaboost_classifier::semanticLabeling(cv::Mat map_to_be_labeled)
 			}
 		}
 	}
-	//apply a median filter over the image to smooth the results
+	//******************** III. Aply a median filter over the image to smooth the results.***************************
 	cv::Mat temporary_map = original_Map_to_be_labeled.clone();
 	cv::medianBlur(temporary_map, temporary_map, 3);
 	//make regions black, that has been black before
@@ -258,7 +267,7 @@ cv::Mat adaboost_classifier::semanticLabeling(cv::Mat map_to_be_labeled)
 	// todo: no absolute paths
 	cv::imwrite("/home/rmb-fj/Pictures/maps/semantic/opencv/opencvboost.png", temporary_map);
 
-	//fill the large enough rooms with a random color and split the hallways into smaller regions
+	//*********** IV. Fill the large enough rooms with a random color and split the hallways into smaller regions*********
 	std::vector<std::vector<cv::Point> > contours, temporary_contours, saved_room_contours, saved_hallway_contours;
 	//hierarchy saves if the contours are hole-contours:
 	//hierarchy[{0,1,2,3}]={next contour (same level), previous contour (same level), child contour, parent contour}

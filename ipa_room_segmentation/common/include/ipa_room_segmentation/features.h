@@ -4,7 +4,9 @@
 #define FEATURES
 #include <opencv/cv.h>
 
-//funnction for calculating the feature
+//function to get the number of the features implemented
+int get_feature_count();
+//function for calculating the feature
 double get_feature(std::vector<double> beams, std::vector<double> angles, cv::Point point, int feature);
 //feature 1: average difference between beamlenghts
 double calc_feature1(std::vector<double> beams);

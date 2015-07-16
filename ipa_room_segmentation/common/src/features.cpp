@@ -8,6 +8,11 @@
 
 #define PI 3.14159265
 
+//get the nmber of implemented features. Needs to be changed to the new value if you change it
+int get_feature_count()
+{
+	return 23;
+}
 //**********************see features.h for a better overview of what is calculated and needed*************************
 //Method for calculating the feature for the classifier
 double get_feature(std::vector<double> beams, std::vector<double> angles, cv::Point point, int feature)
