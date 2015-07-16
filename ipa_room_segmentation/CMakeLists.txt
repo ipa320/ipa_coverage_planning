@@ -88,13 +88,9 @@ add_executable(voronoi_segmentation_server ros/src/voronoi_segmentation_server.c
 target_link_libraries(voronoi_segmentation_server ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 add_dependencies(voronoi_segmentation_server ${catkin_EXPORTED_TARGETS})
 
-add_executable(semantic ros/src/semantic_labeling.cpp ros/src/weak_classifier.cpp ros/src/features.cpp)
-target_link_libraries(semantic ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
-add_dependencies(semantic ${catkin_EXPORTED_TARGETS})
-
-add_executable(opencv_semantic ros/src/opencvboost.cpp ros/src/features.cpp)
-target_link_libraries(opencv_semantic ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
-add_dependencies(opencv_semantic ${catkin_EXPORTED_TARGETS})
+add_executable(semantic_segmentation_server ros/src/semantic_segmentation_server.cpp common/src/features.cpp common/src/adaboost_classifier.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp)
+target_link_libraries(semantic_segmentation_server ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+add_dependencies(semantic_segmentation_server ${catkin_EXPORTED_TARGETS})
 
 add_executable(evaluation ros/src/evaluation.cpp)
 target_link_libraries(evaluation ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
@@ -105,7 +101,7 @@ add_dependencies(evaluation ${catkin_EXPORTED_TARGETS})
 ## Install ##
 #############
 ## Mark executables and/or libraries for installation
-install(TARGETS morpholigical_segmentation_server distance_segmentation_server voronoi_segmentation_server semantic opencv_semantic evaluation
+install(TARGETS morpholigical_segmentation_server distance_segmentation_server voronoi_segmentation_server semantic_segmentation_server evaluation
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
