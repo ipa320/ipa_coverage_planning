@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<opencv_storage>
+<my_svm type_id="opencv-ml-svm">
+  <svm_type>ONE_CLASS</svm_type>
+  <kernel><type>LINEAR</type></kernel>
+  <nu>5.9999999999999998e-01</nu>
+  <term_criteria><epsilon>2.2204460492503131e-16</epsilon>
+    <iterations>100</iterations></term_criteria>
+  <var_all>23</var_all>
+  <var_count>23</var_count>
+  <class_count>1</class_count>
+  <sv_total>1</sv_total>
+  <support_vectors>
+    <_>
+      2.83671656e+05 7.78090750e+06 2.06722500e+04 4.50947109e+04
+      5.79335150e+06 5300250. 19302716. 5.71475812e+05 1567863.
+      1.29049977e+05 7.88329650e+06 6738720. 509354208. 4.15090725e+06
+      115733672. 4.59749316e+03 6.03456750e+06 4511485. 28201040.
+      7.34039550e+06 4.96453250e+06 4.85331211e+04 3.32311797e+04</_></support_vectors>
+  <decision_functions>
+    <_>
+      <sv_count>1</sv_count>
+      <rho>4.7882008646924377e+11</rho>
+      <alpha>
+        1.</alpha></_></decision_functions></my_svm>
+</opencv_storage>

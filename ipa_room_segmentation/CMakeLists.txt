@@ -88,7 +88,7 @@ add_executable(voronoi_segmentation_server ros/src/voronoi_segmentation_server.c
 target_link_libraries(voronoi_segmentation_server ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 add_dependencies(voronoi_segmentation_server ${catkin_EXPORTED_TARGETS})
 
-add_executable(semantic_segmentation_server ros/src/semantic_segmentation_server.cpp common/src/features.cpp common/src/adaboost_classifier.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp)
+add_executable(semantic_segmentation_server ros/src/semantic_segmentation_server.cpp common/src/features.cpp common/src/adaboost_classifier.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp common/src/raycasting.cpp)
 target_link_libraries(semantic_segmentation_server ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 add_dependencies(semantic_segmentation_server ${catkin_EXPORTED_TARGETS})
 
