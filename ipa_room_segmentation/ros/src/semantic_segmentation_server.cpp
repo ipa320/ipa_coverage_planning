@@ -19,10 +19,8 @@
 
 int main(int argc, char **argv)
 {
-	srand(time(NULL));
 	ros::init(argc, argv, "semantic_segmentation_server");
 	ros::NodeHandle n;
-//	ros::Subscriber semantic_labeler = n.Subscribe("Laser_scanner", 1000, segmentation_algorithm);
 	ROS_INFO("Semantic labeling of places using the generalized AdaBoost-Algorithm from OpenCV. Detects rooms and hallways.");
 //	ros::spin();
 	// todo: no absolute paths

@@ -12,7 +12,7 @@
 			   borders trough this critical Points. (common/src/vornoi_segmentation.cpp)
 			4. A semantic-labeling algorithm, which calculates simple single-valued features for a given Position and classifies to which class (room, hallway) this Position belongs using
 			   Ada-Boost from opencv. (common/src/semantic_segmentation.cpp)
-		For more detailed descriptions see the corresponding files. This algorithms often use OpenCV, so it's very important for these algorithms. Feel free to mail the author if you have further 			questions, like "What the hell did he make there?"Also make sure everything in the CMakeList.txt is included, linked and installed (thanks to catkin :-) ).
+		For more detailed descriptions see the corresponding files. This algorithms often use OpenCV, so it's very important for these algorithms. Feel free to mail the author if you have further 			questions, like "What the hell did he make there?" Also make sure everything in the CMakeList.txt is included, linked and installed.
 	</description>
 	<author email="florian.jordan@ipa.fraunhofer.de">Florian Jordan</author>
 	<maintainer email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</maintainer>
@@ -22,16 +22,29 @@
 	<buildtool_depend>catkin</buildtool_depend>
 	
 	<build_depend>cmake_modules</build_depend>
+	<build_depend>cv_bridge</build_depend>
+	<build_depend>libopencv-dev</build_depend>
 	<build_depend>roscpp</build_depend>
 	<build_depend>rospy</build_depend>
+	<build_depend>roslib</build_depend>
+	<build_depend>actionlib</build_depend>
+	<build_depend>actionlib_msgs</build_depend>
 	<build_depend>std_msgs</build_depend>
+	<build_depend>sensor_msgs</build_depend>
 	<build_depend>message_generation</build_depend>
-	<!--build_depend>genmsg</build_depend-->
+	<build_depend>genmsg</build_depend>
+
 	
+	<run_depend>cv_bridge</run_depend>
+	<run_depend>libopencv-dev</run_depend>
 	<run_depend>roscpp</run_depend>
 	<run_depend>rospy</run_depend>
+	<run_depend>roslib</run_depend>
+	<run_depend>actionlib</run_depend>
+	<run_depend>actionlib_msgs</run_depend>
 	<run_depend>std_msgs</run_depend>
+	<run_depend>sensor_msgs</run_depend>
 	<run_depend>message_runtime</run_depend>
-	<!--run_depend>genmsg</run_depend-->
+	<run_depend>genmsg</run_depend>
 
 </package>

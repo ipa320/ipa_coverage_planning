@@ -4,8 +4,14 @@ project(ipa_room_segmentation)
 set(catkin_RUN_PACKAGES
 	roscpp
 	rospy
+	roslib
+	actionlib
+	actionlib_msgs
 	std_msgs
+	sensor_msgs
+	cv_bridge
 )
+
 set(catkin_BUILD_PACKAGES
 	${catkin_RUN_PACKAGES}
 	cmake_modules
@@ -15,10 +21,18 @@ set(catkin_BUILD_PACKAGES
 ## Find catkin macros and libraries
 find_package(catkin REQUIRED COMPONENTS
 	${catkin_BUILD_PACKAGES}
+	genmsg
 )
 
-find_package(OpenCV)
+find_package(OpenCV REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system)
 
+
+## Add the Files for actionlib
+add_action_files(
+	DIRECTORY action
+	FILES MapSegmentation.action
+)
 
 ## Generate messages in the 'msg' folder
 # add_message_files(
@@ -35,6 +49,8 @@ find_package(OpenCV)
 generate_messages(
 	DEPENDENCIES
 		std_msgs
+		actionlib_msgs
+		sensor_msgs
 )
 
 
@@ -56,6 +72,7 @@ LIBRARIES
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
 	message_runtime
+	actionlib_msgs
 DEPENDS
 	OpenCV
 )
@@ -73,12 +90,23 @@ include_directories(
 	ros/include
 	${catkin_INCLUDE_DIRS}
 	${OpenCV_INCLUDE_DIRS}
+	${Boost_INCLUDE_DIRS}
 )
 
 
+add_executable(action_client_test ros/src/action_client_tester.cpp)
+target_link_libraries(action_client_test
+	${catkin_LIBRARIES} 
+	${OpenCV_LIBRARIES}
+)
+add_dependencies(action_client_test ${catkin_EXPORTED_TARGETS}  ${ipa_room_segmentation_EXPORTED_TARGETS})
+
 add_executable(morpholigical_segmentation_server ros/src/morphological_segmentation_server.cpp common/src/morphological_segmentation.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp)
-target_link_libraries(morpholigical_segmentation_server ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
-add_dependencies(morpholigical_segmentation_server ${catkin_EXPORTED_TARGETS})
+target_link_libraries(morpholigical_segmentation_server 
+	${catkin_LIBRARIES} 
+	${OpenCV_LIBRARIES}
+)
+add_dependencies(morpholigical_segmentation_server ${catkin_EXPORTED_TARGETS}  ${ipa_room_segmentation_EXPORTED_TARGETS})
 
 add_executable(distance_segmentation_server ros/src/distance_segmentation_server.cpp common/src/distance_segmentation.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp)
 target_link_libraries(distance_segmentation_server ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
@@ -118,6 +146,11 @@ install(DIRECTORY common/include/${PROJECT_NAME}/
 install(DIRECTORY ros/include/${PROJECT_NAME}/
 	DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 	FILES_MATCHING PATTERN "*.h"
+	PATTERN ".svn" EXCLUDE
+)
+
+install(DIRECTORY scripts
+	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 	PATTERN ".svn" EXCLUDE
 )
 

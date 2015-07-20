@@ -7,15 +7,9 @@
 #include <ipa_room_segmentation/watershed_region_spreading.h>
 #include <ipa_room_segmentation/contains.h>
 
-#include <ctime>
-
 class morphological_segmentation
 {
 private:
-	//variables for calculating purpose
-	double map_resolution_from_subscription_;
-	double room_area_factor_lower_limit_;
-	double room_area_factor_upper_limit_;
 	//saving variable for every contour that is between the upper and the lower limit
 	std::vector < std::vector<cv::Point> > saved_contours;
 	//map to find the rooms and eroding
@@ -28,8 +22,14 @@ private:
 	cv::Mat temporary_map_to_find_room_values_;
 	//vector for saving the already used coloures
 	std::vector<cv::Scalar> already_used_coloures_;
-	//algorithm to segment the map
-	void segmentationAlgorithm(cv::Mat map_to_be_labeled);
 public:
-	morphological_segmentation(cv::Mat original_map_from_subscription, double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit);
+	//variables for calculating purpose
+	double map_resolution_from_subscription_;
+	double room_area_factor_lower_limit_;
+	double room_area_factor_upper_limit_;
+	morphological_segmentation();
+	//algorithm to segment the map
+	cv::Mat segmentationAlgorithm(cv::Mat map_to_be_labeled);
+	void clear_all_vectors();
+	int get_size_color();
 };
