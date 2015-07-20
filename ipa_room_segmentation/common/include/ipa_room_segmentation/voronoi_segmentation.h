@@ -16,10 +16,6 @@
 class voronoi_segmentation
 {
 private:
-	//variables for calculating-purpose
-	double map_resolution_from_subscription_;
-	double room_area_factor_lower_limit_;
-	double room_area_factor_upper_limit_;
 	//variable to save the given map for drawing in the voronoi-diagram
 	cv::Mat map_to_draw_voronoi_in_;
 	//variables to find the facets and centers of the voronoi-cells
@@ -50,10 +46,14 @@ private:
 	        std::vector<std::vector<cv::Point> > hole_contours);
 	//function to get the voronoi-diagram drawn into the map
 	cv::Mat createVoronoiGraph(cv::Mat map_for_voronoi_generation);
-	//the segmentation-algorithm
-	void segmentationAlgorithm(cv::Mat map_to_be_labeled);
 
 public:
-	voronoi_segmentation(cv::Mat original_map_from_subscription, double map_resolution_from_subscription, double room_area_factor_lower_limit,
-	        double room_area_factor_upper_limit);
+	//variables for calculating-purpose
+	double map_resolution_from_subscription_;
+	double room_area_factor_lower_limit_;
+	double room_area_factor_upper_limit_;
+	voronoi_segmentation();
+	//the segmentation-algorithm
+	cv::Mat segmentationAlgorithm(cv::Mat map_to_be_labeled);
+	void clear_all_vectors();
 };

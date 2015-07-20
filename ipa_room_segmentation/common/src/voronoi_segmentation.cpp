@@ -1,12 +1,8 @@
 #include <ipa_room_segmentation/voronoi_segmentation.h>
 
-voronoi_segmentation::voronoi_segmentation(cv::Mat original_map_from_subscription, double map_resolution_from_subscription, double room_area_factor_lower_limit,
-        double room_area_factor_upper_limit)
+voronoi_segmentation::voronoi_segmentation()
 {
-	map_resolution_from_subscription_ = map_resolution_from_subscription;
-	room_area_factor_lower_limit_ = room_area_factor_lower_limit;
-	room_area_factor_upper_limit_ = room_area_factor_upper_limit;
-	segmentationAlgorithm(original_map_from_subscription);
+
 }
 
 void voronoi_segmentation::drawVoronoi(cv::Mat &img, std::vector<std::vector<cv::Point2f> > facets_of_voronoi, cv::Scalar voronoi_color,
@@ -140,7 +136,7 @@ cv::Mat voronoi_segmentation::createVoronoiGraph(cv::Mat map_for_voronoi_generat
 	return map_to_draw_voronoi_in_;
 }
 
-void voronoi_segmentation::segmentationAlgorithm(cv::Mat map_to_be_labeled)
+cv::Mat voronoi_segmentation::segmentationAlgorithm(cv::Mat map_to_be_labeled)
 {
 	//****************Create the Generalized Voronoi-Diagram**********************
 	//This function takes a given map and segments it with the generalized Voronoi-Diagram. It takes following steps:
@@ -485,11 +481,13 @@ void voronoi_segmentation::segmentationAlgorithm(cv::Mat map_to_be_labeled)
 			{
 				//2. Draw the region with a random colour into the map if it is large/small enough
 				bool drawn = false;
+				int loop_counter = 0;//counter if the loop gets into a endless loop
 				do
 				{
+					loop_counter++;
 					cv::Scalar fill_colour(rand() % 200 + 53);
 					//check if colour has already been used
-					if (!contains(already_used_coloures_, fill_colour))
+					if (!contains(already_used_coloures_, fill_colour) || loop_counter > 250)
 					{
 						cv::drawContours(temporary_map_to_draw_critical_lines_and_colouring_, contours, current_contour, fill_colour, CV_FILLED);
 						already_used_coloures_.push_back(fill_colour);
@@ -502,5 +500,16 @@ void voronoi_segmentation::segmentationAlgorithm(cv::Mat map_to_be_labeled)
 
 	//3.fill the last white areas with the surrounding color
 	voronoi_map_ = watershed_region_spreading(temporary_map_to_draw_critical_lines_and_colouring_);
-	cv::imwrite("/home/rmb-fj/Pictures/maps/Delaunay_medial_axis/segmented_map.png", voronoi_map_);
+	return voronoi_map_;
+}
+
+void voronoi_segmentation::clear_all_vectors()
+{
+	voronoi_facets_.clear();
+	voronoi_centers_.clear();
+	hole_contours_.clear();
+	largest_contour_.clear();
+	node_Points_.clear();
+	critical_Points_.clear();
+	already_used_coloures_.clear();
 }

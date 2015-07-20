@@ -59,10 +59,12 @@ cv::Mat distance_segmentation::segmentationAlgorithm(cv::Mat map_to_be_labeled)
 	for (int current_contour = 0; current_contour < saved_contours.size(); current_contour++)
 	{
 		bool drawn = false; //variable to check if contour has been drawn
+		int loop_counter = 0;//loop counter for ending the loop if it gets into a endless loop
 		do
 		{
+			loop_counter++;
 			cv::Scalar fill_colour(rand() % 200 + 53);
-			if (!contains(already_used_coloures_, fill_colour))
+			if (!contains(already_used_coloures_, fill_colour) || loop_counter > 250)
 			{
 				cv::drawContours(temporary_map, saved_contours, current_contour, fill_colour, CV_FILLED);
 				already_used_coloures_.push_back(fill_colour); //add used colour to the saving-vector
