@@ -16,9 +16,9 @@
 
 #include <ipa_room_segmentation/MapSegmentationAction.h>
 
-#include <ipa_room_segmentation/morphological_segmentation.h>
+#include <ipa_room_segmentation/distance_segmentation.h>
 
-class morphological_segmentation_algorithm
+class distance_segmentation_algorithm
 {
 private:
 	//resolution of the given map [m/cell]
@@ -44,21 +44,21 @@ private:
 		return meter_value_obj_y;
 	}
 	//This is the execution function used by action server
-	void execute_morph_segmentation_server(const ipa_room_segmentation::MapSegmentationGoalConstPtr &goal);
+	void execute_dist_segmentation_server(const ipa_room_segmentation::MapSegmentationGoalConstPtr &goal);
 	//segmentation-object that segments the map
-	morphological_segmentation segmenter_;
+	distance_segmentation segmenter_;
 protected:
 	ros::NodeHandle nh_;
-	actionlib::SimpleActionServer<ipa_room_segmentation::MapSegmentationAction> morphological_segmentation_server_;
+	actionlib::SimpleActionServer<ipa_room_segmentation::MapSegmentationAction> distance_segmentation_server_;
 	std::string action_name_;
 	ipa_room_segmentation::MapSegmentationFeedback action_feedback_;
 	ipa_room_segmentation::MapSegmentationResult action_result_;
 public:
 	//initialize the action-server
-	morphological_segmentation_algorithm(std::string name_of_the_action);
+	distance_segmentation_algorithm(std::string name_of_the_action);
 
 	//Default destructor for the class
-	~morphological_segmentation_algorithm(void)
+	~distance_segmentation_algorithm(void)
 	{
 	}
 };

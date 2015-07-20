@@ -2,19 +2,18 @@
 
 morphological_segmentation_algorithm::morphological_segmentation_algorithm(std::string name_of_the_action) :
 		morphological_segmentation_server_(nh_, name_of_the_action,
-		        boost::bind(&morphological_segmentation_algorithm::execute_map_segmentation_server, this, _1), false), action_name_(name_of_the_action)
+		        boost::bind(&morphological_segmentation_algorithm::execute_morph_segmentation_server, this, _1), false), action_name_(name_of_the_action)
 {
 	//Start action server
 	morphological_segmentation_server_.start();
 	//Initialize the map resolution
 	map_resolution_ = 0.0;
-	//TODO: check this
 	ros::param::param("/map_segmentation_algorithm_parameter/map_sampling_factor_check_", map_sampling_factor_, 1.5);
 	ros::param::param("/map_segmentation_algorithm_parameter/room_area_factor_lower_limit_check_", room_lower_limit_, 1.0);
 	ros::param::param("/map_segmentation_algorithm_parameter/room_area_factor_upper_limit_check_", room_upper_limit_, 40.0);
 }
 
-void morphological_segmentation_algorithm::execute_map_segmentation_server(const ipa_room_segmentation::MapSegmentationGoalConstPtr &goal)
+void morphological_segmentation_algorithm::execute_morph_segmentation_server(const ipa_room_segmentation::MapSegmentationGoalConstPtr &goal)
 {
 	ros::Rate looping_rate(1);
 	ROS_INFO("*****Segmentation action server with morphological Method********");

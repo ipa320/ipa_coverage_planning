@@ -1,26 +1,12 @@
 #include <ipa_room_segmentation/distance_segmentation.h>
 
-distance_segmentation::distance_segmentation(cv::Mat original_map_from_subscription, double map_resolution_from_subscription,
-        double room_area_factor_lower_limit, double room_area_factor_upper_limit)
+distance_segmentation::distance_segmentation()
 {
-	//set the calculating-parameters given from the main-function
-	map_resolution_from_subscription_ = map_resolution_from_subscription;
-	room_area_factor_lower_limit_ = room_area_factor_lower_limit;
-	room_area_factor_upper_limit_ = room_area_factor_upper_limit;
-	//start segmenting the map
-	segmentationAlgorithm(original_map_from_subscription);
+
 }
 
-void distance_segmentation::segmentationAlgorithm(cv::Mat map_to_be_labeled)
+cv::Mat distance_segmentation::segmentationAlgorithm(cv::Mat map_to_be_labeled)
 {
-	//uncomment this if you want to have different random-values in every step
-	//(rand() only gives pseudo-random-numbers and srand() sets a different inital-value for rand())
-//	srand(time(NULL));
-	//initialize time-measuring variables and start measuring
-	std::time_t start_t, ende_t;
-	float sek_t;
-	std::time(&start_t);
-
 	//variables for distance transformation
 	cv::Mat temporary_map = map_to_be_labeled.clone();
 	//variables for thresholding and finding the room-areas
@@ -76,20 +62,21 @@ void distance_segmentation::segmentationAlgorithm(cv::Mat map_to_be_labeled)
 		do
 		{
 			cv::Scalar fill_colour(rand() % 200 + 53);
-			if(!contains(already_used_coloures_, fill_colour))
+			if (!contains(already_used_coloures_, fill_colour))
 			{
 				cv::drawContours(temporary_map, saved_contours, current_contour, fill_colour, CV_FILLED);
 				already_used_coloures_.push_back(fill_colour); //add used colour to the saving-vector
 				drawn = true;
 			}
-		}while(!drawn);
+		} while (!drawn);
 	}
 	//spread the colors to the white Pixels
 	temporary_map = watershed_region_spreading(temporary_map);
+	return temporary_map;
+}
 
-	std::time(&ende_t);
-	sek_t = (float) (ende_t - start_t);
-
-	std::cout << "Berechnungszeit: " << sek_t << "s" << std::endl;
-	cv::imwrite("/home/rmb-fj/Pictures/maps/distance_segmentation/distance_segmented_map_new.png", temporary_map);
+void distance_segmentation::clear_all_vectors()
+{
+	saved_contours.clear();
+	already_used_coloures_.clear();
 }

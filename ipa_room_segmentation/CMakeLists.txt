@@ -93,7 +93,7 @@ include_directories(
 	${Boost_INCLUDE_DIRS}
 )
 
-
+#for testing purpose
 add_executable(action_client_test ros/src/action_client_tester.cpp)
 target_link_libraries(action_client_test
 	${catkin_LIBRARIES} 
@@ -101,6 +101,7 @@ target_link_libraries(action_client_test
 )
 add_dependencies(action_client_test ${catkin_EXPORTED_TARGETS}  ${ipa_room_segmentation_EXPORTED_TARGETS})
 
+#segmentation based on the morphological operations
 add_executable(morpholigical_segmentation_server ros/src/morphological_segmentation_server.cpp common/src/morphological_segmentation.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp)
 target_link_libraries(morpholigical_segmentation_server 
 	${catkin_LIBRARIES} 
@@ -108,18 +109,31 @@ target_link_libraries(morpholigical_segmentation_server
 )
 add_dependencies(morpholigical_segmentation_server ${catkin_EXPORTED_TARGETS}  ${ipa_room_segmentation_EXPORTED_TARGETS})
 
+#segmentation based on the distance-map
 add_executable(distance_segmentation_server ros/src/distance_segmentation_server.cpp common/src/distance_segmentation.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp)
-target_link_libraries(distance_segmentation_server ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+target_link_libraries(distance_segmentation_server 
+	${catkin_LIBRARIES} 
+	${OpenCV_LIBRARIES}
+)
 add_dependencies(distance_segmentation_server ${catkin_EXPORTED_TARGETS})
 
+#segmentation based on the voronoi-graph
 add_executable(voronoi_segmentation_server ros/src/voronoi_segmentation_server.cpp common/src/voronoi_segmentation.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp)
-target_link_libraries(voronoi_segmentation_server ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+target_link_libraries(voronoi_segmentation_server 
+	${catkin_LIBRARIES} 
+	${OpenCV_LIBRARIES}
+)
 add_dependencies(voronoi_segmentation_server ${catkin_EXPORTED_TARGETS})
 
+#segmentation based on the semantic labeling
 add_executable(semantic_segmentation_server ros/src/semantic_segmentation_server.cpp common/src/features.cpp common/src/adaboost_classifier.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp common/src/raycasting.cpp)
-target_link_libraries(semantic_segmentation_server ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+target_link_libraries(semantic_segmentation_server 
+	${catkin_LIBRARIES} 
+	${OpenCV_LIBRARIES}
+)
 add_dependencies(semantic_segmentation_server ${catkin_EXPORTED_TARGETS})
 
+#evaluation-function, not relevant
 add_executable(evaluation ros/src/evaluation.cpp)
 target_link_libraries(evaluation ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 add_dependencies(evaluation ${catkin_EXPORTED_TARGETS})
