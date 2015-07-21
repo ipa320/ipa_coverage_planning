@@ -101,14 +101,6 @@ target_link_libraries(action_client_test
 )
 add_dependencies(action_client_test ${catkin_EXPORTED_TARGETS}  ${ipa_room_segmentation_EXPORTED_TARGETS})
 
-#segmentation based on the morphological operations
-#add_executable(morpholigical_segmentation_server ros/src/morphological_segmentation_server.cpp common/src/morphological_segmentation.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp)
-#target_link_libraries(morpholigical_segmentation_server 
-#	${catkin_LIBRARIES} 
-#	${OpenCV_LIBRARIES}
-#)
-#add_dependencies(morpholigical_segmentation_server ${catkin_EXPORTED_TARGETS}  ${ipa_room_segmentation_EXPORTED_TARGETS})
-
 #segmentation action server. See room_segmentation_action_server_params.yaml to change the used method.
 add_executable(room_segmentation_server ros/src/room_segmentation_server.cpp common/src/distance_segmentation.cpp common/src/morphological_segmentation.cpp common/src/voronoi_segmentation.cpp common/src/adaboost_classifier.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp common/src/features.cpp common/src/raycasting.cpp)
 target_link_libraries(room_segmentation_server 
@@ -116,14 +108,6 @@ target_link_libraries(room_segmentation_server
 	${OpenCV_LIBRARIES}
 )
 add_dependencies(room_segmentation_server ${catkin_EXPORTED_TARGETS})
-
-#segmentation based on the semantic labeling
-#add_executable(semantic_segmentation_server ros/src/semantic_segmentation_server.cpp common/src/features.cpp common/src/adaboost_classifier.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp common/src/raycasting.cpp)
-#target_link_libraries(semantic_segmentation_server 
-#	${catkin_LIBRARIES} 
-#	${OpenCV_LIBRARIES}
-#)
-#add_dependencies(semantic_segmentation_server ${catkin_EXPORTED_TARGETS})
 
 #evaluation-function, not relevant
 add_executable(evaluation ros/src/evaluation.cpp)

@@ -11,7 +11,7 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 	map_resolution_ = 0.0;
 
 	//set the parameter to check if the algorithm needs to be trained
-	train_the_algorithm_ = true;
+	train_the_algorithm_ = false;
 
 	// Parameters
 	std::cout << "\n--------------------------\nRoom Segmentation Parameters:\n--------------------------\n";
@@ -60,8 +60,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	{
 		if (train_the_algorithm_)
 		{
-			//load the training maps
-			//TODO: no absolute paths!!
+			//load the training maps, change to your maps when you want to train different ones
 			cv::Mat first_room_training_map = cv::imread("/home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/training_maps/room_training_map.png", 0);
 			cv::Mat second_room_training_map = cv::imread("/home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/training_maps/lab_d_room_training_map.png", 0);
 			cv::Mat first_hallway_training_map = cv::imread("/home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/training_maps/hallway_training_map.png", 0);
@@ -76,8 +75,6 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 		ROS_ERROR("Undefined algorithm selected.");
 		return;
 	}
-
-	cv::imwrite("/home/rmb-fj/Pictures/maps/action_tests/one_server.png", segmented_map_);
 
 	ROS_INFO("********Segmented the map************");
 	looping_rate.sleep();
@@ -121,8 +118,11 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 		{
 			room_centers_x_values[idx] = min_x_value_of_the_room[idx] + ((max_x_value_of_the_room[idx] - min_x_value_of_the_room[idx]) / 2);
 			room_centers_y_values[idx] = min_y_value_of_the_room[idx] + ((max_y_value_of_the_room[idx] - min_y_value_of_the_room[idx]) / 2);
+			cv::circle(segmented_map_, cv::Point(room_centers_y_values[idx], room_centers_x_values[idx]), 2, cv::Scalar(200), CV_FILLED);
 		}
 	}
+
+	cv::imwrite("/home/rmb-fj/Pictures/maps/action_tests/one_server.png", segmented_map_);
 
 	//****************publish the results**********************
 	//converting the cv format in map msg format

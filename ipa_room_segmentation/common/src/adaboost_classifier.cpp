@@ -8,7 +8,7 @@ AdaboostClassifier::AdaboostClassifier()
 		angles_for_simulation_.push_back(angle);
 	}
 	// Set up boosting parameters
-	CvBoostParams params(CvBoost::DISCRETE, 400, 0, 2, false, 0);
+	CvBoostParams params(CvBoost::DISCRETE, 350, 0, 2, false, 0);
 	params_ = params;
 	trained_ = false;
 }
