@@ -1,25 +1,20 @@
 #include <ipa_room_segmentation/adaboost_classifier.h>
 
-adaboost_classifier::adaboost_classifier(cv::Mat original_map_from_subscription, double map_resolution_from_subscription, double room_area_factor_lower_limit,
-        double room_area_factor_upper_limit)
+AdaboostClassifier::AdaboostClassifier()
 {
-	map_resolution_from_subscription_ = map_resolution_from_subscription;
-	room_area_factor_lower_limit_ = room_area_factor_lower_limit;
-	room_area_factor_upper_limit_ = room_area_factor_upper_limit;
 	//save the angles between the simulated beams, used in the following algorithm
 	for (double angle = 0; angle < 360; angle++)
 	{
 		angles_for_simulation_.push_back(angle);
 	}
 	// Set up boosting parameters
-	CvBoostParams params(CvBoost::DISCRETE, 300, 0, 2, false, 0);
+	CvBoostParams params(CvBoost::DISCRETE, 400, 0, 2, false, 0);
 	params_ = params;
-	//set the initial value for trained-shower
 	trained_ = false;
 }
 
-void adaboost_classifier::trainClassifiers(cv::Mat first_room_training_map, cv::Mat second_room_training_map, cv::Mat first_hallway_training_map,
-        cv::Mat second_hallway_training_map)
+void AdaboostClassifier::trainClassifiers(const cv::Mat& first_room_training_map, const cv::Mat& second_room_training_map,
+        const cv::Mat& first_hallway_training_map, const cv::Mat& second_hallway_training_map)
 {
 	//**************************Training-Algorithm for the AdaBoost-classifiers*****************************
 	//This Alogrithm trains two AdaBoost-classifiers from OpenCV. It takes the given training maps and finds the Points
@@ -159,8 +154,7 @@ void adaboost_classifier::trainClassifiers(cv::Mat first_room_training_map, cv::
 	// Train a boost classifier
 	hallway_boost_.train(hallway_features_Mat, CV_ROW_SAMPLE, hallway_labels_Mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
 	//save the trained booster
-	// todo: do not use fixed paths! use a relative path --> data will end up in ~/.ros/...
-	hallway_boost_.save("src/autopnp/ipa_room_segmentation/training_results/trained_hallway_boost.xml", "boost");
+	hallway_boost_.save("ipa_room_segmentation/training_results/trained_hallway_boost.xml", "boost");
 	ROS_INFO("Done hallway classifiers.");
 
 	//*************room***************
@@ -178,15 +172,15 @@ void adaboost_classifier::trainClassifiers(cv::Mat first_room_training_map, cv::
 	// Train a boost classifier
 	room_boost_.train(room_features_Mat, CV_ROW_SAMPLE, room_labels_Mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
 	//save the trained booster
-	//room_boost.save("/home/rmb-fj/roomsegmentation/src/segmentation/src/training_results/trained_room_boost.xml", "boost");
-	room_boost_.save("src/autopnp/ipa_room_segmentation/training_results/trained_room_boost.xml", "boost");
+	room_boost_.save("ipa_room_segmentation/training_results/trained_room_boost.xml", "boost");
 	//set the trained-variabel true, so the labeling-algorithm knows the classifiers have been trained already
 	trained_ = true;
 	ROS_INFO("Done room classifiers.");
 	ROS_INFO("Finished training the algorithm.");
 }
 
-cv::Mat adaboost_classifier::semanticLabeling(cv::Mat map_to_be_labeled)
+void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription,
+        double room_area_factor_lower_limit, double room_area_factor_upper_limit)
 {
 	//******************Semantic-labeling function based on AdaBoost*****************************
 	//This function calculates single-valued features for every white Pixel in the given occupancy-gridmap and classifies it
@@ -208,8 +202,9 @@ cv::Mat adaboost_classifier::semanticLabeling(cv::Mat map_to_be_labeled)
 	//***********************I. check if classifiers has already been trained*****************************
 	if (!trained_) //classifiers hasn't been trained before so they should be loaded
 	{
-		room_boost_.load("src/autopnp/ipa_room_segmentation/training_results/trained_room_boost.xml");
-		hallway_boost_.load("src/autopnp/ipa_room_segmentation/training_results/trained_hallway_boost.xml");
+		room_boost_.load("ipa_room_segmentation/training_results/trained_room_boost.xml");
+		hallway_boost_.load("ipa_room_segmentation/training_results/trained_hallway_boost.xml");
+		trained_ = true;
 		ROS_INFO("Loaded training results.");
 	}
 	//*************** II. Go trough each Point and label it as room or hallway.**************************
@@ -249,8 +244,10 @@ cv::Mat adaboost_classifier::semanticLabeling(cv::Mat map_to_be_labeled)
 		}
 	}
 	//******************** III. Aply a median filter over the image to smooth the results.***************************
+
 	cv::Mat temporary_map = original_Map_to_be_labeled.clone();
 	cv::medianBlur(temporary_map, temporary_map, 3);
+
 	//make regions black, that has been black before
 	for (int x = 0; x < original_Map_to_be_labeled.rows; x++)
 	{
@@ -262,17 +259,22 @@ cv::Mat adaboost_classifier::semanticLabeling(cv::Mat map_to_be_labeled)
 			}
 		}
 	}
-	cv::Mat labeling_Map = map_to_be_labeled.clone();
+
+	segmented_map = map_to_be_labeled.clone();
+
 	cv::Mat blured_image_for_thresholding = temporary_map.clone();
-	// todo: no absolute paths
-	cv::imwrite("/home/rmb-fj/Pictures/maps/semantic/opencv/opencvboost.png", temporary_map);
+
+	cv::imwrite("/home/rmb-fj/Pictures/maps/action_tests/semantic_labels.png", blured_image_for_thresholding);
 
 	//*********** IV. Fill the large enough rooms with a random color and split the hallways into smaller regions*********
+
 	std::vector<std::vector<cv::Point> > contours, temporary_contours, saved_room_contours, saved_hallway_contours;
 	//hierarchy saves if the contours are hole-contours:
 	//hierarchy[{0,1,2,3}]={next contour (same level), previous contour (same level), child contour, parent contour}
 	//child-contour = 1 if it has one, = -1 if not, same for parent_contour
 	std::vector < cv::Vec4i > hierarchy;
+
+	std::vector < cv::Scalar > already_used_colours; //saving-vector for the already used coloures
 
 	//find the contours, which are labeled as a room
 	cv::threshold(temporary_map, temporary_map, 120, 255, cv::THRESH_BINARY); //find rooms (value = 150)
@@ -282,21 +284,22 @@ cv::Mat adaboost_classifier::semanticLabeling(cv::Mat map_to_be_labeled)
 	//only take rooms that are large enough and that are not a hole-contour
 	for (int c = 0; c < contours.size(); c++)
 	{
-		if (map_resolution_from_subscription_ * map_resolution_from_subscription_ * cv::contourArea(contours[c]) > room_area_factor_lower_limit_
-				&& hierarchy[c][3] != 1)
+		if (map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(contours[c]) > room_area_factor_lower_limit
+		        && hierarchy[c][3] != 1)
 		{
 			saved_room_contours.push_back(contours[c]);
 		}
 	}
-
 	//find the contours, which are labeled as a hallway
+
 	temporary_map = blured_image_for_thresholding.clone();
+
 	cv::threshold(temporary_map, temporary_map, 90, 255, cv::THRESH_BINARY); //find hallways (value = 100)
 	cv::findContours(temporary_map, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
 	//if the hallway-contours are too big split them into smaller regions, also don't take too small regions
 	for (int contour_counter = 0; contour_counter < contours.size(); contour_counter++)
 	{
-		if (map_resolution_from_subscription_ * map_resolution_from_subscription_ * cv::contourArea(contours[contour_counter]) > room_area_factor_upper_limit_)
+		if (map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(contours[contour_counter]) > room_area_factor_upper_limit)
 		{
 			//Generate a black map to draw the hallway-contour in. Then use this map to ckeck if the generated random Points
 			// are inside the contour.
@@ -316,7 +319,7 @@ cv::Mat adaboost_classifier::semanticLabeling(cv::Mat map_to_be_labeled)
 					temporary_watershed_centers.push_back(cv::Point(random_x, random_y));
 					center_counter++;
 				}
-			} while (center_counter <= (map_resolution_from_subscription_ * map_resolution_from_subscription_ * cv::contourArea(contours[contour_counter])) / 8);
+			} while (center_counter <= (map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(contours[contour_counter])) / 8);
 			//draw the centers as white circles into a black map and give the center-map and the contour-map to the opencv watershed-algorithm
 			for (int current_center = 0; current_center < temporary_watershed_centers.size(); current_center++)
 			{
@@ -324,10 +327,10 @@ cv::Mat adaboost_classifier::semanticLabeling(cv::Mat map_to_be_labeled)
 				do
 				{
 					cv::Scalar fill_colour(rand() % 200 + 53);
-					if (!contains(already_used_colours_, fill_colour))
+					if (!contains(already_used_colours, fill_colour))
 					{
 						cv::circle(contour_Map, temporary_watershed_centers[current_center], 2, fill_colour, CV_FILLED);
-						already_used_colours_.push_back(fill_colour);
+						already_used_colours.push_back(fill_colour);
 						coloured = true;
 					}
 				} while (!coloured);
@@ -343,21 +346,22 @@ cv::Mat adaboost_classifier::semanticLabeling(cv::Mat map_to_be_labeled)
 					}
 				}
 			}
-			temporary_map = watershed_region_spreading(contour_Map);
-			cv::imwrite("/home/rmb-fj/Pictures/maps/semantic/spreading.png", temporary_map);
+			temporary_map = contour_Map.clone();
+			watershed_region_spreading(temporary_map);
 			//draw the seperated contour into the map, which should be labeled
-			for (int x = 0; x < labeling_Map.rows; x++)
+			for (int x = 0; x < segmented_map.rows; x++)
 			{
-				for (int y = 0; y < labeling_Map.cols; y++)
+				for (int y = 0; y < segmented_map.cols; y++)
 				{
 					if (temporary_map.at<unsigned char>(x, y) != 0)
 					{
-						labeling_Map.at<unsigned char>(x, y) = temporary_map.at<unsigned char>(x, y);
+						segmented_map.at<unsigned char>(x, y) = temporary_map.at<unsigned char>(x, y);
 					}
 				}
 			}
 		}
-		else if (map_resolution_from_subscription_ * map_resolution_from_subscription_ * cv::contourArea(contours[contour_counter]) > room_area_factor_lower_limit_)
+		else if (map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(contours[contour_counter])
+		        > room_area_factor_lower_limit)
 		{
 			saved_hallway_contours.push_back(contours[contour_counter]);
 		}
@@ -369,10 +373,10 @@ cv::Mat adaboost_classifier::semanticLabeling(cv::Mat map_to_be_labeled)
 		do
 		{
 			cv::Scalar fill_colour(rand() % 200 + 53);
-			if (!contains(already_used_colours_, fill_colour))
+			if (!contains(already_used_colours, fill_colour))
 			{
-				cv::drawContours(labeling_Map, saved_room_contours, room, fill_colour, CV_FILLED);
-				already_used_colours_.push_back(fill_colour);
+				cv::drawContours(segmented_map, saved_room_contours, room, fill_colour, CV_FILLED);
+				already_used_colours.push_back(fill_colour);
 				coloured = true;
 			}
 		} while (!coloured);
@@ -380,19 +384,21 @@ cv::Mat adaboost_classifier::semanticLabeling(cv::Mat map_to_be_labeled)
 	for (int hallway = 0; hallway < saved_hallway_contours.size(); hallway++)
 	{
 		bool coloured = false;
+		int loop_counter = 0; //loop-counter to exit the loop if it gets a infite loop
 		do
 		{
+			loop_counter++;
 			cv::Scalar fill_colour(rand() % 200 + 53);
-			if (!contains(already_used_colours_, fill_colour))
+			if (!contains(already_used_colours, fill_colour) || loop_counter > 250)
 			{
-				cv::drawContours(labeling_Map, saved_hallway_contours, hallway, fill_colour, CV_FILLED);
-				already_used_colours_.push_back(fill_colour);
+				cv::drawContours(segmented_map, saved_hallway_contours, hallway, fill_colour, CV_FILLED);
+				already_used_colours.push_back(fill_colour);
 				coloured = true;
 			}
 		} while (!coloured);
 	}
 	//spread the coloured regions to regions, which were too small and aren't drawn into the map
-	labeling_Map = watershed_region_spreading(labeling_Map);
+	watershed_region_spreading(segmented_map);
 	//make sure previously black Pixels are still black
 	for (int x = 0; x < map_to_be_labeled.rows; x++)
 	{
@@ -400,10 +406,9 @@ cv::Mat adaboost_classifier::semanticLabeling(cv::Mat map_to_be_labeled)
 		{
 			if (map_to_be_labeled.at<unsigned char>(x, y) == 0)
 			{
-				labeling_Map.at<unsigned char>(x, y) = 0;
+				segmented_map.at<unsigned char>(x, y) = 0;
 			}
 		}
 	}
 	ROS_INFO("Finsihed Labeling the map.");
-	return labeling_Map;
 }

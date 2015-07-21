@@ -11,22 +11,12 @@
 
 #include <ctime>
 
-class distance_segmentation
+class DistanceSegmentation
 {
-private:
-	//variable for the distance-transformed map
-	cv::Mat distance_map_;
-	//saving-vector for the found contours
-	std::vector<std::vector<cv::Point> > saved_contours;
-	//saving-variable for already used fill-colours
-	std::vector<cv::Scalar> already_used_coloures_;
 public:
-	//variables for calculating-purpose
-	double map_resolution_from_subscription_;
-	double room_area_factor_lower_limit_;
-	double room_area_factor_upper_limit_;
-	distance_segmentation();
+
+	DistanceSegmentation();
+
 	//algorithm to segment the map
-	cv::Mat segmentationAlgorithm(cv::Mat map_to_be_labeled);
-	void clear_all_vectors();
+	void segmentationAlgorithm(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit);
 };

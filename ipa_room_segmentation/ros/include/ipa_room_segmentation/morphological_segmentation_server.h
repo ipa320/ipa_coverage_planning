@@ -46,7 +46,7 @@ private:
 	//This is the execution function used by action server
 	void execute_morph_segmentation_server(const ipa_room_segmentation::MapSegmentationGoalConstPtr &goal);
 	//segmentation-object that segments the map
-	morphological_segmentation segmenter_;
+	MorphologicalSegmentation segmenter_;
 protected:
 	ros::NodeHandle nh_;
 	actionlib::SimpleActionServer<ipa_room_segmentation::MapSegmentationAction> morphological_segmentation_server_;

@@ -1,40 +1,87 @@
-#include <ipa_room_segmentation/distance_segmentation_server.h>
+#include <ipa_room_segmentation/room_segmentation_server.h>
 
-distance_segmentation_algorithm::distance_segmentation_algorithm(std::string name_of_the_action) :
-		distance_segmentation_server_(nh_, name_of_the_action,
-		        boost::bind(&distance_segmentation_algorithm::execute_dist_segmentation_server, this, _1), false), action_name_(name_of_the_action)
+RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string name_of_the_action) :
+		node_handle_(nh), room_segmentation_server_(node_handle_, name_of_the_action,
+		        boost::bind(&RoomSegmentationServer::execute_segmentation_server, this, _1), false), action_name_(name_of_the_action)
 {
 	//Start action server
-	distance_segmentation_server_.start();
+	room_segmentation_server_.start();
+
 	//Initialize the map resolution
 	map_resolution_ = 0.0;
-	ros::param::param("/map_segmentation_algorithm_parameter/map_sampling_factor_check_", map_sampling_factor_, 1.5);
-	ros::param::param("/map_segmentation_algorithm_parameter/room_area_factor_lower_limit_check_", room_lower_limit_, 1.0);
-	ros::param::param("/map_segmentation_algorithm_parameter/room_area_factor_upper_limit_check_", room_upper_limit_, 45.0);
+
+	//set the parameter to check if the algorithm needs to be trained
+	train_the_algorithm_ = true;
+
+	// Parameters
+	std::cout << "\n--------------------------\nRoom Segmentation Parameters:\n--------------------------\n";
+	node_handle_.param("map_sampling_factor_check", map_sampling_factor_check_, 1.5);
+	std::cout << "room_segmentation/map_sampling_factor_check = " << map_sampling_factor_check_ << std::endl;
+	node_handle_.param("room_area_factor_lower_limit_check", room_lower_limit_check_, 1.0);
+	std::cout << "room_segmentation/room_area_factor_lower_limit_check = " << room_lower_limit_check_ << std::endl;
+	node_handle_.param("room_area_factor_upper_limit_check", room_upper_limit_check_, 45.0);
+	std::cout << "room_segmentation/room_area_factor_upper_limit_check = " << room_upper_limit_check_ << std::endl;
+	node_handle_.param("room_segmentation_algorithm", room_segmentation_algorithm_, 1);
+	std::cout << "room_segmentation/room_segmentation_algorithm = " << room_segmentation_algorithm_ << std::endl;
 }
 
-void distance_segmentation_algorithm::execute_dist_segmentation_server(const ipa_room_segmentation::MapSegmentationGoalConstPtr &goal)
+void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmentation::MapSegmentationGoalConstPtr &goal)
 {
 	ros::Rate looping_rate(1);
-	ROS_INFO("*****Segmentation action server with distance-transform Method********");
+	ROS_INFO("*****Segmentation action server*****");
 	ROS_INFO("map resolution is : %f", goal->map_resolution);
-	ROS_INFO("map sampling factor is : %f", map_sampling_factor_);
-	ROS_INFO("room area factor lower limit is : %f", room_lower_limit_);
-	ROS_INFO("room area factor upper limit is : %f", room_upper_limit_);
+	ROS_INFO("map sampling factor is : %f", map_sampling_factor_check_);
+	ROS_INFO("room area factor lower limit is : %f", room_lower_limit_check_);
+	ROS_INFO("room area factor upper limit is : %f", room_upper_limit_check_);
+
 	//converting the map msg in cv format
 	cv_bridge::CvImagePtr cv_ptr_obj;
 	cv_ptr_obj = cv_bridge::toCvCopy(goal->input_map, sensor_msgs::image_encodings::MONO8);
 	cv::Mat original_img;
 	original_img = cv_ptr_obj->image;
+
 	//set the resolution and the limits for the actual goal and the Map origin
-	segmenter_.map_resolution_from_subscription_ = goal->map_resolution;
-	segmenter_.room_area_factor_lower_limit_ = room_lower_limit_;
-	segmenter_.room_area_factor_upper_limit_ = room_upper_limit_;
 	map_origin_ = cv::Point2d(goal->map_origin_x, goal->map_origin_y);
+
 	//segment the given map
-	segmented_map_ = segmenter_.segmentationAlgorithm(original_img);
+	if (room_segmentation_algorithm_ == 1)
+	{
+		morphological_segmentation_.segmentationAlgorithm(original_img, segmented_map_, goal->map_resolution, room_lower_limit_check_, room_upper_limit_check_);
+	}
+	else if (room_segmentation_algorithm_ == 2)
+	{
+		distance_segmentation_.segmentationAlgorithm(original_img, segmented_map_, goal->map_resolution, room_lower_limit_check_, room_upper_limit_check_);
+	}
+	else if (room_segmentation_algorithm_ == 3)
+	{
+		voronoi_segmentation_.segmentationAlgorithm(original_img, segmented_map_, goal->map_resolution, room_lower_limit_check_, room_upper_limit_check_);
+	}
+	else if (room_segmentation_algorithm_ == 4)
+	{
+		if (train_the_algorithm_)
+		{
+			//load the training maps
+			//TODO: no absolute paths!!
+			cv::Mat first_room_training_map = cv::imread("/home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/training_maps/room_training_map.png", 0);
+			cv::Mat second_room_training_map = cv::imread("/home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/training_maps/lab_d_room_training_map.png", 0);
+			cv::Mat first_hallway_training_map = cv::imread("/home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/training_maps/hallway_training_map.png", 0);
+			cv::Mat second_hallway_training_map = cv::imread("/home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/training_maps/lab_a_hallway_training_map.png", 0);
+			//train the algorithm
+			semantic_segmentation_.trainClassifiers(first_room_training_map, second_room_training_map, first_hallway_training_map, second_hallway_training_map);
+		}
+		semantic_segmentation_.semanticLabeling(original_img, segmented_map_, goal->map_resolution, room_lower_limit_check_, room_upper_limit_check_);
+	}
+	else
+	{
+		ROS_ERROR("Undefined algorithm selected.");
+		return;
+	}
+
+	cv::imwrite("/home/rmb-fj/Pictures/maps/action_tests/one_server.png", segmented_map_);
+
 	ROS_INFO("********Segmented the map************");
 	looping_rate.sleep();
+
 	//get the min/max-values and the room-centers
 	//min/max y/x-values vector for each room. Initialized with extreme values
 	std::vector<int> min_y_value_of_the_room(255, 100000000);
@@ -76,6 +123,7 @@ void distance_segmentation_algorithm::execute_dist_segmentation_server(const ipa
 			room_centers_y_values[idx] = min_y_value_of_the_room[idx] + ((max_y_value_of_the_room[idx] - min_y_value_of_the_room[idx]) / 2);
 		}
 	}
+
 	//****************publish the results**********************
 	//converting the cv format in map msg format
 	cv_bridge::CvImage cv_image;
@@ -112,30 +160,32 @@ void distance_segmentation_algorithm::execute_dist_segmentation_server(const ipa
 	}
 
 	//publish result
-	distance_segmentation_server_.setSucceeded(action_result_);
-	//*****************clear the values for the next time***********************
-	//clearing the action msgs container
-	action_result_.room_center_x_in_meter.clear();
-	action_result_.room_center_y_in_meter.clear();
-	action_result_.room_min_x_in_meter.clear();
-	action_result_.room_min_y_in_meter.clear();
-	action_result_.room_max_x_in_meter.clear();
-	action_result_.room_max_y_in_meter.clear();
-	//clearing the memory container used
-	min_x_value_of_the_room.clear();
-	max_x_value_of_the_room.clear();
-	min_y_value_of_the_room.clear();
-	max_y_value_of_the_room.clear();
-	room_centers_x_values.clear();
-	room_centers_y_values.clear();
-	segmenter_.clear_all_vectors();
+	room_segmentation_server_.setSucceeded(action_result_);
+//	//*****************clear the values for the next time***********************
+//	//clearing the action msgs container
+//	action_result_.room_center_x_in_meter.clear();
+//	action_result_.room_center_y_in_meter.clear();
+//	action_result_.room_min_x_in_meter.clear();
+//	action_result_.room_min_y_in_meter.clear();
+//	action_result_.room_max_x_in_meter.clear();
+//	action_result_.room_max_y_in_meter.clear();
+//	//clearing the memory container used
+//	min_x_value_of_the_room.clear();
+//	max_x_value_of_the_room.clear();
+//	min_y_value_of_the_room.clear();
+//	max_y_value_of_the_room.clear();
+//	room_centers_x_values.clear();
+//	room_centers_y_values.clear();
 }
 
 int main(int argc, char** argv)
 {
-	ros::init(argc, argv, "distance_segmentation_server");
-	distance_segmentation_algorithm segmentationAlgorithmObj(ros::this_node::getName());
-	ROS_INFO("Action Server for distance segmentation has been initalized......");
+	ros::init(argc, argv, "room_segmentation_server_");
+
+	ros::NodeHandle nh;
+
+	RoomSegmentationServer segmentationAlgorithmObj(nh, ros::this_node::getName());
+	ROS_INFO("Action Server for room segmentation has been initalized......");
 	ros::spin();
 
 	return 0;

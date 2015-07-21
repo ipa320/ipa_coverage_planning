@@ -17,29 +17,29 @@
 #include <ipa_room_segmentation/contains.h>
 #include <ipa_room_segmentation/raycasting.h>
 
-class adaboost_classifier
+class AdaboostClassifier
 {
-private:
-	//variables for calculating-purpose
-	double map_resolution_from_subscription_;
-	double room_area_factor_lower_limit_;
-	double room_area_factor_upper_limit_;
-	//variable that shows if the classifiers has already been trained
-	bool trained_;
-	//angle-vector used to calculate the features for this algorithm
-	std::vector<double> angles_for_simulation_;
-	//saving-vector for the already used coloures
-	std::vector < cv::Scalar > already_used_colours_;
-	//Parameters for the classifiers
-	CvBoostParams params_;
-	//the AdaBoost-classifiers for rooms and hallways
-	CvBoost hallway_boost_, room_boost_;
+protected:
+
+	bool trained_; //variable that shows if the classifiers has already been trained
+
+	std::vector<double> angles_for_simulation_; //angle-vector used to calculate the features for this algorithm
+
+	CvBoostParams params_; //Parameters for the classifiers
+
+	CvBoost hallway_boost_, room_boost_; //the AdaBoost-classifiers for rooms and hallways
+
 public:
-	adaboost_classifier(cv::Mat original_map_from_subscription, double map_resolution_from_subscription, double room_area_factor_lower_limit,
-	        double room_area_factor_upper_limit);
+
+
+	AdaboostClassifier();
+
+
 	//training-method for the classifier
-	void trainClassifiers(cv::Mat first_room_training_map, cv::Mat second_room_training_map, cv::Mat first_hallway_training_map,
-	        cv::Mat second_hallway_training_map);
+	void trainClassifiers(const cv::Mat& first_room_training_map, const cv::Mat& second_room_training_map, const cv::Mat& first_hallway_training_map,
+	        const cv::Mat& second_hallway_training_map);
+
+
 	//labeling-algorithm after the training
-	cv::Mat semanticLabeling(cv::Mat map_to_be_labeled);
+	void semanticLabeling(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit);
 };

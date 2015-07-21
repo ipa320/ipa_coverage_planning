@@ -1,0 +1,24 @@
+# map sampling factor-> The chance of getting proper room configuration depends on this value ------> in [m]
+# 1. choice of value is very important
+# 2. slightly large value will give better sampled map
+# 3. Extra large value will cost more computation time
+# 4. large value is needed for big map
+# 5. small value is needed for small map
+
+map_sampling_factor_check: 1.5
+
+# room area factor-> Set the limitation of area of the room -------> in [m]
+# 1. choice of value is very important
+# 2. smaller value increase the chance to get every room
+
+room_area_factor_lower_limit_check: 1.0 
+room_area_factor_upper_limit_check: 45.0
+
+
+# this variable selects the algorithm for room segmentation
+# 1 = morphological segmentation
+# 2 = distance segmentation
+# 3 = Voronoi segmentation
+# 4 = semantic segmentation
+# int
+room_segmentation_algorithm: 4

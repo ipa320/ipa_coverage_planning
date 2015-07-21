@@ -102,36 +102,28 @@ target_link_libraries(action_client_test
 add_dependencies(action_client_test ${catkin_EXPORTED_TARGETS}  ${ipa_room_segmentation_EXPORTED_TARGETS})
 
 #segmentation based on the morphological operations
-add_executable(morpholigical_segmentation_server ros/src/morphological_segmentation_server.cpp common/src/morphological_segmentation.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp)
-target_link_libraries(morpholigical_segmentation_server 
-	${catkin_LIBRARIES} 
-	${OpenCV_LIBRARIES}
-)
-add_dependencies(morpholigical_segmentation_server ${catkin_EXPORTED_TARGETS}  ${ipa_room_segmentation_EXPORTED_TARGETS})
+#add_executable(morpholigical_segmentation_server ros/src/morphological_segmentation_server.cpp common/src/morphological_segmentation.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp)
+#target_link_libraries(morpholigical_segmentation_server 
+#	${catkin_LIBRARIES} 
+#	${OpenCV_LIBRARIES}
+#)
+#add_dependencies(morpholigical_segmentation_server ${catkin_EXPORTED_TARGETS}  ${ipa_room_segmentation_EXPORTED_TARGETS})
 
-#segmentation based on the distance-map
-add_executable(distance_segmentation_server ros/src/distance_segmentation_server.cpp common/src/distance_segmentation.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp)
-target_link_libraries(distance_segmentation_server 
+#segmentation action server. See room_segmentation_action_server_params.yaml to change the used method.
+add_executable(room_segmentation_server ros/src/room_segmentation_server.cpp common/src/distance_segmentation.cpp common/src/morphological_segmentation.cpp common/src/voronoi_segmentation.cpp common/src/adaboost_classifier.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp common/src/features.cpp common/src/raycasting.cpp)
+target_link_libraries(room_segmentation_server 
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBRARIES}
 )
-add_dependencies(distance_segmentation_server ${catkin_EXPORTED_TARGETS})
-
-#segmentation based on the voronoi-graph
-add_executable(voronoi_segmentation_server ros/src/voronoi_segmentation_server.cpp common/src/voronoi_segmentation.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp)
-target_link_libraries(voronoi_segmentation_server 
-	${catkin_LIBRARIES} 
-	${OpenCV_LIBRARIES}
-)
-add_dependencies(voronoi_segmentation_server ${catkin_EXPORTED_TARGETS})
+add_dependencies(room_segmentation_server ${catkin_EXPORTED_TARGETS})
 
 #segmentation based on the semantic labeling
-add_executable(semantic_segmentation_server ros/src/semantic_segmentation_server.cpp common/src/features.cpp common/src/adaboost_classifier.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp common/src/raycasting.cpp)
-target_link_libraries(semantic_segmentation_server 
-	${catkin_LIBRARIES} 
-	${OpenCV_LIBRARIES}
-)
-add_dependencies(semantic_segmentation_server ${catkin_EXPORTED_TARGETS})
+#add_executable(semantic_segmentation_server ros/src/semantic_segmentation_server.cpp common/src/features.cpp common/src/adaboost_classifier.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp common/src/raycasting.cpp)
+#target_link_libraries(semantic_segmentation_server 
+#	${catkin_LIBRARIES} 
+#	${OpenCV_LIBRARIES}
+#)
+#add_dependencies(semantic_segmentation_server ${catkin_EXPORTED_TARGETS})
 
 #evaluation-function, not relevant
 add_executable(evaluation ros/src/evaluation.cpp)
@@ -143,7 +135,7 @@ add_dependencies(evaluation ${catkin_EXPORTED_TARGETS})
 ## Install ##
 #############
 ## Mark executables and/or libraries for installation
-install(TARGETS morpholigical_segmentation_server distance_segmentation_server voronoi_segmentation_server semantic_segmentation_server evaluation
+install(TARGETS room_segmentation_server evaluation
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

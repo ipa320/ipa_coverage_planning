@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- send parameters to parameter server -->
+  <rosparam command="load" ns="room_segmentation" file="$(find ipa_room_segmentation)/ros/launch/room_segmentation_action_server_params.yaml"/>
+
+  <!--  -->
+  <node ns="room_segmentation" pkg="ipa_room_segmentation" type="room_segmentation_server" name="room_segmentation_server" output="screen"/>
+
+</launch>

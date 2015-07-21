@@ -48,7 +48,7 @@ private:
 	//This is the execution function used by action server
 	void execute_vor_segmentation_server(const ipa_room_segmentation::MapSegmentationGoalConstPtr &goal);
 	//segmentation-object that segments the map
-	voronoi_segmentation segmenter_;
+	VoronoiSegmentation segmenter_;
 protected:
 	ros::NodeHandle nh_;
 	actionlib::SimpleActionServer<ipa_room_segmentation::MapSegmentationAction> voronoi_segmentation_server_;
