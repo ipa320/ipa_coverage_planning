@@ -1,6 +1,7 @@
 #include <ipa_room_segmentation/room_segmentation_server.h>
 
 #include <ros/package.h>
+#include <ipa_room_segmentation/meanshift2d.h>
 
 RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string name_of_the_action) :
 		node_handle_(nh), room_segmentation_server_(node_handle_, name_of_the_action,
@@ -127,16 +128,42 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 		}
 	}
 	//get centers for each room
-	for (size_t idx = 0; idx < room_centers_x_values.size(); ++idx)
+//	for (size_t idx = 0; idx < room_centers_x_values.size(); ++idx)
+//	{
+//		if (max_x_value_of_the_room[idx] != 0 && max_y_value_of_the_room[idx] != 0 && min_x_value_of_the_room[idx] != 100000000 && min_y_value_of_the_room[idx] != 100000000)
+//		{
+//			room_centers_x_values[idx] = (min_x_value_of_the_room[idx] + max_x_value_of_the_room[idx]) / 2;
+//			room_centers_y_values[idx] = (min_y_value_of_the_room[idx] + max_y_value_of_the_room[idx]) / 2;
+//			cv::circle(segmented_map_, cv::Point(room_centers_x_values[idx], room_centers_y_values[idx]), 2, cv::Scalar(200*256), CV_FILLED);
+//		}
+//	}
+	MeanShift2D ms;
+	for (std::map<int, size_t>::iterator it = label_vector_index_codebook.begin(); it != label_vector_index_codebook.end(); ++it)
 	{
-		if (max_x_value_of_the_room[idx] != 0 && max_y_value_of_the_room[idx] != 0 && min_x_value_of_the_room[idx] != 100000000 && min_y_value_of_the_room[idx] != 100000000)
-		{
-			room_centers_x_values[idx] = (min_x_value_of_the_room[idx] + max_x_value_of_the_room[idx]) / 2;
-			room_centers_y_values[idx] = (min_y_value_of_the_room[idx] + max_y_value_of_the_room[idx]) / 2;
-			cv::circle(segmented_map_, cv::Point(room_centers_x_values[idx], room_centers_y_values[idx]), 2, cv::Scalar(200*256), CV_FILLED);
-		}
+		// compute distance transform for each room
+		const int label = it->first;
+		cv::Mat room = cv::Mat::zeros(segmented_map_.rows, segmented_map_.cols, CV_8UC1);
+		for (int v = 0; v < segmented_map_.rows; ++v)
+			for (int u = 0; u < segmented_map_.cols; ++u)
+				if (segmented_map_.at<int>(v, u) == label)
+					room.at<uchar>(v,u) = 255;
+		cv::Mat distance_map;	//variable for the distance-transformed map, type: CV_32FC1
+		cv::distanceTransform(room, distance_map, CV_DIST_L2, 5);
+		// find point set with largest distance to obstacles
+		double min_val = 0., max_val = 0.;
+		cv::minMaxLoc(distance_map, &min_val, &max_val);
+		std::vector<cv::Vec2d> room_cells;
+		for (int v = 0; v < distance_map.rows; ++v)
+			for (int u = 0; u < distance_map.cols; ++u)
+				if (distance_map.at<float>(v, u) > max_val*0.95f)
+					room_cells.push_back(cv::Vec2d(u,v));
+		// use meanshift to find the modes in that set
+		cv::Vec2d room_center = ms.findRoomCenter(room, room_cells, goal->map_resolution);
+		const int index = it->second;
+		room_centers_x_values[index] = room_center[0];
+		room_centers_y_values[index] = room_center[1];
+		cv::circle(segmented_map_, cv::Point(room_centers_x_values[index], room_centers_y_values[index]), 2, cv::Scalar(200*256), CV_FILLED);
 	}
-
 
 	cv::imshow("segmentation", segmented_map_);
 	cv::waitKey();
