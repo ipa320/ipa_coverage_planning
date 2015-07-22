@@ -32,9 +32,9 @@ public:
 
 
 	//training-method for the classifier
-	void trainClassifiers(const cv::Mat& first_room_training_map, const cv::Mat& second_room_training_map, const cv::Mat& first_hallway_training_map, const cv::Mat& second_hallway_training_map);
+	void trainClassifiers(const cv::Mat& first_room_training_map, const cv::Mat& second_room_training_map, const cv::Mat& first_hallway_training_map, const cv::Mat& second_hallway_training_map, const std::string& classifier_storage_path);
 
 
 	//labeling-algorithm after the training
-	void semanticLabeling(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit);
+	void semanticLabeling(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit, const std::string& classifier_storage_path);
 };

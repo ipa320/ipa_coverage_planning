@@ -1,5 +1,7 @@
 #include <ipa_room_segmentation/room_segmentation_server.h>
 
+#include <ros/package.h>
+
 RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string name_of_the_action) :
 		node_handle_(nh), room_segmentation_server_(node_handle_, name_of_the_action,
 		        boost::bind(&RoomSegmentationServer::execute_segmentation_server, this, _1), false), action_name_(name_of_the_action)
@@ -57,17 +59,19 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	}
 	else if (room_segmentation_algorithm_ == 4)
 	{
+		const std::string package_path = ros::package::getPath("ipa_room_segmentation");
+		const std::string classifier_path = package_path + "/common/files/training_results/";
 		if (train_the_algorithm_)
 		{
 			//load the training maps, change to your maps when you want to train different ones
-			cv::Mat first_room_training_map = cv::imread("/home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/training_maps/room_training_map.png", 0);
-			cv::Mat second_room_training_map = cv::imread("/home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/training_maps/lab_d_room_training_map.png", 0);
-			cv::Mat first_hallway_training_map = cv::imread("/home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/training_maps/hallway_training_map.png", 0);
-			cv::Mat second_hallway_training_map = cv::imread("/home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/training_maps/lab_a_hallway_training_map.png", 0);
+			cv::Mat first_room_training_map = cv::imread(package_path + "/common/files/training_maps/room_training_map.png", 0);
+			cv::Mat second_room_training_map = cv::imread(package_path + "/common/files/training_maps/lab_d_room_training_map.png", 0);
+			cv::Mat first_hallway_training_map = cv::imread(package_path + "/common/files/training_maps/hallway_training_map.png", 0);
+			cv::Mat second_hallway_training_map = cv::imread(package_path + "/common/files/training_maps/lab_a_hallway_training_map.png", 0);
 			//train the algorithm
-			semantic_segmentation_.trainClassifiers(first_room_training_map, second_room_training_map, first_hallway_training_map, second_hallway_training_map);
+			semantic_segmentation_.trainClassifiers(first_room_training_map, second_room_training_map, first_hallway_training_map, second_hallway_training_map, classifier_path);
 		}
-		semantic_segmentation_.semanticLabeling(original_img, segmented_map_, goal->map_resolution, room_lower_limit_check_, room_upper_limit_check_);
+		semantic_segmentation_.semanticLabeling(original_img, segmented_map_, goal->map_resolution, room_lower_limit_check_, room_upper_limit_check_, classifier_path);
 	}
 	else
 	{
@@ -75,54 +79,67 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 		return;
 	}
 
-	cv::imshow("segmentation", segmented_map_);
-	cv::waitKey();
-
 	ROS_INFO("********Segmented the map************");
-	looping_rate.sleep();
+//	looping_rate.sleep();
 
-	//get the min/max-values and the room-centers
-	//min/max y/x-values vector for each room. Initialized with extreme values
-	std::vector<int> min_y_value_of_the_room(255, 100000000);
-	std::vector<int> max_y_value_of_the_room(255, 0);
-	std::vector<int> min_x_value_of_the_room(255, 100000000);
-	std::vector<int> max_x_value_of_the_room(255, 0);
-	//vector of the central Point for each room, initially filled with Points out of the map
-	std::vector<int> room_centers_x_values(255, -1);
-	std::vector<int> room_centers_y_values(255, -1);
-	//***********************Find min/max x and y coordinate and center of each found room********************
-	cv::Mat temporary_map_to_find_room_values_ = segmented_map_.clone();
-	//check y/x-value for every Pixel and make the larger/smaller value to the current value of the room
-	for (int column = 0; column < temporary_map_to_find_room_values_.cols; column++)
+	// get the min/max-values and the room-centers
+	// compute room label codebook
+	std::map<int, size_t> label_vector_index_codebook;		// maps each room label to a position in the rooms vector
+	size_t vector_index = 0;
+	for (int v = 0; v < segmented_map_.rows; ++v)
 	{
-		for (int row = 0; row < temporary_map_to_find_room_values_.rows; row++)
+		for (int u = 0; u < segmented_map_.cols; ++u)
 		{
-			//if Pixel is white or black it is no room --> doesn't need to be checked
-			if (temporary_map_to_find_room_values_.at<unsigned char>(row, column) != 0
-			        && temporary_map_to_find_room_values_.at<unsigned char>(row, column) != 255)
+			const int label = segmented_map_.at<int>(v, u);
+			if (label > 0 && label < 65280)	// do not count walls/obstacles or free space as label
 			{
-				min_x_value_of_the_room[temporary_map_to_find_room_values_.at<unsigned char>(row, column)] = std::min(row,
-				        min_x_value_of_the_room[temporary_map_to_find_room_values_.at<unsigned char>(row, column)]);
-				max_x_value_of_the_room[temporary_map_to_find_room_values_.at<unsigned char>(row, column)] = std::max(row,
-				        max_x_value_of_the_room[temporary_map_to_find_room_values_.at<unsigned char>(row, column)]);
-				max_y_value_of_the_room[temporary_map_to_find_room_values_.at<unsigned char>(row, column)] = std::max(column,
-				        max_y_value_of_the_room[temporary_map_to_find_room_values_.at<unsigned char>(row, column)]);
-				min_y_value_of_the_room[temporary_map_to_find_room_values_.at<unsigned char>(row, column)] = std::min(column,
-				        min_y_value_of_the_room[temporary_map_to_find_room_values_.at<unsigned char>(row, column)]);
+				if (label_vector_index_codebook.find(label) == label_vector_index_codebook.end())
+				{
+					label_vector_index_codebook[label] = vector_index;
+					vector_index++;
+				}
+			}
+		}
+	}
+	//min/max y/x-values vector for each room. Initialized with extreme values
+	std::vector<int> min_x_value_of_the_room(label_vector_index_codebook.size(), 100000000);
+	std::vector<int> max_x_value_of_the_room(label_vector_index_codebook.size(), 0);
+	std::vector<int> min_y_value_of_the_room(label_vector_index_codebook.size(), 100000000);
+	std::vector<int> max_y_value_of_the_room(label_vector_index_codebook.size(), 0);
+	//vector of the central Point for each room, initially filled with Points out of the map
+	std::vector<int> room_centers_x_values(label_vector_index_codebook.size(), -1);
+	std::vector<int> room_centers_y_values(label_vector_index_codebook.size(), -1);
+	//***********************Find min/max x and y coordinate and center of each found room********************
+	//check y/x-value for every Pixel and make the larger/smaller value to the current value of the room
+	for (int y = 0; y < segmented_map_.rows; ++y)
+	{
+		for (int x = 0; x < segmented_map_.cols; ++x)
+		{
+			const int label = segmented_map_.at<int>(y, x);
+			if (label > 0 && label < 65280) //if Pixel is white or black it is no room --> doesn't need to be checked
+			{
+				const int index = label_vector_index_codebook[label];
+				min_x_value_of_the_room[index] = std::min(x, min_x_value_of_the_room[index]);
+				max_x_value_of_the_room[index] = std::max(x, max_x_value_of_the_room[index]);
+				max_y_value_of_the_room[index] = std::max(y, max_y_value_of_the_room[index]);
+				min_y_value_of_the_room[index] = std::min(y, min_y_value_of_the_room[index]);
 			}
 		}
 	}
 	//get centers for each room
-	for (int idx = 0; idx < room_centers_x_values.size(); idx++)
+	for (size_t idx = 0; idx < room_centers_x_values.size(); ++idx)
 	{
-		if (max_x_value_of_the_room[idx] != 0 && max_y_value_of_the_room[idx] != 0 && min_x_value_of_the_room[idx] != 100000000
-		        && min_y_value_of_the_room[idx] != 100000000)
+		if (max_x_value_of_the_room[idx] != 0 && max_y_value_of_the_room[idx] != 0 && min_x_value_of_the_room[idx] != 100000000 && min_y_value_of_the_room[idx] != 100000000)
 		{
-			room_centers_x_values[idx] = min_x_value_of_the_room[idx] + ((max_x_value_of_the_room[idx] - min_x_value_of_the_room[idx]) / 2);
-			room_centers_y_values[idx] = min_y_value_of_the_room[idx] + ((max_y_value_of_the_room[idx] - min_y_value_of_the_room[idx]) / 2);
-			cv::circle(segmented_map_, cv::Point(room_centers_y_values[idx], room_centers_x_values[idx]), 2, cv::Scalar(200), CV_FILLED);
+			room_centers_x_values[idx] = (min_x_value_of_the_room[idx] + max_x_value_of_the_room[idx]) / 2;
+			room_centers_y_values[idx] = (min_y_value_of_the_room[idx] + max_y_value_of_the_room[idx]) / 2;
+			cv::circle(segmented_map_, cv::Point(room_centers_x_values[idx], room_centers_y_values[idx]), 2, cv::Scalar(200*256), CV_FILLED);
 		}
 	}
+
+
+	cv::imshow("segmentation", segmented_map_);
+	cv::waitKey();
 
 	//cv::imwrite("/home/rmb-fj/Pictures/maps/action_tests/one_server.png", segmented_map_);
 
@@ -163,21 +180,14 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 
 	//publish result
 	room_segmentation_server_.setSucceeded(action_result_);
-//	//*****************clear the values for the next time***********************
-//	//clearing the action msgs container
-//	action_result_.room_center_x_in_meter.clear();
-//	action_result_.room_center_y_in_meter.clear();
-//	action_result_.room_min_x_in_meter.clear();
-//	action_result_.room_min_y_in_meter.clear();
-//	action_result_.room_max_x_in_meter.clear();
-//	action_result_.room_max_y_in_meter.clear();
-//	//clearing the memory container used
-//	min_x_value_of_the_room.clear();
-//	max_x_value_of_the_room.clear();
-//	min_y_value_of_the_room.clear();
-//	max_y_value_of_the_room.clear();
-//	room_centers_x_values.clear();
-//	room_centers_y_values.clear();
+	//*****************clear the values for the next time***********************
+	//clearing the action msgs container
+	action_result_.room_center_x_in_meter.clear();
+	action_result_.room_center_y_in_meter.clear();
+	action_result_.room_min_x_in_meter.clear();
+	action_result_.room_min_y_in_meter.clear();
+	action_result_.room_max_x_in_meter.clear();
+	action_result_.room_max_y_in_meter.clear();
 }
 
 int main(int argc, char** argv)
