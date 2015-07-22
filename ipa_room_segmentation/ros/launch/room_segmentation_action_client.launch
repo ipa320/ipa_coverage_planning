@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!--  -->
+  <node ns="room_segmentation" pkg="ipa_room_segmentation" type="room_segmentation_client" name="room_segmentation_client" output="screen"/>
+
+</launch>
