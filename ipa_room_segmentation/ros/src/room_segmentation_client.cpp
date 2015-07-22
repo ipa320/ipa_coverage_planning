@@ -13,7 +13,7 @@ int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "test_action");
 
-	cv::Mat map = cv::imread("/home/rmb-fj/Pictures/maps/black_map.png", 0);
+	cv::Mat map = cv::imread("room_segmentation/ipa_map.png", 0);
 
 	sensor_msgs::Image labeling;
 
@@ -24,7 +24,7 @@ int main(int argc, char **argv)
 	cv_image.toImageMsg(labeling);
 	// create the action client --> "name of server"
 	// true causes the client to spin its own thread
-	actionlib::SimpleActionClient<ipa_room_segmentation::MapSegmentationAction> ac("room_segmentation/room_segmentation_server", true);
+	actionlib::SimpleActionClient<ipa_room_segmentation::MapSegmentationAction> ac("/room_segmentation/room_segmentation_server", true);
 
 	ROS_INFO("Waiting for action server to start.");
 	// wait for the action server to start

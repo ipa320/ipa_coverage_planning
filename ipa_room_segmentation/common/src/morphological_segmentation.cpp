@@ -1,12 +1,14 @@
 #include <ipa_room_segmentation/morphological_segmentation.h>
 
+#include <ipa_room_segmentation/wavefront_region_growing.h>
+#include <ipa_room_segmentation/contains.h>
 
 MorphologicalSegmentation::MorphologicalSegmentation()
 {
 
 }
 
-void MorphologicalSegmentation::segmentationAlgorithm(cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit)
+void MorphologicalSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit)
 {
 	/*This segmentation algorithm does:
 	 * 1. collect the map data
@@ -17,9 +19,8 @@ void MorphologicalSegmentation::segmentationAlgorithm(cv::Mat& map_to_be_labeled
 	 * 6. spread the coloured regions to the white Pixels
 	 */
 
-	//make two mapclones to work with
+	//make two map clones to work with
 	cv::Mat temporary_map_to_find_rooms = map_to_be_labeled.clone(); //map to find the rooms and for eroding
-	cv::Mat new_map_to_draw_contours = map_to_be_labeled.clone(); //map for drawing the found contours
 	//**************erode temporary_map until last possible room found****************
 	//erode map a specified amount of times
 	std::vector < std::vector<cv::Point> > saved_contours; //saving variable for every contour that is between the upper and the lower limit
@@ -66,19 +67,21 @@ void MorphologicalSegmentation::segmentationAlgorithm(cv::Mat& map_to_be_labeled
 	//*******************draw contures in new map***********************
 	std::cout << "Segmentation Found " << saved_contours.size() << " rooms." << std::endl;
 	//draw filled contoures in new_map_to_draw_contours_ with random colour if this colour hasn't been used yet
+	cv::Mat new_map_to_draw_contours;	//map for drawing the found contours
+	map_to_be_labeled.convertTo(segmented_map, CV_32SC1, 256, 0);
 	std::vector<cv::Scalar> already_used_coloures;//vector for saving the already used coloures
 	for (int idx = 0; idx < saved_contours.size(); idx++)
 	{
 		bool drawn = false; //checking-variable if contour has been drawn
 		int draw_counter = 0; //counter to exit loop if it gets into an endless-loop (e.g. when there are more than 250 rooms)
-		cv::Scalar fill_colour(rand() % 253 + 1);
 		do
 		{
 			draw_counter++;
+			cv::Scalar fill_colour(rand() % 52224 + 13056);
 			if (!contains(already_used_coloures, fill_colour) || draw_counter > 250)
 			{
 				//if colour is unique draw Contour in map
-				cv::drawContours(new_map_to_draw_contours, saved_contours, idx, fill_colour, CV_FILLED);
+				cv::drawContours(segmented_map, saved_contours, idx, fill_colour, CV_FILLED);
 				already_used_coloures.push_back(fill_colour); //add colour to used coloures
 				drawn = true;
 			}
@@ -87,24 +90,22 @@ void MorphologicalSegmentation::segmentationAlgorithm(cv::Mat& map_to_be_labeled
 	//*************************obstacles***********************
 	//get obstacle informations and draw them into the new map
 	ROS_INFO("starting getting obstacle information");
-	for (int x_coordinate = 0; x_coordinate < map_to_be_labeled.rows; x_coordinate++)
+	// todo: why is this necessary? it seems like this should not alter any data.
+	for (int row = 0; row < map_to_be_labeled.rows; ++row)
 	{
-		for (int y_coordinate = 0; y_coordinate < map_to_be_labeled.cols; y_coordinate++)
+		for (int col = 0; col < map_to_be_labeled.cols; ++col)
 		{
 			//find obstacles = black pixels
-			if (map_to_be_labeled.at<unsigned char>(x_coordinate, y_coordinate) == 0)
+			if (map_to_be_labeled.at<unsigned char>(row, col) == 0)
 			{
-				new_map_to_draw_contours.at<unsigned char>(x_coordinate, y_coordinate) = 0;
+				segmented_map.at<int>(row, col) = 0;
 			}
 		}
 	}
 	ROS_INFO("drawn obstacles in map");
 	//**************spread the colored region by making white pixel around a contour their color****************
-	cv::Mat temporary_map_to_fill_white_pixels = new_map_to_draw_contours.clone(); //map to spread the colored Pixels to the surrounding white regions
 	//spread the coloured regions to the white Pixels
-	watershed_region_spreading(temporary_map_to_fill_white_pixels);
-	//save the spreaded map
-	segmented_map = temporary_map_to_fill_white_pixels.clone();
+	wavefrontRegionGrowing(segmented_map);
 	ROS_INFO("filled white pixels in new map");
 
 }

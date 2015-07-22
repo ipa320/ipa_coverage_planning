@@ -1,5 +1,8 @@
 #include <ipa_room_segmentation/distance_segmentation.h>
 
+#include <ipa_room_segmentation/wavefront_region_growing.h>
+#include <ipa_room_segmentation/contains.h>
+
 DistanceSegmentation::DistanceSegmentation()
 {
 
@@ -23,19 +26,19 @@ void DistanceSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labele
 
 	//1. Get the distance-transformed map and make it an 8-bit single-channel image
 	cv::erode(temporary_map, temporary_map, cv::Mat());
-	cv::Mat distance_map;	//variable for the distance-transformed map
+	cv::Mat distance_map;	//variable for the distance-transformed map, type: CV_32FC1
 	cv::distanceTransform(temporary_map, distance_map, CV_DIST_L2, 5);
-	cv::convertScaleAbs(distance_map, distance_map);
+	cv::convertScaleAbs(distance_map, distance_map);	// conversion to 8 bit image
 
 	//2. Threshold the map and find the contours of the rooms. Change the threshold and repeat steps until last possible threshold.
 	//Then take the contours from the threshold with the most contours between the roomfactors and draw it in the map with a random color.
 	std::vector<std::vector<cv::Point> > saved_contours;	//saving-vector for the found contours
-	for (double current_trhreshold = 255.0; current_trhreshold > 0.0; current_trhreshold--)
+	for (int current_threshold = 255; current_threshold > 0; current_threshold--)
 	{ //change the threshold for the grayscale-image from largest possible value to smallest
 	  //reset number of rooms
 		temporary_contours.clear();
 		contours.clear();
-		cv::threshold(distance_map, thresh_map, current_trhreshold, 255, cv::THRESH_BINARY);
+		cv::threshold(distance_map, thresh_map, current_threshold, 255, cv::THRESH_BINARY);
 		cv::findContours(thresh_map, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
 		//Get the number of large enough regions to be a room. Only check non-holes.
 		for (int c = 0; c < contours.size(); c++)
@@ -57,24 +60,24 @@ void DistanceSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labele
 		}
 	}
 	//Draw the found contours from the step with most areas in the map with a random colour, that hasn't been used yet
-	std::vector<cv::Scalar> already_used_coloures;	//saving-variable for already used fill-colours
-	segmented_map = map_to_be_labeled.clone();
+	std::vector<cv::Scalar> already_used_colors;	//saving-variable for already used fill-colours
+	map_to_be_labeled.convertTo(segmented_map, CV_32SC1, 256, 0);		// rescale to 32 int, 255 --> 255*256 = 65280
 	for (int current_contour = 0; current_contour < saved_contours.size(); current_contour++)
 	{
 		bool drawn = false; //variable to check if contour has been drawn
-		int loop_counter = 0;//loop counter for ending the loop if it gets into a endless loop
+		int loop_counter = 0;//loop counter for ending the loop if it gets into an endless loop
 		do
 		{
 			loop_counter++;
-			cv::Scalar fill_colour(rand() % 200 + 53);
-			if (!contains(already_used_coloures, fill_colour) || loop_counter > 250)
+			cv::Scalar fill_colour(rand() % 52224 + 13056);
+			if (!contains(already_used_colors, fill_colour) || loop_counter > 250)
 			{
 				cv::drawContours(segmented_map, saved_contours, current_contour, fill_colour, CV_FILLED);
-				already_used_coloures.push_back(fill_colour); //add used colour to the saving-vector
+				already_used_colors.push_back(fill_colour); //add used colour to the saving-vector
 				drawn = true;
 			}
 		} while (!drawn);
 	}
-	//spread the colors to the white Pixels
-	watershed_region_spreading(segmented_map);
+	//spread the colors to the white pixels
+	wavefrontRegionGrowing(segmented_map);
 }

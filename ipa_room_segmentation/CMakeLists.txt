@@ -94,15 +94,15 @@ include_directories(
 )
 
 #for testing purpose
-add_executable(action_client_test ros/src/action_client_tester.cpp)
-target_link_libraries(action_client_test
+add_executable(room_segmentation_client ros/src/room_segmentation_client.cpp)
+target_link_libraries(room_segmentation_client
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBRARIES}
 )
-add_dependencies(action_client_test ${catkin_EXPORTED_TARGETS}  ${ipa_room_segmentation_EXPORTED_TARGETS})
+add_dependencies(room_segmentation_client ${catkin_EXPORTED_TARGETS}  ${ipa_room_segmentation_EXPORTED_TARGETS})
 
 #segmentation action server. See room_segmentation_action_server_params.yaml to change the used method.
-add_executable(room_segmentation_server ros/src/room_segmentation_server.cpp common/src/distance_segmentation.cpp common/src/morphological_segmentation.cpp common/src/voronoi_segmentation.cpp common/src/adaboost_classifier.cpp common/src/watershed_region_spreading.cpp common/src/contains.cpp common/src/features.cpp common/src/raycasting.cpp)
+add_executable(room_segmentation_server ros/src/room_segmentation_server.cpp common/src/distance_segmentation.cpp common/src/morphological_segmentation.cpp common/src/voronoi_segmentation.cpp common/src/adaboost_classifier.cpp common/src/wavefront_region_growing.cpp common/src/contains.cpp common/src/features.cpp common/src/raycasting.cpp)
 target_link_libraries(room_segmentation_server 
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBRARIES}

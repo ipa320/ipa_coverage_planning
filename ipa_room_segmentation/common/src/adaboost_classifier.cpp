@@ -1,5 +1,10 @@
 #include <ipa_room_segmentation/adaboost_classifier.h>
 
+#include <ipa_room_segmentation/features.h>
+#include <ipa_room_segmentation/wavefront_region_growing.h>
+#include <ipa_room_segmentation/contains.h>
+#include <ipa_room_segmentation/raycasting.h>
+
 AdaboostClassifier::AdaboostClassifier()
 {
 	//save the angles between the simulated beams, used in the following algorithm
@@ -260,8 +265,6 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 		}
 	}
 
-	segmented_map = map_to_be_labeled.clone();
-
 	cv::Mat blured_image_for_thresholding = temporary_map.clone();
 
 	cv::imwrite("/home/rmb-fj/Pictures/maps/action_tests/semantic_labels.png", blured_image_for_thresholding);
@@ -274,7 +277,7 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 	//child-contour = 1 if it has one, = -1 if not, same for parent_contour
 	std::vector < cv::Vec4i > hierarchy;
 
-	std::vector < cv::Scalar > already_used_colours; //saving-vector for the already used coloures
+	std::vector < cv::Scalar > already_used_colors; //saving-vector for the already used coloures
 
 	//find the contours, which are labeled as a room
 	cv::threshold(temporary_map, temporary_map, 120, 255, cv::THRESH_BINARY); //find rooms (value = 150)
@@ -292,6 +295,7 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 	}
 	//find the contours, which are labeled as a hallway
 
+	map_to_be_labeled.convertTo(segmented_map, CV_32SC1, 256, 0);		// rescale to 32 int, 255 --> 255*256 = 65280
 	temporary_map = blured_image_for_thresholding.clone();
 
 	cv::threshold(temporary_map, temporary_map, 90, 255, cv::THRESH_BINARY); //find hallways (value = 100)
@@ -327,10 +331,10 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 				do
 				{
 					cv::Scalar fill_colour(rand() % 200 + 53);
-					if (!contains(already_used_colours, fill_colour))
+					if (!contains(already_used_colors, fill_colour))
 					{
 						cv::circle(contour_Map, temporary_watershed_centers[current_center], 2, fill_colour, CV_FILLED);
-						already_used_colours.push_back(fill_colour);
+						already_used_colors.push_back(fill_colour);
 						coloured = true;
 					}
 				} while (!coloured);
@@ -346,16 +350,16 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 					}
 				}
 			}
-			temporary_map = contour_Map.clone();
-			watershed_region_spreading(temporary_map);
+			contour_Map.convertTo(temporary_map, CV_32SC1, 256, 0);
+			wavefrontRegionGrowing(temporary_map);
 			//draw the seperated contour into the map, which should be labeled
-			for (int x = 0; x < segmented_map.rows; x++)
+			for (int row = 0; row < segmented_map.rows; row++)
 			{
-				for (int y = 0; y < segmented_map.cols; y++)
+				for (int col = 0; col < segmented_map.cols; col++)
 				{
-					if (temporary_map.at<unsigned char>(x, y) != 0)
+					if (temporary_map.at<int>(row, col) != 0)
 					{
-						segmented_map.at<unsigned char>(x, y) = temporary_map.at<unsigned char>(x, y);
+						segmented_map.at<int>(row, col) = temporary_map.at<int>(row, col);
 					}
 				}
 			}
@@ -372,11 +376,11 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 		bool coloured = false;
 		do
 		{
-			cv::Scalar fill_colour(rand() % 200 + 53);
-			if (!contains(already_used_colours, fill_colour))
+			cv::Scalar fill_colour(rand() % 52224 + 13056);
+			if (!contains(already_used_colors, fill_colour))
 			{
 				cv::drawContours(segmented_map, saved_room_contours, room, fill_colour, CV_FILLED);
-				already_used_colours.push_back(fill_colour);
+				already_used_colors.push_back(fill_colour);
 				coloured = true;
 			}
 		} while (!coloured);
@@ -388,25 +392,26 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 		do
 		{
 			loop_counter++;
-			cv::Scalar fill_colour(rand() % 200 + 53);
-			if (!contains(already_used_colours, fill_colour) || loop_counter > 250)
+			cv::Scalar fill_colour(rand() % 52224 + 13056);
+			if (!contains(already_used_colors, fill_colour) || loop_counter > 250)
 			{
 				cv::drawContours(segmented_map, saved_hallway_contours, hallway, fill_colour, CV_FILLED);
-				already_used_colours.push_back(fill_colour);
+				already_used_colors.push_back(fill_colour);
 				coloured = true;
 			}
 		} while (!coloured);
 	}
 	//spread the coloured regions to regions, which were too small and aren't drawn into the map
-	watershed_region_spreading(segmented_map);
+	wavefrontRegionGrowing(segmented_map);
 	//make sure previously black Pixels are still black
-	for (int x = 0; x < map_to_be_labeled.rows; x++)
+	// todo: why is this necessary? it seems like this should not alter any data.
+	for (int v = 0; v < map_to_be_labeled.rows; ++v)
 	{
-		for (int y = 0; y < map_to_be_labeled.cols; y++)
+		for (int u = 0; u < map_to_be_labeled.cols; ++u)
 		{
-			if (map_to_be_labeled.at<unsigned char>(x, y) == 0)
+			if (map_to_be_labeled.at<unsigned char>(v, u) == 0)
 			{
-				segmented_map.at<unsigned char>(x, y) = 0;
+				segmented_map.at<int>(v, u) = 0;
 			}
 		}
 	}

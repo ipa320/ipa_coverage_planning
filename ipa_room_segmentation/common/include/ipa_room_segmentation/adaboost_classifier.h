@@ -12,10 +12,6 @@
 #include <ctime>
 #include <stdlib.h>
 
-#include <ipa_room_segmentation/features.h>
-#include <ipa_room_segmentation/watershed_region_spreading.h>
-#include <ipa_room_segmentation/contains.h>
-#include <ipa_room_segmentation/raycasting.h>
 
 class AdaboostClassifier
 {
@@ -36,8 +32,7 @@ public:
 
 
 	//training-method for the classifier
-	void trainClassifiers(const cv::Mat& first_room_training_map, const cv::Mat& second_room_training_map, const cv::Mat& first_hallway_training_map,
-	        const cv::Mat& second_hallway_training_map);
+	void trainClassifiers(const cv::Mat& first_room_training_map, const cv::Mat& second_room_training_map, const cv::Mat& first_hallway_training_map, const cv::Mat& second_hallway_training_map);
 
 
 	//labeling-algorithm after the training

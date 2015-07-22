@@ -6,9 +6,6 @@
 #include <vector>
 #include <math.h>
 
-#include <ipa_room_segmentation/watershed_region_spreading.h>
-#include <ipa_room_segmentation/contains.h>
-
 #include <ctime>
 
 class DistanceSegmentation

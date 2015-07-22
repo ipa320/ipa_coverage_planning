@@ -4,4 +4,4 @@
 #include <math.h>
 #include <opencv/cv.h>
 
-void watershed_region_spreading(cv::Mat& spreading_image);
+void wavefrontRegionGrowing(cv::Mat& image);

@@ -1,5 +1,8 @@
 #include <ipa_room_segmentation/voronoi_segmentation.h>
 
+#include <ipa_room_segmentation/wavefront_region_growing.h>
+#include <ipa_room_segmentation/contains.h>
+
 VoronoiSegmentation::VoronoiSegmentation()
 {
 
@@ -359,7 +362,9 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 	//*************III. draw the critical lines from every found critical Point to its two closest zero-Pixel****************
 	//
 
-	segmented_map = map_to_be_labeled.clone(); //map to draw the critical lines and fill the map with random coloures
+	//map to draw the critical lines and fill the map with random colors
+	//segmented_map = map_to_be_labeled.clone();
+	map_to_be_labeled.convertTo(segmented_map, CV_32SC1, 256, 0);		// rescale to 32 int, 255 --> 255*256 = 65280
 
 	std::vector < std::vector<cv::Point> > contours;
 	cv::Point basis_Point_1, basis_Point_2;
@@ -372,7 +377,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 
 	// 1. Get the Points of the contour, which are the possible closest Points for a critical Point
 	cv::findContours(segmented_map, contours, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
-	cv::drawContours(segmented_map, contours, -1, cv::Scalar(255), CV_FILLED);
+	cv::drawContours(segmented_map, contours, -1, cv::Scalar(255*256), CV_FILLED);
 
 	// 2. Get the basis-points for each critical-point
 	for (int current_critical_point = 0; current_critical_point < critical_Points.size(); current_critical_point++)
@@ -512,7 +517,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 				do
 				{
 					loop_counter++;
-					cv::Scalar fill_colour(rand() % 200 + 53);
+					cv::Scalar fill_colour(rand() % 52224 + 13056);
 					//check if colour has already been used
 					if (!contains(already_used_coloures, fill_colour) || loop_counter > 250)
 					{
@@ -526,5 +531,5 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 	}
 
 	//3.fill the last white areas with the surrounding color
-	watershed_region_spreading(segmented_map);
+	wavefrontRegionGrowing(segmented_map);
 }

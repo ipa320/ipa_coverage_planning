@@ -37,8 +37,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	//converting the map msg in cv format
 	cv_bridge::CvImagePtr cv_ptr_obj;
 	cv_ptr_obj = cv_bridge::toCvCopy(goal->input_map, sensor_msgs::image_encodings::MONO8);
-	cv::Mat original_img;
-	original_img = cv_ptr_obj->image;
+	cv::Mat original_img = cv_ptr_obj->image;
 
 	//set the resolution and the limits for the actual goal and the Map origin
 	map_origin_ = cv::Point2d(goal->map_origin_x, goal->map_origin_y);
@@ -75,6 +74,9 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 		ROS_ERROR("Undefined algorithm selected.");
 		return;
 	}
+
+	cv::imshow("segmentation", segmented_map_);
+	cv::waitKey();
 
 	ROS_INFO("********Segmented the map************");
 	looping_rate.sleep();
@@ -122,7 +124,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 		}
 	}
 
-	cv::imwrite("/home/rmb-fj/Pictures/maps/action_tests/one_server.png", segmented_map_);
+	//cv::imwrite("/home/rmb-fj/Pictures/maps/action_tests/one_server.png", segmented_map_);
 
 	//****************publish the results**********************
 	//converting the cv format in map msg format
