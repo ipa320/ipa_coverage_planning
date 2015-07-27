@@ -1,11 +1,11 @@
 #include <ipa_building_navigation/nearest_neighbor_TSP.h>
 
-NearestNeigborTSPSolver::NearestNeigborTSPSolver()
+NearestNeighborTSPSolver::NearestNeighborTSPSolver()
 {
 
 }
 
-std::vector<int> NearestNeigborTSPSolver::SolveTSP(const cv::Mat& path_length_Matrix, const int start_node)
+std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& path_length_Matrix, const int start_node)
 {
 	//This function calculates the order of the TSP, using the nearest neighbor method. It uses a pathlength Matrix, which
 	//should be calculated once. This Matrix should save the pathlengths with this logic:

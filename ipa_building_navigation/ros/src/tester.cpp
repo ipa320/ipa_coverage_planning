@@ -13,26 +13,29 @@
 #include <opencv/highgui.h>
 
 #include <ipa_building_navigation/A_star_pathplanner.h>
-#include <ipa_building_navigation/nearest_neighbor_TSP.h>
+//#include <ipa_building_navigation/nearest_neighbor_TSP.h>
+#include <ipa_building_navigation/genetic_TSP.h>
 
 int main(int argc, char **argv)
 {
-//	srand (time(NULL));
+	srand (5);//time(NULL));
 	ros::init(argc, argv, "a_star_tester");
 	ros::NodeHandle nh;
 	cv::Mat map = cv::imread("/home/rmb-fj/Pictures/maps/black_map.png", 0);
 
 	AStarPlanner planner;
-	NearestNeigborTSPSolver TSPsolver;
+//	NearestNeigborTSPSolver TSPsolver;
+	GeneticTSPSolver genTSPsolver;
+
 
 	std::vector<cv::Point> centers;
 
-	cv::Mat pathlengths(cv::Size(10, 10), CV_64F);
+	cv::Mat pathlengths(cv::Size(27, 27), CV_64F);
 	cv::Mat eroded_map;
 
 	cv::erode(map, eroded_map, cv::Mat(), cv::Point(-1,-1), 4);
 
-	for(int i = 0; i < 10; i++)//add ten Points for TSP to test the solvers
+	for(int i = 0; i < 27; i++)//add Points for TSP to test the solvers
 	{
 		bool done = false;
 		do
@@ -79,7 +82,7 @@ int main(int argc, char **argv)
 		std::cout << std::endl;
 	}
 
-	std::vector<int> TSPorder = TSPsolver.SolveTSP(pathlengths, 0);
+	std::vector<int> TSPorder = genTSPsolver.solveGeneticTSP(pathlengths, 0);
 
 	cv::circle(testermap, cv::Point(centers[0].y, centers[0].x), 2, cv::Scalar(73), CV_FILLED);
 
@@ -88,9 +91,9 @@ int main(int argc, char **argv)
 		cv::line(testermap, cv::Point(centers[TSPorder[i]].y, centers[TSPorder[i]].x), cv::Point(centers[TSPorder[i+1]].y, centers[TSPorder[i+1]].x), cv::Scalar(127));
 	}
 
-	cv::imshow("test", testermap);
-	cv::imwrite("/home/rmb-fj/Pictures/TSP/nearest_neighbor.png", testermap);
-	cv::waitKey(1000000);
+//	cv::imshow("test", testermap);
+	cv::imwrite("/home/rmb-fj/Pictures/TSP/genetic.png", testermap);
+//	cv::waitKey(1000000);
 
 	return 0;
 }

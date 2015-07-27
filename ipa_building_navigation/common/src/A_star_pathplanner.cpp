@@ -40,13 +40,13 @@ std::string AStarPlanner::pathFind(const int & xStart, const int & yStart, const
 	{
 		for (int x = 0; x < map_from_subscription.rows; x++)
 		{
-			if(map_from_subscription.at<unsigned char>(x,y) == 255)
+			if (map_from_subscription.at<unsigned char>(x, y) == 255)
 			{
-				map_to_calculate_path.at<int>(x,y) = 0;
+				map_to_calculate_path.at<int>(x, y) = 0;
 			}
 			else
 			{
-				map_to_calculate_path.at<int>(x,y) = 1;
+				map_to_calculate_path.at<int>(x, y) = 1;
 			}
 		}
 	}
@@ -180,7 +180,7 @@ double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& s
 
 	//erode the map so the planner doesn't go near the walls
 	cv::Mat eroded_map;
-	cv::erode(map_from_subscription, eroded_map, cv::Mat(), cv::Point(-1,-1), 4);
+	cv::erode(map_from_subscription, eroded_map, cv::Mat(), cv::Point(-1, -1), 4);
 
 	// get the route
 	clock_t start = clock();
@@ -197,6 +197,7 @@ double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& s
 		char c;
 		int x = start_point.x;
 		int y = start_point.y;
+
 		for (int i = 0; i < route.length(); i++)
 		{
 			//get the next char of the string and make it an integer, which shows the direction
@@ -204,16 +205,17 @@ double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& s
 			j = atoi(&c);
 			//Update the pathlength with the directions of the path. When the path goes vertical or horizontal add length 1.
 			//When it goes diagonal add sqrt(2)
-			if(j == 0 || j == 2 || j == 4 || j == 6)
+			if (j == 0 || j == 2 || j == 4 || j == 6)
 			{
 				path_length += 1;
 			}
-			if(j == 1 || j == 3 || j == 5 || j == 7)
+			if (j == 1 || j == 3 || j == 5 || j == 7)
 			{
 				path_length += std::sqrt(2);
 			}
 		}
 
 	}
+
 	return path_length;
 }
