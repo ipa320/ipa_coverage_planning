@@ -38,7 +38,7 @@ std::vector<int> GeneticTSPSolver::mutatePath(const std::vector<int>& parent_pat
 	//this variable sets which aspect should be changed:
 	//		0: random nodes should be switched
 	//		1: random intervall should be inverted:
-	int what_to_change = 1; //(rand() % 2);
+	int what_to_change = (rand() % 2);
 
 	if (what_to_change == 0) //random node-switching
 	{
@@ -135,6 +135,7 @@ std::vector<int> GeneticTSPSolver::getBestPath(const std::vector<std::vector<int
 			changed = true;
 		}
 	}
+
 	return best_path;
 }
 
@@ -155,7 +156,7 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& path_length_Ma
 	std::vector<int> calculated_path = initialpath.solveNearestTSP(path_length_Matrix, start_Node);
 
 	bool changed_path = false; //this variable checks if the path has been changed in the mutation process
-	int changeing_counter = 20;//this variable is a counter for how many times a path has been the same
+	int changeing_counter = 25;//this variable is a counter for how many times a path has been the same
 
 	int number_of_generations = 0;
 
@@ -170,18 +171,18 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& path_length_Ma
 			current_generation_paths.push_back(mutatePath(calculated_path));
 		}
 		calculated_path = getBestPath(current_generation_paths, path_length_Matrix, changed_path); //get the best path of this generation
-		if(number_of_generations >= 170) //when 20 steps has been done the algorithm checks if the last ten paths didn't change
+		if(number_of_generations >= 350) //when 20 steps has been done the algorithm checks if the last ten paths didn't change
 		{
 			if(changed_path)
 			{
-				changeing_counter = 20; //reset the counting-variable to 10
+				changeing_counter = 25; //reset the counting-variable
 			}
 			else
 			{
 				changeing_counter -= 1; //decrease the counting-variable by 1
 			}
 		}
-	}while(changeing_counter > 0 || number_of_generations < 170);
+	}while(changeing_counter > 0 || number_of_generations < 350);
 
 	return calculated_path;
 }
