@@ -19,7 +19,7 @@ AdaboostClassifier::AdaboostClassifier()
 }
 
 void AdaboostClassifier::trainClassifiers(const cv::Mat& first_room_training_map, const cv::Mat& second_room_training_map,
-        const cv::Mat& first_hallway_training_map, const cv::Mat& second_hallway_training_map)
+        const cv::Mat& first_hallway_training_map, const cv::Mat& second_hallway_training_map, const std::string& classifier_storage_path)
 {
 	//**************************Training-Algorithm for the AdaBoost-classifiers*****************************
 	//This Alogrithm trains two AdaBoost-classifiers from OpenCV. It takes the given training maps and finds the Points
@@ -159,7 +159,8 @@ void AdaboostClassifier::trainClassifiers(const cv::Mat& first_room_training_map
 	// Train a boost classifier
 	hallway_boost_.train(hallway_features_Mat, CV_ROW_SAMPLE, hallway_labels_Mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
 	//save the trained booster
-	hallway_boost_.save("ipa_room_segmentation/training_results/trained_hallway_boost.xml", "boost");
+	std::string filename_hallway = classifier_storage_path + "trained_hallway_boost.xml";
+	hallway_boost_.save(filename_hallway.c_str(), "boost");
 	ROS_INFO("Done hallway classifiers.");
 
 	//*************room***************
@@ -177,7 +178,8 @@ void AdaboostClassifier::trainClassifiers(const cv::Mat& first_room_training_map
 	// Train a boost classifier
 	room_boost_.train(room_features_Mat, CV_ROW_SAMPLE, room_labels_Mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
 	//save the trained booster
-	room_boost_.save("ipa_room_segmentation/training_results/trained_room_boost.xml", "boost");
+	std::string filename_room = classifier_storage_path + "trained_room_boost.xml";
+	room_boost_.save(filename_room.c_str(), "boost");
 	//set the trained-variabel true, so the labeling-algorithm knows the classifiers have been trained already
 	trained_ = true;
 	ROS_INFO("Done room classifiers.");
@@ -185,7 +187,7 @@ void AdaboostClassifier::trainClassifiers(const cv::Mat& first_room_training_map
 }
 
 void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription,
-        double room_area_factor_lower_limit, double room_area_factor_upper_limit)
+        double room_area_factor_lower_limit, double room_area_factor_upper_limit, const std::string& classifier_storage_path)
 {
 	//******************Semantic-labeling function based on AdaBoost*****************************
 	//This function calculates single-valued features for every white Pixel in the given occupancy-gridmap and classifies it
@@ -207,8 +209,10 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 	//***********************I. check if classifiers has already been trained*****************************
 	if (!trained_) //classifiers hasn't been trained before so they should be loaded
 	{
-		room_boost_.load("ipa_room_segmentation/training_results/trained_room_boost.xml");
-		hallway_boost_.load("ipa_room_segmentation/training_results/trained_hallway_boost.xml");
+		std::string filename_room = classifier_storage_path + "trained_room_boost.xml";
+		room_boost_.load(filename_room.c_str());
+		std::string filename_hallway = classifier_storage_path + "trained_hallway_boost.xml";
+		hallway_boost_.load(filename_hallway.c_str());
 		trained_ = true;
 		ROS_INFO("Loaded training results.");
 	}
