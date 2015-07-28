@@ -1,4 +1,5 @@
 #include "ros/ros.h"
+#include <ros/package.h>
 
 #include <iostream>
 #include <iomanip>
@@ -108,6 +109,10 @@ int main(int argc, char **argv)
 	}
 
 	writeToFile(pathlengths);
+
+	//std::string cmd = ros::package::getPath("concorde_tsp_solver") + "/bin/concorde .......";
+	//result = system(cmd.c_str());
+	//assert(!result);
 
 
 	for (int row = 0; row < pathlengths.rows; row++)
