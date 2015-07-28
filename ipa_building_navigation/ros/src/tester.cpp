@@ -56,8 +56,7 @@ int main(int argc, char **argv)
 	srand(5); //time(NULL));
 	ros::init(argc, argv, "a_star_tester");
 	ros::NodeHandle nh;
-	cv::Mat map = cv::imread("/home/rmb-fj/Pictures/maps/black_map.png", 0);
-
+	cv::Mat map = cv::imread("/home/rmb-fj/Pictures/testmaps/lab_d.png", 0);
 
 	AStarPlanner planner;
 //	NearestNeigborTSPSolver TSPsolver;
