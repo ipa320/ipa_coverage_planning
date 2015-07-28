@@ -11,7 +11,7 @@ std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& path_l
 	//should be calculated once. This Matrix should save the pathlengths with this logic:
 	//		1. The rows show from which Node the length is calculated.
 	//		2. For the columns in a row the Matrix shows the distance to the Node in the column.
-	//		3. From the node to itself the distance is -1.
+	//		3. From the node to itself the distance is 0.
 
 	std::vector<int> calculated_order; //solution order
 
@@ -30,7 +30,7 @@ std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& path_l
 			if (!contains(calculated_order, current_neighbor)) //check if current neighbor hasn't been visited yet
 			{
 				if (path_length_Matrix.at<double>(current_node, current_neighbor) < saved_distance
-				        && path_length_Matrix.at<double>(current_node, current_neighbor) != -1)
+				        && path_length_Matrix.at<double>(current_node, current_neighbor) > 0)
 				{
 					next_node = current_neighbor;
 					saved_distance = path_length_Matrix.at<double>(current_node, current_neighbor);

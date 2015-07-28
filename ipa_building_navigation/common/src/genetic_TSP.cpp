@@ -12,7 +12,7 @@ double GeneticTSPSolver::getPathLength(const cv::Mat& path_length_Matrix, std::v
 	// This Matrix should save the pathlengths with this logic:
 	//		1. The rows show from which Node the length is calculated.
 	//		2. For the columns in a row the Matrix shows the distance to the Node in the column.
-	//		3. From the node to itself the distance is -1.
+	//		3. From the node to itself the distance is 0.
 
 	double length_of_given_path = 0;
 
