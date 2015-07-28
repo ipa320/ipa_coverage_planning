@@ -36,17 +36,17 @@ std::string AStarPlanner::pathFind(const int & xStart, const int & yStart, const
 	cv::Mat map_to_calculate_path(cv::Size(n, m), CV_32S);
 
 	// create map from the given eroded map
-	for (int y = 0; y < map_from_subscription.cols; y++)
+	for (int y = 0; y < map_from_subscription.rows; y++)
 	{
-		for (int x = 0; x < map_from_subscription.rows; x++)
+		for (int x = 0; x < map_from_subscription.cols; x++)
 		{
-			if (map_from_subscription.at<unsigned char>(x, y) == 255)
+			if (map_from_subscription.at<unsigned char>(y, x) == 255)
 			{
-				map_to_calculate_path.at<int>(x, y) = 0;
+				map_to_calculate_path.at<int>(y, x) = 0;
 			}
 			else
 			{
-				map_to_calculate_path.at<int>(x, y) = 1;
+				map_to_calculate_path.at<int>(y, x) = 1;
 			}
 		}
 	}
@@ -56,12 +56,12 @@ std::string AStarPlanner::pathFind(const int & xStart, const int & yStart, const
 	cv::Mat dir_map(cv::Size(n, m), CV_32S); // map of directions
 
 	// reset the node maps
-	for (y = 0; y < map_from_subscription.cols; y++)
+	for (y = 0; y < map_from_subscription.rows; y++)
 	{
-		for (x = 0; x < map_from_subscription.rows; x++)
+		for (x = 0; x < map_from_subscription.cols; x++)
 		{
-			closed_nodes_map.at<int>(x, y) = 0;
-			open_nodes_map.at<int>(x, y) = 0;
+			closed_nodes_map.at<int>(y, x) = 0;
+			open_nodes_map.at<int>(y, x) = 0;
 		}
 	}
 

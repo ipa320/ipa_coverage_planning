@@ -74,9 +74,9 @@ int main(int argc, char **argv)
 		bool done = false;
 		do
 		{
-			int x = rand() % map.rows;
-			int y = rand() % map.cols;
-			if (eroded_map.at<unsigned char>(x, y) == 255)
+			int x = rand() % map.cols;
+			int y = rand() % map.rows;
+			if (eroded_map.at<unsigned char>(y, x) == 255)
 			{
 				centers.push_back(cv::Point(x, y));
 				done = true;
@@ -88,7 +88,7 @@ int main(int argc, char **argv)
 
 	for (int i = 0; i < centers.size(); i++)
 	{
-		cv::circle(testermap, cv::Point(centers[i].y, centers[i].x), 2, cv::Scalar(127), CV_FILLED);
+		cv::circle(testermap, centers[i], 2, cv::Scalar(127), CV_FILLED);
 		for (int p = 0; p < centers.size(); p++)
 		{
 			if (p != i)
@@ -121,7 +121,7 @@ int main(int argc, char **argv)
 
 	std::vector<int> TSPorder = genTSPsolver.solveGeneticTSP(pathlengths, 0);
 
-	cv::circle(testermap, cv::Point(centers[0].y, centers[0].x), 2, cv::Scalar(73), CV_FILLED);
+	cv::circle(testermap, cv::Point(centers[0].x, centers[0].y), 2, cv::Scalar(73), CV_FILLED);
 
 	for (int i = 0; i < TSPorder.size() - 1; i++)
 	{
