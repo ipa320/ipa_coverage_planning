@@ -18,7 +18,7 @@ void DistanceSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labele
 	//hierarchy saves if the contours are hole-contours:
 	//hierarchy[{0,1,2,3}]={next contour (same level), previous contour (same level), child contour, parent contour}
 	//child-contour = 1 if it has one, = -1 if not, same for parent_contour
-	std::vector < cv::Vec4i > hierarchy;
+	std::vector < cv::Vec4i > hierarchy, hierarchy_saver;
 	std::vector < std::vector<cv::Point> > temporary_contours;
 	//
 	//Segmentation of a gridmap into roomlike areas based on the distance-transformation of the map
@@ -32,20 +32,32 @@ void DistanceSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labele
 
 	//2. Threshold the map and find the contours of the rooms. Change the threshold and repeat steps until last possible threshold.
 	//Then take the contours from the threshold with the most contours between the roomfactors and draw it in the map with a random color.
-	std::vector<std::vector<cv::Point> > saved_contours;	//saving-vector for the found contours
+	std::vector<std::vector<cv::Point> > saved_contours, hole_contour_saver;	//saving-vector for the found contours
 	for (int current_threshold = 255; current_threshold > 0; current_threshold--)
 	{ //change the threshold for the grayscale-image from largest possible value to smallest
 	  //reset number of rooms
 		temporary_contours.clear();
 		contours.clear();
+		hierarchy.clear();
 		cv::threshold(distance_map, thresh_map, current_threshold, 255, cv::THRESH_BINARY);
 		cv::findContours(thresh_map, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
+
 		//Get the number of large enough regions to be a room. Only check non-holes.
 		for (int c = 0; c < contours.size(); c++)
 		{
 			if (hierarchy[c][3] == -1)
 			{
-				double room_area = map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(contours[c]);
+				double room_area = map_resolution_from_subscription * map_resolution_from_subscription
+						* cv::contourArea(contours[c]);
+				//subtract the area from the hole contours inside the found contour, because the contour area grows extremly large if it is a closed loop
+				for(int hole = 0; hole < contours.size(); hole++)
+				{
+					if(hierarchy[hole][3] == c)//check if the parent of the hole is the current looked at contour
+					{
+						room_area -= map_resolution_from_subscription * map_resolution_from_subscription
+								* cv::contourArea(contours[hole]);
+					}
+				}
 				if (room_area >= room_area_factor_lower_limit && room_area <= room_area_factor_upper_limit)
 				{
 					temporary_contours.push_back(contours[c]);
@@ -53,10 +65,14 @@ void DistanceSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labele
 			}
 		}
 		//check if current step has more rooms than the saved one
-		if (temporary_contours.size() > saved_contours.size())
+		if (temporary_contours.size() >= saved_contours.size())
 		{
 			saved_contours.clear();
+			hole_contour_saver.clear();
+			hierarchy_saver.clear();
 			saved_contours = temporary_contours;
+			hole_contour_saver = contours;
+			hierarchy_saver = hierarchy;
 		}
 	}
 	//Draw the found contours from the step with most areas in the map with a random colour, that hasn't been used yet
@@ -72,11 +88,19 @@ void DistanceSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labele
 			cv::Scalar fill_colour(rand() % 52224 + 13056);
 			if (!contains(already_used_colors, fill_colour) || loop_counter > 250)
 			{
-				cv::drawContours(segmented_map, saved_contours, current_contour, fill_colour, CV_FILLED);
+				cv::drawContours(segmented_map, saved_contours, current_contour, fill_colour, 7);
 				already_used_colors.push_back(fill_colour); //add used colour to the saving-vector
 				drawn = true;
 			}
 		} while (!drawn);
+	}
+	//draw the hole contours black into the new map
+	for(int current_hole = 0; current_hole < hole_contour_saver.size(); current_hole++)
+	{
+		if(hierarchy_saver[current_hole][3] == 1)
+		{
+			cv::drawContours(segmented_map, hole_contour_saver, current_hole, cv::Scalar(0), CV_FILLED);
+		}
 	}
 	//spread the colors to the white pixels
 	wavefrontRegionGrowing(segmented_map);

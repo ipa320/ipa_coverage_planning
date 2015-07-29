@@ -60,11 +60,12 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 	//	4. It returns the map that has the generalized voronoi-graph drawn in.
 
 	cv::Mat map_to_draw_voronoi_in = map_for_voronoi_generation.clone(); //variable to save the given map for drawing in the voronoi-diagram
-	//apply a closing-operator on the map so bad parts are neglegted
-	cv::erode(map_to_draw_voronoi_in, map_to_draw_voronoi_in, cv::Mat());
-	cv::dilate(map_to_draw_voronoi_in, map_to_draw_voronoi_in, cv::Mat());
 
 	cv::Mat temporary_map_to_calculate_voronoi = map_for_voronoi_generation.clone(); //variable to save the given map in the createVoronoiGraph-function
+
+	//apply a closing-operator on the map so bad parts are neglegted
+	cv::erode(temporary_map_to_calculate_voronoi, temporary_map_to_calculate_voronoi, cv::Mat());
+	cv::dilate(temporary_map_to_calculate_voronoi, temporary_map_to_calculate_voronoi, cv::Mat());
 
 	//********************1. Get OpenCV delaunay-traingulation******************************
 
@@ -150,7 +151,8 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 }
 
 void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription,
-        double room_area_factor_lower_limit, double room_area_factor_upper_limit)
+        double room_area_factor_lower_limit, double room_area_factor_upper_limit, int neihborhood_index,
+        int neihborhood_size, double min_critical_Point_distance)
 {
 	//****************Create the Generalized Voronoi-Diagram**********************
 	//This function takes a given map and segments it with the generalized Voronoi-Diagram. It takes following steps:
@@ -299,7 +301,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 			{
 				//make the size of the to be checked region dependend on the distance of the current Pixel to the closest
 				//zero-Pixel, so larger areas are splittet into more regions and small areas into fewer
-				eps = 310 / (int) distance_map.at<unsigned char>(x, y);
+				eps = neihborhood_index / (int) distance_map.at<unsigned char>(x, y); //310
 				loopcounter = 0; //if a Part of the graph is not connected to the rest this variable helps to stop the loop
 				//reset the neighboring-variables, which are different for each Point
 				neighbor_Points.clear();
@@ -342,7 +344,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 					}
 					temporary_Points.clear();
 					//check if enough neighbors has been checked or checked enough times (e.g. at a small segment of the graph)
-				} while (neighbor_count <= eps && loopcounter < 150);
+				} while (neighbor_count <= eps && loopcounter < neihborhood_size);
 				//check every found Point in the neighborhood if it is the local Minimum in the distanceMap
 				current_critical_Point = cv::Point(x, y);
 				for (int p = 0; p < neighbor_Points.size(); p++)
@@ -366,6 +368,10 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 	//segmented_map = map_to_be_labeled.clone();
 	map_to_be_labeled.convertTo(segmented_map, CV_32SC1, 256, 0);		// rescale to 32 int, 255 --> 255*256 = 65280
 
+	//clone the Map to extract the contours, because after using OpenCV find-/drawContours
+	//the map will be different from the original one
+	cv::Mat temporary_map_to_extract_the_contours = segmented_map.clone();
+
 	std::vector < std::vector<cv::Point> > contours;
 	cv::Point basis_Point_1, basis_Point_2;
 	std::vector<cv::Point> basis_Points_1, basis_Points_2;
@@ -376,8 +382,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 	bool draw;
 
 	// 1. Get the Points of the contour, which are the possible closest Points for a critical Point
-	cv::findContours(segmented_map, contours, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
-	cv::drawContours(segmented_map, contours, -1, cv::Scalar(255*256), CV_FILLED);
+	cv::findContours(temporary_map_to_extract_the_contours, contours, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
 
 	// 2. Get the basis-points for each critical-point
 	for (int current_critical_point = 0; current_critical_point < critical_Points.size(); current_critical_point++)
@@ -468,7 +473,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 				double vector_y = critical_Points[second_critical_Point].y - critical_Points[first_critical_Point].y;
 				double critical_Point_distance = std::sqrt((std::pow(vector_x, 2.0)) + std::pow(vector_y, 2.0));
 				//check if the Points are too close to each other
-				if (critical_Point_distance < 27.0)
+				if (critical_Point_distance < min_critical_Point_distance) //27.0
 				{
 					//if one Point in neighborhood is found that has a larger angle the actual to-be-checked Point shouldn't be drawn
 					if (angles[first_critical_Point] < angles[second_critical_Point])
@@ -493,6 +498,8 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 			        basis_Points_2[first_critical_Point], cv::Scalar(0));
 		}
 	}
+
+	cv::imshow("critical lines", voronoi_map_);
 	//***********************Find the Contours seperated from the critcal lines and fill them with colour******************
 
 	std::vector < cv::Scalar > already_used_coloures; //saving-vector to save the already used coloures
