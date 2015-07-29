@@ -32,7 +32,7 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 	//Info to remind the user of changing all important values.
 	ROS_INFO("----> Important Server announcement: <-----");
 	ROS_INFO(
-	        "Make sure you have set all Parameters to the right ones, especially the roomarea borders. If not unusual behavior and results of the algorithms and the robot may occure.");
+	        "Make sure you have set all Parameters to the right ones, especially the roomarea borders. If not, unusual behavior and results of the algorithms and the robot may occure.");
 	ROS_INFO("----> Announcement over. <----");
 	std::cout << std::endl;
 	node_handle_.param("map_sampling_factor_check", map_sampling_factor_check_, 1.5);
@@ -46,10 +46,10 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 	{
 		node_handle_.param("voronoi_neighborhood_index", voronoi_neighborhood_index_, 310);
 		std::cout << "room_segmentation/voronoi_neighborhood_index = " << voronoi_neighborhood_index_ << std::endl;
-		node_handle_.param("voronoi_max_neighborhood_size", voronoi_max_neighborhood_size_, 150);
-		std::cout << "room_segmentation/voronoi_max_neighborhood_size_check = " << voronoi_max_neighborhood_size_ << std::endl;
-		node_handle_.param("min_critical_Point_distance", min_critical_Point_distance_, 27.0);
-		std::cout << "room_segmentation/min_critical_Point_distance = " << min_critical_Point_distance_ << std::endl;
+		node_handle_.param("max_iterations", max_iterations_, 150);
+		std::cout << "room_segmentation/max_iterations = " << max_iterations_ << std::endl;
+		node_handle_.param("min_critical_Point_distance_factor", min_critical_Point_distance_factor_, 27.0);
+		std::cout << "room_segmentation/min_critical_Point_distance_factor = " << min_critical_Point_distance_factor_ << std::endl;
 
 	}
 
@@ -66,8 +66,8 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	if (room_segmentation_algorithm_ == 3)
 	{
 		ROS_INFO("voronoi_neighborhood_index is : %d", voronoi_neighborhood_index_);
-		ROS_INFO("voronoi_max_neighborhood_size is %d: ", voronoi_max_neighborhood_size_);
-		ROS_INFO("min_critical_Point_distance is %f: ", min_critical_Point_distance_);
+		ROS_INFO("max_iterations is %d: ", max_iterations_);
+		ROS_INFO("min_critical_Point_distance_factor is %f: ", min_critical_Point_distance_factor_);
 	}
 
 	//converting the map msg in cv format
@@ -90,7 +90,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	else if (room_segmentation_algorithm_ == 3)
 	{
 		voronoi_segmentation_.segmentationAlgorithm(original_img, segmented_map_, goal->map_resolution, room_lower_limit_check_, room_upper_limit_check_,
-		        voronoi_neighborhood_index_, voronoi_max_neighborhood_size_, min_critical_Point_distance_);
+		        voronoi_neighborhood_index_, max_iterations_, min_critical_Point_distance_factor_);
 	}
 	else if (room_segmentation_algorithm_ == 4)
 	{

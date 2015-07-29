@@ -41,9 +41,9 @@ private:
 
 	bool train_the_algorithm_; //Boolean to say if the algorithm needs to be trained
 
-	int voronoi_neighborhood_index_; //Variables for the Voronoi method that specify the neighborhood that is looked at for critical Point extraction
-	int voronoi_max_neighborhood_size_;
-	double min_critical_Point_distance_; //Variable that sets the minimal distance between two critical Points before one gets eliminated
+	int voronoi_neighborhood_index_; //Variable for the Voronoi method that specify the neighborhood that is looked at for critical Point extraction
+	int max_iterations_; //number of iterations for search of neighborhood in voronoi method
+	double min_critical_Point_distance_factor_; //Variable that sets the minimal distance between two critical Points before one gets eliminated
 
 	//maps and map-parameters
 	cv::Mat segmented_map_; //map that has been segmented

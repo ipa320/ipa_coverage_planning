@@ -109,7 +109,7 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 
 	//erode the map and get the largest contour of it so that Points near the boundary are not drawn later
 	//(see drawVoronoi)
-	cv::erode(temporary_map_to_calculate_voronoi, eroded_map, cv::Mat(), anchor, 4);
+	cv::erode(temporary_map_to_calculate_voronoi, eroded_map, cv::Mat(), anchor, 2);
 	cv::findContours(eroded_map, eroded_contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE);
 	//set initial largest contour
 	largest_contour = contours[0];
@@ -152,7 +152,7 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 
 void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription,
         double room_area_factor_lower_limit, double room_area_factor_upper_limit, int neihborhood_index,
-        int neihborhood_size, double min_critical_Point_distance)
+        int max_iterations, double min_critical_Point_distance_factor)
 {
 	//****************Create the Generalized Voronoi-Diagram**********************
 	//This function takes a given map and segments it with the generalized Voronoi-Diagram. It takes following steps:
@@ -275,6 +275,8 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 		}
 	}
 
+	cv::imshow("voronoi-diagram", voronoi_map_);
+
 	//3.find the critical Points in the previously calculated generalized Voronoi-Graph by searching in a specified
 	//	neighborhood for the local Minimum of distance to the nearest black Pixel
 	//	critical Points need to have at least two neighbors (else they are endpoints, which would give a very small segment)
@@ -344,7 +346,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 					}
 					temporary_Points.clear();
 					//check if enough neighbors has been checked or checked enough times (e.g. at a small segment of the graph)
-				} while (neighbor_count <= eps && loopcounter < neihborhood_size);
+				} while (neighbor_count <= eps && loopcounter < max_iterations);
 				//check every found Point in the neighborhood if it is the local Minimum in the distanceMap
 				current_critical_Point = cv::Point(x, y);
 				for (int p = 0; p < neighbor_Points.size(); p++)
@@ -375,6 +377,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 	std::vector < std::vector<cv::Point> > contours;
 	cv::Point basis_Point_1, basis_Point_2;
 	std::vector<cv::Point> basis_Points_1, basis_Points_2;
+	std::vector<double> length_of_critical_line;
 	double current_distance, distance_basis_1, distance_basis_2;
 	double current_angle;
 	int basis_vector_1_x, basis_vector_2_x, basis_vector_1_y, basis_vector_2_y;
@@ -451,8 +454,10 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 		double h = basis_vector_1_y * basis_vector_2_y;
 		current_angle = std::acos((g + h) / (distance_basis_1 * distance_basis_2)) * 180.0 / PI;
 
+		//save the crititical line with its calculated values
 		basis_Points_1.push_back(basis_Point_1);
 		basis_Points_2.push_back(basis_Point_2);
+		length_of_critical_line.push_back(distance_basis_1 + distance_basis_2);
 		angles.push_back(current_angle);
 
 	}
@@ -472,17 +477,23 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 				double vector_x = critical_Points[second_critical_Point].x - critical_Points[first_critical_Point].x;
 				double vector_y = critical_Points[second_critical_Point].y - critical_Points[first_critical_Point].y;
 				double critical_Point_distance = std::sqrt((std::pow(vector_x, 2.0)) + std::pow(vector_y, 2.0));
-				//check if the Points are too close to each other
-				if (critical_Point_distance < min_critical_Point_distance) //27.0
+				//check if the Points are too close to each other corresponding to the distance to the nearest black Pixel
+				//of the current critical Point. This is done because critical Points at doors are closer to the black region
+				//and shorter and may be eliminated in the following step. By reducing the checking distance at this Point
+				//it gets better.
+				if (critical_Point_distance < ((int) distance_map.at<unsigned char>(critical_Points[first_critical_Point].x, critical_Points[first_critical_Point].y) * min_critical_Point_distance_factor)) //1.7
 				{
 					//if one Point in neighborhood is found that has a larger angle the actual to-be-checked Point shouldn't be drawn
 					if (angles[first_critical_Point] < angles[second_critical_Point])
 					{
 						draw = false;
 					}
-					//if the angles of the two neighborhood Points are the same the one which is more at the beginning
-					//of the list shouldn't be drawn (Point at the beginning made better test-results, so it's only subjective oppinion)
-					if (angles[first_critical_Point] == angles[second_critical_Point] && second_critical_Point < first_critical_Point)
+					//if the angles of the two neighborhood Points are the same the shorter one should be drawn, because it more likely is e.g. a door
+					if (angles[first_critical_Point] == angles[second_critical_Point] && length_of_critical_line[first_critical_Point] > length_of_critical_line[second_critical_Point] && length_of_critical_line[second_critical_Point] > 3)
+					{
+						draw = false;
+					}
+					else if(angles[first_critical_Point] == angles[second_critical_Point] && length_of_critical_line[first_critical_Point] > length_of_critical_line[second_critical_Point] && first_critical_Point < second_critical_Point)
 					{
 						draw = false;
 					}
@@ -493,13 +504,14 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 		if (draw)
 		{
 			cv::line(voronoi_map_, cv::Point(critical_Points[first_critical_Point].y, critical_Points[first_critical_Point].x),
-			        basis_Points_1[first_critical_Point], cv::Scalar(0));
+			        basis_Points_1[first_critical_Point], cv::Scalar(0), 2);
 			cv::line(voronoi_map_, cv::Point(critical_Points[first_critical_Point].y, critical_Points[first_critical_Point].x),
-			        basis_Points_2[first_critical_Point], cv::Scalar(0));
+			        basis_Points_2[first_critical_Point], cv::Scalar(0), 2);
 		}
 	}
 
 	cv::imshow("critical lines", voronoi_map_);
+	cv::waitKey(1);
 	//***********************Find the Contours seperated from the critcal lines and fill them with colour******************
 
 	std::vector < cv::Scalar > already_used_coloures; //saving-vector to save the already used coloures
@@ -507,7 +519,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 	std::vector < cv::Vec4i > hierarchy; //variables for coloring the map
 
 	//1. Erode map one time, so small gaps are closed
-	cv::erode(voronoi_map_, voronoi_map_, cv::Mat(), cv::Point(-1, -1), 1);
+//	cv::erode(voronoi_map_, voronoi_map_, cv::Mat(), cv::Point(-1, -1), 1);
 	cv::findContours(voronoi_map_, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE);
 
 	for (int current_contour = 0; current_contour < contours.size(); current_contour++)
@@ -528,7 +540,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 					//check if colour has already been used
 					if (!contains(already_used_coloures, fill_colour) || loop_counter > 250)
 					{
-						cv::drawContours(segmented_map, contours, current_contour, fill_colour, CV_FILLED);
+						cv::drawContours(segmented_map, contours, current_contour, fill_colour, 1);
 						already_used_coloures.push_back(fill_colour);
 						drawn = true;
 					}
