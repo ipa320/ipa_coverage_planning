@@ -8,6 +8,8 @@
 
 #include <ctime>
 
+#include <ipa_room_segmentation/room_class.h>
+
 #define PI 3.14159265
 
 class VoronoiSegmentation
@@ -22,6 +24,9 @@ private:
 
 	//function to get the voronoi-diagram drawn into the map
 	void createVoronoiGraph(cv::Mat& map_for_voronoi_generation);
+
+	//function to merge rooms together
+	void mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Room> rooms, double map_resolution_from_subscription);
 
 public:
 

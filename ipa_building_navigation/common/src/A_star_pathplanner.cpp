@@ -51,19 +51,19 @@ std::string AStarPlanner::pathFind(const int & xStart, const int & yStart, const
 		}
 	}
 
-	cv::Mat closed_nodes_map(cv::Size(n, m), CV_32S); //map of already tried nodes
-	cv::Mat open_nodes_map(cv::Size(n, m), CV_32S); // map of open (not-yet-tried) nodes
+	cv::Mat closed_nodes_map(cv::Size(n, m), CV_32S, 0); //map of already tried nodes
+	cv::Mat open_nodes_map(cv::Size(n, m), CV_32S, 0); // map of open (not-yet-tried) nodes
 	cv::Mat dir_map(cv::Size(n, m), CV_32S); // map of directions
 
 	// reset the node maps
-	for (y = 0; y < map_from_subscription.rows; y++)
-	{
-		for (x = 0; x < map_from_subscription.cols; x++)
-		{
-			closed_nodes_map.at<int>(y, x) = 0;
-			open_nodes_map.at<int>(y, x) = 0;
-		}
-	}
+//	for (y = 0; y < map_from_subscription.rows; y++)
+//	{
+//		for (x = 0; x < map_from_subscription.cols; x++)
+//		{
+//			closed_nodes_map.at<int>(y, x) = 0;
+//			open_nodes_map.at<int>(y, x) = 0;
+//		}
+//	}
 
 	// create the start node and push into list of open nodes
 	n0 = new nodeAstar(xStart, yStart, 0, 0);
