@@ -17,7 +17,7 @@ room_area_factor_upper_limit_check: 23.0
 #morphological segmentation: 0.8 - 47.0
 #distance segmentation: 0.35 - 163.0 (lower limit is perfect, upper limit is discussable)
 #Voronoi segmentation: 1.53 - 120.0
-#Semantic Segmentation: 1.53 - 23.0
+#Semantic Segmentation: 1.0 - 23.0
 
 #parameters for the voronoi segmentation that specify the neighborhood for critical Point extraction 
 #and the distance between critical Points. 
