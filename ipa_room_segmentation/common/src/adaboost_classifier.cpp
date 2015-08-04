@@ -356,7 +356,7 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 				}
 			}
 			std::cout << "filled black pixels." << std::endl;
-			cv::Mat temporary_Map_to_wavefront(contour_Map.rows, contour_Map.cols, CV_32SC1, cv::Scalar(0));
+			cv::Mat temporary_Map_to_wavefront;
 			contour_Map.convertTo(temporary_Map_to_wavefront, CV_32SC1, 256, 0);
 			std::cout << "converted." << std::endl;
 			wavefrontRegionGrowing(temporary_Map_to_wavefront);
