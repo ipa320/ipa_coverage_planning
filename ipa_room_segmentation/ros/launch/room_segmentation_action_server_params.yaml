@@ -11,13 +11,21 @@ map_sampling_factor_check: 1.5
 # 1. choice of value is very important
 # 2. smaller value increase the chance to get every room
 
-room_area_factor_lower_limit_check: 1.0
-room_area_factor_upper_limit_check: 23.0
+#morphological segmentation: 47.0 - 0.8
+room_area_factor_upper_limit_morphological: 47.0
+room_area_factor_lower_limit_morphological: 0.8
 
-#morphological segmentation: 0.8 - 47.0
-#distance segmentation: 0.35 - 163.0 (lower limit is perfect, upper limit is discussable)
-#Voronoi segmentation: 1.53 - 120.0
-#Semantic Segmentation: 1.0 - 23.0
+#distance segmentation: 163.0 - 0.35 (lower limit is perfect, upper limit is discussable)
+room_area_factor_upper_limit_distance: 163.0
+room_area_factor_lower_limit_distance: 0.35
+
+#Voronoi segmentation: 120.0 - 1.53
+room_area_factor_upper_limit_voronoi: 120.0
+room_area_factor_lower_limit_voronoi: 1.53
+
+#Semantic Segmentation: 23.0 - 1.0
+room_area_factor_upper_limit_semantic: 23.0
+room_area_factor_lower_limit_semantic: 1.0
 
 #parameters for the voronoi segmentation that specify the neighborhood for critical Point extraction 
 #and the distance between critical Points. 

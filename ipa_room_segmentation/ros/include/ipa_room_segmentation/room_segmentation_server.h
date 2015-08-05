@@ -30,8 +30,9 @@ private:
 
 	// parameters
 	double map_sampling_factor_check_;	//sampling-factor of the map
-	double room_upper_limit_check_;	//limits for the room-areas
-	double room_lower_limit_check_;
+	//limits for the room-areas
+	double room_upper_limit_morphological_, room_upper_limit_distance_, room_upper_limit_voronoi_, room_upper_limit_semantic_;
+	double room_lower_limit_morphological_, room_lower_limit_distance_, room_lower_limit_voronoi_, room_lower_limit_semantic_;
 	int room_segmentation_algorithm_;	// this variable selects the algorithm for room segmentation,
 										// 1 = morphological segmentation
 										// 2 = distance segmentation
