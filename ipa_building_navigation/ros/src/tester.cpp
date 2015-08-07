@@ -18,6 +18,7 @@
 #include <ipa_building_navigation/A_star_pathplanner.h>
 //#include <ipa_building_navigation/nearest_neighbor_TSP.h>
 #include <ipa_building_navigation/genetic_TSP.h>
+#include <ipa_building_navigation/maximal_clique_finder.h>
 
 void writeToFile(cv::Mat& pathlength_matrix)
 {
@@ -25,15 +26,16 @@ void writeToFile(cv::Mat& pathlength_matrix)
 	if (saving_file.is_open())
 	{
 		std::cout << "starting saving classifier parameters" << std::endl;
-		saving_file << "NAME: ipa-building-navigation" << std::endl << "TYPE: TSP" << std::endl << "COMMENT: This is the TSPlib file for using concorde" << std::endl;
+		saving_file << "NAME: ipa-building-navigation" << std::endl << "TYPE: TSP" << std::endl << "COMMENT: This is the TSPlib file for using concorde"
+		        << std::endl;
 		saving_file << "DIMENSION: " << pathlength_matrix.cols << std::endl;
 		saving_file << "EDGE_WEIGHT_TYPE: EXPLICIT" << std::endl;
 		saving_file << "EDGE_WEIGHT_FORMAT: FULL_MATRIX" << std::endl;
 		saving_file << "EDGE_WEIGHT_SECTION" << std::endl;
 
-		for(int row = 0; row < pathlength_matrix.rows; row++)
+		for (int row = 0; row < pathlength_matrix.rows; row++)
 		{
-			for(int col = 0; col < pathlength_matrix.cols; col++)
+			for (int col = 0; col < pathlength_matrix.cols; col++)
 			{
 				saving_file << " " << (int) pathlength_matrix.at<double>(row, col);
 			}
@@ -56,20 +58,25 @@ int main(int argc, char **argv)
 	srand(5); //time(NULL));
 	ros::init(argc, argv, "a_star_tester");
 	ros::NodeHandle nh;
-	cv::Mat map = cv::imread("/home/rmb-fj/Pictures/testmaps/lab_d.png", 0);
+
+	cv::Mat map = cv::imread("/home/rmb-fj/Pictures/maps/black_map.png", 0);
 
 	AStarPlanner planner;
 //	NearestNeigborTSPSolver TSPsolver;
 	GeneticTSPSolver genTSPsolver;
 
+	cliqueFinder finder;
+
 	std::vector < cv::Point > centers;
 
-	cv::Mat pathlengths(cv::Size(25, 25), CV_64F);
+	int n = 8;
+
+	cv::Mat pathlengths(cv::Size(n, n), CV_64F);
 	cv::Mat eroded_map;
 
 	cv::erode(map, eroded_map, cv::Mat(), cv::Point(-1, -1), 4);
 
-	for (int i = 0; i < 25; i++) //add Points for TSP to test the solvers
+	for (int i = 0; i < n; i++) //add Points for TSP to test the solvers
 	{
 		bool done = false;
 		do
@@ -109,10 +116,9 @@ int main(int argc, char **argv)
 
 	writeToFile(pathlengths);
 
-	//std::string cmd = ros::package::getPath("concorde_tsp_solver") + "/bin/concorde .......";
-	//result = system(cmd.c_str());
-	//assert(!result);
-
+//	std::string cmd = ros::package::getPath("concorde_tsp_solver") + "/bin/concorde .......";
+//	result = system(cmd.c_str());
+//	assert(!result);
 
 	for (int row = 0; row < pathlengths.rows; row++)
 	{
@@ -125,17 +131,28 @@ int main(int argc, char **argv)
 
 	std::vector<int> TSPorder = genTSPsolver.solveGeneticTSP(pathlengths, 0);
 
-	cv::circle(testermap, cv::Point(centers[0].x, centers[0].y), 2, cv::Scalar(73), CV_FILLED);
+	cv::circle(testermap, centers[0], 2, cv::Scalar(73), CV_FILLED);
 
 	for (int i = 0; i < TSPorder.size() - 1; i++)
 	{
-		cv::line(testermap, cv::Point(centers[TSPorder[i]].y, centers[TSPorder[i]].x), cv::Point(centers[TSPorder[i + 1]].y, centers[TSPorder[i + 1]].x),
-		        cv::Scalar(127));
+		cv::line(testermap, centers[TSPorder[i]], centers[TSPorder[i + 1]], cv::Scalar(127));
 	}
 
-//	cv::imshow("test", testermap);
 	cv::imwrite("/home/rmb-fj/Pictures/TSP/genetic.png", testermap);
-//	cv::waitKey(1000000);
+
+	std::cout << std::endl;
+	std::cout << "All maximum cliques in the graph:" << std::endl;
+
+	std::vector < std::vector<int> > cliques = finder.getCliques(pathlengths, 300.0);
+
+	for (int i = 0; i < cliques.size(); i++)
+	{
+		for (int j = 0; j < cliques[i].size(); j++)
+		{
+			std::cout << cliques[i][j] << std::endl;
+		}
+		std::cout << std::endl;
+	}
 
 	return 0;
 }

@@ -33,7 +33,7 @@ std::string AStarPlanner::pathFind(const int & xStart, const int & yStart, const
 	static char c;
 	pqi = 0;
 
-	cv::Mat map_to_calculate_path(cv::Size(n, m), CV_32S);
+	cv::Mat map_to_calculate_path(cv::Size(m, n), CV_32S);
 
 	// create map from the given eroded map
 	for (int y = 0; y < map_from_subscription.rows; y++)
@@ -42,28 +42,28 @@ std::string AStarPlanner::pathFind(const int & xStart, const int & yStart, const
 		{
 			if (map_from_subscription.at<unsigned char>(y, x) == 255)
 			{
-				map_to_calculate_path.at<int>(y, x) = 0;
+				map_to_calculate_path.at<int>(x, y) = 0;
 			}
 			else
 			{
-				map_to_calculate_path.at<int>(y, x) = 1;
+				map_to_calculate_path.at<int>(x, y) = 1;
 			}
 		}
 	}
 
-	cv::Mat closed_nodes_map(cv::Size(n, m), CV_32S, 0); //map of already tried nodes
-	cv::Mat open_nodes_map(cv::Size(n, m), CV_32S, 0); // map of open (not-yet-tried) nodes
-	cv::Mat dir_map(cv::Size(n, m), CV_32S); // map of directions
+	cv::Mat closed_nodes_map(cv::Size(m, n), CV_32S); //map of already tried nodes
+	cv::Mat open_nodes_map(cv::Size(m, n), CV_32S); // map of open (not-yet-tried) nodes
+	cv::Mat dir_map(cv::Size(m, n), CV_32S); // map of directions
 
 	// reset the node maps
-//	for (y = 0; y < map_from_subscription.rows; y++)
-//	{
-//		for (x = 0; x < map_from_subscription.cols; x++)
-//		{
-//			closed_nodes_map.at<int>(y, x) = 0;
-//			open_nodes_map.at<int>(y, x) = 0;
-//		}
-//	}
+	for (y = 0; y < closed_nodes_map.rows; y++)
+	{
+		for (x = 0; x < closed_nodes_map.cols; x++)
+		{
+			closed_nodes_map.at<int>(y, x) = 0;
+			open_nodes_map.at<int>(y, x) = 0;
+		}
+	}
 
 	// create the start node and push into list of open nodes
 	n0 = new nodeAstar(xStart, yStart, 0, 0);
@@ -197,12 +197,13 @@ double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& s
 		char c;
 		int x = start_point.x;
 		int y = start_point.y;
-
 		for (int i = 0; i < route.length(); i++)
 		{
 			//get the next char of the string and make it an integer, which shows the direction
 			c = route.at(i);
 			j = atoi(&c);
+			x = x + dx[j];
+			y = y + dy[j];
 			//Update the pathlength with the directions of the path. When the path goes vertical or horizontal add length 1.
 			//When it goes diagonal add sqrt(2)
 			if (j == 0 || j == 2 || j == 4 || j == 6)
@@ -214,7 +215,6 @@ double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& s
 				path_length += std::sqrt(2);
 			}
 		}
-
 	}
 
 	return path_length;
