@@ -15,11 +15,14 @@
 
 #include <fstream>
 
-#include <ipa_building_navigation/A_star_pathplanner.h>
+//#include <ipa_building_navigation/A_star_pathplanner.h>
 //#include <ipa_building_navigation/nearest_neighbor_TSP.h>
 #include <ipa_building_navigation/genetic_TSP.h>
+
 #include <ipa_building_navigation/maximal_clique_finder.h>
 #include <ipa_building_navigation/set_cover_solver.h>
+
+#include <ipa_building_navigation/trolley_position_finder.h>
 
 void writeToFile(cv::Mat& pathlength_matrix)
 {
@@ -66,9 +69,11 @@ int main(int argc, char **argv)
 //	NearestNeigborTSPSolver TSPsolver;
 	GeneticTSPSolver genTSPsolver;
 
-	cliqueFinder finder;
+	cliqueFinder finder; //Object to find all maximal cliques for the given map
 
-	setCoverSolver setsolver;
+	setCoverSolver setsolver;	//Object to find the groups based on the found cliques
+
+	trolleyPositionFinder tolley_finder;
 
 	std::vector < cv::Point > centers;
 
@@ -177,19 +182,20 @@ int main(int argc, char **argv)
 		std::cout << std::endl;
 	}
 
-	std::vector<int> nodes;
-	for(int i = 0; i < n; i++)
-	{
-		nodes.push_back(i);
-	}
+	ROS_INFO("Starting to solve the setcover problem.");
 
-	ROS_INFO("Starting to solve the setcover problem");
+	std::vector<std::vector<int> > groups = setsolver.solveSetCover(cliques, n);
 
-	std::vector<std::vector<int> > groups = setsolver.solveSetCover(cliques, nodes);
+	ROS_INFO("Starting to find the trolley positions.");
+
+	std::vector<cv::Point> trolley_positions = tolley_finder.findTrolleyPositions(map, groups, centers);
+
+	std::cout << groups.size() << " " << trolley_positions.size() << std::endl;
 
 	for(int i = 0; i < groups.size(); i++)
 	{
 		cv::Scalar group_colour(rand() % 200 + 20);
+		cv::circle(testermap, trolley_positions[i], 4, cv::Scalar(0), 1);
 		for(int j = 0; j < groups[i].size(); j++)
 		{
 			cv::circle(testermap, centers[groups[i][j]], 2, group_colour, CV_FILLED);

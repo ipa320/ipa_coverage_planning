@@ -1,6 +1,3 @@
-#include "ros/ros.h"
-#include <ros/package.h>
-
 #include <iostream>
 #include <iomanip>
 #include <queue>
@@ -26,5 +23,5 @@ protected:
 public:
 	setCoverSolver();
 
-	std::vector<std::vector<int> > solveSetCover(const std::vector<std::vector<int> >& given_cliques, const std::vector<int>& nodes);
+	std::vector<std::vector<int> > solveSetCover(const std::vector<std::vector<int> >& given_cliques, const int number_of_nodes);
 };

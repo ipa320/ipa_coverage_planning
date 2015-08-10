@@ -174,9 +174,19 @@ double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& s
 	//length of the planned path
 	double path_length = 0;
 
+	if(start_point.x == end_point.x && start_point.y == end_point.y) //if the start and end-point are the same return 0
+	{
+		return path_length;
+	}
+
 	//set the sizes of the map
 	m = map_from_subscription.rows; // horizontal size of the map
 	n = map_from_subscription.cols; // vertical size size of the map
+
+//	cv::Mat temporary_map = map_from_subscription.clone();
+//
+//	cv::circle(temporary_map, start_point, 2, cv::Scalar(200), CV_FILLED);
+//	cv::circle(temporary_map, end_point, 2, cv::Scalar(100), CV_FILLED);
 
 	//erode the map so the planner doesn't go near the walls
 	cv::Mat eroded_map;
@@ -186,7 +196,10 @@ double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& s
 	clock_t start = clock();
 	std::string route = pathFind(start_point.x, start_point.y, end_point.x, end_point.y, eroded_map);
 	if (route == "")
+	{
 		std::cout << "An empty route generated!" << std::endl;
+		return 9002; //return an extremely large pathlength if the rout could not be generated
+	}
 	clock_t end = clock();
 	double time_elapsed = double(end - start);
 
@@ -204,6 +217,7 @@ double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& s
 			j = atoi(&c);
 			x = x + dx[j];
 			y = y + dy[j];
+//			temporary_map.at<unsigned char>(y, x) = 127;
 			//Update the pathlength with the directions of the path. When the path goes vertical or horizontal add length 1.
 			//When it goes diagonal add sqrt(2)
 			if (j == 0 || j == 2 || j == 4 || j == 6)
@@ -216,6 +230,9 @@ double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& s
 			}
 		}
 	}
+//
+//	cv::imshow("test", temporary_map);
+//	cv::waitKey();
 
 	return path_length;
 }

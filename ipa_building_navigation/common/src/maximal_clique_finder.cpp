@@ -135,16 +135,17 @@ void cliqueFinder::cutTooLongEdges(cv::Mat& complete_distance_matrix, double max
 
 //This function uses the previously described functions and finds all maximal cliques in a given graph. The maxval parameter
 //is used to cut edges that are too long.
-std::vector<std::vector<int> > cliqueFinder::getCliques(cv::Mat& distance_matrix, double maxval)
+std::vector<std::vector<int> > cliqueFinder::getCliques(const cv::Mat& distance_matrix, double maxval)
 {
 	// Create a graph object
 	Graph g;
 
 	//cut the edges if they are too long
-	cutTooLongEdges(distance_matrix, maxval);
+	cv::Mat cutted_distance_matrix = distance_matrix.clone();
+	cutTooLongEdges(cutted_distance_matrix, maxval);
 
 	//Create a graph out of the cutted distance matrix
-	createGraph(g, distance_matrix);
+	createGraph(g, cutted_distance_matrix);
 
 	//Object needed from boost to return the results
 	visitor<ostream> vis(cout);

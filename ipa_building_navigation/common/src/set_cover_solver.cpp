@@ -67,13 +67,19 @@ std::vector<std::vector<int> > setCoverSolver::mergeGroups(const std::vector<std
 //the greedy-search algorithm. It chooses the clique that has the most uncovered nodes in it first. Then it uses the merge-function
 //above to merge groups that have at least one node in common together. The vector stores the indexes of the nodes, which
 //are the same as the ones from the clique-solver and also the distance-matrix.
-std::vector<std::vector<int> > setCoverSolver::solveSetCover(const std::vector<std::vector<int> >& given_cliques, const std::vector<int>& nodes)
+std::vector<std::vector<int> > setCoverSolver::solveSetCover(const std::vector<std::vector<int> >& given_cliques, const int number_of_nodes)
 {
 	std::vector < std::vector<int> > minimal_set;
 
-	std::vector<int> open_nodes = nodes;
+	//Put the nodes in a open-nodes vector. The nodes are named after their position in the room-centers-vector and so every
+	//node from 0 to number_of_nodes-1 is in the Graph.
+	std::vector<int> open_nodes;
+	for(int new_node = 0; new_node < number_of_nodes; new_node++)
+	{
+		open_nodes.push_back(new_node);
+	}
 
-	ROS_INFO("Starting greedy search for set-cover-problem.");
+	std::cout << "Starting greedy search for set-cover-problem." << std::endl;
 
 	do
 	{
@@ -103,9 +109,9 @@ std::vector<std::vector<int> > setCoverSolver::solveSetCover(const std::vector<s
 		}
 	} while (open_nodes.size() > 0);
 
-	ROS_INFO("Finished greedy search.");
+	std::cout << "Finished greedy search." << std::endl;
 
-	ROS_INFO("Starting merging the found groups.");
+	std::cout << "Starting merging the found groups." << std::endl;
 
 	return mergeGroups(minimal_set);
 }

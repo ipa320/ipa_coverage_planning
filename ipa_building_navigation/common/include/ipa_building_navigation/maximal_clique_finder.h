@@ -35,5 +35,5 @@ protected:
 public:
 	cliqueFinder();
 
-	std::vector<std::vector<int> > getCliques(cv::Mat& distance_matrix, double maxval);
+	std::vector<std::vector<int> > getCliques(const cv::Mat& distance_matrix, double maxval);
 };
