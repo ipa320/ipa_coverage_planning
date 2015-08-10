@@ -43,4 +43,4 @@ min_critical_Point_distance_factor: 1.6 #minimal distance factor between two cri
 # 3 = Voronoi segmentation
 # 4 = semantic segmentation
 # int
-room_segmentation_algorithm: 4
+room_segmentation_algorithm: 3

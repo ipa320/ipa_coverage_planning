@@ -19,6 +19,7 @@
 //#include <ipa_building_navigation/nearest_neighbor_TSP.h>
 #include <ipa_building_navigation/genetic_TSP.h>
 #include <ipa_building_navigation/maximal_clique_finder.h>
+#include <ipa_building_navigation/set_cover_solver.h>
 
 void writeToFile(cv::Mat& pathlength_matrix)
 {
@@ -67,29 +68,53 @@ int main(int argc, char **argv)
 
 	cliqueFinder finder;
 
+	setCoverSolver setsolver;
+
 	std::vector < cv::Point > centers;
 
-	int n = 8;
+	int n = 9;
 
 	cv::Mat pathlengths(cv::Size(n, n), CV_64F);
 	cv::Mat eroded_map;
 
 	cv::erode(map, eroded_map, cv::Mat(), cv::Point(-1, -1), 4);
 
-	for (int i = 0; i < n; i++) //add Points for TSP to test the solvers
-	{
-		bool done = false;
-		do
-		{
-			int x = rand() % map.cols;
-			int y = rand() % map.rows;
-			if (eroded_map.at<unsigned char>(y, x) == 255)
-			{
-				centers.push_back(cv::Point(x, y));
-				done = true;
-			}
-		} while (!done);
-	}
+	//Testcenters:
+//	x: 494 y: 535
+//	x: 218 y: 176
+//	x: 152 y: 148
+//	x: 475 y: 417
+//	x: 342 y: 333
+//	x: 283 y: 205
+//	x: 149 y: 229
+//	x: 201 y: 456
+//	x: 286 y: 125
+
+
+//	for (int i = 0; i < n; i++) //add Points for TSP to test the solvers
+//	{
+//		bool done = false;
+//		do
+//		{
+//			int x = rand() % map.cols;
+//			int y = rand() % map.rows;
+//			if (eroded_map.at<unsigned char>(y, x) == 255)
+//			{
+//				centers.push_back(cv::Point(x, y));
+//				done = true;
+//			}
+//		} while (!done);
+//	}
+
+	centers.push_back(cv::Point(494, 535));
+	centers.push_back(cv::Point(218, 176));
+	centers.push_back(cv::Point(152, 148));
+	centers.push_back(cv::Point(475, 417));
+	centers.push_back(cv::Point(342, 333));
+	centers.push_back(cv::Point(283, 205));
+	centers.push_back(cv::Point(149, 229));
+	centers.push_back(cv::Point(201, 456));
+	centers.push_back(cv::Point(286, 125));
 
 	cv::Mat testermap = map.clone();
 
@@ -138,12 +163,10 @@ int main(int argc, char **argv)
 		cv::line(testermap, centers[TSPorder[i]], centers[TSPorder[i + 1]], cv::Scalar(127));
 	}
 
-	cv::imwrite("/home/rmb-fj/Pictures/TSP/genetic.png", testermap);
-
 	std::cout << std::endl;
 	std::cout << "All maximum cliques in the graph:" << std::endl;
 
-	std::vector < std::vector<int> > cliques = finder.getCliques(pathlengths, 300.0);
+	std::vector < std::vector<int> > cliques = finder.getCliques(pathlengths, 150.0);
 
 	for (int i = 0; i < cliques.size(); i++)
 	{
@@ -153,6 +176,29 @@ int main(int argc, char **argv)
 		}
 		std::cout << std::endl;
 	}
+
+	std::vector<int> nodes;
+	for(int i = 0; i < n; i++)
+	{
+		nodes.push_back(i);
+	}
+
+	ROS_INFO("Starting to solve the setcover problem");
+
+	std::vector<std::vector<int> > groups = setsolver.solveSetCover(cliques, nodes);
+
+	for(int i = 0; i < groups.size(); i++)
+	{
+		cv::Scalar group_colour(rand() % 200 + 20);
+		for(int j = 0; j < groups[i].size(); j++)
+		{
+			cv::circle(testermap, centers[groups[i][j]], 2, group_colour, CV_FILLED);
+			std::cout << groups[i][j] << std::endl;
+		}
+		std::cout << "group done" << std::endl;
+	}
+
+	cv::imwrite("/home/rmb-fj/Pictures/TSP/genetic.png", testermap);
 
 	return 0;
 }

@@ -99,7 +99,7 @@ void cliqueFinder::createGraph(Graph& graph, cv::Mat& distance_Matrix)
 	for (int counter = 0; counter < distance_Matrix.cols; counter++)
 	{
 		stringstream current_name;
-		current_name << (counter+1); //<< counter;
+		current_name << counter; //<< counter;
 		Vertex current_vertex = addNamedVertex(graph, nmap, current_name.str(), vert_map);
 		vertexes.push_back(current_vertex);
 	}
@@ -121,11 +121,11 @@ void cliqueFinder::createGraph(Graph& graph, cv::Mat& distance_Matrix)
 //Nodes in the graph, which isn't very useful for planning.
 void cliqueFinder::cutTooLongEdges(cv::Mat& complete_distance_matrix, double maxval)
 {
-	for(int row = 0; row < complete_distance_matrix.rows; row++)
+	for (int row = 0; row < complete_distance_matrix.rows; row++)
 	{
-		for(int col = 0; col < complete_distance_matrix.cols; col++)
+		for (int col = 0; col < complete_distance_matrix.cols; col++)
 		{
-			if(complete_distance_matrix.at<double>(row, col) > maxval)
+			if (complete_distance_matrix.at<double>(row, col) > maxval)
 			{
 				complete_distance_matrix.at<double>(row, col) = 0;
 			}
@@ -151,6 +151,27 @@ std::vector<std::vector<int> > cliqueFinder::getCliques(cv::Mat& distance_matrix
 
 	// Use the Bron-Kerbosch algorithm to find all cliques
 	bron_kerbosch_all_cliques(g, vis);
+
+	//Make sure that nodes, which are too far away from other nodes are in the clique-vector
+	//(a clique has at least two nodes, but in this case it is neccessary to have all nodes in the cliques and
+	//nodes that are too far away from others count also as a possible group)
+	for (int node = 0; node < distance_matrix.rows; node++)
+	{
+		bool add = true;
+		for (int group = 0; group < names_.size(); group++)
+		{
+			if (contains(names_[group], node))
+			{
+				add = false;
+			}
+		}
+		if(add)
+		{
+			std::vector<int> adding_vector;
+			adding_vector.push_back(node);
+			names_.push_back(adding_vector);
+		}
+	}
 
 	return names_;
 }

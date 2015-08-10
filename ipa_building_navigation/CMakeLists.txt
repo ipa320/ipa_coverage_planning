@@ -95,7 +95,7 @@ include_directories(
 )
 
 #tester for different functions
-add_executable(a_star_tester ros/src/tester.cpp common/src/A_star_pathplanner.cpp common/src/node.cpp common/src/nearest_neighbor_TSP.cpp common/src/genetic_TSP.cpp common/src/maximal_clique_finder.cpp common/src/contains.cpp)
+add_executable(a_star_tester ros/src/tester.cpp common/src/A_star_pathplanner.cpp common/src/node.cpp common/src/nearest_neighbor_TSP.cpp common/src/genetic_TSP.cpp common/src/maximal_clique_finder.cpp common/src/contains.cpp common/src/set_cover_solver.cpp)
 target_link_libraries(a_star_tester ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES})
 add_dependencies(a_star_tester ${catkin_EXPORTED_TARGETS})
 

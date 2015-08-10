@@ -12,6 +12,8 @@
 
 #include <fstream>
 
+#include <ipa_building_navigation/contains.h>
+
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/undirected_graph.hpp>
 #include <boost/graph/bron_kerbosch_all_cliques.hpp>
