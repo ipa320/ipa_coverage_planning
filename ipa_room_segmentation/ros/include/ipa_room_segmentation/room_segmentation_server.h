@@ -30,8 +30,9 @@ private:
 
 	// parameters
 	double map_sampling_factor_check_;	//sampling-factor of the map
-	double room_upper_limit_check_;	//limits for the room-areas
-	double room_lower_limit_check_;
+	//limits for the room-areas
+	double room_upper_limit_morphological_, room_upper_limit_distance_, room_upper_limit_voronoi_, room_upper_limit_semantic_;
+	double room_lower_limit_morphological_, room_lower_limit_distance_, room_lower_limit_voronoi_, room_lower_limit_semantic_;
 	int room_segmentation_algorithm_;	// this variable selects the algorithm for room segmentation,
 										// 1 = morphological segmentation
 										// 2 = distance segmentation
@@ -40,6 +41,10 @@ private:
 	double map_resolution_; //resolution of the given map [m/cell]
 
 	bool train_the_algorithm_; //Boolean to say if the algorithm needs to be trained
+
+	int voronoi_neighborhood_index_; //Variable for the Voronoi method that specify the neighborhood that is looked at for critical Point extraction
+	int max_iterations_; //number of iterations for search of neighborhood in voronoi method
+	double min_critical_Point_distance_factor_; //Variable that sets the minimal distance between two critical Points before one gets eliminated
 
 	//maps and map-parameters
 	cv::Mat segmented_map_; //map that has been segmented

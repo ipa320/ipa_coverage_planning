@@ -102,7 +102,7 @@ target_link_libraries(room_segmentation_client
 add_dependencies(room_segmentation_client ${catkin_EXPORTED_TARGETS}  ${ipa_room_segmentation_EXPORTED_TARGETS})
 
 #segmentation action server. See room_segmentation_action_server_params.yaml to change the used method.
-add_executable(room_segmentation_server ros/src/room_segmentation_server.cpp common/src/distance_segmentation.cpp common/src/morphological_segmentation.cpp common/src/voronoi_segmentation.cpp common/src/adaboost_classifier.cpp common/src/wavefront_region_growing.cpp common/src/contains.cpp common/src/features.cpp common/src/raycasting.cpp common/src/meanshift2d.cpp)
+add_executable(room_segmentation_server ros/src/room_segmentation_server.cpp common/src/distance_segmentation.cpp common/src/morphological_segmentation.cpp common/src/voronoi_segmentation.cpp common/src/adaboost_classifier.cpp common/src/wavefront_region_growing.cpp common/src/contains.cpp common/src/features.cpp common/src/raycasting.cpp common/src/meanshift2d.cpp common/src/room_class.cpp)
 target_link_libraries(room_segmentation_server 
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBRARIES}

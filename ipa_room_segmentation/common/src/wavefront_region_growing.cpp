@@ -15,9 +15,9 @@ void wavefrontRegionGrowing(cv::Mat& image)
 	while (finished == false)
 	{
 		finished = true;
-		for (int row = 0; row < spreading_map.rows; ++row)
+		for (int row = 1; row < spreading_map.rows-1; ++row)
 		{
-			for (int column = 0; column < spreading_map.cols; ++column)
+			for (int column = 1; column < spreading_map.cols-1; ++column)
 			{
 				if (spreading_map.at<int>(row, column) > 65279)		// unassigned pixels
 				{

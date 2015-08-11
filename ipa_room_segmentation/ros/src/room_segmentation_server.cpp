@@ -18,14 +18,57 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 
 	// Parameters
 	std::cout << "\n--------------------------\nRoom Segmentation Parameters:\n--------------------------\n";
+	node_handle_.param("room_segmentation_algorithm", room_segmentation_algorithm_, 1);
+	std::cout << "room_segmentation/room_segmentation_algorithm = " << room_segmentation_algorithm_ << std::endl << std::endl;
+	if (room_segmentation_algorithm_ == 1)
+		ROS_INFO("You have chosen the morphological segmentation method.");
+	else if (room_segmentation_algorithm_ == 2)
+		ROS_INFO("You have chosen the distance segmentation method.");
+	else if (room_segmentation_algorithm_ == 3)
+		ROS_INFO("You have chosen the voronoi segmentation method.");
+	else if (room_segmentation_algorithm_ == 4)
+		ROS_INFO("You have chosen the semantic segmentation method.");
+	std::cout << std::endl;
+
+	//Set mapsamplingfactor, which is the same for every algorithm because it depends on the map
 	node_handle_.param("map_sampling_factor_check", map_sampling_factor_check_, 1.5);
 	std::cout << "room_segmentation/map_sampling_factor_check = " << map_sampling_factor_check_ << std::endl;
-	node_handle_.param("room_area_factor_lower_limit_check", room_lower_limit_check_, 1.0);
-	std::cout << "room_segmentation/room_area_factor_lower_limit_check = " << room_lower_limit_check_ << std::endl;
-	node_handle_.param("room_area_factor_upper_limit_check", room_upper_limit_check_, 45.0);
-	std::cout << "room_segmentation/room_area_factor_upper_limit_check = " << room_upper_limit_check_ << std::endl;
-	node_handle_.param("room_segmentation_algorithm", room_segmentation_algorithm_, 1);
-	std::cout << "room_segmentation/room_segmentation_algorithm = " << room_segmentation_algorithm_ << std::endl;
+
+	if (room_segmentation_algorithm_ == 1) //set morphological parameters
+	{
+		node_handle_.param("room_area_factor_upper_limit_morphological", room_upper_limit_morphological_, 47.0);
+		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_morphological_ << std::endl;
+		node_handle_.param("room_area_factor_lower_limit_morphological", room_lower_limit_morphological_, 0.8);
+		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_morphological_ << std::endl;
+	}
+	if (room_segmentation_algorithm_ == 2) //set distance parameters
+	{
+		node_handle_.param("room_area_factor_upper_limit_distance", room_upper_limit_distance_, 163.0);
+		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_distance_ << std::endl;
+		node_handle_.param("room_area_factor_lower_limit_distance", room_lower_limit_distance_, 0.35);
+		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_distance_ << std::endl;
+	}
+	if (room_segmentation_algorithm_ == 3) //set voronoi parameters
+	{
+		node_handle_.param("room_area_factor_upper_limit_voronoi", room_upper_limit_voronoi_, 120.0);
+		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_voronoi_ << std::endl;
+		node_handle_.param("room_area_factor_lower_limit_voronoi", room_lower_limit_voronoi_, 1.53);
+		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_voronoi_ << std::endl;
+		node_handle_.param("voronoi_neighborhood_index", voronoi_neighborhood_index_, 310);
+		std::cout << "room_segmentation/voronoi_neighborhood_index = " << voronoi_neighborhood_index_ << std::endl;
+		node_handle_.param("max_iterations", max_iterations_, 150);
+		std::cout << "room_segmentation/max_iterations = " << max_iterations_ << std::endl;
+		node_handle_.param("min_critical_Point_distance_factor", min_critical_Point_distance_factor_, 27.0);
+		std::cout << "room_segmentation/min_critical_Point_distance_factor = " << min_critical_Point_distance_factor_ << std::endl;
+	}
+	if (room_segmentation_algorithm_ == 4) //set semantic parameters
+	{
+		node_handle_.param("room_area_factor_upper_limit_semantic", room_upper_limit_semantic_, 23.0);
+		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_semantic_ << std::endl;
+		node_handle_.param("room_area_factor_lower_limit_semantic", room_lower_limit_semantic_, 1.0);
+		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_semantic_ << std::endl;
+	}
+
 }
 
 void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmentation::MapSegmentationGoalConstPtr &goal)
@@ -34,8 +77,6 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	ROS_INFO("*****Segmentation action server*****");
 	ROS_INFO("map resolution is : %f", goal->map_resolution);
 	ROS_INFO("map sampling factor is : %f", map_sampling_factor_check_);
-	ROS_INFO("room area factor lower limit is : %f", room_lower_limit_check_);
-	ROS_INFO("room area factor upper limit is : %f", room_upper_limit_check_);
 
 	//converting the map msg in cv format
 	cv_bridge::CvImagePtr cv_ptr_obj;
@@ -48,15 +89,16 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	//segment the given map
 	if (room_segmentation_algorithm_ == 1)
 	{
-		morphological_segmentation_.segmentationAlgorithm(original_img, segmented_map_, goal->map_resolution, room_lower_limit_check_, room_upper_limit_check_);
+		morphological_segmentation_.segmentationAlgorithm(original_img, segmented_map_, goal->map_resolution, room_lower_limit_morphological_, room_upper_limit_morphological_);
 	}
 	else if (room_segmentation_algorithm_ == 2)
 	{
-		distance_segmentation_.segmentationAlgorithm(original_img, segmented_map_, goal->map_resolution, room_lower_limit_check_, room_upper_limit_check_);
+		distance_segmentation_.segmentationAlgorithm(original_img, segmented_map_, goal->map_resolution, room_lower_limit_distance_, room_upper_limit_distance_);
 	}
 	else if (room_segmentation_algorithm_ == 3)
 	{
-		voronoi_segmentation_.segmentationAlgorithm(original_img, segmented_map_, goal->map_resolution, room_lower_limit_check_, room_upper_limit_check_);
+		voronoi_segmentation_.segmentationAlgorithm(original_img, segmented_map_, goal->map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_,
+		        voronoi_neighborhood_index_, max_iterations_, min_critical_Point_distance_factor_);
 	}
 	else if (room_segmentation_algorithm_ == 4)
 	{
@@ -70,9 +112,11 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 			cv::Mat first_hallway_training_map = cv::imread(package_path + "/common/files/training_maps/hallway_training_map.png", 0);
 			cv::Mat second_hallway_training_map = cv::imread(package_path + "/common/files/training_maps/lab_a_hallway_training_map.png", 0);
 			//train the algorithm
-			semantic_segmentation_.trainClassifiers(first_room_training_map, second_room_training_map, first_hallway_training_map, second_hallway_training_map, classifier_path);
+			semantic_segmentation_.trainClassifiers(first_room_training_map, second_room_training_map, first_hallway_training_map, second_hallway_training_map,
+			        classifier_path);
 		}
-		semantic_segmentation_.semanticLabeling(original_img, segmented_map_, goal->map_resolution, room_lower_limit_check_, room_upper_limit_check_, classifier_path);
+		semantic_segmentation_.semanticLabeling(original_img, segmented_map_, goal->map_resolution, room_lower_limit_semantic_, room_upper_limit_semantic_,
+		        classifier_path);
 	}
 	else
 	{
@@ -83,16 +127,16 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	ROS_INFO("********Segmented the map************");
 //	looping_rate.sleep();
 
-	// get the min/max-values and the room-centers
-	// compute room label codebook
-	std::map<int, size_t> label_vector_index_codebook;		// maps each room label to a position in the rooms vector
+// get the min/max-values and the room-centers
+// compute room label codebook
+	std::map<int, size_t> label_vector_index_codebook; // maps each room label to a position in the rooms vector
 	size_t vector_index = 0;
 	for (int v = 0; v < segmented_map_.rows; ++v)
 	{
 		for (int u = 0; u < segmented_map_.cols; ++u)
 		{
 			const int label = segmented_map_.at<int>(v, u);
-			if (label > 0 && label < 65280)	// do not count walls/obstacles or free space as label
+			if (label > 0 && label < 65280) // do not count walls/obstacles or free space as label
 			{
 				if (label_vector_index_codebook.find(label) == label_vector_index_codebook.end())
 				{
@@ -146,23 +190,23 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 		for (int v = 0; v < segmented_map_.rows; ++v)
 			for (int u = 0; u < segmented_map_.cols; ++u)
 				if (segmented_map_.at<int>(v, u) == label)
-					room.at<uchar>(v,u) = 255;
-		cv::Mat distance_map;	//variable for the distance-transformed map, type: CV_32FC1
+					room.at < uchar > (v, u) = 255;
+		cv::Mat distance_map; //variable for the distance-transformed map, type: CV_32FC1
 		cv::distanceTransform(room, distance_map, CV_DIST_L2, 5);
 		// find point set with largest distance to obstacles
 		double min_val = 0., max_val = 0.;
 		cv::minMaxLoc(distance_map, &min_val, &max_val);
-		std::vector<cv::Vec2d> room_cells;
+		std::vector < cv::Vec2d > room_cells;
 		for (int v = 0; v < distance_map.rows; ++v)
 			for (int u = 0; u < distance_map.cols; ++u)
-				if (distance_map.at<float>(v, u) > max_val*0.95f)
-					room_cells.push_back(cv::Vec2d(u,v));
+				if (distance_map.at<float>(v, u) > max_val * 0.95f)
+					room_cells.push_back(cv::Vec2d(u, v));
 		// use meanshift to find the modes in that set
 		cv::Vec2d room_center = ms.findRoomCenter(room, room_cells, goal->map_resolution);
 		const int index = it->second;
 		room_centers_x_values[index] = room_center[0];
 		room_centers_y_values[index] = room_center[1];
-		cv::circle(segmented_map_, cv::Point(room_centers_x_values[index], room_centers_y_values[index]), 2, cv::Scalar(200*256), CV_FILLED);
+		cv::circle(segmented_map_, cv::Point(room_centers_x_values[index], room_centers_y_values[index]), 2, cv::Scalar(200 * 256), CV_FILLED);
 	}
 
 	cv::imshow("segmentation", segmented_map_);
