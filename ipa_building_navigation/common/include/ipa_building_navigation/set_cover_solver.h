@@ -14,6 +14,15 @@
 
 #include <ipa_building_navigation/contains.h>
 
+//This algorithm provides a class to solve the set-cover problem for given cliques. This is done by using the greedy-search
+//algorithm, which takes the clique with most unvisited nodes before the other nodes and removes the nodes in it from the
+//unvisited. It repeats this step until no more node hasn't been visited. It then merges cliques together that have at least
+//one node in common.
+//
+//!!!!!!!!!!!!!!!!Important!!!!!!!!!!!!!!!!!
+//Make sure that the cliques cover all nodes in the graph or else this algorithm runs into an endless loop. For best results
+//take the cliques from a maximal-clique finder like the Bron-Kerbosch algorithm.
+
 class setCoverSolver
 {
 protected:

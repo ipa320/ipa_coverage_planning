@@ -60,6 +60,7 @@ std::vector<std::vector<int> > setCoverSolver::mergeGroups(const std::vector<std
 			merged_groups.push_back(current_group_saver);
 		}
 	}
+	std::cout << "Finished merging." << std::endl;
 	return merged_groups;
 }
 
@@ -81,6 +82,8 @@ std::vector<std::vector<int> > setCoverSolver::solveSetCover(const std::vector<s
 
 	std::cout << "Starting greedy search for set-cover-problem." << std::endl;
 
+	//Search for the clique with the most unvisited nodes and choose this one before the others. Then remove the nodes of
+	//this clique from the unvisited-vector. This is done until no more nodes can be visited.
 	do
 	{
 		int covered_open_nodes;
