@@ -18,44 +18,12 @@
 //#include <ipa_building_navigation/A_star_pathplanner.h>
 //#include <ipa_building_navigation/nearest_neighbor_TSP.h>
 #include <ipa_building_navigation/genetic_TSP.h>
+#include <ipa_building_navigation/concorde_TSP.h>
 
 #include <ipa_building_navigation/maximal_clique_finder.h>
 #include <ipa_building_navigation/set_cover_solver.h>
 
 #include <ipa_building_navigation/trolley_position_finder.h>
-
-void writeToFile(cv::Mat& pathlength_matrix)
-{
-	std::ofstream saving_file("/home/rmb-fj/saver.txt");
-	if (saving_file.is_open())
-	{
-		std::cout << "starting saving classifier parameters" << std::endl;
-		saving_file << "NAME: ipa-building-navigation" << std::endl << "TYPE: TSP" << std::endl << "COMMENT: This is the TSPlib file for using concorde"
-		        << std::endl;
-		saving_file << "DIMENSION: " << pathlength_matrix.cols << std::endl;
-		saving_file << "EDGE_WEIGHT_TYPE: EXPLICIT" << std::endl;
-		saving_file << "EDGE_WEIGHT_FORMAT: FULL_MATRIX" << std::endl;
-		saving_file << "EDGE_WEIGHT_SECTION" << std::endl;
-
-		for (int row = 0; row < pathlength_matrix.rows; row++)
-		{
-			for (int col = 0; col < pathlength_matrix.cols; col++)
-			{
-				saving_file << " " << (int) pathlength_matrix.at<double>(row, col);
-			}
-			saving_file << std::endl;
-		}
-
-		saving_file << "EOF";
-
-		std::cout << "finished saving" << std::endl;
-		saving_file.close();
-	}
-	else
-	{
-		std::cout << "nicht geöffnet1" << std::endl;
-	}
-}
 
 int main(int argc, char **argv)
 {
@@ -66,8 +34,9 @@ int main(int argc, char **argv)
 	cv::Mat map = cv::imread("/home/rmb-fj/Pictures/maps/black_map.png", 0);
 
 	AStarPlanner planner;
-//	NearestNeigborTSPSolver TSPsolver;
+//	NearestNeighborTSPSolver TSPsolver;
 	GeneticTSPSolver genTSPsolver;
+	concordeTSPSolver conTSPsolver;
 
 	cliqueFinder finder; //Object to find all maximal cliques for the given map
 
@@ -148,12 +117,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-	writeToFile(pathlengths);
-
-//	std::string cmd = ros::package::getPath("concorde_tsp_solver") + "/bin/concorde .......";
-//	result = system(cmd.c_str());
-//	assert(!result);
-
 	for (int row = 0; row < pathlengths.rows; row++)
 	{
 		for (int col = 0; col < pathlengths.cols; col++)
@@ -165,10 +128,13 @@ int main(int argc, char **argv)
 
 	std::vector<int> TSPorder = genTSPsolver.solveGeneticTSP(pathlengths, 0);
 
+	conTSPsolver.solveConcordeTSP(pathlengths, 0);
+
 	cv::circle(testermap, centers[0], 2, cv::Scalar(73), CV_FILLED);
 
 	for (int i = 0; i < TSPorder.size() - 1; i++)
 	{
+		std::cout << TSPorder[i] << std::endl;
 		cv::line(testermap, centers[TSPorder[i]], centers[TSPorder[i + 1]], cv::Scalar(127));
 	}
 
