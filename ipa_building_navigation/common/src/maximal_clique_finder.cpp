@@ -61,6 +61,8 @@ typename graph_traits<Graph>::vertex_descriptor cliqueFinder::addNamedVertex(Gra
 	return v;
 }
 
+//This class is the Visitor for all nodes in the graph, which is used by boost::bron_kerbosch. the function clique() gets
+//called everytime a maximal clique was found. This comes from the boost implementation.
 template<typename OutputStream>
 struct visitor
 {
@@ -79,8 +81,8 @@ struct visitor
 		{
 			current_names.push_back(atoi(g[*i].name.c_str()));
 		}
-		names_.push_back(current_names);
-		current_names.clear();
+		names_.push_back(current_names); //save the clique to return all later
+		current_names.clear(); //clear the current clique
 	}
 	OutputStream& os;
 };
@@ -90,6 +92,8 @@ cliqueFinder::cliqueFinder()
 
 }
 
+//This function creates a boost::undirected_graph out of the cutted distance-Matrix. The Graph is used for the
+//boost::bron-kerbosch algorihtm.
 template<typename Graph>
 void cliqueFinder::createGraph(Graph& graph, cv::Mat& distance_Matrix)
 {
