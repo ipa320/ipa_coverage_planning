@@ -19,8 +19,9 @@ using namespace boost;
 //for further information.
 //As input this function takes a symmetrical Matrix that stores the pathlengths from one node of the graph to another.
 //If one Node has no connection to another the element in the matrix is zero, it also is at the main-diagonal.
+//!!!!!!!!!!!!!See maximal_clique_finder.h for further information on formatting.!!!!!!!!!!!!!
 
-static std::vector<std::vector<int> > names_;
+static std::vector<std::vector<int> > names_; //vector to save the cliques achieved by Boost
 
 // The Actor type stores the name of each vertex in the graph.
 struct Actor
@@ -134,7 +135,7 @@ void cliqueFinder::cutTooLongEdges(cv::Mat& complete_distance_matrix, double max
 }
 
 //This function uses the previously described functions and finds all maximal cliques in a given graph. The maxval parameter
-//is used to cut edges that are too long.
+//is used to cut edges that are too long. See maximal_clique_finder.h for further information on formatting.
 std::vector<std::vector<int> > cliqueFinder::getCliques(const cv::Mat& distance_matrix, double maxval)
 {
 	// Create a graph object
@@ -174,5 +175,9 @@ std::vector<std::vector<int> > cliqueFinder::getCliques(const cv::Mat& distance_
 		}
 	}
 
-	return names_;
+	//save the names_ vector and clear it for next usage
+	std::vector<std::vector<int> > returning_vector(names_);
+	names_.clear();
+
+	return returning_vector;
 }

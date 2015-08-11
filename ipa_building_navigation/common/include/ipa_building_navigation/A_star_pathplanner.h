@@ -22,6 +22,8 @@
 //!!!!!!!!!Important!!!!!!!!!!!!!
 //It downsamples the map mith the given factor (0 < factor < 1) so the map gets reduced and calculationtime gets better.
 //If it is set to 1 the map will have original size, if it is 0 the algorithm won't work, so make sure to not set it to 0.
+//The algorithm also needs the Robot radius [m] and the map resolution [m²/pixel] to calculate the needed
+//amount of erosions to include the radius in the planning.
 //
 
 class AStarPlanner
@@ -35,5 +37,6 @@ protected:
 public:
 	AStarPlanner();
 
-	double PlanPath(const cv::Mat& map_from_subscription, cv::Point& start_point, cv::Point& end_point, double downsampling_factor);
+	double PlanPath(const cv::Mat& map_from_subscription, cv::Point& start_point, cv::Point& end_point,
+			double downsampling_factor, double robot_radius, double map_resolution);
 };

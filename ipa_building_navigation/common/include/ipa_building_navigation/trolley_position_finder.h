@@ -22,11 +22,13 @@ protected:
 
 	AStarPlanner path_planner_; //Object to plan a path from Point A to Point B in a given gridmap
 
-	cv::Point findOneTrolleyPosition(const std::vector<cv::Point> group_points, const cv::Mat& original_map, double downsampling_factor);
+	cv::Point findOneTrolleyPosition(const std::vector<cv::Point> group_points, const cv::Mat& original_map,
+			double downsampling_factor, double robot_radius, double map_resolution);
 
 public:
 	trolleyPositionFinder();
 
 	std::vector<cv::Point> findTrolleyPositions(const cv::Mat& original_map, const std::vector<std::vector<int> >& found_groups,
-			const std::vector<cv::Point>& room_centers, double downsampling_factor_from_subscription);
+			const std::vector<cv::Point>& room_centers, double downsampling_factor_from_subscription, double robot_radius_from_subscription,
+			double map_resolution_from_subscription);
 };

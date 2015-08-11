@@ -9,7 +9,8 @@ trolleyPositionFinder::trolleyPositionFinder()
 //all Points in it and then putting a grid over it to get cells in which the trolley-position possibly is. Then it finds
 //the Point in these cells that have the largest distance to the closest zero Pixel as candidates. From these candidates
 //the one is chosen, which gets the smallest pathlength to all group Points.
-cv::Point trolleyPositionFinder::findOneTrolleyPosition(const std::vector<cv::Point> group_points, const cv::Mat& original_map, double downsampling_factor)
+cv::Point trolleyPositionFinder::findOneTrolleyPosition(const std::vector<cv::Point> group_points, const cv::Mat& original_map,
+		double downsampling_factor , double robot_radius, double map_resolution)
 {
 	double n = 20;
 	double max_x_value = group_points[0].x + n; //max/min values of the Points that get the bounding box. Initialized with the coordinates of the first Point of the group.
@@ -127,7 +128,7 @@ cv::Point trolleyPositionFinder::findOneTrolleyPosition(const std::vector<cv::Po
 		{
 			cv::Point current_center = group_points[room_center];
 			//get the pathlength to the current center and save it
-			double center_pathlength = path_planner_.PlanPath(original_map, trolley_position_candidates[candidate], current_center, downsampling_factor);
+			double center_pathlength = path_planner_.PlanPath(original_map, trolley_position_candidates[candidate], current_center, downsampling_factor, robot_radius, map_resolution);
 			pathlengths.push_back(center_pathlength);
 			//add the pathlenght to the total pathlength
 			current_pathlength += center_pathlength;
@@ -167,7 +168,8 @@ cv::Point trolleyPositionFinder::findOneTrolleyPosition(const std::vector<cv::Po
 
 //This function takes all found groups and calculates for each of it the best trolley-position.
 std::vector<cv::Point> trolleyPositionFinder::findTrolleyPositions(const cv::Mat& original_map, const std::vector<std::vector<int> >& found_groups,
-        const std::vector<cv::Point>& room_centers, double downsampling_factor_from_subscription)
+        const std::vector<cv::Point>& room_centers, double downsampling_factor_from_subscription, double robot_radius_from_subscription,
+        double map_resolution_from_subscription)
 {
 	std::vector < cv::Point > trolley_positions;
 
@@ -181,7 +183,7 @@ std::vector<cv::Point> trolleyPositionFinder::findTrolleyPositions(const cv::Mat
 		}
 		if (found_groups[current_group].size() > 1) //calculate the trolley-position for each group that has at least 2 members
 		{
-			trolley_positions.push_back(findOneTrolleyPosition(group_points_vector, original_map, downsampling_factor_from_subscription));
+			trolley_positions.push_back(findOneTrolleyPosition(group_points_vector, original_map, downsampling_factor_from_subscription, robot_radius_from_subscription, map_resolution_from_subscription));
 		}
 		else //if the group has only one member this one is the trolley-position
 		{

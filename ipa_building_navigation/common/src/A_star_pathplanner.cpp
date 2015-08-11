@@ -175,21 +175,25 @@ std::string AStarPlanner::pathFind(const int & xStart, const int & yStart, const
 
 //This is the pathplanning algorithm for this class. It downsamples the map mith the given factor (0 < factor < 1) so the
 //map gets reduced and calculationtime gets better. If it is set to 1 the map will have original size, if it is 0 the algorithm
-//won't work, so make sure to not set it to 0.
-double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& start_point, cv::Point& end_point, double downsampling_factor)
+//won't work, so make sure to not set it to 0. The algorithm also needs the Robot radius [m] and the map resolution [m²/pixel] to
+//calculate the needed amount of erosions to include the radius in the planning.
+double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& start_point, cv::Point& end_point,
+		double downsampling_factor, double robot_radius, double map_resolution)
 {
 	expanding_counter = 0;
 
 	//length of the planned path
 	double path_length = 0;
 
-	if(start_point.x == end_point.x && start_point.y == end_point.y) //if the start and end-point are the same return 0
+	if(start_point.x == end_point.x && start_point.y == end_point.y)//if the start and end-point are the same return 0
 	{
 		return path_length;
 	}
 
 	//erode the map so the planner doesn't go near the walls
+	//	--> calculate the number of times for eroding from Robot Radius [m]
 	cv::Mat eroded_map;
+	int number_of_erosions = (robot_radius / map_resolution);
 	cv::erode(map_from_subscription, eroded_map, cv::Mat(), cv::Point(-1, -1), 4);
 
 	//downsampling of the map to reduce calculationtime
@@ -203,11 +207,10 @@ double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& s
 	int end_y = downsampling_factor * end_point.y;
 
 	//set the sizes of the map
-	m = downsampled_map.rows; // horizontal size of the map
-	n = downsampled_map.cols; // vertical size size of the map
+	m = downsampled_map.rows;// horizontal size of the map
+	n = downsampled_map.cols;// vertical size size of the map
 
 //	cv::Mat temporary_map = downsampled_map.clone();
-//
 //	cv::circle(temporary_map, cv::Point(start_x, start_y), 2, cv::Scalar(200), CV_FILLED);
 //	cv::circle(temporary_map, cv::Point(end_x, end_y), 2, cv::Scalar(100), CV_FILLED);
 
@@ -251,8 +254,6 @@ double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& s
 	}
 //	cv::imshow("pathplanned", temporary_map);
 //	cv::waitKey();
-
-//	std::cout << "Number of expansions: " << expanding_counter << " Time: " << time_elapsed << std::endl;
 
 	return path_length;
 }

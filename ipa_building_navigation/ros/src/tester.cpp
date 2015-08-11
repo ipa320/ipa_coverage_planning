@@ -78,7 +78,9 @@ int main(int argc, char **argv)
 	std::vector < cv::Point > centers;
 
 	int n = 9;
-	double downfactor = 0.5;
+	double downfactor = 0.25;
+	double map_resolution_factor = 0.05;
+	double robot_radius_test = 0.5;
 
 	cv::Mat pathlengths(cv::Size(n, n), CV_64F);
 //	cv::Mat eroded_map;
@@ -134,7 +136,7 @@ int main(int argc, char **argv)
 			{
 				if (p > i) //only compute upper right triangle of matrix, rest is symmetrically added
 				{
-					double length = planner.PlanPath(map, center, centers[p], downfactor);
+					double length = planner.PlanPath(map, center, centers[p], downfactor, robot_radius_test, map_resolution_factor);
 					pathlengths.at<double>(i, p) = length;
 					pathlengths.at<double>(p, i) = length; //symmetrical-Matrix --> saves half the computationtime
 				}
@@ -190,7 +192,7 @@ int main(int argc, char **argv)
 
 	ROS_INFO("Starting to find the trolley positions.");
 
-	std::vector<cv::Point> trolley_positions = tolley_finder.findTrolleyPositions(map, groups, centers, downfactor);
+	std::vector<cv::Point> trolley_positions = tolley_finder.findTrolleyPositions(map, groups, centers, downfactor, robot_radius_test, map_resolution_factor);
 
 	std::cout << groups.size() << " " << trolley_positions.size() << std::endl;
 
