@@ -10,6 +10,8 @@ static int dx[dir] =
 static int dy[dir] =
 { 0, 1, 1, 1, 0, -1, -1, -1 };
 
+static int expanding_counter = 0;
+
 // Determine priority (in the priority queue)
 bool operator<(const nodeAstar& a, const nodeAstar& b)
 {
@@ -116,6 +118,8 @@ std::string AStarPlanner::pathFind(const int & xStart, const int & yStart, const
 			xdx = x + dx[i];
 			ydy = y + dy[i];
 
+			expanding_counter++;
+
 			if (!(xdx < 0 || xdx > n - 1 || ydy < 0 || ydy > m - 1 || map_to_calculate_path.at<int>(xdx, ydy) == 1 || closed_nodes_map.at<int>(xdx, ydy) == 1))
 			{
 				// generate a child node
@@ -169,8 +173,13 @@ std::string AStarPlanner::pathFind(const int & xStart, const int & yStart, const
 	return ""; // no route found
 }
 
-double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& start_point, cv::Point& end_point)
+//This is the pathplanning algorithm for this class. It downsamples the map mith the given factor (0 < factor < 1) so the
+//map gets reduced and calculationtime gets better. If it is set to 1 the map will have original size, if it is 0 the algorithm
+//won't work, so make sure to not set it to 0.
+double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& start_point, cv::Point& end_point, double downsampling_factor)
 {
+	expanding_counter = 0;
+
 	//length of the planned path
 	double path_length = 0;
 
@@ -179,22 +188,32 @@ double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& s
 		return path_length;
 	}
 
-	//set the sizes of the map
-	m = map_from_subscription.rows; // horizontal size of the map
-	n = map_from_subscription.cols; // vertical size size of the map
-
-//	cv::Mat temporary_map = map_from_subscription.clone();
-//
-//	cv::circle(temporary_map, start_point, 2, cv::Scalar(200), CV_FILLED);
-//	cv::circle(temporary_map, end_point, 2, cv::Scalar(100), CV_FILLED);
-
 	//erode the map so the planner doesn't go near the walls
 	cv::Mat eroded_map;
 	cv::erode(map_from_subscription, eroded_map, cv::Mat(), cv::Point(-1, -1), 4);
 
+	//downsampling of the map to reduce calculationtime
+	cv::Mat downsampled_map;
+	cv::resize(eroded_map ,downsampled_map, cv::Size(0, 0), downsampling_factor, downsampling_factor, cv::INTER_LINEAR);
+
+	//transform the Pixel values to the downsampled ones
+	int start_x = downsampling_factor * start_point.x;
+	int start_y = downsampling_factor * start_point.y;
+	int end_x = downsampling_factor * end_point.x;
+	int end_y = downsampling_factor * end_point.y;
+
+	//set the sizes of the map
+	m = downsampled_map.rows; // horizontal size of the map
+	n = downsampled_map.cols; // vertical size size of the map
+
+//	cv::Mat temporary_map = downsampled_map.clone();
+//
+//	cv::circle(temporary_map, cv::Point(start_x, start_y), 2, cv::Scalar(200), CV_FILLED);
+//	cv::circle(temporary_map, cv::Point(end_x, end_y), 2, cv::Scalar(100), CV_FILLED);
+
 	// get the route
 	clock_t start = clock();
-	std::string route = pathFind(start_point.x, start_point.y, end_point.x, end_point.y, eroded_map);
+	std::string route = pathFind(start_x, start_y, end_x, end_y, downsampled_map);
 	if (route == "")
 	{
 		std::cout << "An empty route generated!" << std::endl;
@@ -208,8 +227,8 @@ double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& s
 	{
 		int j;
 		char c;
-		int x = start_point.x;
-		int y = start_point.y;
+		int x = start_x;
+		int y = start_y;
 		for (int i = 0; i < route.length(); i++)
 		{
 			//get the next char of the string and make it an integer, which shows the direction
@@ -222,17 +241,18 @@ double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& s
 			//When it goes diagonal add sqrt(2)
 			if (j == 0 || j == 2 || j == 4 || j == 6)
 			{
-				path_length += 1;
+				path_length += (1 / downsampling_factor);
 			}
 			if (j == 1 || j == 3 || j == 5 || j == 7)
 			{
-				path_length += std::sqrt(2);
+				path_length += (std::sqrt(2) / downsampling_factor);
 			}
 		}
 	}
-//
-//	cv::imshow("test", temporary_map);
+//	cv::imshow("pathplanned", temporary_map);
 //	cv::waitKey();
+
+//	std::cout << "Number of expansions: " << expanding_counter << " Time: " << time_elapsed << std::endl;
 
 	return path_length;
 }

@@ -9,12 +9,13 @@ trolleyPositionFinder::trolleyPositionFinder()
 //all Points in it and then putting a grid over it to get cells in which the trolley-position possibly is. Then it finds
 //the Point in these cells that have the largest distance to the closest zero Pixel as candidates. From these candidates
 //the one is chosen, which gets the smallest pathlength to all group Points.
-cv::Point trolleyPositionFinder::findOneTrolleyPosition(const std::vector<cv::Point> group_points, const cv::Mat& original_map)
+cv::Point trolleyPositionFinder::findOneTrolleyPosition(const std::vector<cv::Point> group_points, const cv::Mat& original_map, double downsampling_factor)
 {
-	double max_x_value = group_points[0].x + 20; //max/min values of the Points that get the bounding box. Initialized with the coordinates of the first Point of the group.
-	double min_x_value = group_points[0].x - 20;
-	double max_y_value = group_points[0].y + 20;
-	double min_y_value = group_points[0].y - 20;
+	double n = 20;
+	double max_x_value = group_points[0].x + n; //max/min values of the Points that get the bounding box. Initialized with the coordinates of the first Point of the group.
+	double min_x_value = group_points[0].x - n;
+	double max_y_value = group_points[0].y + n;
+	double min_y_value = group_points[0].y - n;
 
 	//create eroded map, which is used to check if the trolley-position candidates are too close to the boundaries
 	cv::Mat eroded_map;
@@ -116,34 +117,57 @@ cv::Point trolleyPositionFinder::findOneTrolleyPosition(const std::vector<cv::Po
 
 	//find the candidate that minimizes the pathlengths to all roomcenters and choose this as trolley-position
 	double best_pathlength = 9001;
+	double best_pathlength_point_distance = 9001;
 	int best_trolley_candidate = 0;
 	for (int candidate = 0; candidate < trolley_position_candidates.size(); candidate++)
 	{
 		double current_pathlength = 0;
+		std::vector<double> pathlengths;
 		for (int room_center = 0; room_center < group_points.size(); room_center++)
 		{
 			cv::Point current_center = group_points[room_center];
-			current_pathlength += path_planner_.PlanPath(original_map, trolley_position_candidates[candidate], current_center);
+			//get the pathlength to the current center and save it
+			double center_pathlength = path_planner_.PlanPath(original_map, trolley_position_candidates[candidate], current_center, downsampling_factor);
+			pathlengths.push_back(center_pathlength);
+			//add the pathlenght to the total pathlength
+			current_pathlength += center_pathlength;
 		}
-		if (current_pathlength <= best_pathlength)
+		//check for the best position that has the shortest pathlength to all centers. Adding a little bit to the best_distances
+		//because the downsampling generates an error and with this better positions can be found.
+		if (group_points.size() == 2)
 		{
-			best_pathlength = current_pathlength;
-			best_trolley_candidate = candidate;
+			//If the group only has two members check for the position that is in the middlest of the connectionpath between
+			//these points or else a random point will be chosen.
+			double current_point_distance = std::abs(pathlengths[1] - pathlengths[0]);
+			if (current_pathlength <= (best_pathlength + 0.05) && current_point_distance <= (best_pathlength_point_distance + 0.05))
+			{
+				best_pathlength_point_distance = current_point_distance;
+				best_pathlength = current_pathlength;
+				best_trolley_candidate = candidate;
+			}
+		}
+		else
+		{
+			if (current_pathlength <= (best_pathlength + 0.05))
+			{
+				best_pathlength = current_pathlength;
+				best_trolley_candidate = candidate;
+			}
 		}
 	}
-
-	return trolley_position_candidates[best_trolley_candidate];
 
 //	cv::circle(temporary_map, trolley_position_candidates[best_trolley_candidate], 2, cv::Scalar(127), CV_FILLED);
 //
 //	cv::imshow("test", temporary_map);
-//	cv::imwrite("/home/rmb-fj/Pictures/TSP/position.png", temporary_map);
 //	cv::waitKey();
+//	cv::imwrite("/home/rmb-fj/Pictures/TSP/position.png", temporary_map);
+
+	return trolley_position_candidates[best_trolley_candidate];
 }
 
 //This function takes all found groups and calculates for each of it the best trolley-position.
 std::vector<cv::Point> trolleyPositionFinder::findTrolleyPositions(const cv::Mat& original_map, const std::vector<std::vector<int> >& found_groups,
-        const std::vector<cv::Point>& room_centers)
+        const std::vector<cv::Point>& room_centers, double downsampling_factor_from_subscription)
 {
 	std::vector < cv::Point > trolley_positions;
 
@@ -157,7 +181,7 @@ std::vector<cv::Point> trolleyPositionFinder::findTrolleyPositions(const cv::Mat
 		}
 		if (found_groups[current_group].size() > 1) //calculate the trolley-position for each group that has at least 2 members
 		{
-			trolley_positions.push_back(findOneTrolleyPosition(group_points_vector, original_map));
+			trolley_positions.push_back(findOneTrolleyPosition(group_points_vector, original_map, downsampling_factor_from_subscription));
 		}
 		else //if the group has only one member this one is the trolley-position
 		{

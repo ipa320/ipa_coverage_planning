@@ -16,6 +16,14 @@
 
 #include <ipa_building_navigation/node.h>
 
+//This class provides an AStar pathplanner, which calculates the pathlength from one cv::Point to another. It was taken from
+// http://code.activestate.com/recipes/577457-a-star-shortest-path-algorithm/ and slightly changed (to use it with openCV).
+//
+//!!!!!!!!!Important!!!!!!!!!!!!!
+//It downsamples the map mith the given factor (0 < factor < 1) so the map gets reduced and calculationtime gets better.
+//If it is set to 1 the map will have original size, if it is 0 the algorithm won't work, so make sure to not set it to 0.
+//
+
 class AStarPlanner
 {
 protected:
@@ -27,5 +35,5 @@ protected:
 public:
 	AStarPlanner();
 
-	double PlanPath(const cv::Mat& map_from_subscription, cv::Point& start_point, cv::Point& end_point);
+	double PlanPath(const cv::Mat& map_from_subscription, cv::Point& start_point, cv::Point& end_point, double downsampling_factor);
 };

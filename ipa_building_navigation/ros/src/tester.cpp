@@ -78,11 +78,12 @@ int main(int argc, char **argv)
 	std::vector < cv::Point > centers;
 
 	int n = 9;
+	double downfactor = 0.5;
 
 	cv::Mat pathlengths(cv::Size(n, n), CV_64F);
-	cv::Mat eroded_map;
-
-	cv::erode(map, eroded_map, cv::Mat(), cv::Point(-1, -1), 4);
+//	cv::Mat eroded_map;
+//
+//	cv::erode(map, eroded_map, cv::Mat(), cv::Point(-1, -1), 4);
 
 	//Testcenters:
 //	x: 494 y: 535
@@ -126,15 +127,16 @@ int main(int argc, char **argv)
 	for (int i = 0; i < centers.size(); i++)
 	{
 		cv::circle(testermap, centers[i], 2, cv::Scalar(127), CV_FILLED);
+		cv::Point center = centers[i];
 		for (int p = 0; p < centers.size(); p++)
 		{
 			if (p != i)
 			{
 				if (p > i) //only compute upper right triangle of matrix, rest is symmetrically added
 				{
-					double length = planner.PlanPath(map, centers[i], centers[p]);
+					double length = planner.PlanPath(map, center, centers[p], downfactor);
 					pathlengths.at<double>(i, p) = length;
-					pathlengths.at<double>(p, i) = length; //symmetrical-Matrix --> saves half the computation time
+					pathlengths.at<double>(p, i) = length; //symmetrical-Matrix --> saves half the computationtime
 				}
 			}
 			else
@@ -188,7 +190,7 @@ int main(int argc, char **argv)
 
 	ROS_INFO("Starting to find the trolley positions.");
 
-	std::vector<cv::Point> trolley_positions = tolley_finder.findTrolleyPositions(map, groups, centers);
+	std::vector<cv::Point> trolley_positions = tolley_finder.findTrolleyPositions(map, groups, centers, downfactor);
 
 	std::cout << groups.size() << " " << trolley_positions.size() << std::endl;
 
