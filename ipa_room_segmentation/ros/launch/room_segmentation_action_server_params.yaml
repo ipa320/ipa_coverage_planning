@@ -11,7 +11,7 @@ map_sampling_factor_check: 1.5
 # 1. choice of value is very important
 # 2. smaller value increase the chance to get every room
 
-room_area_factor_lower_limit_check: 1.0 
+room_area_factor_lower_limit_check: 5.0 
 room_area_factor_upper_limit_check: 45.0
 
 
