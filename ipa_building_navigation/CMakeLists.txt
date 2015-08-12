@@ -5,6 +5,7 @@ set(catkin_RUN_PACKAGES
 	roscpp
 	rospy
 	roslib
+	concorde_tsp_solver
 	actionlib
 	actionlib_msgs
 	std_msgs
