@@ -67,7 +67,7 @@ find_package(Boost REQUIRED COMPONENTS system)
 catkin_package(
 INCLUDE_DIRS
 	common/include
-	ros/include
+	#ros/include
 LIBRARIES
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
@@ -88,7 +88,7 @@ DEPENDS
 # important: common/include also needs to be here if you have it
 include_directories(
 	common/include
-	ros/include
+	#ros/include
 	${catkin_INCLUDE_DIRS}
 	${OpenCV_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIRS}
