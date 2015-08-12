@@ -67,7 +67,7 @@ find_package(Boost REQUIRED COMPONENTS system)
 catkin_package(
 INCLUDE_DIRS
 	common/include
-	ros/include
+	#ros/include
 LIBRARIES
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
@@ -87,7 +87,7 @@ DEPENDS
 # important: common/include also needs to be here if you have it
 include_directories(
 	common/include
-	ros/include
+	#ros/include
 	${catkin_INCLUDE_DIRS}
 	${OpenCV_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIRS}
@@ -117,11 +117,11 @@ install(DIRECTORY common/include/${PROJECT_NAME}/
 )
 
 ##uncomment this if you have header-files in your project
-install(DIRECTORY ros/include/${PROJECT_NAME}/
-	DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-	FILES_MATCHING PATTERN "*.h"
-	PATTERN ".svn" EXCLUDE
-)
+#install(DIRECTORY ros/include/${PROJECT_NAME}/
+#	DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+#	FILES_MATCHING PATTERN "*.h"
+#	PATTERN ".svn" EXCLUDE
+#)
 
 install(DIRECTORY scripts
 	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
