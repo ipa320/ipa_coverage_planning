@@ -8,7 +8,8 @@ MorphologicalSegmentation::MorphologicalSegmentation()
 
 }
 
-void MorphologicalSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit)
+void MorphologicalSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription,
+        double room_area_factor_lower_limit, double room_area_factor_upper_limit)
 {
 	/*This segmentation algorithm does:
 	 * 1. collect the map data
@@ -53,6 +54,15 @@ void MorphologicalSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_l
 					//check if contour is large/small enough for a room
 					double room_area = map_resolution_from_subscription * map_resolution_from_subscription
 					        * cv::contourArea(temporary_contours[current_contour]);
+					//subtract the area from the hole contours inside the found contour, because the contour area grows extremly large if it is a closed loop
+					for (int hole = 0; hole < temporary_contours.size(); hole++)
+					{
+						if (hierarchy[hole][3] == current_contour) //check if the parent of the hole is the current looked at contour
+						{
+							room_area -= map_resolution_from_subscription * map_resolution_from_subscription
+									* cv::contourArea(temporary_contours[hole]);
+						}
+					}
 					if (room_area_factor_lower_limit < room_area && room_area < room_area_factor_upper_limit)
 					{
 						//save contour for later drawing in map
@@ -67,9 +77,9 @@ void MorphologicalSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_l
 	//*******************draw contures in new map***********************
 	std::cout << "Segmentation Found " << saved_contours.size() << " rooms." << std::endl;
 	//draw filled contoures in new_map_to_draw_contours_ with random colour if this colour hasn't been used yet
-	cv::Mat new_map_to_draw_contours;	//map for drawing the found contours
+	cv::Mat new_map_to_draw_contours; //map for drawing the found contours
 	map_to_be_labeled.convertTo(segmented_map, CV_32SC1, 256, 0);
-	std::vector<cv::Scalar> already_used_coloures;//vector for saving the already used coloures
+	std::vector < cv::Scalar > already_used_coloures; //vector for saving the already used coloures
 	for (int idx = 0; idx < saved_contours.size(); idx++)
 	{
 		bool drawn = false; //checking-variable if contour has been drawn

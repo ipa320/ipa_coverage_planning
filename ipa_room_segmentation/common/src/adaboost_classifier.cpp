@@ -268,10 +268,9 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 			}
 		}
 	}
-
+	cv::imshow("classified", temporary_map);
+	cv::waitKey(1);
 	cv::Mat blured_image_for_thresholding = temporary_map.clone();
-
-	cv::imwrite("/home/rmb-fj/Pictures/maps/action_tests/semantic_labels.png", blured_image_for_thresholding);
 
 	//*********** IV. Fill the large enough rooms with a random color and split the hallways into smaller regions*********
 
@@ -311,8 +310,9 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 		{
 			//Generate a black map to draw the hallway-contour in. Then use this map to ckeck if the generated random Points
 			// are inside the contour.
-			cv::Mat contour_Map = cv::Mat::zeros(temporary_map.cols, temporary_map.rows, CV_8UC1);
+			cv::Mat contour_Map = cv::Mat::zeros(temporary_map.rows, temporary_map.cols, CV_8UC1);
 			cv::drawContours(contour_Map, contours, contour_counter, cv::Scalar(255), CV_FILLED);
+			cv::erode(contour_Map, contour_Map, cv::Mat(), cv::Point(-1,-1), 1);
 			//center-counter so enough centers could be found
 			int center_counter = 0;
 			//saving-vector for watershed centers
@@ -354,16 +354,17 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 					}
 				}
 			}
-			contour_Map.convertTo(temporary_map, CV_32SC1, 256, 0);
-			wavefrontRegionGrowing(temporary_map);
+			cv::Mat temporary_Map_to_wavefront;
+			contour_Map.convertTo(temporary_Map_to_wavefront, CV_32SC1, 256, 0);
+			wavefrontRegionGrowing(temporary_Map_to_wavefront);
 			//draw the seperated contour into the map, which should be labeled
 			for (int row = 0; row < segmented_map.rows; row++)
 			{
 				for (int col = 0; col < segmented_map.cols; col++)
 				{
-					if (temporary_map.at<int>(row, col) != 0)
+					if (temporary_Map_to_wavefront.at<int>(row, col) != 0)
 					{
-						segmented_map.at<int>(row, col) = temporary_map.at<int>(row, col);
+						segmented_map.at<int>(row, col) = temporary_Map_to_wavefront.at<int>(row, col);
 					}
 				}
 			}

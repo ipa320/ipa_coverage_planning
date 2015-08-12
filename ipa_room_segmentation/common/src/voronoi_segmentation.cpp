@@ -60,11 +60,12 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 	//	4. It returns the map that has the generalized voronoi-graph drawn in.
 
 	cv::Mat map_to_draw_voronoi_in = map_for_voronoi_generation.clone(); //variable to save the given map for drawing in the voronoi-diagram
-	//apply a closing-operator on the map so bad parts are neglegted
-	cv::erode(map_to_draw_voronoi_in, map_to_draw_voronoi_in, cv::Mat());
-	cv::dilate(map_to_draw_voronoi_in, map_to_draw_voronoi_in, cv::Mat());
 
 	cv::Mat temporary_map_to_calculate_voronoi = map_for_voronoi_generation.clone(); //variable to save the given map in the createVoronoiGraph-function
+
+	//apply a closing-operator on the map so bad parts are neglegted
+	cv::erode(temporary_map_to_calculate_voronoi, temporary_map_to_calculate_voronoi, cv::Mat());
+	cv::dilate(temporary_map_to_calculate_voronoi, temporary_map_to_calculate_voronoi, cv::Mat());
 
 	//********************1. Get OpenCV delaunay-traingulation******************************
 
@@ -108,7 +109,7 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 
 	//erode the map and get the largest contour of it so that Points near the boundary are not drawn later
 	//(see drawVoronoi)
-	cv::erode(temporary_map_to_calculate_voronoi, eroded_map, cv::Mat(), anchor, 4);
+	cv::erode(temporary_map_to_calculate_voronoi, eroded_map, cv::Mat(), anchor, 2);
 	cv::findContours(eroded_map, eroded_contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE);
 	//set initial largest contour
 	largest_contour = contours[0];
@@ -149,8 +150,150 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 	map_for_voronoi_generation = map_to_draw_voronoi_in;
 }
 
+void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Room> rooms, double map_resolution_from_subscription)
+{
+	//This function takes the segmented Map from the original Voronoi-segmentation-algorithm and merges rooms together,
+	//that are small enough and have only two or one neighbor.
+
+	//go trough every Pixel and add Points to the rooms with the same ID
+	for (int y = 0; y < map_to_merge_rooms.rows; y++)
+	{
+		for (int x = 0; x < map_to_merge_rooms.cols; x++)
+		{
+			int current_id = map_to_merge_rooms.at<int>(y, x);
+			if (current_id != 0)
+			{
+				for (int current_room = 0; current_room < rooms.size(); current_room++) //add the Points with the same Id as a room to it
+				{
+					if (rooms[current_room].getID() == current_id) //insert the current Point into the corresponding room
+					{
+						rooms[current_room].insertMemberPoint(cv::Point(x, y));
+						break;
+					}
+				}
+			}
+		}
+	}
+	//set the Perimeter and area foreach room
+	for (int room = 0; room < rooms.size(); room++)
+	{
+		int current_id = rooms[room].getID();
+		cv::Mat temporary_map = map_to_merge_rooms.clone();
+		std::vector < std::vector<cv::Point> > temporary_contours;
+		std::vector < cv::Vec4i > temporary_hierarchy;
+		//make everything black execpt for the current room to get the contour of it
+		for (int y = 0; y < temporary_map.rows; y++)
+		{
+			for (int x = 0; x < temporary_map.cols; x++)
+			{
+				if (temporary_map.at<int>(y, x) != current_id)
+				{
+					temporary_map.at<int>(y, x) = 0;
+				}
+				else
+				{
+					temporary_map.at<int>(y, x) = 65280;
+				}
+			}
+		}
+		//get contour of room
+		cv::findContours(temporary_map, temporary_contours, temporary_hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE);
+		//set Perimeter and area
+		for (int c = 0; c < temporary_contours.size(); c++)
+		{
+			if (temporary_hierarchy[c][3] == -1)
+			{
+				double room_area = map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(temporary_contours[c]);
+				//subtract the area from the hole contours inside the found contour, because the contour area grows extremly large if it is a closed loop
+				for (int hole = 0; hole < temporary_contours.size(); hole++)
+				{
+					if (temporary_hierarchy[hole][3] == c) //check if the parent of the hole is the current looked at contour
+					{
+						room_area -= map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(temporary_contours[hole]);
+					}
+				}
+				rooms[room].setArea(room_area);
+				rooms[room].setPerimeter(cv::arcLength(temporary_contours[c], true));
+			}
+		}
+	}
+	//add the neighbor IDs for every Point
+	for (int current_room = 0; current_room < rooms.size(); current_room++)
+	{
+		std::vector < cv::Point > current_Points = rooms[current_room].getMembers();
+		for (int current_point = 0; current_point < current_Points.size(); current_point++)
+		{
+			for (int row_counter = -1; row_counter <= 1; row_counter++)
+			{
+				for (int col_counter = -1; col_counter <= 1; col_counter++)
+				{
+					if (map_to_merge_rooms.at<int>(current_Points[current_point].y + row_counter, current_Points[current_point].x + col_counter) != 0
+					        && map_to_merge_rooms.at<int>(current_Points[current_point].y + row_counter, current_Points[current_point].x + col_counter)
+					                != rooms[current_room].getID())
+					{
+						rooms[current_room].addNeighborID(
+						        map_to_merge_rooms.at<int>(current_Points[current_point].y + row_counter, current_Points[current_point].x + col_counter));
+					}
+				}
+			}
+		}
+	}
+	//check every room if it should be merged with its neighbor that it shares the most boundary with
+	cv::Mat mapper = map_to_merge_rooms.clone();
+	for (int current_room = 0; current_room < rooms.size(); current_room++)
+	{
+		//only merge rooms that have 2 or less neighbors and are small enough
+		if ((rooms[current_room].getNeighborCount() <= 2 && rooms[current_room].getArea() < 20.0) //20.0
+				|| (rooms[current_room].getNeighborCount() == 3 && rooms[current_room].getArea() < 3.5))//3.5 --> if room is too small merge it with neighbors
+		{
+			cv::Mat temporary_map = mapper.clone();
+			std::vector<cv::Point> current_room_members = rooms[current_room].getMembers();
+			double largest_area = 0;
+			double max_shared_perimeter_count;
+			int largest_ID = 0;
+			std::vector<int> neighbor_ids = rooms[current_room].getNeighborIDs(); //get IDs for every neighbor of this room
+			for (int current_neighbor = 0; current_neighbor < rooms.size(); current_neighbor++)
+			{
+				max_shared_perimeter_count = 0;
+				if (contains(neighbor_ids, rooms[current_neighbor].getID()))
+				{
+					double current_shared_perimeter_count = 0;
+					std::vector<cv::Point> neighbor_members = rooms[current_neighbor].getMembers();
+					for(int room_point = 0; room_point < current_room_members.size(); room_point++)
+					{
+						for(int neighbor_point = 0; neighbor_point < neighbor_members.size(); neighbor_point++)
+						{
+							//if two points are closer than sqrt(2) they share the boundary
+							double delta_x = current_room_members[room_point].x - neighbor_members[neighbor_point].x;
+							double delta_y = current_room_members[room_point].y - neighbor_members[neighbor_point].y;
+							double distance = std::sqrt((std::pow(delta_x, 2.0)) + std::pow(delta_y, 2.0));
+							if(distance <= std::sqrt(2.0))
+							{
+								current_shared_perimeter_count++;
+							}
+						}
+					}
+					//check if current shared boundary is larger than saved one and also check if boundary is larger than
+					//the typical shared boundary in a door
+					if(current_shared_perimeter_count >= max_shared_perimeter_count
+							&& current_shared_perimeter_count >= 67) //67 --> most doors fulfill this criterion
+					{
+						max_shared_perimeter_count = current_shared_perimeter_count;
+						largest_ID = rooms[current_neighbor].getID();
+					}
+				}
+			}
+			if(largest_ID != 0)//check if the largest ID has been set and isn't zero
+			{
+				rooms[current_room].setRoomId(largest_ID, map_to_merge_rooms);
+			}
+		}
+	}
+}
+
 void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription,
-        double room_area_factor_lower_limit, double room_area_factor_upper_limit)
+        double room_area_factor_lower_limit, double room_area_factor_upper_limit, int neihborhood_index, int max_iterations,
+        double min_critical_Point_distance_factor)
 {
 	//****************Create the Generalized Voronoi-Diagram**********************
 	//This function takes a given map and segments it with the generalized Voronoi-Diagram. It takes following steps:
@@ -183,7 +326,6 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 	//			2. It draws the contours from 1. in a map with a random colour. Contours that belong to holes are not drawn
 	//			   into the map.
 	//			3. Spread the colour-regions to the last white Pixels, using the watershed-region-spreading function.
-
 
 	//*********************I. Calculate and draw the Voronoi-Diagram in the given map*****************
 
@@ -299,7 +441,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 			{
 				//make the size of the to be checked region dependend on the distance of the current Pixel to the closest
 				//zero-Pixel, so larger areas are splittet into more regions and small areas into fewer
-				eps = 310 / (int) distance_map.at<unsigned char>(x, y);
+				eps = neihborhood_index / (int) distance_map.at<unsigned char>(x, y); //310
 				loopcounter = 0; //if a Part of the graph is not connected to the rest this variable helps to stop the loop
 				//reset the neighboring-variables, which are different for each Point
 				neighbor_Points.clear();
@@ -342,7 +484,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 					}
 					temporary_Points.clear();
 					//check if enough neighbors has been checked or checked enough times (e.g. at a small segment of the graph)
-				} while (neighbor_count <= eps && loopcounter < 150);
+				} while (neighbor_count <= eps && loopcounter < max_iterations);
 				//check every found Point in the neighborhood if it is the local Minimum in the distanceMap
 				current_critical_Point = cv::Point(x, y);
 				for (int p = 0; p < neighbor_Points.size(); p++)
@@ -364,11 +506,16 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 
 	//map to draw the critical lines and fill the map with random colors
 	//segmented_map = map_to_be_labeled.clone();
-	map_to_be_labeled.convertTo(segmented_map, CV_32SC1, 256, 0);		// rescale to 32 int, 255 --> 255*256 = 65280
+	map_to_be_labeled.convertTo(segmented_map, CV_32SC1, 256, 0); // rescale to 32 int, 255 --> 255*256 = 65280
+
+	//clone the Map to extract the contours, because after using OpenCV find-/drawContours
+	//the map will be different from the original one
+	cv::Mat temporary_map_to_extract_the_contours = segmented_map.clone();
 
 	std::vector < std::vector<cv::Point> > contours;
 	cv::Point basis_Point_1, basis_Point_2;
 	std::vector<cv::Point> basis_Points_1, basis_Points_2;
+	std::vector<double> length_of_critical_line;
 	double current_distance, distance_basis_1, distance_basis_2;
 	double current_angle;
 	int basis_vector_1_x, basis_vector_2_x, basis_vector_1_y, basis_vector_2_y;
@@ -376,8 +523,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 	bool draw;
 
 	// 1. Get the Points of the contour, which are the possible closest Points for a critical Point
-	cv::findContours(segmented_map, contours, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
-	cv::drawContours(segmented_map, contours, -1, cv::Scalar(255*256), CV_FILLED);
+	cv::findContours(temporary_map_to_extract_the_contours, contours, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
 
 	// 2. Get the basis-points for each critical-point
 	for (int current_critical_point = 0; current_critical_point < critical_Points.size(); current_critical_point++)
@@ -446,8 +592,10 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 		double h = basis_vector_1_y * basis_vector_2_y;
 		current_angle = std::acos((g + h) / (distance_basis_1 * distance_basis_2)) * 180.0 / PI;
 
+		//save the crititical line with its calculated values
 		basis_Points_1.push_back(basis_Point_1);
 		basis_Points_2.push_back(basis_Point_2);
+		length_of_critical_line.push_back(distance_basis_1 + distance_basis_2);
 		angles.push_back(current_angle);
 
 	}
@@ -467,17 +615,29 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 				double vector_x = critical_Points[second_critical_Point].x - critical_Points[first_critical_Point].x;
 				double vector_y = critical_Points[second_critical_Point].y - critical_Points[first_critical_Point].y;
 				double critical_Point_distance = std::sqrt((std::pow(vector_x, 2.0)) + std::pow(vector_y, 2.0));
-				//check if the Points are too close to each other
-				if (critical_Point_distance < 27.0)
+				//check if the Points are too close to each other corresponding to the distance to the nearest black Pixel
+				//of the current critical Point. This is done because critical Points at doors are closer to the black region
+				//and shorter and may be eliminated in the following step. By reducing the checking distance at this Point
+				//it gets better.
+				if (critical_Point_distance
+				        < ((int) distance_map.at<unsigned char>(critical_Points[first_critical_Point].x, critical_Points[first_critical_Point].y)
+				                * min_critical_Point_distance_factor)) //1.7
 				{
 					//if one Point in neighborhood is found that has a larger angle the actual to-be-checked Point shouldn't be drawn
 					if (angles[first_critical_Point] < angles[second_critical_Point])
 					{
 						draw = false;
 					}
-					//if the angles of the two neighborhood Points are the same the one which is more at the beginning
-					//of the list shouldn't be drawn (Point at the beginning made better test-results, so it's only subjective oppinion)
-					if (angles[first_critical_Point] == angles[second_critical_Point] && second_critical_Point < first_critical_Point)
+					//if the angles of the two neighborhood Points are the same the shorter one should be drawn, because it more likely is e.g. a door
+					if (angles[first_critical_Point] == angles[second_critical_Point]
+					        && length_of_critical_line[first_critical_Point] > length_of_critical_line[second_critical_Point]
+					        && length_of_critical_line[second_critical_Point] > 3)
+					{
+						draw = false;
+					}
+					else if (angles[first_critical_Point] == angles[second_critical_Point]
+					        && length_of_critical_line[first_critical_Point] > length_of_critical_line[second_critical_Point]
+					        && first_critical_Point < second_critical_Point)
 					{
 						draw = false;
 					}
@@ -488,19 +648,22 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 		if (draw)
 		{
 			cv::line(voronoi_map_, cv::Point(critical_Points[first_critical_Point].y, critical_Points[first_critical_Point].x),
-			        basis_Points_1[first_critical_Point], cv::Scalar(0));
+			        basis_Points_1[first_critical_Point], cv::Scalar(0), 2);
 			cv::line(voronoi_map_, cv::Point(critical_Points[first_critical_Point].y, critical_Points[first_critical_Point].x),
-			        basis_Points_2[first_critical_Point], cv::Scalar(0));
+			        basis_Points_2[first_critical_Point], cv::Scalar(0), 2);
 		}
 	}
+
 	//***********************Find the Contours seperated from the critcal lines and fill them with colour******************
 
 	std::vector < cv::Scalar > already_used_coloures; //saving-vector to save the already used coloures
 
 	std::vector < cv::Vec4i > hierarchy; //variables for coloring the map
 
+	std::vector<Room> rooms; //Vector to save the rooms in this map
+
 	//1. Erode map one time, so small gaps are closed
-	cv::erode(voronoi_map_, voronoi_map_, cv::Mat(), cv::Point(-1, -1), 1);
+//	cv::erode(voronoi_map_, voronoi_map_, cv::Mat(), cv::Point(-1, -1), 1);
 	cv::findContours(voronoi_map_, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE);
 
 	for (int current_contour = 0; current_contour < contours.size(); current_contour++)
@@ -517,12 +680,19 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 				do
 				{
 					loop_counter++;
-					cv::Scalar fill_colour(rand() % 52224 + 13056);
+					int random_number = rand() % 52224 + 13056;
+					cv::Scalar fill_colour(random_number);
 					//check if colour has already been used
 					if (!contains(already_used_coloures, fill_colour) || loop_counter > 250)
 					{
-						cv::drawContours(segmented_map, contours, current_contour, fill_colour, CV_FILLED);
+						cv::drawContours(segmented_map, contours, current_contour, fill_colour, 1);
 						already_used_coloures.push_back(fill_colour);
+						Room current_room(random_number); //add the current Contour as a room
+						for (int point = 0; point < contours[current_contour].size(); point++) //add contour points to room
+						{
+							current_room.insertMemberPoint(cv::Point(contours[current_contour][point]));
+						}
+						rooms.push_back(current_room);
 						drawn = true;
 					}
 				} while (!drawn);
@@ -532,4 +702,9 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 
 	//3.fill the last white areas with the surrounding color
 	wavefrontRegionGrowing(segmented_map);
+
+	cv::imshow("before", segmented_map);
+	cv::waitKey(1);
+	//4.merge the rooms together if neccessary
+	mergeRooms(segmented_map, rooms, map_resolution_from_subscription);
 }
