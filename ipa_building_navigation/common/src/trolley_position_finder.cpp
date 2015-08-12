@@ -1,5 +1,6 @@
 #include <ipa_building_navigation/trolley_position_finder.h>
 
+//Defaul Constructor
 trolleyPositionFinder::trolleyPositionFinder()
 {
 
