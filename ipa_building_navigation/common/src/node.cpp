@@ -39,6 +39,11 @@ void nodeAstar::nextLevel(const int& i) // i: direction
 }
 
 // Estimation function for the remaining distance to the goal.
+//
+//!!!!!!!!!!!!!!!!!!!!!!!Important!!!!!!!!!!!!!!!!!!!!!!!
+//Uncomment the method to calculate the distance between this node and the goal you want to use. Eclidean is more precisly
+//but could take longer to get long paths.
+//
 const int& nodeAstar::estimate(const int& xDest, const int& yDest) const
 {
 	static int xd, yd, d;

@@ -57,7 +57,7 @@ std::string AStarPlanner::pathFind(const int & xStart, const int & yStart, const
 	cv::Mat open_nodes_map(cv::Size(m, n), CV_32S); // map of open (not-yet-tried) nodes
 	cv::Mat dir_map(cv::Size(m, n), CV_32S); // map of directions
 
-	// reset the node maps
+	// initialize the node maps
 	for (y = 0; y < closed_nodes_map.rows; y++)
 	{
 		for (x = 0; x < closed_nodes_map.cols; x++)
@@ -210,10 +210,6 @@ double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& s
 	m = downsampled_map.rows;// horizontal size of the map
 	n = downsampled_map.cols;// vertical size size of the map
 
-//	cv::Mat temporary_map = downsampled_map.clone();
-//	cv::circle(temporary_map, cv::Point(start_x, start_y), 2, cv::Scalar(200), CV_FILLED);
-//	cv::circle(temporary_map, cv::Point(end_x, end_y), 2, cv::Scalar(100), CV_FILLED);
-
 	// get the route
 	clock_t start = clock();
 	std::string route = pathFind(start_x, start_y, end_x, end_y, downsampled_map);
@@ -239,7 +235,6 @@ double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& s
 			j = atoi(&c);
 			x = x + dx[j];
 			y = y + dy[j];
-//			temporary_map.at<unsigned char>(y, x) = 127;
 			//Update the pathlength with the directions of the path. When the path goes vertical or horizontal add length 1.
 			//When it goes diagonal add sqrt(2)
 			if (j == 0 || j == 2 || j == 4 || j == 6)
@@ -252,8 +247,6 @@ double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& s
 			}
 		}
 	}
-//	cv::imshow("pathplanned", temporary_map);
-//	cv::waitKey();
 
 	return path_length;
 }

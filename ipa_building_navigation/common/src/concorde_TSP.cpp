@@ -1,20 +1,26 @@
 # include <ipa_building_navigation/concorde_TSP.h>
 
+//Default constructor
 concordeTSPSolver::concordeTSPSolver()
 {
 
 }
 
+//This function generates a file with the current TSP in TSPlib format. This is neccessary because concorde needs this file
+//as input to solve the TSP. See http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/ for documentation.
 void concordeTSPSolver::writeToFile(const cv::Mat& pathlength_matrix)
 {
 	std::string path_for_saving_file = ros::package::getPath("concorde_tsp_solver") + "/common/files/TSPlib_file.txt";
 	std::ofstream saving_file(path_for_saving_file.c_str());
 	if (saving_file.is_open())
 	{
-		std::cout << "starting saving pathlength parameters" << std::endl;
-		saving_file << "NAME: ipa-building-navigation" << std::endl << "TYPE: TSP" << std::endl << "COMMENT: This is the TSPlib file for using concorde"
+		std::cout << "Starting to create the TSPlib file." << std::endl;
+		//specify name of the Problem, Type (TSP = symmetrical TSP) and add a comment to the file. Name and Type are neccessary, comment is for better understanding when you open the file.
+		saving_file << "NAME: ipa-building-navigation" << std::endl << "TYPE: TSP" << std::endl
+		        << "COMMENT: This is the TSPlib file for using concorde. See http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/ for documentation."
 		        << std::endl;
-		saving_file << "DIMENSION: " << pathlength_matrix.cols << std::endl;
+		saving_file << "DIMENSION: " << pathlength_matrix.cols << std::endl; //Shows the Dimension of the problem --> the number of nodes (Neccessary).
+		//Write the distance-matrix into the file as a full-matrix.
 		saving_file << "EDGE_WEIGHT_TYPE: EXPLICIT" << std::endl;
 		saving_file << "EDGE_WEIGHT_FORMAT: FULL_MATRIX" << std::endl;
 		saving_file << "EDGE_WEIGHT_SECTION" << std::endl;
@@ -27,41 +33,45 @@ void concordeTSPSolver::writeToFile(const cv::Mat& pathlength_matrix)
 			}
 			saving_file << std::endl;
 		}
-
+		//shows the end of the file
 		saving_file << "EOF";
 
-		std::cout << "finished saving" << std::endl;
+		std::cout << "Created the TSPlib file." << std::endl;
 		saving_file.close();
 	}
 	else
 	{
-		std::cout << "nicht geöffnet1" << std::endl;
+		std::cout << "Saving file for concorde could not be opened." << std::endl;
 	}
 }
 
+//This function opens the file which saves the output from the concorde solver and reads the saved order. The names of the
+//nodes in the graph are stored as positions in the distance matrix in this case. The first integer in the file is the number
+//of nodes of this problem, so this one is not neccessary.
 std::vector<int> concordeTSPSolver::readFromFile()
 {
-	std::string path_for_order_file = ros::package::getPath("concorde_tsp_solver") + "/common/files/TSP_order.txt";
-	std::ifstream reading_file(path_for_order_file.c_str());
+	std::string path_for_order_file = ros::package::getPath("concorde_tsp_solver") + "/common/files/TSP_order.txt"; //get path to file
+	std::ifstream reading_file(path_for_order_file.c_str()); //open file
 
-	std::vector<int> order_vector;
+	std::vector<int> order_vector; //vector that stores the calculated TSP order
 
-	std::string line;
+	std::string line; //current line of the file
 
-	int value;
+	int value; //current node in the line
 
-	int line_counter = 0;
+	int line_counter = 0; //variable to make sure that the first line isn't stored
 
 	if (reading_file.is_open())
 	{
+		//get new line in the file
 		while (getline(reading_file, line))
 		{
 			std::istringstream iss(line);
 			while (iss >> value)
 			{
-				if(line_counter > 0)
+				if (line_counter > 0) //first line shows the number of nodes and is not relevant
 				{
-					order_vector.push_back(value);
+					order_vector.push_back(value); //put the current node in the last position of the order
 				}
 				line_counter++;
 			}
@@ -70,25 +80,54 @@ std::vector<int> concordeTSPSolver::readFromFile()
 	}
 	else
 	{
-		std::cout << "nicht geöffnet" << std::endl;
+		std::cout << "TSP order file could not be opened." << std::endl;
 	}
 	return order_vector;
 }
 
+//This function solves the given TSP using the systemcall to use the concorde TSP solver. This solver is applied from:
+//		http://www.math.uwaterloo.ca/tsp/concorde.html
+//First you have to build the Solver in any possible way and if you don't make a ros-package out of it you have to change
+//the paths to the right ones. If it is a ros-package the ros::package::getpath() function will find the right path.
+//The usage of the solver is: ./concorde [-see below-] [dat_file]
+//Navigate to the build Solver and then ./TSP and type ./concorde -h for a short explanation.
 std::vector<int> concordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_Matrix, const int start_Node)
 {
+	//create the TSPlib file
 	writeToFile(path_length_Matrix);
 
-	std::string cmd = ros::package::getPath("concorde_tsp_solver") + "/common/bin/concorde -o" + ros::package::getPath("concorde_tsp_solver") + "/common/files/TSP_order.txt " + ros::package::getPath("concorde_tsp_solver") + "/common/files/TSPlib_file.txt";
+	//use concorde to find optimal tour
+	std::string cmd = ros::package::getPath("concorde_tsp_solver") + "/common/bin/concorde -o" + ros::package::getPath("concorde_tsp_solver")
+	        + "/common/files/TSP_order.txt " + ros::package::getPath("concorde_tsp_solver") + "/common/files/TSPlib_file.txt";
 	int result = system(cmd.c_str());
 	assert(!result);
 
-	std::vector<int> order = readFromFile();
+	//get order from saving file
+	std::vector<int> unsorted_order = readFromFile();
 
-	for(int i = 0; i < order.size(); i++)
+	//sort the order with the start_Node at the beginning
+	std::vector<int> sorted_order;
+	unsigned int start_node_position;
+
+	for(unsigned int i = 0; i < sorted_order.size(); i++) //find position of the start node in the order
 	{
-		std::cout << order[i] << std::endl;
+		if(sorted_order[i] == start_Node)
+		{
+			start_node_position = i;
+		}
 	}
-	std::cout << std::endl;
-	return order;
+
+	for (unsigned int i = start_node_position; i < unsorted_order.size(); i++)//sort the vector starting at start_Node
+	{
+		sorted_order.push_back(unsorted_order[i]);
+	}
+	for (unsigned int i = 0; i < start_node_position; i++)
+	{
+		sorted_order.push_back(unsorted_order[i]);
+	}
+
+	//Add the starting_Node at the end of the vector so the start will be reached again.
+	sorted_order.push_back(sorted_order[start_node_position]);
+
+	return sorted_order;
 }
