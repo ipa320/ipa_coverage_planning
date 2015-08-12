@@ -7,7 +7,11 @@
 #include <cstdlib>
 #include <stdio.h>
 
-
+//This is th object to reperesent a node in a Graph. It is used by A_star_pathplanner.cpp and was applied from:
+//		http://code.activestate.com/recipes/577457-a-star-shortest-path-algorithm/
+//In the estimate() function the distance from the node to the goal is calculated. Uncomment there which distance calculation
+//you want to use (Euclidean, Manhattan or Chebyshev). Euclidean is more precisly but could slow the planner a little bit on
+//long paths.
 
 class nodeAstar
 {

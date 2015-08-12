@@ -1,5 +1,6 @@
 #include <ipa_building_navigation/genetic_TSP.h>
 
+//Default constructor
 GeneticTSPSolver::GeneticTSPSolver()
 {
 
@@ -143,17 +144,22 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& path_length_Ma
 {
 	//This is a solver for the TSP using a genetic algorithm. It calculates a initial path by using the nearest-neighbor
 	//search. It then applies an evolutional algorithm:
+	//
 	//	I. Take the parent of the current generation and calculate 8 mutated children of it. A mutation can be a change
 	//	   of positions of nodes or the inversion of a intervall. The initial parent is the path from the nearest-neighbor search.
 	//	II. It checks for the 9 paths (parent and children) for the best path (shortest) and takes this path as the parent
 	//	   of the new generation.
 	//	III. It repeats the steps I. and II. at least a specified amount of times and then checks if the pathlength
 	//		 hasn't changed in the last steps.
-//	srand (time(NULL));
+	//
+	//As input a symmetrical matrix of pathlenghts is needed. This matrix should save the pathlengths with this logic:
+	//		1. The rows show from which Node the length is calculated.
+	//		2. For the columns in a row the Matrix shows the distance to the Node in the column.
+	//		3. From the node to itself the distance is 0.
 
-	NearestNeighborTSPSolver	initialpath;
+	NearestNeighborTSPSolver nearest_neighbor_solver;
 
-	std::vector<int> calculated_path = initialpath.solveNearestTSP(path_length_Matrix, start_Node);
+	std::vector<int> calculated_path = nearest_neighbor_solver.solveNearestTSP(path_length_Matrix, start_Node);
 
 	bool changed_path = false; //this variable checks if the path has been changed in the mutation process
 	int changeing_counter = 25;//this variable is a counter for how many times a path has been the same
@@ -171,7 +177,7 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& path_length_Ma
 			current_generation_paths.push_back(mutatePath(calculated_path));
 		}
 		calculated_path = getBestPath(current_generation_paths, path_length_Matrix, changed_path); //get the best path of this generation
-		if(number_of_generations >= 350) //when 20 steps has been done the algorithm checks if the last ten paths didn't change
+		if(number_of_generations >= 350) //when 350 steps has been done the algorithm checks if the last ten paths didn't change
 		{
 			if(changed_path)
 			{

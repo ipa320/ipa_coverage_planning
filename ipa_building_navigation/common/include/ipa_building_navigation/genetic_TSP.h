@@ -15,7 +15,18 @@
 #include <ipa_building_navigation/nearest_neighbor_TSP.h>
 
 //This class provides a solution for the TSP by taking the nearest-neighbor path and applying a genetic algorithm on it.
-//It gets a Matrix of pathlenghts between the Points and the starting-point index in this Matrix.
+//It needs a symmetrical matrix of pathlenghts between the nodes and the starting-point index in this matrix.
+//If the path from one node to another doesn't exist or the path is from one node to itself, the entry in the matrix must
+//be 0 or smaller. so the format for this matrix is:
+// row: node to start from, column: node to go to
+//		---					   ---
+//		| 0.0 1.0  3.5  5.8  1.2 |
+//		| 1.0 0.0  2.4  3.3  9.0 |
+//		| 3.5 2.4  0.0 	7.7  88.0|
+//		| 5.8 3.3  7.7  0.0  0.0 |
+//		| 1.2 9.0  88.0 0.0  0.0 |
+//		---					   ---
+
 class GeneticTSPSolver
 {
 protected:
