@@ -18,6 +18,9 @@
 #include <boost/graph/undirected_graph.hpp>
 #include <boost/graph/bron_kerbosch_all_cliques.hpp>
 
+#pragma once //make sure this header gets included only one time when multiple classes need it in the same project
+			 //regarding to https://en.wikipedia.org/wiki/Pragma_once this is more efficient than #define
+
 //This algorithm provides a class that finds all maximal cliques in a given graph. It uses the Bron-Kerbosch Implementation
 //in Boost to do this. As input a symmetrical distance-Matrix is needed that shows the pathlenghts from one node to another.
 //If the path from one node to another doesn't exist, the entry in the matrix must be 0 or smaller. so the format for this

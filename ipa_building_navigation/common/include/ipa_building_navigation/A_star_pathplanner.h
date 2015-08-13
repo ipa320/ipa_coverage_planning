@@ -16,6 +16,9 @@
 
 #include <ipa_building_navigation/node.h>
 
+#pragma once //make sure this header gets included only one time when multiple classes need it in the same project
+			 //regarding to https://en.wikipedia.org/wiki/Pragma_once this is more efficient than #define
+
 //This class provides an AStar pathplanner, which calculates the pathlength from one cv::Point to another. It was taken from
 // http://code.activestate.com/recipes/577457-a-star-shortest-path-algorithm/ and slightly changed (to use it with openCV).
 //It needs node.h to work, which gives an implementation of nodes of the graph.

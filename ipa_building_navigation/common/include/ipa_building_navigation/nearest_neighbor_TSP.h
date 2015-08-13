@@ -12,6 +12,10 @@
 #include <opencv/highgui.h>
 
 #include <ipa_building_navigation/contains.h>
+#include <ipa_building_navigation/A_star_pathplanner.h>
+
+#pragma once //make sure this header gets included only one time when multiple classes need it in the same project
+			 //regarding to https://en.wikipedia.org/wiki/Pragma_once this is more efficient than #define
 
 //This class provides a solution for the TSP by taking the nearest neighbor from the current Point as next Point.
 //It need a symmetrical matrix of pathlenghts between the nodes and the starting-point index in this matrix.
@@ -28,11 +32,33 @@
 
 class NearestNeighborTSPSolver
 {
+protected:
+
+	//Astar pathplanner to find the pathlengths from cv::Point to cv::Point
+	AStarPlanner pathplanner_;
+
+	//Function to construct the distance matrix, showing the pathlength from node to node
+	void constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points,
+	        double downsampling_factor, double robot_radius, double map_resolution);
+
 public:
 	//constructor
 	NearestNeighborTSPSolver();
 
-	//Solving-algorithm for the given TSP. It returns a vector of int, which is the order from this solution. The int shows
-	//the index in the Matrix.
-	std::vector<int> solveNearestTSP(const cv::Mat& path_length_Matrix, const int start_node);
+	//Solving-algorithms for the given TSP. It returns a vector of int, which is the order from this solution. The int shows
+	//the index in the Matrix. There are three functions for different cases:
+	//		1. The distance matrix already exists
+	//		2. The distance matrix has to be computet but not returned
+	//		3. The distance matrix has to be computet and also returned
+
+	//with given distance matrix
+	std::vector<int> solveNearestTSP(const cv::Mat& path_length_matrix, const int start_node); //with given distance matrix
+
+	//compute distancematrix without returning it
+	std::vector<int> solveNearestTSP(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points, double downsampling_factor,
+	        double robot_radius, double map_resolution, const int start_node);
+
+	//compute distancematrix with returning it
+	std::vector<int> solveNearestTSP(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points, double downsampling_factor,
+	        double robot_radius, double map_resolution, const int start_node, cv::Mat& pathlength_matrix);
 };

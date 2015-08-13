@@ -16,6 +16,9 @@
 
 #include <ipa_building_navigation/A_star_pathplanner.h>
 
+#pragma once //make sure this header gets included only one time when multiple classes need it in the same project
+			 //regarding to https://en.wikipedia.org/wiki/Pragma_once this is more efficient than #define
+
 //This object provides an algorithm to search for the best trolley position for a group of points. A trolley position is
 //the Point where the trolley of a robot should be placed during the cleaning of the group. This is done by searching in the
 //bounding box of these points for the point which minimizes the pathlength to every group member. If the goup has only two
