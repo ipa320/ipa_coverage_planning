@@ -32,6 +32,7 @@ room_area_factor_lower_limit_semantic: 1.0
 voronoi_neighborhood_index: 280 #larger value sets a larger neighborhood --> int
 max_iterations: 150 #sets the maximal number of iterations to search for a neighborhood --> int
 min_critical_Point_distance_factor: 1.6 #minimal distance factor between two critical Points before one of it gets eliminated --> double
+max_area_for_merging: 15.0 #maximal area [m²] of a room that should be merged with its surrounding rooms
 
 #index = 280
 #iterations = 150
