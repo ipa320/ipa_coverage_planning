@@ -15,7 +15,7 @@
 
 #include <fstream>
 
-//#include <ipa_building_navigation/A_star_pathplanner.h>
+#include <ipa_building_navigation/A_star_pathplanner.h>
 #include <ipa_building_navigation/nearest_neighbor_TSP.h>
 #include <ipa_building_navigation/genetic_TSP.h>
 #include <ipa_building_navigation/concorde_TSP.h>
@@ -40,7 +40,7 @@ int main(int argc, char **argv)
 
 	cliqueFinder finder; //Object to find all maximal cliques for the given map
 
-	setCoverSolver setsolver;	//Object to find the groups based on the found cliques
+	setCoverSolver setsolver; //Object to find the groups based on the found cliques
 
 	trolleyPositionFinder tolley_finder;
 
@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 	double map_resolution_factor = 0.05;
 	double robot_radius_test = 0.5;
 
-	cv::Mat pathlengths (cv::Size(n, n), CV_64F);
+	cv::Mat pathlengths(cv::Size(n, n), CV_64F);
 	cv::Mat distancematrix;
 //	cv::Mat eroded_map;
 //
@@ -67,7 +67,6 @@ int main(int argc, char **argv)
 //	x: 149 y: 229
 //	x: 201 y: 456
 //	x: 286 y: 125
-
 
 //	for (int i = 0; i < n; i++) //add Points for TSP to test the solvers
 //	{
@@ -97,7 +96,7 @@ int main(int argc, char **argv)
 	std::vector<int> nearest_neighbor_order = genTSPsolver.solveGeneticTSP(map, n, centers, downfactor, robot_radius_test, map_resolution_factor, 0);
 
 	std::cout << "without distance matrix:" << std::endl;
-	for(int i = 0; i < nearest_neighbor_order.size(); i++)
+	for (int i = 0; i < nearest_neighbor_order.size(); i++)
 	{
 		std::cout << nearest_neighbor_order[i] << std::endl;
 	}
@@ -106,7 +105,7 @@ int main(int argc, char **argv)
 	nearest_neighbor_order = genTSPsolver.solveGeneticTSP(map, n, centers, downfactor, robot_radius_test, map_resolution_factor, 0, distancematrix);
 
 	std::cout << "without distance matrix, returned:" << std::endl;
-	for(int i = 0; i < nearest_neighbor_order.size(); i++)
+	for (int i = 0; i < nearest_neighbor_order.size(); i++)
 	{
 		std::cout << nearest_neighbor_order[i] << std::endl;
 	}
@@ -149,7 +148,7 @@ int main(int argc, char **argv)
 	nearest_neighbor_order = genTSPsolver.solveGeneticTSP(pathlengths, 0);
 
 	std::cout << "with distance matrix:" << std::endl;
-	for(int i = 0; i < nearest_neighbor_order.size(); i++)
+	for (int i = 0; i < nearest_neighbor_order.size(); i++)
 	{
 		std::cout << nearest_neighbor_order[i] << std::endl;
 	}
@@ -165,23 +164,9 @@ int main(int argc, char **argv)
 		std::cout << std::endl;
 	}
 	std::cout << std::endl;
-//
-//	std::vector<int> TSPorder = genTSPsolver.solveGeneticTSP(pathlengths, 0);
-//
-//	conTSPsolver.solveConcordeTSP(pathlengths, 0);
-//
-//	cv::circle(testermap, centers[0], 2, cv::Scalar(73), CV_FILLED);
-//
-//	for (int i = 0; i < TSPorder.size() - 1; i++)
-//	{
-//		std::cout << TSPorder[i] << std::endl;
-//		cv::line(testermap, centers[TSPorder[i]], centers[TSPorder[i + 1]], cv::Scalar(127));
-//	}
-//
-//	std::cout << std::endl;
+
+	std::vector < std::vector<int> > cliques = finder.getCliques(pathlengths, 150.0);
 //	std::cout << "All maximum cliques in the graph:" << std::endl;
-//
-//	std::vector < std::vector<int> > cliques = finder.getCliques(pathlengths, 150.0);
 //
 //	for (int i = 0; i < cliques.size(); i++)
 //	{
@@ -192,27 +177,37 @@ int main(int argc, char **argv)
 //		std::cout << std::endl;
 //	}
 //
-//	ROS_INFO("Starting to solve the setcover problem.");
-//
-//	std::vector<std::vector<int> > groups = setsolver.solveSetCover(cliques, n);
-//
-//	ROS_INFO("Starting to find the trolley positions.");
-//
-//	std::vector<cv::Point> trolley_positions = tolley_finder.findTrolleyPositions(map, groups, centers, downfactor, robot_radius_test, map_resolution_factor);
-//
-//	std::cout << groups.size() << " " << trolley_positions.size() << std::endl;
-//
-//	for(int i = 0; i < groups.size(); i++)
-//	{
-//		cv::Scalar group_colour(rand() % 200 + 20);
-//		cv::circle(testermap, trolley_positions[i], 4, cv::Scalar(0), 1);
-//		for(int j = 0; j < groups[i].size(); j++)
-//		{
-//			cv::circle(testermap, centers[groups[i][j]], 2, group_colour, CV_FILLED);
-//			std::cout << groups[i][j] << std::endl;
-//		}
-//		std::cout << "group done" << std::endl;
-//	}
+	ROS_INFO("Starting to solve the setcover problem.");
+
+	std::vector<std::vector<int> > groups = setsolver.solveSetCover(cliques, n);
+	std::vector<std::vector<int> > new_groups = setsolver.solveSetCover(map, n, centers, downfactor, robot_radius_test, map_resolution_factor, 150.0);
+
+	ROS_INFO("Starting to find the trolley positions.");
+
+	std::vector<cv::Point> trolley_positions = tolley_finder.findTrolleyPositions(map, groups, centers, downfactor, robot_radius_test, map_resolution_factor);
+	std::vector<cv::Point> new_trolleys = tolley_finder.findTrolleyPositions(map, new_groups, centers, downfactor, robot_radius_test, map_resolution_factor);
+
+	std::cout << "groups from new method" << std::endl;
+
+	for(int i = 0; i < new_groups.size(); i++)
+	{
+		for(int j = 0; j < new_groups[i].size(); j++)
+		{
+			std::cout << new_groups[i][j] << std::endl;
+		}
+		std::cout << "group done. trolley position: " << new_trolleys[i] << std::endl << std::endl;
+	}
+
+	std::cout << "groups from old method" << std::endl;
+
+	for(int i = 0; i < groups.size(); i++)
+	{
+		for(int j = 0; j < groups[i].size(); j++)
+		{
+			std::cout << groups[i][j] << std::endl;
+		}
+		std::cout << "group done. trolley position: " << trolley_positions[i] << std::endl;
+	}
 //
 //	cv::imwrite("/home/rmb-fj/Pictures/TSP/genetic.png", testermap);
 
