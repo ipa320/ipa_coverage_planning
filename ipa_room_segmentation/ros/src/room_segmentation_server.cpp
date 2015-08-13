@@ -58,8 +58,10 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 		std::cout << "room_segmentation/voronoi_neighborhood_index = " << voronoi_neighborhood_index_ << std::endl;
 		node_handle_.param("max_iterations", max_iterations_, 150);
 		std::cout << "room_segmentation/max_iterations = " << max_iterations_ << std::endl;
-		node_handle_.param("min_critical_Point_distance_factor", min_critical_point_distance_factor_, 27.0);
-		std::cout << "room_segmentation/min_critical_Point_distance_factor = " << min_critical_point_distance_factor_ << std::endl;
+		node_handle_.param("min_critical_point_distance_factor", min_critical_point_distance_factor_, 27.0);
+		std::cout << "room_segmentation/min_critical_point_distance_factor = " << min_critical_point_distance_factor_ << std::endl;
+		node_handle_.param("max_area_for_merging", max_area_for_merging_, 20.0);
+		std::cout << "room_segmentation/max_area_for_merging = " << max_area_for_merging_ << std::endl;
 	}
 	if (room_segmentation_algorithm_ == 4) //set semantic parameters
 	{
@@ -100,7 +102,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	else if (room_segmentation_algorithm_ == 3)
 	{
 		voronoi_segmentation_.segmentationAlgorithm(original_img, segmented_map_, goal->map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_,
-		        voronoi_neighborhood_index_, max_iterations_, min_critical_point_distance_factor_);
+		        voronoi_neighborhood_index_, max_iterations_, min_critical_point_distance_factor_, max_area_for_merging_);
 	}
 	else if (room_segmentation_algorithm_ == 4)
 	{

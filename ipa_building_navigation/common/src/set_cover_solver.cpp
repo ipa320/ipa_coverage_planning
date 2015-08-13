@@ -1,8 +1,44 @@
 #include <ipa_building_navigation/set_cover_solver.h>
 
+//Default constructor
 setCoverSolver::setCoverSolver()
 {
 
+}
+
+//Function to construct the symmetrical distance matrix from the given points. The rows show from which node to start and
+//the columns to which node to go. If the path between nodes doesn't exist or the node to go to is the same as the one to
+//start from, the entry of the matrix is 0.
+
+void setCoverSolver::constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const int number_of_nodes,
+        const std::vector<cv::Point>& points, double downsampling_factor, double robot_radius, double map_resolution)
+{
+	//create the distance matrix with the right size
+	cv::Mat pathlengths(cv::Size(number_of_nodes, number_of_nodes), CV_64F);
+
+	for (int i = 0; i < points.size(); i++)
+	{
+		cv::Point current_center = points[i];
+		for (int p = 0; p < points.size(); p++)
+		{
+			if (p != i)
+			{
+				if (p > i) //only compute upper right triangle of matrix, rest is symmetrically added
+				{
+					cv::Point neighbor = points[p];
+					double length = pathplanner_.PlanPath(original_map, current_center, neighbor, downsampling_factor, robot_radius, map_resolution);
+					pathlengths.at<double>(i, p) = length;
+					pathlengths.at<double>(p, i) = length; //symmetrical-Matrix --> saves half the computationtime
+				}
+			}
+			else
+			{
+				pathlengths.at<double>(i, p) = 0;
+			}
+		}
+	}
+
+	distance_matrix = pathlengths.clone();
 }
 
 //This function takes a vector of found nodes and merges them together, if they have at least one node in common.
@@ -18,7 +54,7 @@ std::vector<std::vector<int> > setCoverSolver::mergeGroups(const std::vector<std
 		{
 			done_groups.push_back(current_group); //add the current group to the done groups
 
-			std::vector<int> current_group_saver (found_groups[current_group]); //vector to save the current group
+			std::vector<int> current_group_saver(found_groups[current_group]); //vector to save the current group
 
 			std::vector<int> merging_candidates; //vector to save the groups which should be merged with the current group
 
@@ -38,19 +74,19 @@ std::vector<std::vector<int> > setCoverSolver::mergeGroups(const std::vector<std
 						}
 					}
 				}
-				if(merge) //If the group has at least one neighbor save it for merging
+				if (merge) //If the group has at least one neighbor save it for merging
 				{
 					merging_candidates.push_back(next_group);
 				}
 			}
 
 			//Add the merging-candidates nodes to the current group and add the candidates to the done groups
-			for(int merge_candidate = 0; merge_candidate < merging_candidates.size(); merge_candidate++)
+			for (int merge_candidate = 0; merge_candidate < merging_candidates.size(); merge_candidate++)
 			{
 				done_groups.push_back(merging_candidates[merge_candidate]);
-				for(int node = 0; node < found_groups[merging_candidates[merge_candidate]].size(); node++)
+				for (int node = 0; node < found_groups[merging_candidates[merge_candidate]].size(); node++)
 				{
-					if(!contains(current_group_saver, found_groups[merging_candidates[merge_candidate]][node]))
+					if (!contains(current_group_saver, found_groups[merging_candidates[merge_candidate]][node]))
 					{
 						current_group_saver.push_back(found_groups[merging_candidates[merge_candidate]][node]);
 					}
@@ -64,10 +100,12 @@ std::vector<std::vector<int> > setCoverSolver::mergeGroups(const std::vector<std
 	return merged_groups;
 }
 
-//This function solves the set-cover Problem ( https://en.wikipedia.org/wiki/Set_cover_problem#Greedy_algorithm ) using
+//This functions solves the set-cover Problem ( https://en.wikipedia.org/wiki/Set_cover_problem#Greedy_algorithm ) using
 //the greedy-search algorithm. It chooses the clique that has the most uncovered nodes in it first. Then it uses the merge-function
 //above to merge groups that have at least one node in common together. The vector stores the indexes of the nodes, which
 //are the same as the ones from the clique-solver and also the distance-matrix.
+
+//the cliques are given
 std::vector<std::vector<int> > setCoverSolver::solveSetCover(const std::vector<std::vector<int> >& given_cliques, const int number_of_nodes)
 {
 	std::vector < std::vector<int> > minimal_set;
@@ -75,7 +113,7 @@ std::vector<std::vector<int> > setCoverSolver::solveSetCover(const std::vector<s
 	//Put the nodes in a open-nodes vector. The nodes are named after their position in the room-centers-vector and so every
 	//node from 0 to number_of_nodes-1 is in the Graph.
 	std::vector<int> open_nodes;
-	for(int new_node = 0; new_node < number_of_nodes; new_node++)
+	for (int new_node = 0; new_node < number_of_nodes; new_node++)
 	{
 		open_nodes.push_back(new_node);
 	}
@@ -117,4 +155,36 @@ std::vector<std::vector<int> > setCoverSolver::solveSetCover(const std::vector<s
 	std::cout << "Starting merging the found groups." << std::endl;
 
 	return mergeGroups(minimal_set);
+}
+
+//the distance matrix is given, but not the cliques
+std::vector<std::vector<int> > setCoverSolver::solveSetCover(const cv::Mat& distance_matrix, const int number_of_nodes, double maximal_pathlength)
+{
+	//get all maximal cliques for this graph
+	std::vector < std::vector<int> > maximal_cliques = maximal_clique_finder.getCliques(distance_matrix, maximal_pathlength);
+
+	return (solveSetCover(maximal_cliques, number_of_nodes));
+}
+
+//the distance matrix and cliques aren't given and the matrix should not be returned
+std::vector<std::vector<int> > setCoverSolver::solveSetCover(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points,
+        double downsampling_factor, double robot_radius, double map_resolution, double maximal_pathlength)
+{
+	//calculate the distance matrix
+	cv::Mat distance_matrix;
+	constructDistanceMatrix(distance_matrix, original_map, number_of_nodes, points, downsampling_factor, robot_radius, map_resolution);
+
+	//get all maximal cliques for this graph and solve the set cover problem
+	return (solveSetCover(distance_matrix, number_of_nodes, maximal_pathlength));
+}
+
+//the distance matrix and cliques aren't given and the matrix should be returned
+std::vector<std::vector<int> > setCoverSolver::solveSetCover(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points,
+        double downsampling_factor, double robot_radius, double map_resolution, double maximal_pathlength, cv::Mat& distance_matrix)
+{
+	//calculate the distance matrix
+	constructDistanceMatrix(distance_matrix, original_map, number_of_nodes, points, downsampling_factor, robot_radius, map_resolution);
+
+	//get all maximal cliques for this graph and solve the set cover problem
+	return (solveSetCover(distance_matrix, number_of_nodes, maximal_pathlength));
 }

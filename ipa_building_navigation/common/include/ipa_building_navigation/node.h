@@ -13,6 +13,9 @@
 //you want to use (Euclidean, Manhattan or Chebyshev). Euclidean is more precisly but could slow the planner a little bit on
 //long paths.
 
+#pragma once //make sure this header gets included only one time when multiple classes need it in the same project
+			 //regarding to https://en.wikipedia.org/wiki/Pragma_once this is more efficient than #define
+
 class nodeAstar
 {
 protected:

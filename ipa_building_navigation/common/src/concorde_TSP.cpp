@@ -6,6 +6,38 @@ concordeTSPSolver::concordeTSPSolver()
 
 }
 
+//Function to construct the distance matrix from the given points. See the definition in the header for the style of this matrix.
+void concordeTSPSolver::constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const int number_of_nodes,
+        const std::vector<cv::Point>& points, double downsampling_factor, double robot_radius, double map_resolution)
+{
+	//create the distance matrix with the right size
+	cv::Mat pathlengths(cv::Size(number_of_nodes, number_of_nodes), CV_64F);
+
+	for (int i = 0; i < points.size(); i++)
+	{
+		cv::Point current_center = points[i];
+		for (int p = 0; p < points.size(); p++)
+		{
+			if (p != i)
+			{
+				if (p > i) //only compute upper right triangle of matrix, rest is symmetrically added
+				{
+					cv::Point neighbor = points[p];
+					double length = pathplanner_.PlanPath(original_map, current_center, neighbor, downsampling_factor, robot_radius, map_resolution);
+					pathlengths.at<double>(i, p) = length;
+					pathlengths.at<double>(p, i) = length; //symmetrical-Matrix --> saves half the computationtime
+				}
+			}
+			else
+			{
+				pathlengths.at<double>(i, p) = 0;
+			}
+		}
+	}
+
+	distance_matrix = pathlengths.clone();
+}
+
 //This function generates a file with the current TSP in TSPlib format. This is neccessary because concorde needs this file
 //as input to solve the TSP. See http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/ for documentation.
 void concordeTSPSolver::writeToFile(const cv::Mat& pathlength_matrix)
@@ -91,6 +123,8 @@ std::vector<int> concordeTSPSolver::readFromFile()
 //the paths to the right ones. If it is a ros-package the ros::package::getpath() function will find the right path.
 //The usage of the solver is: ./concorde [-see below-] [dat_file]
 //Navigate to the build Solver and then ./TSP and type ./concorde -h for a short explanation.
+
+//with a given distance matrix
 std::vector<int> concordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_Matrix, const int start_Node)
 {
 	//create the TSPlib file
@@ -109,15 +143,15 @@ std::vector<int> concordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_
 	std::vector<int> sorted_order;
 	unsigned int start_node_position;
 
-	for(unsigned int i = 0; i < sorted_order.size(); i++) //find position of the start node in the order
+	for (unsigned int i = 0; i < sorted_order.size(); i++) //find position of the start node in the order
 	{
-		if(sorted_order[i] == start_Node)
+		if (sorted_order[i] == start_Node)
 		{
 			start_node_position = i;
 		}
 	}
 
-	for (unsigned int i = start_node_position; i < unsorted_order.size(); i++)//sort the vector starting at start_Node
+	for (unsigned int i = start_node_position; i < unsorted_order.size(); i++) //sort the vector starting at start_Node
 	{
 		sorted_order.push_back(unsorted_order[i]);
 	}
@@ -130,4 +164,23 @@ std::vector<int> concordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_
 	sorted_order.push_back(sorted_order[start_node_position]);
 
 	return sorted_order;
+}
+
+//compute the distance matrix without returning it
+std::vector<int> concordeTSPSolver::solveConcordeTSP(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points,
+        double downsampling_factor, double robot_radius, double map_resolution, const int start_Node)
+{
+	cv::Mat distance_matrix;
+	constructDistanceMatrix(distance_matrix, original_map, number_of_nodes, points, downsampling_factor, robot_radius, map_resolution);
+
+	return (solveConcordeTSP(distance_matrix, start_Node));
+}
+
+//compute the distance matrix with returning it
+std::vector<int> concordeTSPSolver::solveConcordeTSP(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points, double downsampling_factor,
+        double robot_radius, double map_resolution, const int start_Node, cv::Mat& distance_matrix)
+{
+	constructDistanceMatrix(distance_matrix, original_map, number_of_nodes, points, downsampling_factor, robot_radius, map_resolution);
+
+	return (solveConcordeTSP(distance_matrix, start_Node));
 }

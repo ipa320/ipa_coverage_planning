@@ -6,15 +6,46 @@ GeneticTSPSolver::GeneticTSPSolver()
 
 }
 
+//Function to construct the distance matrix from the given points. See the definition at solveGeneticTSP for the style of this matrix.
+void GeneticTSPSolver::constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const int number_of_nodes,
+        const std::vector<cv::Point>& points, double downsampling_factor, double robot_radius, double map_resolution)
+{
+	//create the distance matrix with the right size
+	cv::Mat pathlengths(cv::Size(number_of_nodes, number_of_nodes), CV_64F);
+
+	for (int i = 0; i < points.size(); i++)
+	{
+		cv::Point current_center = points[i];
+		for (int p = 0; p < points.size(); p++)
+		{
+			if (p != i)
+			{
+				if (p > i) //only compute upper right triangle of matrix, rest is symmetrically added
+				{
+					cv::Point neighbor = points[p];
+					double length = pathplanner_.PlanPath(original_map, current_center, neighbor, downsampling_factor, robot_radius, map_resolution);
+					pathlengths.at<double>(i, p) = length;
+					pathlengths.at<double>(p, i) = length; //symmetrical-Matrix --> saves half the computationtime
+				}
+			}
+			else
+			{
+				pathlengths.at<double>(i, p) = 0;
+			}
+		}
+	}
+
+	distance_matrix = pathlengths.clone();
+}
+
+// This function calculates for a given path the length of it. The Path is a vector with ints, that show the index of the
+// node in the path. It uses a pathlength Matrix, which should be calculated once.
+// This Matrix should save the pathlengths with this logic:
+//		1. The rows show from which Node the length is calculated.
+//		2. For the columns in a row the Matrix shows the distance to the Node in the column.
+//		3. From the node to itself the distance is 0.
 double GeneticTSPSolver::getPathLength(const cv::Mat& path_length_Matrix, std::vector<int> given_path)
 {
-	// This function calculates for a given path the length of it. The Path is a vector with ints, that show the index of the
-	// node in the path. It uses a pathlength Matrix, which should be calculated once.
-	// This Matrix should save the pathlengths with this logic:
-	//		1. The rows show from which Node the length is calculated.
-	//		2. For the columns in a row the Matrix shows the distance to the Node in the column.
-	//		3. From the node to itself the distance is 0.
-
 	double length_of_given_path = 0;
 
 	for (int i = 0; i < given_path.size() - 1; i++)
@@ -25,12 +56,11 @@ double GeneticTSPSolver::getPathLength(const cv::Mat& path_length_Matrix, std::v
 	return length_of_given_path;
 }
 
+// This Function takes the given path and mutates it. A mutation is a random change of the path-order. For example random
+// nodes can be switched, or a random intervall of nodes can be inverted. Only the first and last Node can't be changed, because
+// they are given from the Main-function.
 std::vector<int> GeneticTSPSolver::mutatePath(const std::vector<int>& parent_path)
 {
-	// This function takes the given path and mutates it. A mutation is a random change of the path-order. For example random
-	// nodes can be switched, or a random intervall of nodes can be inverted. Only the first and last Node can't be changed, because
-	// they are given from the Main-function.
-
 	std::vector<int> mutated_path;
 
 	std::vector<int> temporary_path;
@@ -118,10 +148,9 @@ std::vector<int> GeneticTSPSolver::mutatePath(const std::vector<int>& parent_pat
 	return mutated_path;
 }
 
+//This Function calculates the length of each given path and chooses the shortest one. It uses the getPathLength function.
 std::vector<int> GeneticTSPSolver::getBestPath(const std::vector<std::vector<int> > paths, const cv::Mat& pathlength_Matrix, bool& changed)
 {
-	//This function calculates the length of each given path and chooses the shortest one. It uses the getPathLength function.
-
 	std::vector<int> best_path = paths[0];
 
 	double best_distance = getPathLength(pathlength_Matrix, paths[0]); //saving-variable for the distance of the current best path
@@ -140,29 +169,30 @@ std::vector<int> GeneticTSPSolver::getBestPath(const std::vector<std::vector<int
 	return best_path;
 }
 
+//This is a solver for the TSP using a genetic algorithm. It calculates a initial path by using the nearest-neighbor
+//search. It then applies an evolutional algorithm:
+//
+//	I. Take the parent of the current generation and calculate 8 mutated children of it. A mutation can be a change
+//	   of positions of nodes or the inversion of a intervall. The initial parent is the path from the nearest-neighbor search.
+//	II. It checks for the 9 paths (parent and children) for the best path (shortest) and takes this path as the parent
+//	   of the new generation.
+//	III. It repeats the steps I. and II. at least a specified amount of times and then checks if the pathlength
+//		 hasn't changed in the last steps.
+//
+//As input a symmetrical matrix of pathlenghts is needed. This matrix should save the pathlengths with this logic:
+//		1. The rows show from which Node the length is calculated.
+//		2. For the columns in a row the Matrix shows the distance to the Node in the column.
+//		3. From the node to itself the distance is 0.
+
+//don't compute distance matrix
 std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& path_length_Matrix, const int start_Node)
 {
-	//This is a solver for the TSP using a genetic algorithm. It calculates a initial path by using the nearest-neighbor
-	//search. It then applies an evolutional algorithm:
-	//
-	//	I. Take the parent of the current generation and calculate 8 mutated children of it. A mutation can be a change
-	//	   of positions of nodes or the inversion of a intervall. The initial parent is the path from the nearest-neighbor search.
-	//	II. It checks for the 9 paths (parent and children) for the best path (shortest) and takes this path as the parent
-	//	   of the new generation.
-	//	III. It repeats the steps I. and II. at least a specified amount of times and then checks if the pathlength
-	//		 hasn't changed in the last steps.
-	//
-	//As input a symmetrical matrix of pathlenghts is needed. This matrix should save the pathlengths with this logic:
-	//		1. The rows show from which Node the length is calculated.
-	//		2. For the columns in a row the Matrix shows the distance to the Node in the column.
-	//		3. From the node to itself the distance is 0.
-
 	NearestNeighborTSPSolver nearest_neighbor_solver;
 
 	std::vector<int> calculated_path = nearest_neighbor_solver.solveNearestTSP(path_length_Matrix, start_Node);
 
 	bool changed_path = false; //this variable checks if the path has been changed in the mutation process
-	int changeing_counter = 25;//this variable is a counter for how many times a path has been the same
+	int changeing_counter = 25; //this variable is a counter for how many times a path has been the same
 
 	int number_of_generations = 0;
 
@@ -170,16 +200,16 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& path_length_Ma
 	{
 		number_of_generations++;
 		changed_path = false;
-		std::vector<std::vector<int> > current_generation_paths; //vector to save the current generation
+		std::vector < std::vector<int> > current_generation_paths; //vector to save the current generation
 		current_generation_paths.push_back(calculated_path); //first path is always the parent --> important for checking if the path has changed in getBestPath!!
-		for(int child = 0; child < 8; child++) //get 8 children and add them to the vector
+		for (int child = 0; child < 8; child++) //get 8 children and add them to the vector
 		{
 			current_generation_paths.push_back(mutatePath(calculated_path));
 		}
 		calculated_path = getBestPath(current_generation_paths, path_length_Matrix, changed_path); //get the best path of this generation
-		if(number_of_generations >= 350) //when 350 steps has been done the algorithm checks if the last ten paths didn't change
+		if (number_of_generations >= 350) //when 350 steps has been done the algorithm checks if the last ten paths didn't change
 		{
-			if(changed_path)
+			if (changed_path)
 			{
 				changeing_counter = 25; //reset the counting-variable
 			}
@@ -188,8 +218,27 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& path_length_Ma
 				changeing_counter -= 1; //decrease the counting-variable by 1
 			}
 		}
-	}while(changeing_counter > 0 || number_of_generations < 350);
+	} while (changeing_counter > 0 || number_of_generations < 350);
 
 	return calculated_path;
+}
+
+//compute distance matrix without returning it
+std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points,
+        double downsampling_factor, double robot_radius, double map_resolution, const int start_Node)
+{
+	cv::Mat distance_matrix;
+	constructDistanceMatrix(distance_matrix, original_map, number_of_nodes, points, downsampling_factor, robot_radius, map_resolution);
+
+	return (solveGeneticTSP(distance_matrix, start_Node));
+}
+
+//compute distance matrix with returning it
+std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points,
+        double downsampling_factor, double robot_radius, double map_resolution, const int start_Node, cv::Mat& distance_matrix)
+{
+	constructDistanceMatrix(distance_matrix, original_map, number_of_nodes, points, downsampling_factor, robot_radius, map_resolution);
+
+	return (solveGeneticTSP(distance_matrix, start_Node));
 }
 
