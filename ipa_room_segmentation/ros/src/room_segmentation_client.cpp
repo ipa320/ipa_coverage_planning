@@ -65,8 +65,8 @@ int main(int argc, char **argv)
 		// send a goal to the action
 		ipa_room_segmentation::MapSegmentationGoal goal;
 		goal.input_map = labeling;
-		goal.map_origin_x = 0;
-		goal.map_origin_y = 0;
+		goal.map_origin.position.x = 0;
+		goal.map_origin.position.y = 0;
 		goal.map_resolution = 0.05;
 		goal.return_format_in_meter = false;
 		goal.return_format_in_pixel = true;
@@ -76,9 +76,7 @@ int main(int argc, char **argv)
 		bool finished_before_timeout = ac.waitForResult(ros::Duration(300.0));
 
 		if (finished_before_timeout)
-		{
-			ROS_INFO("alles gut!");
-		}
+			ROS_INFO("Finished successfully!");
 	}
 
 	//exit

@@ -3,13 +3,13 @@ project(ipa_building_navigation)
 
 set(catkin_RUN_PACKAGES
 	roscpp
-	rospy
 	roslib
 	concorde_tsp_solver
 	actionlib
 	actionlib_msgs
 	std_msgs
 	sensor_msgs
+	geometry_msgs
 	cv_bridge
 )
 
@@ -29,16 +29,16 @@ find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 
 
-## Add the Files for actionlib
-#add_action_files(
-#	DIRECTORY action
-#	FILES MapSegmentation.action
-#)
+# Add the Files for actionlib
+add_action_files(
+	DIRECTORY action
+	FILES FindRoomSequenceWithCheckpoints.action
+)
 
-## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-# )
+# Generate messages in the 'msg' folder
+add_message_files(
+	FILES RoomSequence.msg
+)
 
 ## Generate services in the 'srv' folder
 #add_service_files(
@@ -46,13 +46,14 @@ find_package(Boost REQUIRED COMPONENTS system)
 #)
 
 
-## Generate added messages and services with any dependencies listed here
-#generate_messages(
-#	DEPENDENCIES
-#		std_msgs
-#		actionlib_msgs
-#		sensor_msgs
-#)
+# Generate added messages and services with any dependencies listed here
+generate_messages(
+	DEPENDENCIES
+		std_msgs
+		actionlib_msgs
+		sensor_msgs
+		geometry_msgs
+)
 
 
 ###################################

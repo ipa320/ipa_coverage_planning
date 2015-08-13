@@ -54,13 +54,13 @@ private:
 
 
 	//converter-> Pixel to meter for X coordinate
-	double convert_pixel_to_meter_for_x_coordinate_(int pixel_valued_object_x)
+	double convert_pixel_to_meter_for_x_coordinate(int pixel_valued_object_x)
 	{
 		double meter_value_obj_x = (pixel_valued_object_x * map_resolution_) + map_origin_.x;
 		return meter_value_obj_x;
 	}
 	//converter-> Pixel to meter for Y coordinate
-	double convert_pixel_to_meter_for_y_coordinate_(int pixel_valued_object_y)
+	double convert_pixel_to_meter_for_y_coordinate(int pixel_valued_object_y)
 	{
 		double meter_value_obj_y = (pixel_valued_object_y * map_resolution_) + map_origin_.y;
 		return meter_value_obj_y;
@@ -83,9 +83,7 @@ private:
 protected:
 	ros::NodeHandle node_handle_;
 	actionlib::SimpleActionServer<ipa_room_segmentation::MapSegmentationAction> room_segmentation_server_;
-	std::string action_name_;
-	ipa_room_segmentation::MapSegmentationFeedback action_feedback_;
-	ipa_room_segmentation::MapSegmentationResult action_result_;
+
 public:
 	//initialize the action-server
 	RoomSegmentationServer(ros::NodeHandle nh, std::string name_of_the_action);

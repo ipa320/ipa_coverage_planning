@@ -1,37 +1,24 @@
 # Map Segmentation action
-#-> Provides interface to get the segmented map.
-#-> input interface/msg format for action client
-#	which is required by action server to process
-#-> output interface/msg format to get the image
-#	and necessary data 
-# The input map can be obtained from map topic
+# Provides interface to get the segmented map
 
-#+++++++++++++++++++++++++++++++++++++++++goal definition++++++++++++++++++++++++++++++++++++++++++++++
-sensor_msgs/Image input_map				# The action server need a map as a input image to segment it
-float64 map_resolution					# The resolution of the map given in [meter/cell]
-float64 map_origin_x					# The origin of the map given in meter-> X-coordinate value
-float64 map_origin_y					# The origin of the map given in meter-> Y-coordinate value
-bool return_format_in_meter   			# a value true = in meters, false = return nothing
-bool return_format_in_pixel   			# a value true = in pixel, false = return nothing
+# goal definition
+sensor_msgs/Image input_map				# the action server need a map as a input image to segment it
+float32 map_resolution					# the resolution of the map in [meter/cell]
+geometry_msgs/Pose map_origin			# the origin of the map in [meter]
+bool return_format_in_pixel   			# return room data (see below) in [pixel]
+bool return_format_in_meter   			# return room data (see below) in [meter]
+
 ---
-#+++++++++++++++++++++++++++++++++++++++++result definition++++++++++++++++++++++++++++++++++++++++++++
-sensor_msgs/Image output_map   			# The action server produce a segmented map[specially room detection] 
-float64 map_resolution					# The resolution of the map given in [meter/cell]
-float64 map_origin_x					# The origin of the map given in meter-> X-coordinate value
-float64 map_origin_y					# The origin of the map given in meter-> Y-coordinate value
-#+++++++++++ for the following msgs->value in pixel can be achieved when the value of [return_format_in_pixel] massage from goal definition is true ++++++++++++
-int32[] room_min_x_in_pixel				# provides the minimum x-coordinate value of the room. 
-int32[] room_max_x_in_pixel				# provides the maximum x-coordinate value of the room. 
-int32[] room_min_y_in_pixel				# provides the minimum y-coordinate value of the room. 
-int32[] room_max_y_in_pixel				# provides the maximum y-coordinate value of the room. 
-int32[] room_center_x_in_pixel			# provides the x-coordinate value of center of the room. 
-int32[] room_center_y_in_pixel			# provides the y-coordinate value of center of the room.
-#+++++++++++ for the following msgs->value in meter can be achieved when the value of [return_format_in_meter] massage from goal definition is true ++++++++++++
-float64[] room_min_x_in_meter			# provides the minimum x-coordinate value of the room. 
-float64[] room_max_x_in_meter			# provides the maximum x-coordinate value of the room. 
-float64[] room_min_y_in_meter			# provides the minimum y-coordinate value of the room. 
-float64[] room_max_y_in_meter			# provides the maximum y-coordinate value of the room. 
-float64[] room_center_x_in_meter		# provides the x-coordinate value of center of the room. 
-float64[] room_center_y_in_meter		# provides the y-coordinate value of center of the room. 
+
+# result definition
+sensor_msgs/Image segmented_map			# the action server need a map as a input image to segment it
+float32 map_resolution					# the resolution of the segmented map in [meter/cell]
+geometry_msgs/Pose map_origin			# the origin of the segmented map in [meter]
+# for the following data: value in pixel can be obtained when the value of [return_format_in_pixel] from goal definition is true
+ipa_room_segmentation/RoomInformation[] room_information_in_pixel		# room data (min/max coordinates, center coordinates) measured in pixels
+# for the following data: value in meter can be obtained when the value of [return_format_in_meter] from goal definition is true
+ipa_room_segmentation/RoomInformation[] room_information_in_meter		# room data (min/max coordinates, center coordinates) measured in meters
+
 ---
+
 #feedback definition

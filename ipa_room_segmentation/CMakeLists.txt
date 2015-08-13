@@ -3,12 +3,12 @@ project(ipa_room_segmentation)
 
 set(catkin_RUN_PACKAGES
 	roscpp
-	rospy
 	roslib
 	actionlib
 	actionlib_msgs
 	std_msgs
 	sensor_msgs
+	geometry_msgs
 	cv_bridge
 )
 
@@ -35,9 +35,9 @@ add_action_files(
 )
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-# )
+add_message_files(
+	FILES RoomInformation.msg
+)
 
 ## Generate services in the 'srv' folder
 #add_service_files(
@@ -51,6 +51,7 @@ generate_messages(
 		std_msgs
 		actionlib_msgs
 		sensor_msgs
+		geometry_msgs
 )
 
 

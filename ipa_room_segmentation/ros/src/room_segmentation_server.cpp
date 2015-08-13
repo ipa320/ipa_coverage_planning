@@ -4,8 +4,8 @@
 #include <ipa_room_segmentation/meanshift2d.h>
 
 RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string name_of_the_action) :
-		node_handle_(nh), room_segmentation_server_(node_handle_, name_of_the_action,
-		        boost::bind(&RoomSegmentationServer::execute_segmentation_server, this, _1), false), action_name_(name_of_the_action)
+	node_handle_(nh),
+	room_segmentation_server_(node_handle_, name_of_the_action, boost::bind(&RoomSegmentationServer::execute_segmentation_server, this, _1), false)
 {
 	//Start action server
 	room_segmentation_server_.start();
@@ -88,7 +88,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	cv::Mat original_img = cv_ptr_obj->image;
 
 	//set the resolution and the limits for the actual goal and the Map origin
-	map_origin_ = cv::Point2d(goal->map_origin_x, goal->map_origin_y);
+	map_origin_ = cv::Point2d(goal->map_origin.position.x, goal->map_origin.position.y);
 
 	//segment the given map
 	if (room_segmentation_algorithm_ == 1)
@@ -210,62 +210,68 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 		const int index = it->second;
 		room_centers_x_values[index] = room_center[0];
 		room_centers_y_values[index] = room_center[1];
-		cv::circle(segmented_map_, cv::Point(room_centers_x_values[index], room_centers_y_values[index]), 2, cv::Scalar(200 * 256), CV_FILLED);
 	}
 
 	if (display_segmented_map_ == true)
 	{
-		cv::imshow("segmentation", segmented_map_);
+		cv::Mat disp = segmented_map_.clone();
+		for (size_t index = 0; index < room_centers_x_values.size(); ++index)
+			cv::circle(disp, cv::Point(room_centers_x_values[index], room_centers_y_values[index]), 2, cv::Scalar(200 * 256), CV_FILLED);
+
+		cv::imshow("segmentation", disp);
 		cv::waitKey();
 	}
 
-	//cv::imwrite("/home/rmb-fj/Pictures/maps/action_tests/one_server.png", segmented_map_);
-
 	//****************publish the results**********************
+	ipa_room_segmentation::MapSegmentationResult action_result;
 	//converting the cv format in map msg format
 	cv_bridge::CvImage cv_image;
 	cv_image.header.stamp = ros::Time::now();
 	cv_image.encoding = "mono8";
 	cv_image.image = segmented_map_;
-	cv_image.toImageMsg(action_result_.output_map);
+	cv_image.toImageMsg(action_result.segmented_map);
+
 	//setting value to the action msgs to publish
-	action_result_.map_resolution = goal->map_resolution;
-	action_result_.map_origin_x = goal->map_origin_x;
-	action_result_.map_origin_y = goal->map_origin_y;
+	action_result.map_resolution = goal->map_resolution;
+	action_result.map_origin = goal->map_origin;
+
 	//setting massages in pixel value
+	action_result.room_information_in_pixel.clear();
 	if (goal->return_format_in_pixel == true)
 	{
-		action_result_.room_center_x_in_pixel = room_centers_x_values;
-		action_result_.room_center_y_in_pixel = room_centers_y_values;
-		action_result_.room_min_x_in_pixel = min_x_value_of_the_room;
-		action_result_.room_min_y_in_pixel = min_y_value_of_the_room;
-		action_result_.room_max_x_in_pixel = max_x_value_of_the_room;
-		action_result_.room_max_y_in_pixel = max_y_value_of_the_room;
+		std::vector<ipa_room_segmentation::RoomInformation> room_information(room_centers_x_values.size());
+		for (size_t i=0; i<room_centers_x_values.size(); ++i)
+		{
+			room_information[i].room_center.x = room_centers_x_values[i];
+			room_information[i].room_center.y = room_centers_y_values[i];
+			room_information[i].room_min_max.points.resize(2);
+			room_information[i].room_min_max.points[0].x = min_x_value_of_the_room[i];
+			room_information[i].room_min_max.points[0].y = min_y_value_of_the_room[i];
+			room_information[i].room_min_max.points[1].x = max_x_value_of_the_room[i];
+			room_information[i].room_min_max.points[1].y = max_y_value_of_the_room[i];
+		}
+		action_result.room_information_in_pixel = room_information;
 	}
 	//setting massages in meter
+	action_result.room_information_in_meter.clear();
 	if (goal->return_format_in_meter == true)
 	{
-		for (unsigned int loop_counter = 0; loop_counter < room_centers_x_values.size(); loop_counter++)
+		std::vector<ipa_room_segmentation::RoomInformation> room_information(room_centers_x_values.size());
+		for (size_t i=0; i<room_centers_x_values.size(); ++i)
 		{
-			action_result_.room_center_x_in_meter.push_back(convert_pixel_to_meter_for_x_coordinate_(room_centers_x_values[loop_counter]));
-			action_result_.room_center_y_in_meter.push_back(convert_pixel_to_meter_for_y_coordinate_(room_centers_y_values[loop_counter]));
-			action_result_.room_min_x_in_meter.push_back(convert_pixel_to_meter_for_x_coordinate_(min_x_value_of_the_room[loop_counter]));
-			action_result_.room_min_y_in_meter.push_back(convert_pixel_to_meter_for_y_coordinate_(min_y_value_of_the_room[loop_counter]));
-			action_result_.room_max_x_in_meter.push_back(convert_pixel_to_meter_for_x_coordinate_(max_x_value_of_the_room[loop_counter]));
-			action_result_.room_max_y_in_meter.push_back(convert_pixel_to_meter_for_y_coordinate_(max_y_value_of_the_room[loop_counter]));
+			room_information[i].room_center.x = convert_pixel_to_meter_for_x_coordinate(room_centers_x_values[i]);
+			room_information[i].room_center.y = convert_pixel_to_meter_for_y_coordinate(room_centers_y_values[i]);
+			room_information[i].room_min_max.points.resize(2);
+			room_information[i].room_min_max.points[0].x = convert_pixel_to_meter_for_x_coordinate(min_x_value_of_the_room[i]);
+			room_information[i].room_min_max.points[0].y = convert_pixel_to_meter_for_y_coordinate(min_y_value_of_the_room[i]);
+			room_information[i].room_min_max.points[1].x = convert_pixel_to_meter_for_x_coordinate(max_x_value_of_the_room[i]);
+			room_information[i].room_min_max.points[1].y = convert_pixel_to_meter_for_y_coordinate(max_y_value_of_the_room[i]);
 		}
+		action_result.room_information_in_meter = room_information;
 	}
 
 	//publish result
-	room_segmentation_server_.setSucceeded(action_result_);
-	//*****************clear the values for the next time***********************
-	//clearing the action msgs container
-	action_result_.room_center_x_in_meter.clear();
-	action_result_.room_center_y_in_meter.clear();
-	action_result_.room_min_x_in_meter.clear();
-	action_result_.room_min_y_in_meter.clear();
-	action_result_.room_max_x_in_meter.clear();
-	action_result_.room_max_y_in_meter.clear();
+	room_segmentation_server_.setSucceeded(action_result);
 }
 
 int main(int argc, char** argv)
