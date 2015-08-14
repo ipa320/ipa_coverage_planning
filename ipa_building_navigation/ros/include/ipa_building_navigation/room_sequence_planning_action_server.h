@@ -120,6 +120,19 @@ protected:
 	GeneticTSPSolver genetic_tsp_solver_;
 	ConcordeTSPSolver concorde_tsp_solver_;
 
+	//converter-> Pixel to meter for X coordinate
+	double convert_pixel_to_meter_for_x_coordinate(const int pixel_valued_object_x, const float map_resolution, const cv::Point2d map_origin)
+	{
+		double meter_value_obj_x = (pixel_valued_object_x * map_resolution) + map_origin.x;
+		return meter_value_obj_x;
+	}
+	//converter-> Pixel to meter for Y coordinate
+	double convert_pixel_to_meter_for_y_coordinate(int pixel_valued_object_y, const float map_resolution, const cv::Point2d map_origin)
+	{
+		double meter_value_obj_y = (pixel_valued_object_y * map_resolution) + map_origin.y;
+		return meter_value_obj_y;
+	}
+
 	// this is the execution function used by action server
 	void findRoomSequenceWithCheckpointsServer(const ipa_building_navigation::FindRoomSequenceWithCheckpointsGoalConstPtr &goal);
 

@@ -73,6 +73,6 @@ public:
 	std::vector<int> solveConcordeTSP(const cv::Mat& path_length_Matrix, const int start_Node);
 
 	//compute distance matrix and maybe return it
-	std::vector<int> solveConcordeTSP(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points, double downsampling_factor,
+	std::vector<int> solveConcordeTSP(const cv::Mat& original_map, const std::vector<cv::Point>& points, double downsampling_factor,
 			double robot_radius, double map_resolution, const int start_Node, cv::Mat* distance_matrix = 0);
 };

@@ -69,7 +69,7 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 	//Start action server
 	room_segmentation_server_.start();
 
-	//set the parameter to check if the algorithm needs to be trained
+	//set this parameter to check if the algorithm needs to be trained
 	train_the_algorithm_ = false;
 
 	// Parameters

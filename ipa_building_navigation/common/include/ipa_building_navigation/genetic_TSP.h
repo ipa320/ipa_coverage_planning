@@ -66,7 +66,7 @@ public:
 
 
 	//compute distance matrix and maybe returning it
-	std::vector<int> solveGeneticTSP(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points, double downsampling_factor,
+	std::vector<int> solveGeneticTSP(const cv::Mat& original_map, const std::vector<cv::Point>& points, double downsampling_factor,
 			double robot_radius, double map_resolution, const int start_Node, cv::Mat* distance_matrix=0);
 
 };
