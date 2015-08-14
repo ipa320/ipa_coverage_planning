@@ -1,7 +1,7 @@
 #include <ipa_building_navigation/set_cover_solver.h>
 
 //Default constructor
-setCoverSolver::setCoverSolver()
+SetCoverSolver::SetCoverSolver()
 {
 
 }
@@ -10,30 +10,35 @@ setCoverSolver::setCoverSolver()
 //the columns to which node to go. If the path between nodes doesn't exist or the node to go to is the same as the one to
 //start from, the entry of the matrix is 0.
 
-void setCoverSolver::constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const int number_of_nodes,
-        const std::vector<cv::Point>& points, double downsampling_factor, double robot_radius, double map_resolution)
+void SetCoverSolver::constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map,
+		const std::vector<cv::Point>& points, double downsampling_factor, double robot_radius, double map_resolution)
 {
 	//create the distance matrix with the right size
-	cv::Mat pathlengths(cv::Size(number_of_nodes, number_of_nodes), CV_64F);
+	cv::Mat pathlengths(cv::Size((int)points.size(), (int)points.size()), CV_64F);
+
+	// reduce image size already here to avoid resizing in the planner each time
+	const double one_by_downsampling_factor = 1./downsampling_factor;
+	cv::Mat downsampled_map;
+	pathplanner_.downsampleMap(map, downsampled_map, downsampling_factor, robot_radius, map_resolution);
 
 	for (int i = 0; i < points.size(); i++)
 	{
-		cv::Point current_center = points[i];
-		for (int p = 0; p < points.size(); p++)
+		cv::Point current_center = downsampling_factor * points[i];
+		for (int j = 0; j < points.size(); j++)
 		{
-			if (p != i)
+			if (j != i)
 			{
-				if (p > i) //only compute upper right triangle of matrix, rest is symmetrically added
+				if (j > i) //only compute upper right triangle of matrix, rest is symmetrically added
 				{
-					cv::Point neighbor = points[p];
-					double length = pathplanner_.PlanPath(original_map, current_center, neighbor, downsampling_factor, robot_radius, map_resolution);
-					pathlengths.at<double>(i, p) = length;
-					pathlengths.at<double>(p, i) = length; //symmetrical-Matrix --> saves half the computationtime
+					cv::Point neighbor = downsampling_factor * points[j];
+					double length = one_by_downsampling_factor * pathplanner_.planPath(downsampled_map, current_center, neighbor, 1., 0., map_resolution);
+					pathlengths.at<double>(i, j) = length;
+					pathlengths.at<double>(j, i) = length; //symmetrical-Matrix --> saves half the computationtime
 				}
 			}
 			else
 			{
-				pathlengths.at<double>(i, p) = 0;
+				pathlengths.at<double>(i, j) = 0;
 			}
 		}
 	}
@@ -42,7 +47,7 @@ void setCoverSolver::constructDistanceMatrix(cv::Mat& distance_matrix, const cv:
 }
 
 //This function takes a vector of found nodes and merges them together, if they have at least one node in common.
-std::vector<std::vector<int> > setCoverSolver::mergeGroups(const std::vector<std::vector<int> >& found_groups)
+std::vector<std::vector<int> > SetCoverSolver::mergeGroups(const std::vector<std::vector<int> >& found_groups)
 {
 	std::vector < std::vector<int> > merged_groups; //The merged groups.
 
@@ -106,7 +111,7 @@ std::vector<std::vector<int> > setCoverSolver::mergeGroups(const std::vector<std
 //are the same as the ones from the clique-solver and also the distance-matrix.
 
 //the cliques are given
-std::vector<std::vector<int> > setCoverSolver::solveSetCover(const std::vector<std::vector<int> >& given_cliques, const int number_of_nodes)
+std::vector<std::vector<int> > SetCoverSolver::solveSetCover(const std::vector<std::vector<int> >& given_cliques, const int number_of_nodes)
 {
 	std::vector < std::vector<int> > minimal_set;
 
@@ -158,7 +163,7 @@ std::vector<std::vector<int> > setCoverSolver::solveSetCover(const std::vector<s
 }
 
 //the distance matrix is given, but not the cliques
-std::vector<std::vector<int> > setCoverSolver::solveSetCover(const cv::Mat& distance_matrix, const int number_of_nodes, double maximal_pathlength)
+std::vector<std::vector<int> > SetCoverSolver::solveSetCover(const cv::Mat& distance_matrix, const int number_of_nodes, double maximal_pathlength)
 {
 	//get all maximal cliques for this graph
 	std::vector < std::vector<int> > maximal_cliques = maximal_clique_finder.getCliques(distance_matrix, maximal_pathlength);
@@ -167,24 +172,15 @@ std::vector<std::vector<int> > setCoverSolver::solveSetCover(const cv::Mat& dist
 }
 
 //the distance matrix and cliques aren't given and the matrix should not be returned
-std::vector<std::vector<int> > setCoverSolver::solveSetCover(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points,
-        double downsampling_factor, double robot_radius, double map_resolution, double maximal_pathlength)
+std::vector<std::vector<int> > SetCoverSolver::solveSetCover(const cv::Mat& original_map, const std::vector<cv::Point>& points,
+		double downsampling_factor, double robot_radius, double map_resolution, double maximal_pathlength, cv::Mat* distance_matrix)
 {
 	//calculate the distance matrix
-	cv::Mat distance_matrix;
-	constructDistanceMatrix(distance_matrix, original_map, number_of_nodes, points, downsampling_factor, robot_radius, map_resolution);
+	cv::Mat distance_matrix_ref;
+	if (distance_matrix != 0)
+		distance_matrix_ref = *distance_matrix;
+	constructDistanceMatrix(distance_matrix_ref, original_map, points, downsampling_factor, robot_radius, map_resolution);
 
 	//get all maximal cliques for this graph and solve the set cover problem
-	return (solveSetCover(distance_matrix, number_of_nodes, maximal_pathlength));
-}
-
-//the distance matrix and cliques aren't given and the matrix should be returned
-std::vector<std::vector<int> > setCoverSolver::solveSetCover(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points,
-        double downsampling_factor, double robot_radius, double map_resolution, double maximal_pathlength, cv::Mat& distance_matrix)
-{
-	//calculate the distance matrix
-	constructDistanceMatrix(distance_matrix, original_map, number_of_nodes, points, downsampling_factor, robot_radius, map_resolution);
-
-	//get all maximal cliques for this graph and solve the set cover problem
-	return (solveSetCover(distance_matrix, number_of_nodes, maximal_pathlength));
+	return (solveSetCover(distance_matrix_ref, (int)points.size(), maximal_pathlength));
 }

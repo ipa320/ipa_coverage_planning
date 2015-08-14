@@ -32,6 +32,7 @@
 	<depend>message_generation</depend>
 	<depend>genmsg</depend>
 	<depend>boost</depend>
+	<depend>ipa_room_segmentation</depend>
 
 	<exec_depend>message_runtime</exec_depend>
 

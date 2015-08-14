@@ -28,7 +28,7 @@
 //Make sure that the cliques cover all nodes in the graph or else this algorithm runs into an endless loop. For best results
 //take the cliques from a maximal-clique finder like the Bron-Kerbosch algorithm.
 
-class setCoverSolver
+class SetCoverSolver
 {
 protected:
 
@@ -44,18 +44,17 @@ protected:
 	std::vector<std::vector<int> > mergeGroups(const std::vector<std::vector<int> >& found_groups);
 
 	//Function to construct the distance matrix, showing the pathlength from node to node
-	void constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points,
+	void constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const std::vector<cv::Point>& points,
 	        double downsampling_factor, double robot_radius, double map_resolution);
 
 public:
 	//Constructor
-	setCoverSolver();
+	SetCoverSolver();
 
 	//algorithms to solve the set cover problem. There are four functions for different cases:
 	//		1. The cliques already have been found
 	//		2. The distance matrix already exists
-	//		3. The distance matrix has to be computet but not returned
-	//		4. The distance matrix has to be computet and also returned
+	//		3. The distance matrix has to be computed and may be returned
 
 	//cliques are given
 	std::vector<std::vector<int> > solveSetCover(const std::vector<std::vector<int> >& given_cliques, const int number_of_nodes);
@@ -63,11 +62,7 @@ public:
 	//the distance matrix is given
 	std::vector<std::vector<int> > solveSetCover(const cv::Mat& distance_matrix, const int number_of_nodes, double maximal_pathlength);
 
-	//the distance matrix has to be computet but not returned
-	std::vector<std::vector<int> > solveSetCover(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points,
-	        double downsampling_factor, double robot_radius, double map_resolution, double maximal_pathlength);
-
-	//the distance matrix has to be computet and should be returned
-	std::vector<std::vector<int> > solveSetCover(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points,
-	        double downsampling_factor, double robot_radius, double map_resolution, double maximal_pathlength, cv::Mat& distance_matrix);
+	//the distance matrix has to be computed and may be returned
+	std::vector<std::vector<int> > solveSetCover(const cv::Mat& original_map, const std::vector<cv::Point>& points,
+		double downsampling_factor, double robot_radius, double map_resolution, double maximal_pathlength, cv::Mat* distance_matrix=0);
 };

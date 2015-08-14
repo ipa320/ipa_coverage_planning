@@ -36,13 +36,13 @@ int main(int argc, char **argv)
 	AStarPlanner planner;
 	NearestNeighborTSPSolver TSPsolver;
 	GeneticTSPSolver genTSPsolver;
-	concordeTSPSolver conTSPsolver;
+	ConcordeTSPSolver conTSPsolver;
 
 	cliqueFinder finder; //Object to find all maximal cliques for the given map
 
-	setCoverSolver setsolver; //Object to find the groups based on the found cliques
+	SetCoverSolver setsolver; //Object to find the groups based on the found cliques
 
-	trolleyPositionFinder tolley_finder;
+	TrolleyPositionFinder tolley_finder;
 
 	std::vector < cv::Point > centers;
 
@@ -133,7 +133,7 @@ int main(int argc, char **argv)
 			{
 				if (p > i) //only compute upper right triangle of matrix, rest is symmetrically added
 				{
-					double length = planner.PlanPath(map, center, centers[p], downfactor, robot_radius_test, map_resolution_factor);
+					double length = planner.planPath(map, center, centers[p], downfactor, robot_radius_test, map_resolution_factor);
 					pathlengths.at<double>(i, p) = length;
 					pathlengths.at<double>(p, i) = length; //symmetrical-Matrix --> saves half the computationtime
 				}

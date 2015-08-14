@@ -23,9 +23,23 @@ AStarPlanner::AStarPlanner()
 
 }
 
+void AStarPlanner::downsampleMap(const cv::Mat& map, cv::Mat& downsampled_map, const double downsampling_factor, const double robot_radius, const double map_resolution)
+{
+	//erode the map so the planner doesn't go near the walls
+	//	--> calculate the number of times for eroding from Robot Radius [m]
+	cv::Mat eroded_map;
+	int number_of_erosions = (robot_radius / map_resolution);
+	cv::erode(map, eroded_map, cv::Mat(), cv::Point(-1, -1), number_of_erosions);
+	//downsampling of the map to reduce calculationtime
+	if (downsampling_factor != 1.)
+		cv::resize(eroded_map, downsampled_map, cv::Size(0, 0), downsampling_factor, downsampling_factor, cv::INTER_LINEAR);
+	else
+		downsampled_map = eroded_map;
+}
+
 // A-star algorithm.
 // The route returned is a string of direction digits.
-std::string AStarPlanner::pathFind(const int & xStart, const int & yStart, const int & xFinish, const int & yFinish, const cv::Mat& map_from_subscription)
+std::string AStarPlanner::pathFind(const int & xStart, const int & yStart, const int & xFinish, const int & yFinish, const cv::Mat& map)
 {
 	static std::priority_queue<nodeAstar> pq[2]; // list of open (not-yet-tried) nodes
 	static int pqi; // pq index
@@ -38,11 +52,11 @@ std::string AStarPlanner::pathFind(const int & xStart, const int & yStart, const
 	cv::Mat map_to_calculate_path(cv::Size(m, n), CV_32S);
 
 	// create map from the given eroded map
-	for (int y = 0; y < map_from_subscription.rows; y++)
+	for (int y = 0; y < map.rows; y++)
 	{
-		for (int x = 0; x < map_from_subscription.cols; x++)
+		for (int x = 0; x < map.cols; x++)
 		{
-			if (map_from_subscription.at<unsigned char>(y, x) == 255)
+			if (map.at<unsigned char>(y, x) == 255)
 			{
 				map_to_calculate_path.at<int>(x, y) = 0;
 			}
@@ -177,8 +191,8 @@ std::string AStarPlanner::pathFind(const int & xStart, const int & yStart, const
 //map gets reduced and calculationtime gets better. If it is set to 1 the map will have original size, if it is 0 the algorithm
 //won't work, so make sure to not set it to 0. The algorithm also needs the Robot radius [m] and the map resolution [m²/pixel] to
 //calculate the needed amount of erosions to include the radius in the planning.
-double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& start_point, cv::Point& end_point,
-		double downsampling_factor, double robot_radius, double map_resolution)
+double AStarPlanner::planPath(const cv::Mat& map, const cv::Point& start_point, const cv::Point& end_point,
+		const double downsampling_factor, const double robot_radius, const double map_resolution)
 {
 	expanding_counter = 0;
 
@@ -190,15 +204,8 @@ double AStarPlanner::PlanPath(const cv::Mat& map_from_subscription, cv::Point& s
 		return path_length;
 	}
 
-	//erode the map so the planner doesn't go near the walls
-	//	--> calculate the number of times for eroding from Robot Radius [m]
-	cv::Mat eroded_map;
-	int number_of_erosions = (robot_radius / map_resolution);
-	cv::erode(map_from_subscription, eroded_map, cv::Mat(), cv::Point(-1, -1), 4);
-
-	//downsampling of the map to reduce calculationtime
 	cv::Mat downsampled_map;
-	cv::resize(eroded_map ,downsampled_map, cv::Size(0, 0), downsampling_factor, downsampling_factor, cv::INTER_LINEAR);
+	downsampleMap(map, downsampled_map, downsampling_factor, robot_radius, map_resolution);
 
 	//transform the Pixel values to the downsampled ones
 	int start_x = downsampling_factor * start_point.x;

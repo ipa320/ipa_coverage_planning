@@ -41,7 +41,7 @@
 //		| 1.2 9.0  88.0 0.0  0.0 |
 //		---					   ---
 
-class concordeTSPSolver
+class ConcordeTSPSolver
 {
 protected:
 
@@ -60,7 +60,7 @@ protected:
 
 public:
 	//Constructor
-	concordeTSPSolver();
+	ConcordeTSPSolver();
 
 	//Functions to solve the TSP. It needs a distance matrix, that shows the pathlengths between two nodes of the problem.
 	//This matrix has to be symmetrical or else the TSPlib must be changed. The int shows the index in the Matrix.

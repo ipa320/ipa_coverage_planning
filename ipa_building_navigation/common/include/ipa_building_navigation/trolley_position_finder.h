@@ -36,7 +36,7 @@
 //		5. The Radius of the robot and the map resolution to make sure the A_star pathplanner stays in enough distance to the
 //		   walls and obstacles. (See A_star_pathplanner.cpp for further information)
 
-class trolleyPositionFinder
+class TrolleyPositionFinder
 {
 protected:
 
@@ -44,15 +44,15 @@ protected:
 
 	//Function to find a trolley position for one group
 	cv::Point findOneTrolleyPosition(const std::vector<cv::Point> group_points, const cv::Mat& original_map,
-			double downsampling_factor, double robot_radius, double map_resolution);
+			const double downsampling_factor, const double robot_radius, const double map_resolution);
 
 public:
 
 	//constructor
-	trolleyPositionFinder();
+	TrolleyPositionFinder();
 
 	//Function to find a trolley position for each group by using the findOneTrolleyPosition function
 	std::vector<cv::Point> findTrolleyPositions(const cv::Mat& original_map, const std::vector<std::vector<int> >& found_groups,
-			const std::vector<cv::Point>& room_centers, double downsampling_factor_from_subscription, double robot_radius_from_subscription,
-			double map_resolution_from_subscription);
+			const std::vector<cv::Point>& room_centers, const double downsampling_factor, const double robot_radius,
+			const double map_resolution);
 };

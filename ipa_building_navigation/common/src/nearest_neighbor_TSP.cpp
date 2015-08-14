@@ -23,7 +23,7 @@ void NearestNeighborTSPSolver::constructDistanceMatrix(cv::Mat& distance_matrix,
 				if (p > i) //only compute upper right triangle of matrix, rest is symmetrically added
 				{
 					cv::Point neighbor = points[p];
-					double length = pathplanner_.PlanPath(original_map, current_center, neighbor, downsampling_factor, robot_radius, map_resolution);
+					double length = pathplanner_.planPath(original_map, current_center, neighbor, downsampling_factor, robot_radius, map_resolution);
 					pathlengths.at<double>(i, p) = length;
 					pathlengths.at<double>(p, i) = length; //symmetrical-Matrix --> saves half the computationtime
 				}

@@ -2,7 +2,12 @@
 sensor_msgs/Image input_map 				# floor plan map [mono8 format], 0=obstacle or unknown, 255=free space 
 float32 map_resolution						# the resolution of the map in [meter/cell]
 geometry_msgs/Pose map_origin				# the origin of the map in [meter]
+ipa_room_segmentation/RoomInformation[] room_information_in_pixel		# room data (min/max coordinates, center coordinates) measured in pixels
 float64 max_clique_path_length				# max A* path length between two rooms that are assigned to the same clique
+float64 map_downsampling_factor				# the map may be downsampled during computations (e.g. A+ path lengths) in order to speed up the algorithm,
+											# range of the factor [0 < factor <= 1] 
+											# if set to 1 the map will have original size, if set to 0 the algorithm won't work
+float64 robot_radius						# the robot footprint radius [m], used for excluding areas from path planning that could not be visited by teh robot
 geometry_msgs/Pose robot_start_coordinate	# current robot location (used to determine the closest checkpoint in the sequence of checkpoints) [in meter]
 
 ---

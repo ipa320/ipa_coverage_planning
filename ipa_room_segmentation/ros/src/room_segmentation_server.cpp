@@ -1,3 +1,62 @@
+/*!
+ *****************************************************************
+ * \file
+ *
+ * \note
+ * Copyright (c) 2015 \n
+ * Fraunhofer Institute for Manufacturing Engineering
+ * and Automation (IPA) \n\n
+ *
+ *****************************************************************
+ *
+ * \note
+ * Project name: Care-O-bot
+ * \note
+ * ROS stack name: autopnp
+ * \note
+ * ROS package name: ipa_room_segmentation
+ *
+ * \author
+ * Author: Florian Jordan
+ * \author
+ * Supervised by: Richard Bormann
+ *
+ * \date Date of creation: 08.2015
+ *
+ * \brief
+ *
+ *
+ *****************************************************************
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * - Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer. \n
+ * - Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution. \n
+ * - Neither the name of the Fraunhofer Institute for Manufacturing
+ * Engineering and Automation (IPA) nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission. \n
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License LGPL as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License LGPL for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License LGPL along with this program.
+ * If not, see <http://www.gnu.org/licenses/>.
+ *
+ ****************************************************************/
+
 #include <ipa_room_segmentation/room_segmentation_server.h>
 
 #include <ros/package.h>
@@ -9,9 +68,6 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 {
 	//Start action server
 	room_segmentation_server_.start();
-
-	//Initialize the map resolution
-	map_resolution_ = 0.0;
 
 	//set the parameter to check if the algorithm needs to be trained
 	train_the_algorithm_ = false;
@@ -88,20 +144,22 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	cv::Mat original_img = cv_ptr_obj->image;
 
 	//set the resolution and the limits for the actual goal and the Map origin
-	map_origin_ = cv::Point2d(goal->map_origin.position.x, goal->map_origin.position.y);
+	const float map_resolution = goal->map_resolution;
+	const cv::Point2d map_origin(goal->map_origin.position.x, goal->map_origin.position.y);
 
 	//segment the given map
+	cv::Mat segmented_map;
 	if (room_segmentation_algorithm_ == 1)
 	{
-		morphological_segmentation_.segmentationAlgorithm(original_img, segmented_map_, goal->map_resolution, room_lower_limit_morphological_, room_upper_limit_morphological_);
+		morphological_segmentation_.segmentationAlgorithm(original_img, segmented_map, map_resolution, room_lower_limit_morphological_, room_upper_limit_morphological_);
 	}
 	else if (room_segmentation_algorithm_ == 2)
 	{
-		distance_segmentation_.segmentationAlgorithm(original_img, segmented_map_, goal->map_resolution, room_lower_limit_distance_, room_upper_limit_distance_);
+		distance_segmentation_.segmentationAlgorithm(original_img, segmented_map, map_resolution, room_lower_limit_distance_, room_upper_limit_distance_);
 	}
 	else if (room_segmentation_algorithm_ == 3)
 	{
-		voronoi_segmentation_.segmentationAlgorithm(original_img, segmented_map_, goal->map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_,
+		voronoi_segmentation_.segmentationAlgorithm(original_img, segmented_map, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_,
 		        voronoi_neighborhood_index_, max_iterations_, min_critical_point_distance_factor_, max_area_for_merging_);
 	}
 	else if (room_segmentation_algorithm_ == 4)
@@ -119,7 +177,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 			semantic_segmentation_.trainClassifiers(first_room_training_map, second_room_training_map, first_hallway_training_map, second_hallway_training_map,
 			        classifier_path);
 		}
-		semantic_segmentation_.semanticLabeling(original_img, segmented_map_, goal->map_resolution, room_lower_limit_semantic_, room_upper_limit_semantic_,
+		semantic_segmentation_.semanticLabeling(original_img, segmented_map, map_resolution, room_lower_limit_semantic_, room_upper_limit_semantic_,
 		        classifier_path);
 	}
 	else
@@ -135,11 +193,11 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 // compute room label codebook
 	std::map<int, size_t> label_vector_index_codebook; // maps each room label to a position in the rooms vector
 	size_t vector_index = 0;
-	for (int v = 0; v < segmented_map_.rows; ++v)
+	for (int v = 0; v < segmented_map.rows; ++v)
 	{
-		for (int u = 0; u < segmented_map_.cols; ++u)
+		for (int u = 0; u < segmented_map.cols; ++u)
 		{
-			const int label = segmented_map_.at<int>(v, u);
+			const int label = segmented_map.at<int>(v, u);
 			if (label > 0 && label < 65280) // do not count walls/obstacles or free space as label
 			{
 				if (label_vector_index_codebook.find(label) == label_vector_index_codebook.end())
@@ -160,11 +218,11 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	std::vector<int> room_centers_y_values(label_vector_index_codebook.size(), -1);
 	//***********************Find min/max x and y coordinate and center of each found room********************
 	//check y/x-value for every Pixel and make the larger/smaller value to the current value of the room
-	for (int y = 0; y < segmented_map_.rows; ++y)
+	for (int y = 0; y < segmented_map.rows; ++y)
 	{
-		for (int x = 0; x < segmented_map_.cols; ++x)
+		for (int x = 0; x < segmented_map.cols; ++x)
 		{
-			const int label = segmented_map_.at<int>(y, x);
+			const int label = segmented_map.at<int>(y, x);
 			if (label > 0 && label < 65280) //if Pixel is white or black it is no room --> doesn't need to be checked
 			{
 				const int index = label_vector_index_codebook[label];
@@ -182,7 +240,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 //		{
 //			room_centers_x_values[idx] = (min_x_value_of_the_room[idx] + max_x_value_of_the_room[idx]) / 2;
 //			room_centers_y_values[idx] = (min_y_value_of_the_room[idx] + max_y_value_of_the_room[idx]) / 2;
-//			cv::circle(segmented_map_, cv::Point(room_centers_x_values[idx], room_centers_y_values[idx]), 2, cv::Scalar(200*256), CV_FILLED);
+//			cv::circle(segmented_map, cv::Point(room_centers_x_values[idx], room_centers_y_values[idx]), 2, cv::Scalar(200*256), CV_FILLED);
 //		}
 //	}
 	MeanShift2D ms;
@@ -190,10 +248,10 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	{
 		// compute distance transform for each room
 		const int label = it->first;
-		cv::Mat room = cv::Mat::zeros(segmented_map_.rows, segmented_map_.cols, CV_8UC1);
-		for (int v = 0; v < segmented_map_.rows; ++v)
-			for (int u = 0; u < segmented_map_.cols; ++u)
-				if (segmented_map_.at<int>(v, u) == label)
+		cv::Mat room = cv::Mat::zeros(segmented_map.rows, segmented_map.cols, CV_8UC1);
+		for (int v = 0; v < segmented_map.rows; ++v)
+			for (int u = 0; u < segmented_map.cols; ++u)
+				if (segmented_map.at<int>(v, u) == label)
 					room.at < uchar > (v, u) = 255;
 		cv::Mat distance_map; //variable for the distance-transformed map, type: CV_32FC1
 		cv::distanceTransform(room, distance_map, CV_DIST_L2, 5);
@@ -206,7 +264,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 				if (distance_map.at<float>(v, u) > max_val * 0.95f)
 					room_cells.push_back(cv::Vec2d(u, v));
 		// use meanshift to find the modes in that set
-		cv::Vec2d room_center = ms.findRoomCenter(room, room_cells, goal->map_resolution);
+		cv::Vec2d room_center = ms.findRoomCenter(room, room_cells, map_resolution);
 		const int index = it->second;
 		room_centers_x_values[index] = room_center[0];
 		room_centers_y_values[index] = room_center[1];
@@ -214,7 +272,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 
 	if (display_segmented_map_ == true)
 	{
-		cv::Mat disp = segmented_map_.clone();
+		cv::Mat disp = segmented_map.clone();
 		for (size_t index = 0; index < room_centers_x_values.size(); ++index)
 			cv::circle(disp, cv::Point(room_centers_x_values[index], room_centers_y_values[index]), 2, cv::Scalar(200 * 256), CV_FILLED);
 
@@ -228,7 +286,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	cv_bridge::CvImage cv_image;
 	cv_image.header.stamp = ros::Time::now();
 	cv_image.encoding = "mono8";
-	cv_image.image = segmented_map_;
+	cv_image.image = segmented_map;
 	cv_image.toImageMsg(action_result.segmented_map);
 
 	//setting value to the action msgs to publish
@@ -259,13 +317,13 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 		std::vector<ipa_room_segmentation::RoomInformation> room_information(room_centers_x_values.size());
 		for (size_t i=0; i<room_centers_x_values.size(); ++i)
 		{
-			room_information[i].room_center.x = convert_pixel_to_meter_for_x_coordinate(room_centers_x_values[i]);
-			room_information[i].room_center.y = convert_pixel_to_meter_for_y_coordinate(room_centers_y_values[i]);
+			room_information[i].room_center.x = convert_pixel_to_meter_for_x_coordinate(room_centers_x_values[i], map_resolution, map_origin);
+			room_information[i].room_center.y = convert_pixel_to_meter_for_y_coordinate(room_centers_y_values[i], map_resolution, map_origin);
 			room_information[i].room_min_max.points.resize(2);
-			room_information[i].room_min_max.points[0].x = convert_pixel_to_meter_for_x_coordinate(min_x_value_of_the_room[i]);
-			room_information[i].room_min_max.points[0].y = convert_pixel_to_meter_for_y_coordinate(min_y_value_of_the_room[i]);
-			room_information[i].room_min_max.points[1].x = convert_pixel_to_meter_for_x_coordinate(max_x_value_of_the_room[i]);
-			room_information[i].room_min_max.points[1].y = convert_pixel_to_meter_for_y_coordinate(max_y_value_of_the_room[i]);
+			room_information[i].room_min_max.points[0].x = convert_pixel_to_meter_for_x_coordinate(min_x_value_of_the_room[i], map_resolution, map_origin);
+			room_information[i].room_min_max.points[0].y = convert_pixel_to_meter_for_y_coordinate(min_y_value_of_the_room[i], map_resolution, map_origin);
+			room_information[i].room_min_max.points[1].x = convert_pixel_to_meter_for_x_coordinate(max_x_value_of_the_room[i], map_resolution, map_origin);
+			room_information[i].room_min_max.points[1].y = convert_pixel_to_meter_for_y_coordinate(max_y_value_of_the_room[i], map_resolution, map_origin);
 		}
 		action_result.room_information_in_meter = room_information;
 	}
@@ -276,12 +334,12 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 
 int main(int argc, char** argv)
 {
-	ros::init(argc, argv, "room_segmentation_server_");
+	ros::init(argc, argv, "room_segmentation_server");
 
 	ros::NodeHandle nh;
 
 	RoomSegmentationServer segmentationAlgorithmObj(nh, ros::this_node::getName());
-	ROS_INFO("Action Server for room segmentation has been initalized......");
+	ROS_INFO("Action Server for room segmentation has been initialized......");
 	ros::spin();
 
 	return 0;

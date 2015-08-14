@@ -36,11 +36,13 @@ protected:
 	int n;
 	int m;
 
-	std::string pathFind(const int& xStart, const int& yStart, const int& xFinish, const int& yFinish, const cv::Mat& map_from_subscription);
+	std::string pathFind(const int& xStart, const int& yStart, const int& xFinish, const int& yFinish, const cv::Mat& map);
 
 public:
 	AStarPlanner();
 
-	double PlanPath(const cv::Mat& map_from_subscription, cv::Point& start_point, cv::Point& end_point,
-			double downsampling_factor, double robot_radius, double map_resolution);
+	double planPath(const cv::Mat& map, const cv::Point& start_point, const cv::Point& end_point,
+			const double downsampling_factor, const double robot_radius, const double map_resolution);
+
+	void downsampleMap(const cv::Mat& map, cv::Mat& downsampled_map, const double downsampling_factor, const double robot_radius, const double map_resolution);
 };

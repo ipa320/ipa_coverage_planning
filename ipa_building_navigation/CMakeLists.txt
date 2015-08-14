@@ -11,6 +11,7 @@ set(catkin_RUN_PACKAGES
 	sensor_msgs
 	geometry_msgs
 	cv_bridge
+	ipa_room_segmentation
 )
 
 set(catkin_BUILD_PACKAGES
@@ -53,6 +54,7 @@ generate_messages(
 		actionlib_msgs
 		sensor_msgs
 		geometry_msgs
+		ipa_room_segmentation
 )
 
 
@@ -69,7 +71,7 @@ generate_messages(
 catkin_package(
 INCLUDE_DIRS
 	common/include
-	#ros/include
+	ros/include
 LIBRARIES
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
@@ -90,55 +92,69 @@ DEPENDS
 # important: common/include also needs to be here if you have it
 include_directories(
 	common/include
-	#ros/include
+	ros/include
 	${catkin_INCLUDE_DIRS}
 	${OpenCV_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIRS}
 )
 
 #tester for different functions
-add_executable(a_star_tester ros/src/tester.cpp common/src/A_star_pathplanner.cpp common/src/node.cpp common/src/nearest_neighbor_TSP.cpp common/src/genetic_TSP.cpp common/src/concorde_TSP.cpp common/src/maximal_clique_finder.cpp common/src/contains.cpp common/src/set_cover_solver.cpp common/src/trolley_position_finder.cpp)
-target_link_libraries(a_star_tester ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES})
-add_dependencies(a_star_tester ${catkin_EXPORTED_TARGETS})
+#add_executable(a_star_tester ros/src/tester.cpp common/src/A_star_pathplanner.cpp common/src/node.cpp common/src/nearest_neighbor_TSP.cpp common/src/genetic_TSP.cpp common/src/concorde_TSP.cpp common/src/maximal_clique_finder.cpp common/src/contains.cpp common/src/set_cover_solver.cpp common/src/trolley_position_finder.cpp)
+#target_link_libraries(a_star_tester ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES})
+#add_dependencies(a_star_tester ${catkin_EXPORTED_TARGETS})
 
-add_executable(tester ros/src/boosttest.cpp common/src/A_star_pathplanner.cpp common/src/node.cpp)
-target_link_libraries(tester ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
-add_dependencies(tester ${catkin_EXPORTED_TARGETS})
+#add_executable(tester ros/src/boosttest.cpp common/src/A_star_pathplanner.cpp common/src/node.cpp)
+#target_link_libraries(tester ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+#add_dependencies(tester ${catkin_EXPORTED_TARGETS})
+
+# action provider
+add_executable(room_sequence_planning_server
+	ros/src/room_sequence_planning_action_server.cpp
+	common/src/A_star_pathplanner.cpp common/src/node.cpp
+	common/src/nearest_neighbor_TSP.cpp
+	common/src/genetic_TSP.cpp
+	common/src/concorde_TSP.cpp
+	common/src/maximal_clique_finder.cpp
+	common/src/contains.cpp
+	common/src/set_cover_solver.cpp
+	common/src/trolley_position_finder.cpp)
+target_link_libraries(room_sequence_planning_server ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES})
+add_dependencies(room_sequence_planning_server ${catkin_EXPORTED_TARGETS})
 
  
 #############
 ## Install ##
 #############
-## Mark executables and/or libraries for installation
-install(TARGETS a_star_tester tester
+# Mark executables and/or libraries for installation
+install(TARGETS room_sequence_planning_server #a_star_tester tester
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-##uncomment this if you have a common-directory with header-files
+#uncomment this if you have a common-directory with header-files
 install(DIRECTORY common/include/${PROJECT_NAME}/
 	DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 	FILES_MATCHING PATTERN "*.h"
 	PATTERN ".svn" EXCLUDE
 )
 
-##uncomment this if you have header-files in your project
-#install(DIRECTORY ros/include/${PROJECT_NAME}/
-#	DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-#	FILES_MATCHING PATTERN "*.h"
-#	PATTERN ".svn" EXCLUDE
-#)
-
-install(DIRECTORY scripts
-	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+#uncomment this if you have header-files in your project
+install(DIRECTORY ros/include/${PROJECT_NAME}/
+	DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+	FILES_MATCHING PATTERN "*.h"
 	PATTERN ".svn" EXCLUDE
 )
 
-#install(DIRECTORY ros/launch
-#	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/ros
+#install(DIRECTORY scripts
+#	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 #	PATTERN ".svn" EXCLUDE
 #)
+
+install(DIRECTORY ros/launch
+	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/ros
+	PATTERN ".svn" EXCLUDE
+)
 
 #install(DIRECTORY common/files
 #	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/common
