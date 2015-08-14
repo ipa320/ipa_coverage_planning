@@ -223,22 +223,16 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& path_length_Ma
 	return calculated_path;
 }
 
-//compute distance matrix without returning it
-std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points,
-        double downsampling_factor, double robot_radius, double map_resolution, const int start_Node)
+//compute distance matrix and maybe returning it
+std::vector<int> solveGeneticTSP(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points, double downsampling_factor,
+        double robot_radius, double map_resolution, const int start_Node, cv::Mat* distance_matrix = 0)
 {
-	cv::Mat distance_matrix;
-	DistanceMatrix::constructDistanceMatrix(distance_matrix, original_map, number_of_nodes, points, downsampling_factor, robot_radius, map_resolution, pathplanner_);
+	//calculate the distance matrix
+	cv::Mat distance_matrix_ref;
+	if (distance_matrix != 0)
+		distance_matrix_ref = *distance_matrix;
+	DistanceMatrix::constructDistanceMatrix(distance_matrix_ref, original_map, points, downsampling_factor, robot_radius, map_resolution, pathplanner_);
 
-	return (solveGeneticTSP(distance_matrix, start_Node));
-}
-
-//compute distance matrix with returning it
-std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points,
-        double downsampling_factor, double robot_radius, double map_resolution, const int start_Node, cv::Mat& distance_matrix)
-{
-	DistanceMatrix::constructDistanceMatrix(distance_matrix, original_map, number_of_nodes, points, downsampling_factor, robot_radius, map_resolution, pathplanner_);
-
-	return (solveGeneticTSP(distance_matrix, start_Node));
+	return (solveGeneticTSP(distance_matrix_ref, start_Node));
 }
 

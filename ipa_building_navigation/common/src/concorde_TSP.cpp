@@ -166,21 +166,15 @@ std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_
 	return sorted_order;
 }
 
-//compute the distance matrix without returning it
+//compute the distance matrix and maybe return it
 std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points,
-		double downsampling_factor, double robot_radius, double map_resolution, const int start_Node)
+        double downsampling_factor, double robot_radius, double map_resolution, const int start_Node, cv::Mat* distance_matrix = 0)
 {
-	cv::Mat distance_matrix;
-	DistanceMatrix::constructDistanceMatrix(distance_matrix, original_map, number_of_nodes, points, downsampling_factor, robot_radius, map_resolution, pathplanner_);
+	//calculate the distance matrix
+	cv::Mat distance_matrix_ref;
+	if (distance_matrix != 0)
+		distance_matrix_ref = *distance_matrix;
+	DistanceMatrix::constructDistanceMatrix(distance_matrix_ref, original_map, points, downsampling_factor, robot_radius, map_resolution, pathplanner_);
 
-	return (solveConcordeTSP(distance_matrix, start_Node));
-}
-
-//compute the distance matrix with returning it
-std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points, double downsampling_factor,
-		double robot_radius, double map_resolution, const int start_Node, cv::Mat& distance_matrix)
-{
-	DistanceMatrix::constructDistanceMatrix(distance_matrix, original_map, number_of_nodes, points, downsampling_factor, robot_radius, map_resolution, pathplanner_);
-
-	return (solveConcordeTSP(distance_matrix, start_Node));
+	return (solveConcordeTSP(distance_matrix_ref, start_Node));
 }

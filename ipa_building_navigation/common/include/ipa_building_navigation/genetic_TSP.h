@@ -57,20 +57,16 @@ public:
 	GeneticTSPSolver();
 
 	//Solving-algorithms for the given TSP. It returns a vector of int, which is the order from this solution. The int shows
-	//the index in the Matrix. There are three functions for different cases:
+	//the index in the Matrix. There are two functions for different cases:
 	//		1. The distance matrix already exists
-	//		2. The distance matrix has to be computet but not returned
-	//		3. The distance matrix has to be computet and also returned
+	//		2. The distance matrix has to be computet and maybe returned
 
 	//with given distance matrix
 	std::vector<int> solveGeneticTSP(const cv::Mat& path_length_Matrix, const int start_Node);
 
-	//compute distance matrix without returning it
-	std::vector<int> solveGeneticTSP(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points, double downsampling_factor,
-	        double robot_radius, double map_resolution, const int start_Node);
 
-	//compute distance matrix with returning it
+	//compute distance matrix and maybe returning it
 	std::vector<int> solveGeneticTSP(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points, double downsampling_factor,
-	        double robot_radius, double map_resolution, const int start_Node, cv::Mat& distance_matrix);
+	        double robot_radius, double map_resolution, const int start_Node, cv::Mat* distance_matrix=0);
 
 };
