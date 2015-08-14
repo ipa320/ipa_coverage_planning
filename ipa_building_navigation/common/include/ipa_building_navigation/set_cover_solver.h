@@ -51,7 +51,7 @@ public:
 	//Constructor
 	SetCoverSolver();
 
-	//algorithms to solve the set cover problem. There are four functions for different cases:
+	//algorithms to solve the set cover problem. There are three functions for different cases:
 	//		1. The cliques already have been found
 	//		2. The distance matrix already exists
 	//		3. The distance matrix has to be computed and may be returned

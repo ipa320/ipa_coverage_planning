@@ -19,7 +19,7 @@ void SetCoverSolver::constructDistanceMatrix(cv::Mat& distance_matrix, const cv:
 	// reduce image size already here to avoid resizing in the planner each time
 	const double one_by_downsampling_factor = 1./downsampling_factor;
 	cv::Mat downsampled_map;
-	pathplanner_.downsampleMap(map, downsampled_map, downsampling_factor, robot_radius, map_resolution);
+	pathplanner_.downsampleMap(original_map, downsampled_map, downsampling_factor, robot_radius, map_resolution);
 
 	for (int i = 0; i < points.size(); i++)
 	{

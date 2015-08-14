@@ -6,31 +6,39 @@ NearestNeighborTSPSolver::NearestNeighborTSPSolver()
 
 }
 
-//Function to construct the distance matrix from the given points. See the definition below for the style of this matrix.
-void NearestNeighborTSPSolver::constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const int number_of_nodes,
-        const std::vector<cv::Point>& points, double downsampling_factor, double robot_radius, double map_resolution)
+//Function to construct the symmetrical distance matrix from the given points. The rows show from which node to start and
+//the columns to which node to go. If the path between nodes doesn't exist or the node to go to is the same as the one to
+//start from, the entry of the matrix is 0.
+
+void NearestNeighborTSPSolver::constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map,
+		const std::vector<cv::Point>& points, double downsampling_factor, double robot_radius, double map_resolution)
 {
 	//create the distance matrix with the right size
-	cv::Mat pathlengths(cv::Size(number_of_nodes, number_of_nodes), CV_64F);
+	cv::Mat pathlengths(cv::Size((int)points.size(), (int)points.size()), CV_64F);
+
+	// reduce image size already here to avoid resizing in the planner each time
+	const double one_by_downsampling_factor = 1./downsampling_factor;
+	cv::Mat downsampled_map;
+	pathplanner_.downsampleMap(original_map, downsampled_map, downsampling_factor, robot_radius, map_resolution);
 
 	for (int i = 0; i < points.size(); i++)
 	{
-		cv::Point current_center = points[i];
-		for (int p = 0; p < points.size(); p++)
+		cv::Point current_center = downsampling_factor * points[i];
+		for (int j = 0; j < points.size(); j++)
 		{
-			if (p != i)
+			if (j != i)
 			{
-				if (p > i) //only compute upper right triangle of matrix, rest is symmetrically added
+				if (j > i) //only compute upper right triangle of matrix, rest is symmetrically added
 				{
-					cv::Point neighbor = points[p];
-					double length = pathplanner_.planPath(original_map, current_center, neighbor, downsampling_factor, robot_radius, map_resolution);
-					pathlengths.at<double>(i, p) = length;
-					pathlengths.at<double>(p, i) = length; //symmetrical-Matrix --> saves half the computationtime
+					cv::Point neighbor = downsampling_factor * points[j];
+					double length = one_by_downsampling_factor * pathplanner_.planPath(downsampled_map, current_center, neighbor, 1., 0., map_resolution);
+					pathlengths.at<double>(i, j) = length;
+					pathlengths.at<double>(j, i) = length; //symmetrical-Matrix --> saves half the computationtime
 				}
 			}
 			else
 			{
-				pathlengths.at<double>(i, p) = 0;
+				pathlengths.at<double>(i, j) = 0;
 			}
 		}
 	}
@@ -69,7 +77,7 @@ std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& path_l
 				}
 			}
 		}
-		calculated_order.push_back(next_node); //add the found nearest nighbor to the order-vector
+		calculated_order.push_back(next_node); //add the found nearest neighbor to the order-vector
 	} while (calculated_order.size() < path_length_matrix.rows); //when the order has as many elements as the pathlength Matrix has the solver is ready
 
 	//add the starting-node at the end of the vector, so the Start will be reached again.
@@ -79,20 +87,15 @@ std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& path_l
 }
 
 //compute distancematrix without returning it
-std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points,
-        double downsampling_factor, double robot_radius, double map_resolution, const int start_node)
+std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& original_map, const std::vector<cv::Point>& points,
+        double downsampling_factor, double robot_radius, double map_resolution, const int start_node, cv::Mat* distance_matrix=0)
 {
-	cv::Mat distance_matrix;
-	constructDistanceMatrix(distance_matrix, original_map, number_of_nodes, points, downsampling_factor, robot_radius, map_resolution);
+	//calculate the distance matrix
+	cv::Mat distance_matrix_ref;
+	if (distance_matrix != 0)
+		distance_matrix_ref = *distance_matrix;
+	constructDistanceMatrix(distance_matrix_ref, original_map, points, downsampling_factor, robot_radius, map_resolution);
 
-	return (solveNearestTSP(distance_matrix, start_node));
+	return (solveNearestTSP(distance_matrix_ref, start_node));
 }
 
-//compute distancematrix without returning it
-std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points,
-        double downsampling_factor, double robot_radius, double map_resolution, const int start_node, cv::Mat& pathlength_matrix)
-{
-	constructDistanceMatrix(pathlength_matrix, original_map, number_of_nodes, points, downsampling_factor, robot_radius, map_resolution);
-
-	return (solveNearestTSP(pathlength_matrix, start_node));
-}
