@@ -15,6 +15,7 @@
 #include <ipa_building_navigation/contains.h>
 #include <ipa_building_navigation/A_star_pathplanner.h>
 #include <ipa_building_navigation/maximal_clique_finder.h>
+#include <ipa_building_navigation/distance_matrix.h>
 
 #pragma once //make sure this header gets included only one time when multiple classes need it in the same project
 //regarding to https://en.wikipedia.org/wiki/Pragma_once this is more efficient than #define
@@ -43,9 +44,9 @@ protected:
 	//function to merge groups together, which have at least one node in common
 	std::vector<std::vector<int> > mergeGroups(const std::vector<std::vector<int> >& found_groups);
 
-	//Function to construct the distance matrix, showing the pathlength from node to node
-	void constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const std::vector<cv::Point>& points,
-	        double downsampling_factor, double robot_radius, double map_resolution);
+//	//Function to construct the distance matrix, showing the pathlength from node to node
+//	void constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const std::vector<cv::Point>& points,
+//	        double downsampling_factor, double robot_radius, double map_resolution);
 
 public:
 	//Constructor

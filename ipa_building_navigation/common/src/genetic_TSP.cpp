@@ -6,37 +6,37 @@ GeneticTSPSolver::GeneticTSPSolver()
 
 }
 
-//Function to construct the distance matrix from the given points. See the definition at solveGeneticTSP for the style of this matrix.
-void GeneticTSPSolver::constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const int number_of_nodes,
-        const std::vector<cv::Point>& points, double downsampling_factor, double robot_radius, double map_resolution)
-{
-	//create the distance matrix with the right size
-	cv::Mat pathlengths(cv::Size(number_of_nodes, number_of_nodes), CV_64F);
-
-	for (int i = 0; i < points.size(); i++)
-	{
-		cv::Point current_center = points[i];
-		for (int p = 0; p < points.size(); p++)
-		{
-			if (p != i)
-			{
-				if (p > i) //only compute upper right triangle of matrix, rest is symmetrically added
-				{
-					cv::Point neighbor = points[p];
-					double length = pathplanner_.planPath(original_map, current_center, neighbor, downsampling_factor, robot_radius, map_resolution);
-					pathlengths.at<double>(i, p) = length;
-					pathlengths.at<double>(p, i) = length; //symmetrical-Matrix --> saves half the computationtime
-				}
-			}
-			else
-			{
-				pathlengths.at<double>(i, p) = 0;
-			}
-		}
-	}
-
-	distance_matrix = pathlengths.clone();
-}
+////Function to construct the distance matrix from the given points. See the definition at solveGeneticTSP for the style of this matrix.
+//void GeneticTSPSolver::constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const int number_of_nodes,
+//        const std::vector<cv::Point>& points, double downsampling_factor, double robot_radius, double map_resolution)
+//{
+//	//create the distance matrix with the right size
+//	cv::Mat pathlengths(cv::Size(number_of_nodes, number_of_nodes), CV_64F);
+//
+//	for (int i = 0; i < points.size(); i++)
+//	{
+//		cv::Point current_center = points[i];
+//		for (int p = 0; p < points.size(); p++)
+//		{
+//			if (p != i)
+//			{
+//				if (p > i) //only compute upper right triangle of matrix, rest is symmetrically added
+//				{
+//					cv::Point neighbor = points[p];
+//					double length = pathplanner_.planPath(original_map, current_center, neighbor, downsampling_factor, robot_radius, map_resolution);
+//					pathlengths.at<double>(i, p) = length;
+//					pathlengths.at<double>(p, i) = length; //symmetrical-Matrix --> saves half the computationtime
+//				}
+//			}
+//			else
+//			{
+//				pathlengths.at<double>(i, p) = 0;
+//			}
+//		}
+//	}
+//
+//	distance_matrix = pathlengths.clone();
+//}
 
 // This function calculates for a given path the length of it. The Path is a vector with ints, that show the index of the
 // node in the path. It uses a pathlength Matrix, which should be calculated once.
@@ -228,7 +228,7 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& original_map, 
         double downsampling_factor, double robot_radius, double map_resolution, const int start_Node)
 {
 	cv::Mat distance_matrix;
-	constructDistanceMatrix(distance_matrix, original_map, number_of_nodes, points, downsampling_factor, robot_radius, map_resolution);
+	DistanceMatrix::constructDistanceMatrix(distance_matrix, original_map, number_of_nodes, points, downsampling_factor, robot_radius, map_resolution, pathplanner_);
 
 	return (solveGeneticTSP(distance_matrix, start_Node));
 }
@@ -237,7 +237,7 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& original_map, 
 std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points,
         double downsampling_factor, double robot_radius, double map_resolution, const int start_Node, cv::Mat& distance_matrix)
 {
-	constructDistanceMatrix(distance_matrix, original_map, number_of_nodes, points, downsampling_factor, robot_radius, map_resolution);
+	DistanceMatrix::constructDistanceMatrix(distance_matrix, original_map, number_of_nodes, points, downsampling_factor, robot_radius, map_resolution, pathplanner_);
 
 	return (solveGeneticTSP(distance_matrix, start_Node));
 }

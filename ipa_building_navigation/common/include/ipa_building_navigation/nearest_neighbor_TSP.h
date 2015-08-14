@@ -13,6 +13,7 @@
 
 #include <ipa_building_navigation/contains.h>
 #include <ipa_building_navigation/A_star_pathplanner.h>
+#include <ipa_building_navigation/distance_matrix.h>
 
 #pragma once //make sure this header gets included only one time when multiple classes need it in the same project
 			 //regarding to https://en.wikipedia.org/wiki/Pragma_once this is more efficient than #define
@@ -37,9 +38,9 @@ protected:
 	//Astar pathplanner to find the pathlengths from cv::Point to cv::Point
 	AStarPlanner pathplanner_;
 
-	//Function to construct the distance matrix, showing the pathlength from node to node
-	void NearestNeighborTSPSolver::constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map,
-			const std::vector<cv::Point>& points, double downsampling_factor, double robot_radius, double map_resolution);
+//	//Function to construct the distance matrix, showing the pathlength from node to node
+//	void NearestNeighborTSPSolver::constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map,
+//			const std::vector<cv::Point>& points, double downsampling_factor, double robot_radius, double map_resolution);
 
 public:
 	//constructor

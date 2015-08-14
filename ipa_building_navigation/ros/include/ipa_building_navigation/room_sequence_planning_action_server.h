@@ -122,4 +122,8 @@ protected:
 
 	// this is the execution function used by action server
 	void findRoomSequenceWithCheckpointsServer(const ipa_building_navigation::FindRoomSequenceWithCheckpointsGoalConstPtr &goal);
+
+	// params
+	int tsp_solver_;		// TSP solver: 1 = Nearest Neighbor,  2 = Genetic solver,  3 = Concorde solver
+	bool display_map_;		// displays the map with paths upon service call
 };

@@ -60,9 +60,22 @@
 #include <ipa_building_navigation/room_sequence_planning_action_server.h>
 
 RoomSequencePlanning::RoomSequencePlanning(ros::NodeHandle nh)
-: 	node_handle_(nh),
-  	room_sequence_with_checkpoints_server_(node_handle_, "room_sequence_with_checkpoints", boost::bind(&RoomSequencePlanning::findRoomSequenceWithCheckpointsServer, this, _1), false)
+:	node_handle_(nh),
+	room_sequence_with_checkpoints_server_(node_handle_, "room_sequence_with_checkpoints", boost::bind(&RoomSequencePlanning::findRoomSequenceWithCheckpointsServer, this, _1), false)
 {
+	// Parameters
+	std::cout << "\n--------------------------\nRoom Sequence Planner Parameters:\n--------------------------\n";
+	node_handle_.param("tsp_solver", tsp_solver_, 3);
+	std::cout << "room_sequence_planning/tsp_solver = " << tsp_solver_ << std::endl;
+	if (tsp_solver_ == 1)
+		ROS_INFO("You have chosen the Nearest Neighbor TSP method.");
+	else if (tsp_solver_ == 2)
+		ROS_INFO("You have chosen the Genetic TSP method.");
+	else if (tsp_solver_ == 3)
+		ROS_INFO("You have chosen the Concorde TSP solver.");
+	node_handle_.param("display_map", display_map_, 1);
+	std::cout << "room_sequence_planning/display_map = " << display_map_ << std::endl;
+
 	// start action server
 	room_sequence_with_checkpoints_server_.start();
 }

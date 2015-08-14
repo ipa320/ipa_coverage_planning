@@ -194,7 +194,7 @@ cv::Point TrolleyPositionFinder::findOneTrolleyPosition(const std::vector<cv::Po
 //This function takes all found groups and calculates for each of it the best trolley-position using the previously
 //described functions.
 std::vector<cv::Point> TrolleyPositionFinder::findTrolleyPositions(const cv::Mat& original_map, const std::vector<std::vector<int> >& found_groups,
-        const std::vector<cv::Point>& room_centers, const double downsampling_factor, const double robot_radius, const double map_resolution)
+		const std::vector<cv::Point>& room_centers, const double downsampling_factor, const double robot_radius, const double map_resolution)
 {
 	std::vector < cv::Point > trolley_positions;
 
