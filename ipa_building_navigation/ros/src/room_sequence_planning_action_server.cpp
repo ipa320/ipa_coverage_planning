@@ -73,7 +73,7 @@ RoomSequencePlanning::RoomSequencePlanning(ros::NodeHandle nh)
 		ROS_INFO("You have chosen the Genetic TSP method.");
 	else if (tsp_solver_ == 3)
 		ROS_INFO("You have chosen the Concorde TSP solver.");
-	node_handle_.param("display_map", display_map_, 1);
+	node_handle_.param("display_map", display_map_, false);
 	std::cout << "room_sequence_planning/display_map = " << display_map_ << std::endl;
 
 	// start action server
@@ -97,7 +97,7 @@ void RoomSequencePlanning::findRoomSequenceWithCheckpointsServer(const ipa_build
 
 	//get map origin and convert robot start coordinate to [pixel]
 	const cv::Point2d map_origin(goal->map_origin.position.x, goal->map_origin.position.y);
-	cv::Point robot_start_coordinate((goal->robot_start_coordinate - map_origin.x)/goal->map_resolution, (goal->robot_start_coordinate - map_origin.x)/goal->map_resolution);
+	cv::Point robot_start_coordinate((goal->robot_start_coordinate.position.x - map_origin.x)/goal->map_resolution, (goal->robot_start_coordinate.position.y - map_origin.y)/goal->map_resolution);
 
 	//get room center
 	std::vector<cv::Point> room_centers(goal->room_information_in_pixel.size());

@@ -56,5 +56,5 @@ public:
 
 	//compute distancematrix and maybe returning it
 	std::vector<int> solveNearestTSP(const cv::Mat& original_map, const std::vector<cv::Point>& points, double downsampling_factor,
-	        double robot_radius, double map_resolution, const int start_node, cv::Mat* distance_matrix=0);
+			double robot_radius, double map_resolution, const int start_node, cv::Mat* distance_matrix=0);
 };

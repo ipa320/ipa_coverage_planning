@@ -87,7 +87,7 @@ std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& path_l
 
 //compute distancematrix without returning it
 std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& original_map, const std::vector<cv::Point>& points,
-        double downsampling_factor, double robot_radius, double map_resolution, const int start_node, cv::Mat* distance_matrix=0)
+		double downsampling_factor, double robot_radius, double map_resolution, const int start_node, cv::Mat* distance_matrix)
 {
 	//calculate the distance matrix
 	cv::Mat distance_matrix_ref;

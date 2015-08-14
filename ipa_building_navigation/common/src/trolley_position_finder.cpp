@@ -147,7 +147,7 @@ cv::Point TrolleyPositionFinder::findOneTrolleyPosition(const std::vector<cv::Po
 	// reduce image size already here to avoid resizing in the planner each time
 	const double one_by_downsampling_factor = 1./downsampling_factor;
 	cv::Mat downsampled_map;
-	path_planner_.downsampleMap(map, downsampled_map, downsampling_factor, robot_radius, map_resolution);
+	path_planner_.downsampleMap(original_map, downsampled_map, downsampling_factor, robot_radius, map_resolution);
 
 	//go trough each candidate and calculate the sum of pathlengths
 	for (size_t candidate = 0; candidate < trolley_position_candidates.size(); candidate++)
