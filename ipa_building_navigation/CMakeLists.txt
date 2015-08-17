@@ -121,12 +121,20 @@ add_executable(room_sequence_planning_server
 target_link_libraries(room_sequence_planning_server ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES})
 add_dependencies(room_sequence_planning_server ${catkin_EXPORTED_TARGETS})
 
+# client for testing purpose
+add_executable(room_sequence_planning_client ros/src/room_sequence_planning_action_client.cpp)
+target_link_libraries(room_sequence_planning_client
+	${catkin_LIBRARIES} 
+	${OpenCV_LIBRARIES}
+)
+add_dependencies(room_sequence_planning_client ${catkin_EXPORTED_TARGETS} ${ipa_building_navigation_EXPORTED_TARGETS})
+
  
 #############
 ## Install ##
 #############
 # Mark executables and/or libraries for installation
-install(TARGETS room_sequence_planning_server #a_star_tester tester
+install(TARGETS room_sequence_planning_server room_sequence_planning_client #a_star_tester tester
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

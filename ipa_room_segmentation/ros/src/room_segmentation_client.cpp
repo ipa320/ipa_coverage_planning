@@ -15,7 +15,7 @@
 
 int main(int argc, char **argv)
 {
-	ros::init(argc, argv, "test_action");
+	ros::init(argc, argv, "room_segmentation_client");
 
 	std::vector< std::string > map_names;
 //	map_names.push_back("freiburg_building101.png");

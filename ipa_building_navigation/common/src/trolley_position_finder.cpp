@@ -17,7 +17,7 @@ TrolleyPositionFinder::TrolleyPositionFinder()
 cv::Point TrolleyPositionFinder::findOneTrolleyPosition(const std::vector<cv::Point> group_points, const cv::Mat& original_map,
 		const double downsampling_factor, const double robot_radius, const double map_resolution)
 {
-	double largening_of_bounding_box = 20; //Variable to expand the bounding box of the roomcenters a little bit. This is done to make sure the best trolley position is found if it is a little bit outside this bounding box.
+	double largening_of_bounding_box = 10; //Variable to expand the bounding box of the roomcenters a little bit. This is done to make sure the best trolley position is found if it is a little bit outside this bounding box.
 	double max_x_value = group_points[0].x; //max/min values of the Points that get the bounding box. Initialized with the coordinates of the first Point of the group.
 	double min_x_value = group_points[0].x;
 	double max_y_value = group_points[0].y;

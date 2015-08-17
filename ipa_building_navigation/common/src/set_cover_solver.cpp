@@ -110,9 +110,21 @@ std::vector<std::vector<int> > SetCoverSolver::mergeGroups(const std::vector<std
 //are the same as the ones from the clique-solver and also the distance-matrix.
 
 //the cliques are given
-std::vector<std::vector<int> > SetCoverSolver::solveSetCover(const std::vector<std::vector<int> >& given_cliques, const int number_of_nodes)
+std::vector<std::vector<int> > SetCoverSolver::solveSetCover(std::vector<std::vector<int> >& given_cliques, const int number_of_nodes)
 {
 	std::vector < std::vector<int> > minimal_set;
+
+	std::vector<std::vector<int> > cliques_for_covering;
+
+	for(size_t clique = 0; clique < given_cliques.size(); clique++)
+	{
+		std::vector<int> temporary_clique;
+		for(size_t node = 0; node < given_cliques[clique].size(); node++)
+		{
+			temporary_clique.push_back(given_cliques[clique][node]);
+		}
+		cliques_for_covering.push_back(temporary_clique);
+	}
 
 	//Put the nodes in a open-nodes vector. The nodes are named after their position in the room-centers-vector and so every
 	//node from 0 to number_of_nodes-1 is in the Graph.
@@ -126,17 +138,18 @@ std::vector<std::vector<int> > SetCoverSolver::solveSetCover(const std::vector<s
 
 	//Search for the clique with the most unvisited nodes and choose this one before the others. Then remove the nodes of
 	//this clique from the unvisited-vector. This is done until no more nodes can be visited.
+
 	do
 	{
 		int covered_open_nodes;
 		int best_covered_counter = 0;
 		int best_clique;
-		for (int clique = 0; clique < given_cliques.size(); clique++)
+		for (int clique = 0; clique < cliques_for_covering.size(); clique++)
 		{
 			covered_open_nodes = 0;
-			for (int node = 0; node < given_cliques[clique].size(); node++)
+			for (int node = 0; node < cliques_for_covering[clique].size(); node++)
 			{
-				if (contains(open_nodes, given_cliques[clique][node]))
+				if (contains(open_nodes, cliques_for_covering[clique][node]))
 				{
 					covered_open_nodes++;
 				}
@@ -147,18 +160,35 @@ std::vector<std::vector<int> > SetCoverSolver::solveSetCover(const std::vector<s
 				best_clique = clique;
 			}
 		}
-		minimal_set.push_back(given_cliques[best_clique]);
-		for (int node = 0; node < given_cliques[best_clique].size(); node++)
+		minimal_set.push_back(cliques_for_covering[best_clique]);
+		//remove all cliques that contain an already visited node
+		std::vector<std::vector<int> > new_set;
+		for(size_t clique = 0; clique < cliques_for_covering.size(); clique++)
 		{
-			open_nodes.erase(std::remove(open_nodes.begin(), open_nodes.end(), given_cliques[best_clique][node]), open_nodes.end());
+			bool add = true;
+			for(size_t node = 0; node < cliques_for_covering[best_clique].size(); node++)
+			{
+				if(contains(cliques_for_covering[clique], cliques_for_covering[best_clique][node]))
+				{
+					add = false;
+				}
+			}
+			if(add)
+				new_set.push_back(cliques_for_covering[clique]);
 		}
+		for (int node = 0; node < cliques_for_covering[best_clique].size(); node++)
+		{
+			open_nodes.erase(std::remove(open_nodes.begin(), open_nodes.end(), cliques_for_covering[best_clique][node]), open_nodes.end());
+		}
+		cliques_for_covering = new_set;
 	} while (open_nodes.size() > 0);
 
 	std::cout << "Finished greedy search." << std::endl;
 
-	std::cout << "Starting merging the found groups." << std::endl;
-
-	return mergeGroups(minimal_set);
+//	std::cout << "Starting merging the found groups." << std::endl;
+//
+//	return mergeGroups(minimal_set);
+	return minimal_set;
 }
 
 //the distance matrix is given, but not the cliques
@@ -166,6 +196,14 @@ std::vector<std::vector<int> > SetCoverSolver::solveSetCover(const cv::Mat& dist
 {
 	//get all maximal cliques for this graph
 	std::vector < std::vector<int> > maximal_cliques = maximal_clique_finder.getCliques(distance_matrix, maximal_pathlength);
+
+	//put the single nodes in the maximal cliques vector to make sure every node gets covered from the setCover solver
+	for(int single_node = 0; single_node < number_of_nodes; single_node++)
+	{
+		std::vector<int> temp;
+		temp.push_back(single_node);
+		maximal_cliques.push_back(temp);
+	}
 
 	return (solveSetCover(maximal_cliques, number_of_nodes));
 }

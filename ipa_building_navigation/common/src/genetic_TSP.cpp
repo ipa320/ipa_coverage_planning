@@ -73,8 +73,8 @@ std::vector<int> GeneticTSPSolver::mutatePath(const std::vector<int>& parent_pat
 
 	if (what_to_change == 0) //random node-switching
 	{
-		int number_of_switches = (rand() % (parent_path.size() - 3)) + 1; // Set the number of switches that should be done.
-		                                                                  // Because the first and the last need to be unchanged the number is limited.
+		int number_of_switches = (rand() % (parent_path.size() - 2)) + 1; // Set the number of switches that should be done.
+		                                                                  // Because the first needs to be unchanged the number is limited.
 		                                                                  // Also at least one change should be done.
 		for (int change = 0; change < number_of_switches; change++)
 		{
@@ -82,8 +82,8 @@ std::vector<int> GeneticTSPSolver::mutatePath(const std::vector<int>& parent_pat
 			bool switched = false; //this variable makes sure that the switch has been done
 			do
 			{
-				int node_one = (rand() % (saving_variable_path.size() - 2)) + 1; //this variables random choose which nodes should be changed
-				int node_two = (rand() % (saving_variable_path.size() - 2)) + 1; //The first and last one should be untouched
+				int node_one = (rand() % (saving_variable_path.size() - 1)) + 1; //this variables random choose which nodes should be changed
+				int node_two = (rand() % (saving_variable_path.size() - 1)) + 1; //The first and last one should be untouched
 				if (node_one != node_two) //node can't be switched with himself
 				{
 					for (int node = 0; node < saving_variable_path.size(); node++) //fill the mutated path with the information
@@ -113,8 +113,8 @@ std::vector<int> GeneticTSPSolver::mutatePath(const std::vector<int>& parent_pat
 		bool inverted = false;
 		do
 		{
-			int node_one = (rand() % (saving_variable_path.size() - 2)) + 1; //this variables random choose which intervall
-			int node_two = (rand() % (saving_variable_path.size() - 2)) + 1; //The first and last one should be untouched
+			int node_one = (rand() % (saving_variable_path.size() - 1)) + 1; //this variables random choose which intervall
+			int node_two = (rand() % (saving_variable_path.size() - 1)) + 1; //The first and last one should be untouched
 			int inverting_counter = 0; //variable to choose the node based on distance to the node_two
 			if (node_one > node_two) //switch variables, if the node_one is bigger than the node_two (easier to work with here)
 			{
@@ -191,34 +191,37 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& path_length_Ma
 
 	std::vector<int> calculated_path = nearest_neighbor_solver.solveNearestTSP(path_length_Matrix, start_Node);
 
-	bool changed_path = false; //this variable checks if the path has been changed in the mutation process
-	int changeing_counter = 25; //this variable is a counter for how many times a path has been the same
-
-	int number_of_generations = 0;
-
-	do
+	if(path_length_Matrix.rows > 2) //check if graph has at least three members, if not the algorithm won't work properly
 	{
-		number_of_generations++;
-		changed_path = false;
-		std::vector < std::vector<int> > current_generation_paths; //vector to save the current generation
-		current_generation_paths.push_back(calculated_path); //first path is always the parent --> important for checking if the path has changed in getBestPath!!
-		for (int child = 0; child < 8; child++) //get 8 children and add them to the vector
+		bool changed_path = false; //this variable checks if the path has been changed in the mutation process
+		int changeing_counter = 42; //this variable is a counter for how many times a path has been the same
+
+		int number_of_generations = 0;
+
+		do
 		{
-			current_generation_paths.push_back(mutatePath(calculated_path));
-		}
-		calculated_path = getBestPath(current_generation_paths, path_length_Matrix, changed_path); //get the best path of this generation
-		if (number_of_generations >= 350) //when 350 steps has been done the algorithm checks if the last ten paths didn't change
-		{
-			if (changed_path)
+			number_of_generations++;
+			changed_path = false;
+			std::vector < std::vector<int> > current_generation_paths; //vector to save the current generation
+			current_generation_paths.push_back(calculated_path); //first path is always the parent --> important for checking if the path has changed in getBestPath!!
+			for (int child = 0; child < 8; child++) //get 8 children and add them to the vector
 			{
-				changeing_counter = 25; //reset the counting-variable
+				current_generation_paths.push_back(mutatePath(calculated_path));
 			}
-			else
+			calculated_path = getBestPath(current_generation_paths, path_length_Matrix, changed_path); //get the best path of this generation
+			if (number_of_generations >= 730) //when a specified amount of steps have been done the algorithm checks if the last ten paths didn't change
 			{
-				changeing_counter -= 1; //decrease the counting-variable by 1
+				if (changed_path)
+				{
+					changeing_counter = 25; //reset the counting-variable
+				}
+				else
+				{
+					changeing_counter -= 1; //decrease the counting-variable by 1
+				}
 			}
-		}
-	} while (changeing_counter > 0 || number_of_generations < 350);
+		} while (changeing_counter > 0 || number_of_generations < 350);
+	}
 
 	return calculated_path;
 }

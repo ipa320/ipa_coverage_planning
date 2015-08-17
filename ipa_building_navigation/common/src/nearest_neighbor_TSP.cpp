@@ -54,33 +54,38 @@ std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& path_l
 {
 	std::vector<int> calculated_order; //solution order
 
-	int last_node; //index of the last spectated node
-
-	int current_node = start_node; //index of the current spectated node
-	calculated_order.push_back(current_node);
-
-	//check every Point for the next nearest neighbor and add it to the order
-	do
+	if(path_length_matrix.rows > 1) //check if clique has more than one member or else this algorithm produces a order of size=3
 	{
-		int next_node; //saver for next node
-		double saved_distance = 100000000000000; //saver for distance to current next node
-		for (int current_neighbor = 0; current_neighbor < path_length_matrix.rows; current_neighbor++)
+		int last_node; //index of the last spectated node
+
+		int current_node = start_node; //index of the current spectated node
+		calculated_order.push_back(current_node);
+
+		//check every Point for the next nearest neighbor and add it to the order
+		do
 		{
-			if (!contains(calculated_order, current_neighbor)) //check if current neighbor hasn't been visited yet
+			int next_node; //saver for next node
+			double saved_distance = 100000000000000; //saver for distance to current next node
+			for (int current_neighbor = 0; current_neighbor < path_length_matrix.rows; current_neighbor++)
 			{
-				if (path_length_matrix.at<double>(current_node, current_neighbor) < saved_distance
-				        && path_length_matrix.at<double>(current_node, current_neighbor) > 0)
+				if (!contains(calculated_order, current_neighbor)) //check if current neighbor hasn't been visited yet
 				{
-					next_node = current_neighbor;
-					saved_distance = path_length_matrix.at<double>(current_node, current_neighbor);
+					if (path_length_matrix.at<double>(current_node, current_neighbor) < saved_distance
+				        && path_length_matrix.at<double>(current_node, current_neighbor) > 0)
+					{
+						next_node = current_neighbor;
+						saved_distance = path_length_matrix.at<double>(current_node, current_neighbor);
+					}
 				}
 			}
-		}
-		calculated_order.push_back(next_node); //add the found nearest neighbor to the order-vector
-	} while (calculated_order.size() < path_length_matrix.rows); //when the order has as many elements as the pathlength Matrix has the solver is ready
+			calculated_order.push_back(next_node); //add the found nearest neighbor to the order-vector
+		} while (calculated_order.size() < path_length_matrix.rows); //when the order has as many elements as the pathlength Matrix has the solver is ready
 
-	//add the starting-node at the end of the vector, so the Start will be reached again.
-	calculated_order.push_back(start_node);
+	}
+	else
+	{
+		calculated_order.push_back(start_node);
+	}
 
 	return calculated_order;
 }

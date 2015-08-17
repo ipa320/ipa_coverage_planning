@@ -58,7 +58,7 @@ public:
 	//		3. The distance matrix has to be computed and may be returned
 
 	//cliques are given
-	std::vector<std::vector<int> > solveSetCover(const std::vector<std::vector<int> >& given_cliques, const int number_of_nodes);
+	std::vector<std::vector<int> > solveSetCover(std::vector<std::vector<int> >& given_cliques, const int number_of_nodes);
 
 	//the distance matrix is given
 	std::vector<std::vector<int> > solveSetCover(const cv::Mat& distance_matrix, const int number_of_nodes, double maximal_pathlength);

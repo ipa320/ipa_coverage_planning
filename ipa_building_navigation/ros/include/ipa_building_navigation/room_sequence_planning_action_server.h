@@ -136,6 +136,9 @@ protected:
 	// this is the execution function used by action server
 	void findRoomSequenceWithCheckpointsServer(const ipa_building_navigation::FindRoomSequenceWithCheckpointsGoalConstPtr &goal);
 
+	size_t getNearestLocation(const cv::Mat& floor_plan, const cv::Point start_coordinate, const std::vector<cv::Point>& positions,
+			const double map_downsampling_factor, const double robot_radius, const double map_resolution);
+
 	// params
 	int tsp_solver_;		// TSP solver: 1 = Nearest Neighbor,  2 = Genetic solver,  3 = Concorde solver
 	bool display_map_;		// displays the map with paths upon service call
