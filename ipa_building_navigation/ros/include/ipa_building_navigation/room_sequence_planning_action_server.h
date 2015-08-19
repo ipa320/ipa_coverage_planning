@@ -142,4 +142,5 @@ protected:
 	// params
 	int tsp_solver_;		// TSP solver: 1 = Nearest Neighbor,  2 = Genetic solver,  3 = Concorde solver
 	bool display_map_;		// displays the map with paths upon service call
+	int planning_method_;	// Method of planning the sequence: 1 = drag trolley if next room is too far away, 2 = calculate cliques as roomgroups with trolleypositions
 };

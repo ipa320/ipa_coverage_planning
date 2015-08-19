@@ -5,6 +5,12 @@
 # int
 tsp_solver: 2
 
+# Method for sequence planning
+#	1 = drag trolley if next room is too far away
+#	2 = calculate roomgroups and a trolleyposition for each of it
+# int
+planning_method: 1
+
 # displays the map with paths upon service call
 # bool
 display_map: true

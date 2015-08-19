@@ -130,7 +130,7 @@ cv::Vec2d MeanShift2D::findRoomCenter(const cv::Mat& room_image, const std::vect
 		room_cells_sampled = room_cells;
 
 	// mean shift filter
-	const double bandwidth = map_resolution/2.;
+	const double bandwidth = map_resolution/2.;		// paramter
 	std::vector<cv::Vec2d> filtered_room_cells;
 	filter(room_cells_sampled, filtered_room_cells, bandwidth, 100);
 

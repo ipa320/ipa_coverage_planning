@@ -19,8 +19,8 @@ int main(int argc, char **argv)
 
 	std::vector< std::string > map_names;
 //	map_names.push_back("freiburg_building101.png");
-	map_names.push_back("freiburg_building52.png");
-	map_names.push_back("freiburg_building79.png");
+//	map_names.push_back("freiburg_building52.png");
+//	map_names.push_back("freiburg_building79.png");
 //	map_names.push_back("intel_map.png");
 //	map_names.push_back("lab_a.png");
 //	map_names.push_back("lab_b.png");
