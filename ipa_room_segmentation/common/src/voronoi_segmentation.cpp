@@ -167,7 +167,7 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 				{
 					if (rooms[current_room].getID() == current_id) //insert the current Point into the corresponding room
 					{
-						rooms[current_room].insertMemberPoint(cv::Point(x, y));
+						rooms[current_room].insertMemberPoint(cv::Point(x, y), map_resolution_from_subscription);
 						break;
 					}
 				}
@@ -175,12 +175,12 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 		}
 	}
 	//set the area for each room
-	for (int room = 0; room < rooms.size(); room++)
-	{
-		std::vector<cv::Point> members = rooms[room].getMembers();
-		double room_area = map_resolution_from_subscription * map_resolution_from_subscription * members.size();
-		rooms[room].setArea(room_area);
-	}
+//	for (int room = 0; room < rooms.size(); room++)
+//	{
+//		std::vector<cv::Point> members = rooms[room].getMembers();
+//		double room_area = map_resolution_from_subscription * map_resolution_from_subscription * members.size();
+//		rooms[room].setArea(room_area);
+//	}
 	//add the neighbor IDs for every Point
 	for (int current_room = 0; current_room < rooms.size(); current_room++)
 	{
@@ -211,6 +211,7 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 		{
 			std::vector<cv::Point> current_room_members = rooms[current_room].getMembers();
 			double max_shared_perimeter = 0;
+			int room_indice = -1;
 			int largest_ID = 0;
 			std::vector<int> neighbor_ids = rooms[current_room].getNeighborIDs(); //get IDs for every neighbor of this room
 			for (int current_neighbor = 0; current_neighbor < rooms.size(); current_neighbor++)
@@ -242,12 +243,14 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 					{
 						max_shared_perimeter = neighboring_points.size();
 						largest_ID = rooms[current_neighbor].getID();
+						room_indice = current_neighbor;
 					}
 				}
 			}
 			if(largest_ID != 0)//check if the largest ID has been set and isn't zero
 			{
 				rooms[current_room].setRoomId(largest_ID, map_to_merge_rooms);
+				rooms[room_indice].insertMemberPoints(current_room_members, map_resolution_from_subscription);
 			}
 		}
 	}
@@ -652,7 +655,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 						Room current_room(random_number); //add the current Contour as a room
 						for (int point = 0; point < contours[current_contour].size(); point++) //add contour points to room
 						{
-							current_room.insertMemberPoint(cv::Point(contours[current_contour][point]));
+							current_room.insertMemberPoint(cv::Point(contours[current_contour][point]), map_resolution_from_subscription);
 						}
 						rooms.push_back(current_room);
 						drawn = true;

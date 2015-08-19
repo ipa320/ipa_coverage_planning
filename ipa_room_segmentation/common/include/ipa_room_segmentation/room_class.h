@@ -25,7 +25,9 @@ protected:
 public:
 	Room(int id_of_room);
 
-	int insertMemberPoint(cv::Point new_member);
+	int insertMemberPoint(cv::Point new_member, double map_resolution);
+
+	int insertMemberPoints(std::vector<cv::Point> new_members, double map_resolution);
 
 	int addNeighborID(int new_neighbor_id);
 

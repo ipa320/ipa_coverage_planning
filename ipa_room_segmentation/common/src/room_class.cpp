@@ -4,18 +4,34 @@ Room::Room(int id_of_room)
 {
 	id_number_ = id_of_room;
 	//initial values for the area and perimeter
-	room_area_ = -1;
-	room_perimeter_ = -1;
+	room_area_ = 0;
+	room_perimeter_ = 0;
 }
 
 //function to add a Point to the Room
-int Room::insertMemberPoint(cv::Point new_member)
+int Room::insertMemberPoint(cv::Point new_member, double map_resolution)
 {
 	if (!contains(member_Points_, new_member))
 	{
 		member_Points_.push_back(new_member);
+		room_area_ += map_resolution * map_resolution;
 		return 0;
 	}
+	return 1;
+}
+
+//function to add a few Points
+int Room::insertMemberPoints(std::vector<cv::Point> new_members, double map_resolution)
+{
+	for (size_t point = 0; point < new_members.size(); point++)
+	{
+		if (!contains(member_Points_, new_members[point]))
+		{
+			member_Points_.push_back(new_members[point]);
+			return 0;
+		}
+	}
+	room_area_ += map_resolution * map_resolution * new_members.size();
 	return 1;
 }
 
@@ -44,7 +60,7 @@ std::vector<int> Room::getNeighborIDs()
 //function to get the area of this room, which has been set previously
 double Room::getArea()
 {
-	if (room_area_ != -1)
+	if (room_area_ != 0)
 	{
 		return room_area_;
 	}
@@ -55,7 +71,7 @@ double Room::getArea()
 //function to get the perimeter of this room, which has been set previously
 double Room::getPerimeter()
 {
-	if (room_perimeter_ != -1)
+	if (room_perimeter_ != 0)
 	{
 		return room_perimeter_;
 	}
@@ -86,7 +102,7 @@ int Room::setRoomId(int new_value, cv::Mat& map)
 	{
 		for (int x = 0; x < map.cols; x++)
 		{
-			if(map.at<int>(y, x) == id_number_)
+			if (map.at<int>(y, x) == id_number_)
 			{
 				map.at<int>(y, x) = new_value;
 			}
