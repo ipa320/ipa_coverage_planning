@@ -28,11 +28,10 @@ int Room::insertMemberPoints(std::vector<cv::Point> new_members, double map_reso
 		if (!contains(member_Points_, new_members[point]))
 		{
 			member_Points_.push_back(new_members[point]);
-			return 0;
 		}
 	}
 	room_area_ += map_resolution * map_resolution * new_members.size();
-	return 1;
+	return 0;
 }
 
 //function to add a neighbor to the Room

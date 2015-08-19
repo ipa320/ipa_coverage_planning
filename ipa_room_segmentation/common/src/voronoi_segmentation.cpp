@@ -174,13 +174,6 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 			}
 		}
 	}
-	//set the area for each room
-//	for (int room = 0; room < rooms.size(); room++)
-//	{
-//		std::vector<cv::Point> members = rooms[room].getMembers();
-//		double room_area = map_resolution_from_subscription * map_resolution_from_subscription * members.size();
-//		rooms[room].setArea(room_area);
-//	}
 	//add the neighbor IDs for every Point
 	for (int current_room = 0; current_room < rooms.size(); current_room++)
 	{
@@ -206,7 +199,7 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 	for (int current_room = 0; current_room < rooms.size(); current_room++)
 	{
 		//only merge rooms that have 2 or less neighbors and are small enough
-		if ((rooms[current_room].getNeighborCount() <= 2 && rooms[current_room].getArea() < max_area_for_merging) //15.0
+		if ((rooms[current_room].getNeighborCount() <= 2 && rooms[current_room].getArea() < max_area_for_merging) //12.5
 				|| (rooms[current_room].getNeighborCount() == 3 && rooms[current_room].getArea() < 3.5))//3.5 --> if room is too small merge it with neighbors
 		{
 			std::vector<cv::Point> current_room_members = rooms[current_room].getMembers();
@@ -251,6 +244,8 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 			{
 				rooms[current_room].setRoomId(largest_ID, map_to_merge_rooms);
 				rooms[room_indice].insertMemberPoints(current_room_members, map_resolution_from_subscription);
+//				cv::imshow("test", map_to_merge_rooms);
+//				cv::waitKey();
 			}
 		}
 	}
