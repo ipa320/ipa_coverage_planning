@@ -22,6 +22,7 @@ set(catkin_BUILD_PACKAGES
 find_package(catkin REQUIRED COMPONENTS
 	${catkin_BUILD_PACKAGES}
 	genmsg
+	actionlib_msgs
 )
 
 find_package(OpenCV REQUIRED)
@@ -48,8 +49,8 @@ add_message_files(
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
 	DEPENDENCIES
-		std_msgs
 		actionlib_msgs
+		std_msgs
 		sensor_msgs
 		geometry_msgs
 )
