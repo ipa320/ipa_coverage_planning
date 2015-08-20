@@ -78,7 +78,7 @@ int main(int argc, char **argv)
 			ROS_ERROR("Timeout on room segmentation.");
 			return -1;
 		}
-		ipa_room_segmentation::MapSegmentationResultConstPtr result_seq = ac_seg.getResult();
+		ipa_room_segmentation::MapSegmentationResultConstPtr result_seg = ac_seg.getResult();
 		ROS_INFO("Finished segmentation successfully!");
 
 		// solve sequence problem
@@ -94,7 +94,7 @@ int main(int argc, char **argv)
 		goal_seq.map_resolution = goal_seg.map_resolution;
 		goal_seq.map_origin.position.x = goal_seg.map_origin.position.x;
 		goal_seq.map_origin.position.y = goal_seg.map_origin.position.y;
-		goal_seq.room_information_in_pixel = result_seq->room_information_in_pixel;
+		goal_seq.room_information_in_pixel = result_seg->room_information_in_pixel;
 		goal_seq.max_clique_path_length = 13.5;
 		goal_seq.map_downsampling_factor = 0.25;
 		goal_seq.robot_radius = 0.3;

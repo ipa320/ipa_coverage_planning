@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+
+	<!--  -->
+	<node ns="room_sequence_planning" pkg="ipa_building_navigation" type="room_sequence_planning_evaluation" name="room_sequence_planning_evaluation" output="screen"/>
+
+</launch>

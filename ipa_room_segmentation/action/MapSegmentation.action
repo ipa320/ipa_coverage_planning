@@ -7,6 +7,11 @@ float32 map_resolution					# the resolution of the map in [meter/cell]
 geometry_msgs/Pose map_origin			# the origin of the map in [meter]
 bool return_format_in_pixel   			# return room data (see below) in [pixel]
 bool return_format_in_meter   			# return room data (see below) in [meter]
+int32 room_segmentation_algorithm		# this variable selects the algorithm for room segmentation
+											# 1 = morphological segmentation
+											# 2 = distance segmentation
+											# 3 = Voronoi segmentation
+											# 4 = semantic segmentation
 
 ---
 

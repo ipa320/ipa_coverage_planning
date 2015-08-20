@@ -129,6 +129,17 @@ target_link_libraries(room_sequence_planning_client
 )
 add_dependencies(room_sequence_planning_client ${catkin_EXPORTED_TARGETS} ${ipa_building_navigation_EXPORTED_TARGETS})
 
+# client for testing purpose
+add_executable(room_sequence_planning_evaluation 
+	ros/src/room_sequence_planning_evaluation.cpp
+	common/src/A_star_pathplanner.cpp
+	common/src/node.cpp)
+target_link_libraries(room_sequence_planning_evaluation
+	${catkin_LIBRARIES} 
+	${OpenCV_LIBRARIES}
+)
+add_dependencies(room_sequence_planning_evaluation ${catkin_EXPORTED_TARGETS} ${ipa_building_navigation_EXPORTED_TARGETS})
+
  
 #############
 ## Install ##

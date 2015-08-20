@@ -148,6 +148,9 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	const cv::Point2d map_origin(goal->map_origin.position.x, goal->map_origin.position.y);
 
 	//segment the given map
+	const int room_segmentation_algorithm_value = room_segmentation_algorithm_;
+	if (goal->room_segmentation_algorithm > 0 && goal->room_segmentation_algorithm < 5)
+		room_segmentation_algorithm_ = goal->room_segmentation_algorithm;
 	cv::Mat segmented_map;
 	if (room_segmentation_algorithm_ == 1)
 	{
@@ -160,7 +163,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	else if (room_segmentation_algorithm_ == 3)
 	{
 		voronoi_segmentation_.segmentationAlgorithm(original_img, segmented_map, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_,
-		        voronoi_neighborhood_index_, max_iterations_, min_critical_point_distance_factor_, max_area_for_merging_);
+			voronoi_neighborhood_index_, max_iterations_, min_critical_point_distance_factor_, max_area_for_merging_);
 	}
 	else if (room_segmentation_algorithm_ == 4)
 	{
@@ -175,16 +178,18 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 			cv::Mat second_hallway_training_map = cv::imread(package_path + "/common/files/training_maps/lab_a_hallway_training_map.png", 0);
 			//train the algorithm
 			semantic_segmentation_.trainClassifiers(first_room_training_map, second_room_training_map, first_hallway_training_map, second_hallway_training_map,
-			        classifier_path);
+				classifier_path);
 		}
 		semantic_segmentation_.semanticLabeling(original_img, segmented_map, map_resolution, room_lower_limit_semantic_, room_upper_limit_semantic_,
-		        classifier_path);
+			classifier_path);
 	}
 	else
 	{
 		ROS_ERROR("Undefined algorithm selected.");
+		room_segmentation_algorithm_ = room_segmentation_algorithm_value;
 		return;
 	}
+	room_segmentation_algorithm_ = room_segmentation_algorithm_value;
 
 	ROS_INFO("********Segmented the map************");
 //	looping_rate.sleep();
@@ -270,6 +275,18 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 		room_centers_y_values[index] = room_center[1];
 	}
 
+	// colorize the segmented map with the indices of the room_center vector
+	cv::Mat indexed_map = segmented_map.clone();
+	for (int y = 0; y < segmented_map.rows; ++y)
+	{
+		for (int x = 0; x < segmented_map.cols; ++x)
+		{
+			const int label = segmented_map.at<int>(y,x);
+			if (label > 0 && label < 65280)
+				indexed_map.at<int>(y,x) = label_vector_index_codebook[label];
+		}
+	}
+
 	if (display_segmented_map_ == true)
 	{
 		cv::Mat disp = segmented_map.clone();
@@ -277,7 +294,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 			cv::circle(disp, cv::Point(room_centers_x_values[index], room_centers_y_values[index]), 2, cv::Scalar(200 * 256), CV_FILLED);
 
 		cv::imshow("segmentation", disp);
-		cv::imwrite("/home/rmb-fj/Pictures/morpho_seg.png", disp);
+		//cv::imwrite("/home/rmb-fj/Pictures/morpho_seg.png", disp);
 		cv::waitKey();
 	}
 
@@ -287,7 +304,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	cv_bridge::CvImage cv_image;
 	cv_image.header.stamp = ros::Time::now();
 	cv_image.encoding = "mono8";
-	cv_image.image = segmented_map;
+	cv_image.image = indexed_map;
 	cv_image.toImageMsg(action_result.segmented_map);
 
 	//setting value to the action msgs to publish

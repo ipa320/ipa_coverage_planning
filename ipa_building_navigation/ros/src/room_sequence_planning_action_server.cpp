@@ -113,7 +113,7 @@ void RoomSequencePlanning::findRoomSequenceWithCheckpointsServer(const ipa_build
 			room_centers.push_back(current_center);
 	}
 
-	std::cout << "Anzahl erreichbarer Raumzentren: " << room_centers.size() << std::endl;
+	std::cout << "number of reachable roomcenters: " << room_centers.size() << std::endl;
 
 	if(room_centers.size() == 0)
 	{
