@@ -277,6 +277,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 			cv::circle(disp, cv::Point(room_centers_x_values[index], room_centers_y_values[index]), 2, cv::Scalar(200 * 256), CV_FILLED);
 
 		cv::imshow("segmentation", disp);
+		cv::imwrite("/home/rmb-fj/Pictures/morpho_seg.png", disp);
 		cv::waitKey();
 	}
 
