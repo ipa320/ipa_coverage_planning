@@ -121,9 +121,20 @@ void RoomSequencePlanning::findRoomSequenceWithCheckpointsServer(const ipa_build
 		return;
 	}
 
-	//saving vectors needed ffrom both planning methods
+	if(goal->planning_method > 0 && goal->planning_method < 3)
+	{
+		planning_method_ = goal->planning_method;
+		if(planning_method_ == 1)
+			ROS_INFO("You have chosen the drag-planning method.");
+		if(planning_method_ == 2)
+			ROS_INFO("You have chosen the grouping planning method.");
+	}
+	//saving vectors needed from both planning methods
 	std::vector<std::vector<int> > cliques;
 	std::vector<cv::Point> trolley_positions;
+
+	//image container to draw the sequence in if neccesarry
+	cv::Mat display;
 
 	if(planning_method_ == 1) //Drag Trolley if the next room is too far away
 	{
@@ -246,10 +257,8 @@ void RoomSequencePlanning::findRoomSequenceWithCheckpointsServer(const ipa_build
 			}
 		}
 
-		// display
-		if (display_map_ == true)
+		if(goal->return_sequence_map == true)
 		{
-			cv::Mat display;
 			cv::cvtColor(floor_plan, display, CV_GRAY2BGR);
 
 			std::cout << "Alle Raumpunkte in Cliquen: " << std::endl;
@@ -297,10 +306,18 @@ void RoomSequencePlanning::findRoomSequenceWithCheckpointsServer(const ipa_build
 					}
 				}
 			}
-
+		}
+		// display
+		if (display_map_ == true && goal->return_sequence_map == true)
+		{
 			cv::imshow("sequence planning", display);
 			cv::waitKey();
 		}
+	}
+	else
+	{
+		ROS_ERROR("Undefined planning method.");
+		return;
 	}
 	// return results
 	ipa_building_navigation::FindRoomSequenceWithCheckpointsResult action_result;
@@ -315,6 +332,15 @@ void RoomSequencePlanning::findRoomSequenceWithCheckpointsServer(const ipa_build
 		room_sequences[i].checkpoint_position_in_meter.y = convert_pixel_to_meter_for_y_coordinate(trolley_positions[i].y, goal->map_resolution, map_origin);
 	}
 	action_result.checkpoints = room_sequences;
+	if(goal->return_sequence_map == true)
+	{
+		//converting the cv format in map msg format
+		cv_bridge::CvImage cv_image;
+		cv_image.header.stamp = ros::Time::now();
+		cv_image.encoding = "bgr8";
+		cv_image.image = display;
+		cv_image.toImageMsg(action_result.sequence_map);
+	}
 
 	room_sequence_with_checkpoints_server_.setSucceeded(action_result);
 }

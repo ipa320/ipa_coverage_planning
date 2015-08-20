@@ -13,4 +13,4 @@ planning_method: 2
 
 # displays the map with paths upon service call
 # bool
-display_map: true
+display_map: false

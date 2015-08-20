@@ -9,6 +9,10 @@ float64 map_downsampling_factor				# the map may be downsampled during computati
 											# if set to 1 the map will have original size, if set to 0 the algorithm won't work
 float64 robot_radius						# the robot footprint radius [m], used for excluding areas from path planning that could not be visited by the robot
 geometry_msgs/Pose robot_start_coordinate	# current robot location (used to determine the closest checkpoint in the sequence of checkpoints) [in meter]
+int32 planning_method						# method that is used to plan the trolley positions
+												# 1: drag the trolley if it is too far away in next room
+												# 2: put rooms together in groups and calculate a corresponding trolley position
+bool return_sequence_map					# boolean to tell the server if the map with the sewuence drawn in should be returned
 
 ---
 
@@ -16,6 +20,7 @@ geometry_msgs/Pose robot_start_coordinate	# current robot location (used to dete
 ipa_building_navigation/RoomSequence[] checkpoints		# sequence of checkpoints, should be ordered in optimized traveling salesman sequence
 														# (checkpoint = a clique of rooms close [in terms of robot driving distance] to each other,
 														#               and a central [in terms of rooms in the group] checkpoint location)
+sensor_msgs/Image sequence_map							# map that has the calculated sequence drawn in
 
 ---
 #feedback definition

@@ -253,7 +253,7 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 
 void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription,
         double room_area_factor_lower_limit, double room_area_factor_upper_limit, int neihborhood_index, int max_iterations,
-        double min_critical_Point_distance_factor, double max_area_for_merging)
+        double min_critical_Point_distance_factor, double max_area_for_merging, bool display_map)
 {
 	//****************Create the Generalized Voronoi-Diagram**********************
 	//This function takes a given map and segments it with the generalized Voronoi-Diagram. It takes following steps:
@@ -663,8 +663,11 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 	//3.fill the last white areas with the surrounding color
 	wavefrontRegionGrowing(segmented_map);
 
-	cv::imshow("before", segmented_map);
-	cv::waitKey(1);
+	if(display_map == true)
+	{
+		cv::imshow("before", segmented_map);
+		cv::waitKey(1);
+	}
 	//4.merge the rooms together if neccessary
 	mergeRooms(segmented_map, rooms, map_resolution_from_subscription, max_area_for_merging);
 }

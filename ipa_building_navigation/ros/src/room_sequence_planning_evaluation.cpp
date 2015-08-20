@@ -296,7 +296,7 @@ public:
 			path_length += planner.planPath(downsampled_map, evaluation_data.map_downsampling_factor_*trolley_position, evaluation_data.map_downsampling_factor_*robot_start_position, 1., 0., evaluation_data.map_resolution_);
 
 			// evaluation
-			double path_length_in_meter = path_length * evaluation_data.map_resolution_;
+			double path_length_in_meter = (path_length / evaluation_data.map_downsampling_factor_) * evaluation_data.map_resolution_;
 			double robot_speed = 0.25;		// [m/s]
 			double time_for_trashbin_manipulation = 150;	// [s], without driving
 			double time_for_trolley_manipulation = 90;		// [s], without driving
@@ -319,8 +319,23 @@ public:
 			file.close();
 
 			// images: segmented_map, sequence_map
+			//TODO: Karte in ansehbarer Segmentierung ausgeben
 			std::string segmented_map_filename = path + evaluation_data.map_name_ + "_segmented.png";
-			cv::imwrite(segmented_map_filename.c_str(), segmented_map);
+			cv_bridge::CvImagePtr cv_ptr_seg;
+			cv_ptr_seg = cv_bridge::toCvCopy(result_seg->segmented_map_not_indexed, sensor_msgs::image_encodings::TYPE_32SC1);
+			cv::Mat segmented_map_not_indexed = cv_ptr_seg->image;
+			segmented_map.convertTo(segmented_map_not_indexed, CV_8U);
+			//colour image in unique colour to show the segmentation
+			cv::imwrite(segmented_map_filename.c_str(), segmented_map_not_indexed);
+
+			std::string sequence_map_filename = path + evaluation_data.map_name_ + "_sequence.png";
+			cv_bridge::CvImagePtr cv_ptr_seq;
+			cv_ptr_seq = cv_bridge::toCvCopy(result_seq->sequence_map, sensor_msgs::image_encodings::BGR8);
+			cv::Mat sequence_map = cv_ptr_seq->image;
+//			cv::imshow("sequence", sequence_map);
+//			cv::waitKey();
+			cv::imwrite(sequence_map_filename.c_str(), sequence_map);
+
 		}
 
 		return true;
@@ -388,6 +403,7 @@ public:
 		goal_seq.map_downsampling_factor = evaluation_data.map_downsampling_factor_;
 		goal_seq.robot_radius = robot_radius_;
 		goal_seq.robot_start_coordinate = evaluation_data.robot_start_position_;
+		goal_seq.return_sequence_map = true;
 		ac_seq.sendGoal(goal_seq);
 
 		//wait for the action to return

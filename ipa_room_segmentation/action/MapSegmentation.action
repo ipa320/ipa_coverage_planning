@@ -23,6 +23,7 @@ geometry_msgs/Pose map_origin			# the origin of the segmented map in [meter]
 ipa_room_segmentation/RoomInformation[] room_information_in_pixel		# room data (min/max coordinates, center coordinates) measured in pixels
 # for the following data: value in meter can be obtained when the value of [return_format_in_meter] from goal definition is true
 ipa_room_segmentation/RoomInformation[] room_information_in_meter		# room data (min/max coordinates, center coordinates) measured in meters
+sensor_msgs/Image segmented_map_not_indexed		# the segmented map in grayscale format without the assignen of the roomindex to the Pixels
 
 ---
 

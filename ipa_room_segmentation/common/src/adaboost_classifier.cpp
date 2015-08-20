@@ -187,7 +187,7 @@ void AdaboostClassifier::trainClassifiers(const cv::Mat& first_room_training_map
 }
 
 void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription,
-        double room_area_factor_lower_limit, double room_area_factor_upper_limit, const std::string& classifier_storage_path)
+        double room_area_factor_lower_limit, double room_area_factor_upper_limit, const std::string& classifier_storage_path, bool display_results)
 {
 	//******************Semantic-labeling function based on AdaBoost*****************************
 	//This function calculates single-valued features for every white Pixel in the given occupancy-gridmap and classifies it
@@ -268,8 +268,11 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 			}
 		}
 	}
-	cv::imshow("classified", temporary_map);
-	cv::waitKey(1);
+	if(display_results)
+	{
+		cv::imshow("classified", temporary_map);
+		cv::waitKey();
+	}
 	cv::Mat blured_image_for_thresholding = temporary_map.clone();
 
 	//*********** IV. Fill the large enough rooms with a random color and split the hallways into smaller regions*********

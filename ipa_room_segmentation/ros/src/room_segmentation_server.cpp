@@ -150,7 +150,37 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	//segment the given map
 	const int room_segmentation_algorithm_value = room_segmentation_algorithm_;
 	if (goal->room_segmentation_algorithm > 0 && goal->room_segmentation_algorithm < 5)
+	{
 		room_segmentation_algorithm_ = goal->room_segmentation_algorithm;
+		if(room_segmentation_algorithm_ == 1) //morpho
+		{
+			room_lower_limit_morphological_ = 0.8;
+			room_upper_limit_morphological_ = 47.0;
+			ROS_INFO("You have chosen the morphologcial segmentation.");
+		}
+		if(room_segmentation_algorithm_ == 2) //distance
+		{
+			room_lower_limit_distance_ = 0.35;
+			room_upper_limit_distance_ = 163.0;
+			ROS_INFO("You have chosen the distance segmentation.");
+		}
+		if(room_segmentation_algorithm_ == 3) //voronoi
+		{
+			room_lower_limit_voronoi_ = 1.53;
+			room_upper_limit_voronoi_ = 120.0;
+			voronoi_neighborhood_index_ = 280;
+			max_iterations_ = 150;
+			min_critical_point_distance_factor_ = 1.6;
+			max_area_for_merging_ =12.5;
+			ROS_INFO("You have chosen the voronoi Segmentation");
+		}
+		if(room_segmentation_algorithm_ == 4) //semantic
+		{
+			room_lower_limit_semantic_ = 1.0;
+			room_upper_limit_semantic_ = 23.0;
+			ROS_INFO("You have chosen the semantic segmentation.");
+		}
+	}
 	cv::Mat segmented_map;
 	if (room_segmentation_algorithm_ == 1)
 	{
@@ -163,7 +193,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	else if (room_segmentation_algorithm_ == 3)
 	{
 		voronoi_segmentation_.segmentationAlgorithm(original_img, segmented_map, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_,
-			voronoi_neighborhood_index_, max_iterations_, min_critical_point_distance_factor_, max_area_for_merging_);
+			voronoi_neighborhood_index_, max_iterations_, min_critical_point_distance_factor_, max_area_for_merging_, display_segmented_map_);
 	}
 	else if (room_segmentation_algorithm_ == 4)
 	{
@@ -181,7 +211,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 				classifier_path);
 		}
 		semantic_segmentation_.semanticLabeling(original_img, segmented_map, map_resolution, room_lower_limit_semantic_, room_upper_limit_semantic_,
-			classifier_path);
+			classifier_path, display_segmented_map_);
 	}
 	else
 	{
@@ -294,7 +324,6 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 			cv::circle(disp, cv::Point(room_centers_x_values[index], room_centers_y_values[index]), 2, cv::Scalar(200 * 256), CV_FILLED);
 
 		cv::imshow("segmentation", disp);
-		//cv::imwrite("/home/rmb-fj/Pictures/morpho_seg.png", disp);
 		cv::waitKey();
 	}
 
@@ -303,9 +332,15 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	//converting the cv format in map msg format
 	cv_bridge::CvImage cv_image;
 	cv_image.header.stamp = ros::Time::now();
-	cv_image.encoding = "mono8";
+	cv_image.encoding = "32SC1";
 	cv_image.image = indexed_map;
 	cv_image.toImageMsg(action_result.segmented_map);
+
+	cv_bridge::CvImage cv_image_not_indexed;
+	cv_image_not_indexed.header.stamp = ros::Time::now();
+	cv_image_not_indexed.encoding = "32SC1";
+	cv_image_not_indexed.image = segmented_map;
+	cv_image_not_indexed.toImageMsg(action_result.segmented_map_not_indexed);
 
 	//setting value to the action msgs to publish
 	action_result.map_resolution = goal->map_resolution;
