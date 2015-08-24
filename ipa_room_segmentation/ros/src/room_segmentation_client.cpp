@@ -25,8 +25,8 @@ int main(int argc, char **argv)
 //	map_names.push_back("intel_map.png");
 //	map_names.push_back("lab_a.png");
 //	map_names.push_back("lab_b.png");
-	map_names.push_back("lab_c.png");
-	map_names.push_back("lab_d.png");
+//	map_names.push_back("lab_c.png");
+//	map_names.push_back("lab_d.png");
 //	map_names.push_back("lab_e.png");
 
 	for (size_t image_index = 0; image_index<map_names.size(); ++image_index)
