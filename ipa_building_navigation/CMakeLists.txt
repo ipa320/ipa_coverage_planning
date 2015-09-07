@@ -103,9 +103,9 @@ include_directories(
 #target_link_libraries(a_star_tester ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES})
 #add_dependencies(a_star_tester ${catkin_EXPORTED_TARGETS})
 
-#add_executable(tester ros/src/boosttest.cpp common/src/A_star_pathplanner.cpp common/src/node.cpp)
-#target_link_libraries(tester ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
-#add_dependencies(tester ${catkin_EXPORTED_TARGETS})
+add_executable(TSP_evaluation ros/src/boosttest.cpp common/src/A_star_pathplanner.cpp common/src/node.cpp common/src/nearest_neighbor_TSP.cpp common/src/genetic_TSP.cpp common/src/concorde_TSP.cpp common/src/contains.cpp)
+target_link_libraries(TSP_evaluation ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+add_dependencies(TSP_evaluation ${catkin_EXPORTED_TARGETS})
 
 # action provider
 add_executable(room_sequence_planning_server

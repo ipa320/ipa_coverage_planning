@@ -83,7 +83,7 @@ void MorphologicalSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_l
 	for (int idx = 0; idx < saved_contours.size(); idx++)
 	{
 		bool drawn = false; //checking-variable if contour has been drawn
-		int draw_counter = 0; //counter to exit loop if it gets into an endless-loop (e.g. when there are more than 250 rooms)
+		int draw_counter = 0; //counter to exit loop if it gets into an endless-loop (e.g. when there are more rooms than possible)
 		do
 		{
 			draw_counter++;

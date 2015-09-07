@@ -67,9 +67,9 @@ template<typename OutputStream>
 struct visitor
 {
 	vector<int> current_names;
-	visitor(OutputStream& stream) :
-			os(stream)
+	visitor()
 	{
+
 	}
 
 	template<typename Clique, typename Graph>
@@ -84,7 +84,6 @@ struct visitor
 		names_.push_back(current_names); //save the clique to return all later
 		current_names.clear(); //clear the current clique
 	}
-	OutputStream& os;
 };
 
 cliqueFinder::cliqueFinder()
@@ -153,7 +152,7 @@ std::vector<std::vector<int> > cliqueFinder::getCliques(const cv::Mat& distance_
 	createGraph(g, cutted_distance_matrix);
 
 	//Object needed from boost to return the results
-	visitor<ostream> vis(cout);
+	visitor<ostream> vis;
 
 	// Use the Bron-Kerbosch algorithm to find all cliques
 	bron_kerbosch_all_cliques(g, vis);

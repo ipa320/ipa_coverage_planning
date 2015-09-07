@@ -58,7 +58,7 @@
  ****************************************************************/
 #pragma once
 
-#include "ros/ros.h"
+#include <ros/ros.h>
 #include <ros/package.h>
 
 #include <iostream>
@@ -73,6 +73,7 @@
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
 #include <cv_bridge/cv_bridge.h>
+#include <sensor_msgs/image_encodings.h>
 
 #include <fstream>
 
@@ -93,32 +94,26 @@
 // action
 #include <actionlib/server/simple_action_server.h>
 #include <ipa_building_navigation/FindRoomSequenceWithCheckpointsAction.h>
-#include <sensor_msgs/image_encodings.h>
 
 
-class RoomSequencePlanning
+class RoomSequencePlanningServer
 {
 public:
-	RoomSequencePlanning(ros::NodeHandle nh);
+	RoomSequencePlanningServer(ros::NodeHandle nh, std::string name_of_the_action);
 
-	~RoomSequencePlanning()
+	~RoomSequencePlanningServer()
 	{
 	}
 
 protected:
-	actionlib::SimpleActionServer<ipa_building_navigation::FindRoomSequenceWithCheckpointsAction> room_sequence_with_checkpoints_server_;
-
+	//!!Important!!
+	// define the Nodehandle before the action server, or else the server won't start
+	//
 	ros::NodeHandle node_handle_;
 
-	SetCoverSolver set_cover_solver_;
+	actionlib::SimpleActionServer<ipa_building_navigation::FindRoomSequenceWithCheckpointsAction> room_sequence_with_checkpoints_server_;
 
-	TrolleyPositionFinder trolley_position_finder_;
-
-	AStarPlanner a_star_path_planner_; //Object to plan a path from Point A to Point B in a given gridmap
-
-	NearestNeighborTSPSolver nearest_neighbor_tsp_solver_;
-	GeneticTSPSolver genetic_tsp_solver_;
-	ConcordeTSPSolver concorde_tsp_solver_;
+	std::string action_name_;
 
 	//converter-> Pixel to meter for X coordinate
 	double convert_pixel_to_meter_for_x_coordinate(const int pixel_valued_object_x, const float map_resolution, const cv::Point2d map_origin)

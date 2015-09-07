@@ -73,7 +73,7 @@ std::vector<int> GeneticTSPSolver::mutatePath(const std::vector<int>& parent_pat
 
 	if (what_to_change == 0) //random node-switching
 	{
-		int number_of_switches = (rand() % (parent_path.size() - 2)) + 1; // Set the number of switches that should be done.
+		int number_of_switches = (rand() % (parent_path.size() - 3)) + 1; // Set the number of switches that should be done.
 		                                                                  // Because the first needs to be unchanged the number is limited.
 		                                                                  // Also at least one change should be done.
 		for (int change = 0; change < number_of_switches; change++)
@@ -82,8 +82,8 @@ std::vector<int> GeneticTSPSolver::mutatePath(const std::vector<int>& parent_pat
 			bool switched = false; //this variable makes sure that the switch has been done
 			do
 			{
-				int node_one = (rand() % (saving_variable_path.size() - 1)) + 1; //this variables random choose which nodes should be changed
-				int node_two = (rand() % (saving_variable_path.size() - 1)) + 1; //The first and last one should be untouched
+				int node_one = (rand() % (saving_variable_path.size() - 2)) + 1; //this variables random choose which nodes should be changed
+				int node_two = (rand() % (saving_variable_path.size() - 2)) + 1; //The first and last one should be untouched
 				if (node_one != node_two) //node can't be switched with himself
 				{
 					for (int node = 0; node < saving_variable_path.size(); node++) //fill the mutated path with the information
@@ -113,8 +113,8 @@ std::vector<int> GeneticTSPSolver::mutatePath(const std::vector<int>& parent_pat
 		bool inverted = false;
 		do
 		{
-			int node_one = (rand() % (saving_variable_path.size() - 1)) + 1; //this variables random choose which intervall
-			int node_two = (rand() % (saving_variable_path.size() - 1)) + 1; //The first and last one should be untouched
+			int node_one = (rand() % (saving_variable_path.size() - 2)) + 1; //this variables random choose which intervall
+			int node_two = (rand() % (saving_variable_path.size() - 2)) + 1; //The first and last one should be untouched
 			int inverting_counter = 0; //variable to choose the node based on distance to the node_two
 			if (node_one > node_two) //switch variables, if the node_one is bigger than the node_two (easier to work with here)
 			{
@@ -190,11 +190,12 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& path_length_Ma
 	NearestNeighborTSPSolver nearest_neighbor_solver;
 
 	std::vector<int> calculated_path = nearest_neighbor_solver.solveNearestTSP(path_length_Matrix, start_Node);
+	calculated_path.push_back(start_Node); //push the start node at the end, so the reaching of the start at the end is included in the planning
 
 	if(path_length_Matrix.rows > 2) //check if graph has at least three members, if not the algorithm won't work properly
 	{
 		bool changed_path = false; //this variable checks if the path has been changed in the mutation process
-		int changeing_counter = 42; //this variable is a counter for how many times a path has been the same
+		int changeing_counter = 100; //this variable is a counter for how many times a path has been the same
 
 		int number_of_generations = 0;
 
@@ -209,21 +210,29 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& path_length_Ma
 				current_generation_paths.push_back(mutatePath(calculated_path));
 			}
 			calculated_path = getBestPath(current_generation_paths, path_length_Matrix, changed_path); //get the best path of this generation
-			if (number_of_generations >= 730) //when a specified amount of steps have been done the algorithm checks if the last ten paths didn't change
+			if (number_of_generations >= 2300) //when a specified amount of steps have been done the algorithm checks if the last paths didn't change
 			{
 				if (changed_path)
 				{
-					changeing_counter = 25; //reset the counting-variable
+					changeing_counter = 100; //reset the counting-variable
 				}
 				else
 				{
 					changeing_counter -= 1; //decrease the counting-variable by 1
 				}
 			}
-		} while (changeing_counter > 0 || number_of_generations < 350);
+		} while (changeing_counter > 0 || number_of_generations < 2300);
 	}
 
-	return calculated_path;
+	//return the calculated path without the last node (same as start node)
+	std::vector<int> returning_vector;
+
+	for(size_t node = 0; node < calculated_path.size()-1; ++node)
+	{
+		returning_vector.push_back(calculated_path[node]);
+	}
+
+	return returning_vector;
 }
 
 //compute distance matrix and maybe returning it

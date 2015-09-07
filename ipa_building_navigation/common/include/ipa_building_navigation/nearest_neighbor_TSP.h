@@ -19,7 +19,7 @@
 			 //regarding to https://en.wikipedia.org/wiki/Pragma_once this is more efficient than #define
 
 //This class provides a solution for the TSP by taking the nearest neighbor from the current Point as next Point.
-//It need a symmetrical matrix of pathlenghts between the nodes and the starting-point index in this matrix.
+//It needs a symmetrical matrix of pathlenghts between the nodes and the starting-point index in this matrix.
 //If the path from one node to another doesn't exist or the path is from one node to itself, the entry in the matrix must
 //be 0 or smaller. so the format for this matrix is:
 // row: node to start from, column: node to go to

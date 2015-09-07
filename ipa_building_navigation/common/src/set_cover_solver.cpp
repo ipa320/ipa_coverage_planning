@@ -161,26 +161,21 @@ std::vector<std::vector<int> > SetCoverSolver::solveSetCover(std::vector<std::ve
 			}
 		}
 		minimal_set.push_back(cliques_for_covering[best_clique]);
-		//remove all cliques that contain an already visited node
-		std::vector<std::vector<int> > new_set;
+		//remove nodes of best clique from all cliques (this is okay because if you remove a node from a clique it stays a clique, it only isn't a maximal clique anymore)
 		for(size_t clique = 0; clique < cliques_for_covering.size(); clique++)
 		{
-			bool add = true;
-			for(size_t node = 0; node < cliques_for_covering[best_clique].size(); node++)
+			for(int node = 0; node < cliques_for_covering[best_clique].size(); node++)
 			{
-				if(contains(cliques_for_covering[clique], cliques_for_covering[best_clique][node]))
-				{
-					add = false;
-				}
+				if(clique != best_clique)
+					cliques_for_covering[clique].erase(std::remove(cliques_for_covering[clique].begin(), cliques_for_covering[clique].end(), cliques_for_covering[best_clique][node]), cliques_for_covering[clique].end());
 			}
-			if(add)
-				new_set.push_back(cliques_for_covering[clique]);
 		}
 		for (int node = 0; node < cliques_for_covering[best_clique].size(); node++)
 		{
 			open_nodes.erase(std::remove(open_nodes.begin(), open_nodes.end(), cliques_for_covering[best_clique][node]), open_nodes.end());
 		}
-		cliques_for_covering = new_set;
+//		cliques_for_covering = new_set;
+//		std::cout << open_nodes.size() << std::endl;
 	} while (open_nodes.size() > 0);
 
 	std::cout << "Finished greedy search." << std::endl;

@@ -224,6 +224,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	ROS_INFO("********Segmented the map************");
 //	looping_rate.sleep();
 
+
 // get the min/max-values and the room-centers
 // compute room label codebook
 	std::map<int, size_t> label_vector_index_codebook; // maps each room label to a position in the rooms vector
@@ -313,16 +314,16 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 		{
 			const int label = segmented_map.at<int>(y,x);
 			if (label > 0 && label < 65280)
-				indexed_map.at<int>(y,x) = label_vector_index_codebook[label];
+				indexed_map.at<int>(y,x) = label_vector_index_codebook[label]+1;//start value from 1 --> 0 is reserved for obstacles
 		}
 	}
 
+	cv::Mat disp = segmented_map.clone();
+
+	for (size_t index = 0; index < room_centers_x_values.size(); ++index)
+		cv::circle(disp, cv::Point(room_centers_x_values[index], room_centers_y_values[index]), 2, cv::Scalar(200 * 256), CV_FILLED);
 	if (display_segmented_map_ == true)
 	{
-		cv::Mat disp = segmented_map.clone();
-		for (size_t index = 0; index < room_centers_x_values.size(); ++index)
-			cv::circle(disp, cv::Point(room_centers_x_values[index], room_centers_y_values[index]), 2, cv::Scalar(200 * 256), CV_FILLED);
-
 		cv::imshow("segmentation", disp);
 		cv::waitKey();
 	}
@@ -335,12 +336,6 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	cv_image.encoding = "32SC1";
 	cv_image.image = indexed_map;
 	cv_image.toImageMsg(action_result.segmented_map);
-
-	cv_bridge::CvImage cv_image_not_indexed;
-	cv_image_not_indexed.header.stamp = ros::Time::now();
-	cv_image_not_indexed.encoding = "32SC1";
-	cv_image_not_indexed.image = segmented_map;
-	cv_image_not_indexed.toImageMsg(action_result.segmented_map_not_indexed);
 
 	//setting value to the action msgs to publish
 	action_result.map_resolution = goal->map_resolution;

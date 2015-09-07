@@ -31,6 +31,8 @@ public:
 					{
 						cv::Point neighbor = downsampling_factor * points[j];
 						double length = one_by_downsampling_factor * path_planner.planPath(downsampled_map, current_center, neighbor, 1., 0., map_resolution);
+						if(length > 9000) //an empty route has been generated, check if the not downsampled map gives a rout
+							length = path_planner.planPath(original_map, one_by_downsampling_factor * current_center, one_by_downsampling_factor * neighbor, 1., 0., map_resolution);
 						distance_matrix.at<double>(i, j) = length;
 						distance_matrix.at<double>(j, i) = length; //symmetrical-Matrix --> saves half the computation time
 					}

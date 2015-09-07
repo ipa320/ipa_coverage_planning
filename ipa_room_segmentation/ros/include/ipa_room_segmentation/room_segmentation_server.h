@@ -131,6 +131,9 @@ protected:
 
 	AdaboostClassifier semantic_segmentation_; //semantic segmentation method
 
+	//!!Important!!
+	// define the Nodehandle before the action server, or else the server won't start
+	//
 	ros::NodeHandle node_handle_;
 	actionlib::SimpleActionServer<ipa_room_segmentation::MapSegmentationAction> room_segmentation_server_;
 

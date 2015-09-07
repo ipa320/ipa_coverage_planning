@@ -123,6 +123,8 @@ std::vector<int> ConcordeTSPSolver::readFromFile()
 std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_Matrix, const int start_Node)
 {
 	std::vector<int> unsorted_order;
+	std::cout << "finding optimal order" << std::endl;
+	std::cout << "number of nodes: " << path_length_Matrix.rows << std::endl;
 	if (path_length_Matrix.rows > 2) //check if the TSP has at least 3 nodes
 	{
 		//create the TSPlib file
@@ -148,27 +150,29 @@ std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_
 			unsorted_order.push_back(node);
 		}
 	}
-		//sort the order with the start_Node at the beginning
-		std::vector<int> sorted_order;
-		unsigned int start_node_position;
+	std::cout << "found unsorted order" << std::endl;
+	//sort the order with the start_Node at the beginning
+	std::vector<int> sorted_order;
+	unsigned int start_node_position;
 
-		for (unsigned int i = 0; i < sorted_order.size(); i++) //find position of the start node in the order
-				{
-			if (sorted_order[i] == start_Node) {
-				start_node_position = i;
-			}
+	for (unsigned int i = 0; i < sorted_order.size(); i++) //find position of the start node in the order
+	{
+		if (sorted_order[i] == start_Node)
+		{
+			start_node_position = i;
 		}
+	}
 
-		for (unsigned int i = start_node_position; i < unsorted_order.size();
-				i++) //sort the vector starting at start_Node
-				{
-			sorted_order.push_back(unsorted_order[i]);
-		}
-		for (unsigned int i = 0; i < start_node_position; i++) {
-			sorted_order.push_back(unsorted_order[i]);
-		}
+	for (unsigned int i = start_node_position; i < unsorted_order.size(); i++) //sort the vector starting at start_Node
+	{
+		sorted_order.push_back(unsorted_order[i]);
+	}
+	for (unsigned int i = 0; i < start_node_position; i++)
+	{
+		sorted_order.push_back(unsorted_order[i]);
+	}
 
-		return sorted_order;
+	return sorted_order;
 }
 
 //compute the distance matrix and maybe return it

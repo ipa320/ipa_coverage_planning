@@ -17,7 +17,7 @@ TrolleyPositionFinder::TrolleyPositionFinder()
 cv::Point TrolleyPositionFinder::findOneTrolleyPosition(const std::vector<cv::Point> group_points, const cv::Mat& original_map,
 		const double downsampling_factor, const double robot_radius, const double map_resolution)
 {
-	double largening_of_bounding_box = 10; //Variable to expand the bounding box of the roomcenters a little bit. This is done to make sure the best trolley position is found if it is a little bit outside this bounding box.
+	double largening_of_bounding_box = 5; //Variable to expand the bounding box of the roomcenters a little bit. This is done to make sure the best trolley position is found if it is a little bit outside this bounding box.
 	double max_x_value = group_points[0].x; //max/min values of the Points that get the bounding box. Initialized with the coordinates of the first Point of the group.
 	double min_x_value = group_points[0].x;
 	double max_y_value = group_points[0].y;
@@ -79,9 +79,10 @@ cv::Point TrolleyPositionFinder::findOneTrolleyPosition(const std::vector<cv::Po
 	//
 	//******************************** II. Get the candidates for trolley positions ********************************
 	//
-	double max_x_cell = min_x_value + 5;
+	double cell_side_length = 10;
+	double max_x_cell = min_x_value + cell_side_length;
 	double min_x_cell = min_x_value;
-	double max_y_cell = min_y_value + 5;
+	double max_y_cell = min_y_value + cell_side_length;
 	double min_y_cell = min_y_value;
 
 	bool out_of_y = false;
@@ -92,7 +93,7 @@ cv::Point TrolleyPositionFinder::findOneTrolleyPosition(const std::vector<cv::Po
 	//go trough each cell and find the candidate for each of it
 	do //go from y_min to y_max
 	{
-		max_x_cell = min_x_value + 5; //reset the x-values for the cell to start from beginning when a new y coordinate is reached
+		max_x_cell = min_x_value + cell_side_length; //reset the x-values for the cell to start from beginning when a new y coordinate is reached
 		min_x_cell = min_x_value;
 		do //go from x_min to x_max
 		{
@@ -117,7 +118,7 @@ cv::Point TrolleyPositionFinder::findOneTrolleyPosition(const std::vector<cv::Po
 				trolley_position_candidates.push_back(cv::Point(best_x, best_y));
 			}
 			min_x_cell = max_x_cell; //set new x values for next step
-			max_x_cell += 5;
+			max_x_cell += cell_side_length;
 
 			//check if x is out of box --> if so the next y values should be checked
 			if (min_x_cell > max_x_value)
@@ -127,7 +128,7 @@ cv::Point TrolleyPositionFinder::findOneTrolleyPosition(const std::vector<cv::Po
 		} while (!out_of_x);
 
 		min_y_cell = max_y_cell; //set new y values for next step
-		max_y_cell += 5;
+		max_y_cell += cell_side_length;
 
 		//check if y is out of bounding box --> if true step is done
 		if (min_y_cell > max_y_value)
@@ -140,8 +141,8 @@ cv::Point TrolleyPositionFinder::findOneTrolleyPosition(const std::vector<cv::Po
 	//***************** III. Find the candidate that minimizes the pathlengths to all group points *****************
 	//
 	//variables to save the best candidate
-	double best_pathlength = 9001;
-	double best_pathlength_point_distance = 9001;
+	double best_pathlength = 1e10;
+	double best_pathlength_point_distance = 1e10;
 	int best_trolley_candidate = 0;
 
 	// reduce image size already here to avoid resizing in the planner each time
@@ -171,7 +172,8 @@ cv::Point TrolleyPositionFinder::findOneTrolleyPosition(const std::vector<cv::Po
 			//If the group only has two members check for the position that is in the middlest of the connectionpath between
 			//these points or else a random point will be chosen.
 			double current_point_distance = std::abs(pathlengths[1] - pathlengths[0]);
-			if (current_pathlength <= (best_pathlength + 0.05) && current_point_distance <= (best_pathlength_point_distance + 0.05))
+			if (current_pathlength <= (best_pathlength + 0.05) && current_point_distance <= (best_pathlength_point_distance + 0.05)
+					&& downsampled_map.at<unsigned char>(downsampling_factor * trolley_position_candidates[best_trolley_candidate]) != 0)
 			{
 				best_pathlength_point_distance = current_point_distance;
 				best_pathlength = current_pathlength;

@@ -20,7 +20,8 @@ bool operator<(const nodeAstar& a, const nodeAstar& b)
 
 AStarPlanner::AStarPlanner()
 {
-
+	n = 1;
+	m = 1;
 }
 
 void AStarPlanner::downsampleMap(const cv::Mat& map, cv::Mat& downsampled_map, const double downsampling_factor, const double robot_radius, const double map_resolution)
@@ -85,7 +86,10 @@ std::string AStarPlanner::pathFind(const int & xStart, const int & yStart, const
 	n0 = new nodeAstar(xStart, yStart, 0, 0);
 	n0->updatePriority(xFinish, yFinish);
 	pq[pqi].push(*n0);
-	open_nodes_map.at<int>(x, y) = n0->getPriority(); // mark it on the open nodes map
+	open_nodes_map.at<int>(xStart, yStart) = n0->getPriority(); // mark it on the open nodes map
+
+	//garbage collection
+	delete n0;
 
 	// A* search
 	while (!pq[pqi].empty())
@@ -118,8 +122,7 @@ std::string AStarPlanner::pathFind(const int & xStart, const int & yStart, const
 				y += dy[j];
 			}
 
-			// garbage collection
-			delete n0;
+			delete n0;// garbage collection
 			// empty the leftover nodes
 			while (!pq[pqi].empty())
 				pq[pqi].pop();
@@ -178,8 +181,7 @@ std::string AStarPlanner::pathFind(const int & xStart, const int & yStart, const
 					pqi = 1 - pqi;
 					pq[pqi].push(*m0); // add the better node instead
 				}
-				else
-					delete m0; // garbage collection
+				delete m0; // garbage collection
 			}
 		}
 		delete n0; // garbage collection
@@ -223,7 +225,7 @@ double AStarPlanner::planPath(const cv::Mat& map, const cv::Point& start_point, 
 	if (route == "")
 	{
 		std::cout << "An empty route generated!" << std::endl;
-		return 9002; //return an extremely large pathlength if the rout could not be generated
+		return 9002; //return extremely large distance as pathlength if the rout could not be generated
 	}
 	clock_t end = clock();
 	double time_elapsed = double(end - start);
@@ -239,7 +241,7 @@ double AStarPlanner::planPath(const cv::Mat& map, const cv::Point& start_point, 
 		{
 			//get the next char of the string and make it an integer, which shows the direction
 			c = route.at(i);
-			j = atoi(&c);
+			j=c-'0';
 			x = x + dx[j];
 			y = y + dy[j];
 			//Update the pathlength with the directions of the path. When the path goes vertical or horizontal add length 1.

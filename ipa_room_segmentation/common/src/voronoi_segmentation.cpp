@@ -400,7 +400,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 			if (voronoi_map_.at<unsigned char>(x, y) == 127)
 			{
 				//make the size of the to be checked region dependend on the distance of the current Pixel to the closest
-				//zero-Pixel, so larger areas are splittet into more regions and small areas into fewer
+				//zero-Pixel, so larger areas are splitted into more regions and small areas into fewer
 				eps = neihborhood_index / (int) distance_map.at<unsigned char>(x, y); //310
 				loopcounter = 0; //if a Part of the graph is not connected to the rest this variable helps to stop the loop
 				//reset the neighboring-variables, which are different for each Point

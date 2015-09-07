@@ -66,7 +66,7 @@ std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& path_l
 		{
 			int next_node; //saver for next node
 			double saved_distance = 100000000000000; //saver for distance to current next node
-			for (int current_neighbor = 0; current_neighbor < path_length_matrix.rows; current_neighbor++)
+			for (int current_neighbor = 0; current_neighbor < path_length_matrix.cols; current_neighbor++)
 			{
 				if (!contains(calculated_order, current_neighbor)) //check if current neighbor hasn't been visited yet
 				{
@@ -79,6 +79,7 @@ std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& path_l
 				}
 			}
 			calculated_order.push_back(next_node); //add the found nearest neighbor to the order-vector
+			current_node = next_node;
 		} while (calculated_order.size() < path_length_matrix.rows); //when the order has as many elements as the pathlength Matrix has the solver is ready
 
 	}
@@ -94,6 +95,7 @@ std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& path_l
 std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& original_map, const std::vector<cv::Point>& points,
 		double downsampling_factor, double robot_radius, double map_resolution, const int start_node, cv::Mat* distance_matrix)
 {
+	//TODO: überarbeiten, funktioniert noch nicht mit Pointer dass distanzmatrix dann außen verfügbar
 	//calculate the distance matrix
 	cv::Mat distance_matrix_ref;
 	if (distance_matrix != 0)

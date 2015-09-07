@@ -9,7 +9,7 @@ tsp_solver: 3
 #	1 = drag trolley if next room is too far away
 #	2 = calculate roomgroups and a trolleyposition for each of it
 # int
-planning_method: 2
+planning_method: 1
 
 # displays the map with paths upon service call
 # bool

@@ -8,14 +8,14 @@
 
 #define PI 3.14159265
 
-//get the nmber of implemented features. Needs to be changed to the new value if you change it
+//get the number of implemented features. Needs to be changed to the new value if you change it
 int get_feature_count()
 {
 	return 23;
 }
 //**********************see features.h for a better overview of what is calculated and needed*************************
 //Method for calculating the feature for the classifier
-double get_feature(std::vector<double> beams, std::vector<double> angles, cv::Point point, int feature)
+double get_feature(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point point, const int feature)
 {
 	switch (feature)
 	{
@@ -69,7 +69,7 @@ double get_feature(std::vector<double> beams, std::vector<double> angles, cv::Po
 }
 
 //Calculation of Feature 1: average difference of the beams
-double calc_feature1(std::vector<double> beams)
+double calc_feature1(const std::vector<double>& beams)
 {
 	double differences_sum;
 	for (int b = 0; b < beams.size() - 1; b++)
@@ -83,7 +83,7 @@ double calc_feature1(std::vector<double> beams)
 }
 
 //Calculation of Feature 2: standard deviation of the difference of the beams
-double calc_feature2(std::vector<double> beams)
+double calc_feature2(const std::vector<double>& beams)
 {
 	double feature2_value;
 	double mean; //mean-value of the difference, calculated with calc_feature1
@@ -102,7 +102,7 @@ double calc_feature2(std::vector<double> beams)
 }
 
 //Calculation of Feature 3: average difference of the to a max_value limited beams
-double calc_feature3(std::vector<double> beams, double maxval)
+double calc_feature3(const std::vector<double>& beams, double maxval)
 {
 	double differences_sum;
 	double val1, val2;
@@ -138,7 +138,7 @@ double calc_feature3(std::vector<double> beams, double maxval)
 }
 
 //Calculation of Feature 4: The Standard Deviation of the difference of limited beams
-double calc_feature4(std::vector<double> beams, double maxval)
+double calc_feature4(const std::vector<double>& beams, double maxval)
 {
 	double feature4_value;
 	double mean; //mean-value of the difference, calculated with calc_feature1
@@ -182,7 +182,7 @@ double calc_feature4(std::vector<double> beams, double maxval)
 }
 
 //Calculation of Feature 5: The average beamlength
-double calc_feature5(std::vector<double> beams)
+double calc_feature5(const std::vector<double>& beams)
 {
 	double sum;
 	//get the sum of the beamlengths
@@ -195,7 +195,7 @@ double calc_feature5(std::vector<double> beams)
 }
 
 //Calculation of Feature 6: The standard deviation of the beamlenghts
-double calc_feature6(std::vector<double> beams)
+double calc_feature6(const std::vector<double>& beams)
 {
 	double mean; //mean-value of the beamlenghts, calculated with calc_feature5
 	double sum; //helping variable
@@ -213,7 +213,7 @@ double calc_feature6(std::vector<double> beams)
 
 //Calculation of Feature 7: The number of gaps between the beams, a gap is when the difference of the lenghts is larger
 //than a specified threshold
-double calc_feature7(std::vector<double> beams)
+double calc_feature7(const std::vector<double>& beams)
 {
 	double threshold = 0.5; //[m], see "Semantic labeling of places"
 	double gaps = 0;
@@ -232,7 +232,7 @@ double calc_feature7(std::vector<double> beams)
 }
 
 //Calculation of feature 8: The distance between two Endpoints of local minima of beamlenghts
-double calc_feature8(std::vector<double> beams, std::vector<double> angles)
+double calc_feature8(const std::vector<double>& beams, const std::vector<double>& angles)
 {
 	//Remark: angles are relatively to the robot
 	double length_1 = 10000000;
@@ -263,7 +263,7 @@ double calc_feature8(std::vector<double> beams, std::vector<double> angles)
 }
 
 //Calculate Feature 9: The Angle between two Endpoints of local minima of beamlengths
-double calc_feature9(std::vector<double> beams, std::vector<double> angles)
+double calc_feature9(const std::vector<double>& beams, const std::vector<double>& angles)
 {
 	//Remark: angles are relatively to the robot
 	double length_1 = beams[0];
@@ -286,10 +286,11 @@ double calc_feature9(std::vector<double> beams, std::vector<double> angles)
 		}
 	}
 	//calculate the x/y-values of the Points
-	x_1 = std::cos(angle_1 * PI / 180) * length_1;
-	y_1 = std::sin(angle_1 * PI / 180) * length_1;
-	x_2 = std::cos(angle_2 * PI / 180) * length_2;
-	y_2 = std::sin(angle_2 * PI / 180) * length_2;
+	double pi_to_degree = PI / 180;
+	x_1 = std::cos(angle_1 * pi_to_degree) * length_1;
+	y_1 = std::sin(angle_1 * pi_to_degree) * length_1;
+	x_2 = std::cos(angle_2 * pi_to_degree) * length_2;
+	y_2 = std::sin(angle_2 * pi_to_degree) * length_2;
 	//calculate and return the angle between the Points
 	double coordvec = (x_1 * x_2) + (y_1 * y_2);
 	double absvec = (length_1 * length_2);
@@ -297,7 +298,7 @@ double calc_feature9(std::vector<double> beams, std::vector<double> angles)
 }
 
 //Calculate Feature 10: The average of the relations (b_i/b_(i+1)) between two neighboring beams
-double calc_feature10(std::vector<double> beams)
+double calc_feature10(const std::vector<double>& beams)
 {
 	double length_1, length_2;
 	double sum_relation = 0;
@@ -330,7 +331,7 @@ double calc_feature10(std::vector<double> beams)
 }
 
 //Calculate Feature 11: The standard deviation of the relations (b_i/b_(i+1)) between two neighboring beams
-double calc_feature11(std::vector<double> beams)
+double calc_feature11(const std::vector<double>& beams)
 {
 	//calculate the mean of the relations by using Feature 10
 	double mean = calc_feature10(beams);
@@ -346,7 +347,7 @@ double calc_feature11(std::vector<double> beams)
 
 //Calculate Feature 12: The number of relative gaps. A relative gap is when the relation (b_i/b_(i+1)) is smaller than a
 //specified threshold
-double calc_feature12(std::vector<double> beams)
+double calc_feature12(const std::vector<double>& beams)
 {
 	double threshold = 0.5; //[m] see "Semantic labeling of places"
 	double gaps, length_1, length_2;
@@ -390,7 +391,7 @@ double calc_feature12(std::vector<double> beams)
 
 //Calculate Feature 13: The Kurtosis, which is given by:
 //(Sum((x - mean)^4))/sigma^4) - 3, where mean is the mean-value and sigma is the standard deviation
-double calc_feature13(std::vector<double> beams)
+double calc_feature13(const std::vector<double>& beams)
 {
 	double sum = 0;
 	//get the standard deviation and the mean by using previous functions
@@ -405,7 +406,7 @@ double calc_feature13(std::vector<double> beams)
 }
 
 //Calc Feature 22: The average of the beam lengths divided by the maximal length
-double calc_feature22(std::vector<double> beams)
+double calc_feature22(const std::vector<double>& beams)
 {
 	double sum;
 	double maxval = 0;
@@ -428,7 +429,7 @@ double calc_feature22(std::vector<double> beams)
 }
 
 //Calculate Feature 23: The standard deviation of the beam lengths divided by the maximal length
-double calc_feature23(std::vector<double> beams)
+double calc_feature23(const std::vector<double>& beams)
 {
 	double sum = 0;
 	double mean = calc_feature22(beams);
@@ -452,7 +453,7 @@ double calc_feature23(std::vector<double> beams)
 
 //*******************Features based on a polygonal approximation of the beams*******************
 //Calculate the polygonal approximation
-std::vector<cv::Point> calc_polygonal_approx(std::vector<double> beams, std::vector<double> angles, cv::Point location)
+std::vector<cv::Point> calc_polygonal_approx(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point location)
 {
 	std::vector < cv::Point > polygon;
 	double x, y;
@@ -460,15 +461,16 @@ std::vector<cv::Point> calc_polygonal_approx(std::vector<double> beams, std::vec
 	for (int b = 0; b < beams.size(); b++)
 	{ //calculate the x/y-values
 	  //Remark: angles in radian
-		x = std::cos(angles[b] * PI / 180) * beams[b];
-		y = std::sin(angles[b] * PI / 180) * beams[b];
+		double pi_to_degree = PI / 180;
+		x = std::cos(angles[b] * pi_to_degree) * beams[b];
+		y = std::sin(angles[b] * pi_to_degree) * beams[b];
 		polygon.push_back(cv::Point(location.x + x, location.y + y));
 	}
 	return polygon;
 }
 
 //Calculate the centroid of the polygonal approximation
-cv::Point calc_centroid(std::vector<double> beams, std::vector<double> angles, cv::Point location)
+cv::Point calc_centroid(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point location)
 {
 	double x, y;
 	double sumX = 0;
@@ -486,7 +488,7 @@ cv::Point calc_centroid(std::vector<double> beams, std::vector<double> angles, c
 }
 
 //Calculate Feature 14: The area of the polygonal approximation of the beams
-double calc_feature14(std::vector<double> beams, std::vector<double> angles, cv::Point location)
+double calc_feature14(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point location)
 {
 	double map_resolution = 0.05000;
 	std::vector < cv::Point > polygon = calc_polygonal_approx(beams, angles, location);
@@ -494,20 +496,20 @@ double calc_feature14(std::vector<double> beams, std::vector<double> angles, cv:
 }
 
 //Calculate Feature 15: The perimeter of the polygonal approximation of the beams
-double calc_feature15(std::vector<double> beams, std::vector<double> angles, cv::Point location)
+double calc_feature15(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point location)
 {
 	std::vector < cv::Point > polygon = calc_polygonal_approx(beams, angles, location);
 	return cv::arcLength(polygon, true);
 }
 
 //Calculate Feature 16: The quotient of area divided by perimeter of the polygonal approximation of the beams
-double calc_feature16(std::vector<double> beams, std::vector<double> angles, cv::Point location)
+double calc_feature16(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point location)
 {
 	return (calc_feature14(beams, angles, location) / calc_feature15(beams, angles, location));
 }
 
 //Calculate Feature 17: The average of the distance between the centroid and the boundary-Points of the polygonal approximation
-double calc_feature17(std::vector<double> beams, std::vector<double> angles, cv::Point location)
+double calc_feature17(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point location)
 {
 	std::vector < cv::Point > polygon = calc_polygonal_approx(beams, angles, location);
 	cv::Point centroid = calc_centroid(beams, angles, location);
@@ -525,7 +527,7 @@ double calc_feature17(std::vector<double> beams, std::vector<double> angles, cv:
 }
 
 //Calculate Feature 18: The standard deviation of the distance between the centroid and the boundary-Points
-double calc_feature18(std::vector<double> beams, std::vector<double> angles, cv::Point location)
+double calc_feature18(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point location)
 {
 	std::vector < cv::Point > polygon = calc_polygonal_approx(beams, angles, location);
 	cv::Point centroid = calc_centroid(beams, angles, location);
@@ -546,7 +548,7 @@ double calc_feature18(std::vector<double> beams, std::vector<double> angles, cv:
 }
 
 //Calculate Feature 19: The half major axis of the bounding ellipse, calculatet with openCV
-double calc_feature19(std::vector<double> beams, std::vector<double> angles, cv::Point location)
+double calc_feature19(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point location)
 {
 	std::vector < cv::Point > polygon = calc_polygonal_approx(beams, angles, location);
 	cv::Point centroid = calc_centroid(beams, angles, location);
@@ -577,7 +579,7 @@ double calc_feature19(std::vector<double> beams, std::vector<double> angles, cv:
 }
 
 //Calculate Feature 20: The half minor axis of the bounding ellipse, calculated with openCV
-double calc_feature20(std::vector<double> beams, std::vector<double> angles, cv::Point location)
+double calc_feature20(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point location)
 {
 	std::vector < cv::Point > polygon = calc_polygonal_approx(beams, angles, location);
 	cv::Point2f points[4];
@@ -608,7 +610,7 @@ double calc_feature20(std::vector<double> beams, std::vector<double> angles, cv:
 }
 
 //Calculate Feature 21: The Quotient of half the major axis and half the minor axis
-double calc_feature21(std::vector<double> beams, std::vector<double> angles, cv::Point location)
+double calc_feature21(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point location)
 {
 	return (calc_feature19(beams, angles, location) / calc_feature20(beams, angles, location));
 }

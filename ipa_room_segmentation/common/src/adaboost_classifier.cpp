@@ -223,6 +223,7 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 		{
 			if (original_Map_to_be_labeled.at<unsigned char>(x, y) == 255)
 			{
+				//TODO: x und y richtig machen
 				std::vector<double> temporary_beams = raycasting(original_Map_to_be_labeled, cv::Point(x, y));
 				std::vector<float> temporary_features;
 				cv::Mat featuresMat(1, get_feature_count(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
@@ -252,10 +253,12 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 			}
 		}
 	}
-	//******************** III. Aply a median filter over the image to smooth the results.***************************
+	std::cout << "labeled all white Pixels" << std::endl;
+	//******************** III. Apply a median filter over the image to smooth the results.***************************
 
 	cv::Mat temporary_map = original_Map_to_be_labeled.clone();
 	cv::medianBlur(temporary_map, temporary_map, 3);
+	std::cout << "blured image" << std::endl;
 
 	//make regions black, that has been black before
 	for (int x = 0; x < original_Map_to_be_labeled.rows; x++)
@@ -268,6 +271,9 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 			}
 		}
 	}
+//	cv::imshow("thresholded", temporary_map);
+//	cv::imwrite("/home/rmb/Bilder/semantic_classified.png", temporary_map);
+//	cv::waitKey();
 	if(display_results)
 	{
 		cv::imshow("classified", temporary_map);
@@ -315,7 +321,7 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 			// are inside the contour.
 			cv::Mat contour_Map = cv::Mat::zeros(temporary_map.rows, temporary_map.cols, CV_8UC1);
 			cv::drawContours(contour_Map, contours, contour_counter, cv::Scalar(255), CV_FILLED);
-			cv::erode(contour_Map, contour_Map, cv::Mat(), cv::Point(-1,-1), 1);
+			cv::erode(contour_Map, contour_Map, cv::Mat(), cv::Point(-1,-1), 10);
 			//center-counter so enough centers could be found
 			int center_counter = 0;
 			//saving-vector for watershed centers
@@ -331,16 +337,18 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 					center_counter++;
 				}
 			} while (center_counter <= (map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(contours[contour_counter])) / 8);
+			cv::Mat temporary_Map_to_wavefront;
+			contour_Map.convertTo(temporary_Map_to_wavefront, CV_32SC1, 256, 0);
 			//draw the centers as white circles into a black map and give the center-map and the contour-map to the opencv watershed-algorithm
 			for (int current_center = 0; current_center < temporary_watershed_centers.size(); current_center++)
 			{
 				bool coloured = false;
 				do
 				{
-					cv::Scalar fill_colour(rand() % 200 + 53);
+					cv::Scalar fill_colour(rand() % 52224 + 13056);
 					if (!contains(already_used_colors, fill_colour))
 					{
-						cv::circle(contour_Map, temporary_watershed_centers[current_center], 2, fill_colour, CV_FILLED);
+						cv::circle(temporary_Map_to_wavefront, temporary_watershed_centers[current_center], 2, fill_colour, CV_FILLED);
 						already_used_colors.push_back(fill_colour);
 						coloured = true;
 					}
@@ -353,12 +361,10 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 				{
 					if (map_to_be_labeled.at<unsigned char>(x, y) == 0)
 					{
-						contour_Map.at<unsigned char>(x, y) = 0;
+						temporary_Map_to_wavefront.at<unsigned char>(x, y) = 0;
 					}
 				}
 			}
-			cv::Mat temporary_Map_to_wavefront;
-			contour_Map.convertTo(temporary_Map_to_wavefront, CV_32SC1, 256, 0);
 			wavefrontRegionGrowing(temporary_Map_to_wavefront);
 			//draw the seperated contour into the map, which should be labeled
 			for (int row = 0; row < segmented_map.rows; row++)
@@ -378,6 +384,7 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 			saved_hallway_contours.push_back(contours[contour_counter]);
 		}
 	}
+	std::cout << "finished too big hallway contours" << std::endl;
 	//draw every room and lasting hallway contour with a random colour into the map
 	for (int room = 0; room < saved_room_contours.size(); room++)
 	{
@@ -393,6 +400,7 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 			}
 		} while (!coloured);
 	}
+	std::cout << "finished room contours" << std::endl;
 	for (int hallway = 0; hallway < saved_hallway_contours.size(); hallway++)
 	{
 		bool coloured = false;
@@ -409,6 +417,7 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 			}
 		} while (!coloured);
 	}
+	std::cout << "finished small hallway contours" << std::endl;
 	//spread the coloured regions to regions, which were too small and aren't drawn into the map
 	wavefrontRegionGrowing(segmented_map);
 	//make sure previously black Pixels are still black
@@ -423,5 +432,5 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 			}
 		}
 	}
-	ROS_INFO("Finsihed Labeling the map.");
+	ROS_INFO("Finished Labeling the map.");
 }
