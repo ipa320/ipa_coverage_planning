@@ -29,7 +29,9 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 	std::vector<std::vector<float> > hallway_features, room_features;
 	std::vector<double> temporary_beams;
 	std::vector<float> temporary_features;
-	ROS_INFO("Starting to train the algorithm.");
+	std::cout << "Starting to train the algorithm." << std::endl;
+	std::cout << "number of room training maps: " << room_training_maps.size() << std::endl;
+	std::cout << "number of hallway training maps: " << hallway_training_maps.size() << std::endl;
 	//Get the labels for every training point. 1.0 means it belongs to a room and -1.0 means it belongs to a hallway
 	for(size_t map = 0; map < room_training_maps.size(); ++map)
 	{
@@ -56,10 +58,10 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 					}
 					room_features.push_back(temporary_features);
 					temporary_features.clear();
-
 				}
 			}
 		}
+		std::cout << "done one room map" << std::endl;
 	}
 
 	for(size_t map = 0; map < hallway_training_maps.size(); ++map)
@@ -87,10 +89,10 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 					}
 					hallway_features.push_back(temporary_features);
 					temporary_features.clear();
-
 				}
 			}
 		}
+		std::cout << "done one hallway map" << std::endl;
 	}
 
 	//*********hallway***************
