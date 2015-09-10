@@ -32,7 +32,8 @@ public:
 
 
 	//training-method for the classifier
-	void trainClassifiers(const cv::Mat& first_room_training_map, const cv::Mat& second_room_training_map, const cv::Mat& first_hallway_training_map, const cv::Mat& second_hallway_training_map, const std::string& classifier_storage_path);
+	void trainClassifiers(const std::vector<cv::Mat>& room_training_maps, const std::vector<cv::Mat>& hallway_training_maps,
+			const std::string& classifier_storage_path);
 
 
 	//labeling-algorithm after the training
