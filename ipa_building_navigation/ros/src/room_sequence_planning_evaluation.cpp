@@ -180,12 +180,13 @@ public:
 //		map_names.push_back("lab_intel"); //done
 //		map_names.push_back("Freiburg101_scan"); //done
 //		map_names.push_back("lab_a_scan"); //done
-
-		map_names.push_back("lab_f_scan"); //
-//		map_names.push_back("NLB"); //cl16seg2tsp1+2 done
+//		map_names.push_back("lab_f_scan"); //done
+//		map_names.push_back("NLB"); //done
 
 		//with obstacles:
 //		"Freiburg52_scan_furnitures_trashbins"
+		map_names.push_back("lab_ipa_furnitures");
+
 
 
 		for (size_t image_index = 0; image_index<map_names.size(); ++image_index)
@@ -264,37 +265,6 @@ public:
 //		{
 //			readFromLocalFiles(evaluation_configurations[i], map_names, data_storage_path, map_pathlengths, map_cleaning_times, sequence_solver_times);
 //		}
-//
-//		std::cout << std::endl << "Pathlengths: " << std::endl;
-//		for(size_t i = 0; i < map_pathlengths.size(); ++i)
-//		{
-//			for(size_t j = 0; j < map_pathlengths[i].size(); ++j)
-//			{
-//				std::cout << map_pathlengths[i][j] << std::endl;
-//			}
-//			std::cout << std::endl;
-//		}
-//
-//		std::cout << std::endl << "Cleaningtimes: " << std::endl;
-//		for(size_t i = 0; i < map_cleaning_times.size(); ++i)
-//		{
-//			for(size_t j = 0; j < map_cleaning_times[i].size(); ++j)
-//			{
-//				std::cout << map_cleaning_times[i][j] << std::endl;
-//			}
-//			std::cout << std::endl;
-//		}
-//
-//		std::cout << std::endl << "Sequencer times: " << std::endl;
-//		for(size_t i = 0; i < sequence_solver_times.size(); ++i)
-//		{
-//			for(size_t j = 0; j < sequence_solver_times[i].size(); ++j)
-//			{
-//				std::cout << sequence_solver_times[i][j] << std::endl;
-//			}
-//			std::cout << std::endl;
-//		}
-//
 //		//write the calculated values to global saving files
 //		writeToGlobalFiles(map_names, data_storage_path, map_pathlengths, map_cleaning_times, sequence_solver_times);
 	}
@@ -336,6 +306,10 @@ public:
 					}
 				}
 				reading_file.close();
+			}
+			else
+			{
+				std::cout << "missing data: " << log_filename << std::endl;
 			}
 		}
 	}
@@ -466,16 +440,8 @@ public:
 			{
 				for (int room_segmentation_algorithm=1; room_segmentation_algorithm<=4; ++room_segmentation_algorithm)
 				{
-					if(room_segmentation_algorithm == 4)
-					{
-						for(int tsp_solver = 1; tsp_solver <= 3; ++tsp_solver)
-								evaluation_configurations.push_back(EvaluationConfig(room_segmentation_algorithm, max_clique_path_length, sequence_planning_method, tsp_solver));
-					}
-					else
-					{
-						for(int tsp_solver = 3; tsp_solver <= 3; ++tsp_solver)
-							evaluation_configurations.push_back(EvaluationConfig(room_segmentation_algorithm, max_clique_path_length, sequence_planning_method, tsp_solver));
-					}
+					for(int tsp_solver = 1; tsp_solver <= 3; ++tsp_solver)
+						evaluation_configurations.push_back(EvaluationConfig(room_segmentation_algorithm, max_clique_path_length, sequence_planning_method, tsp_solver));
 				}
 			}
 		}
