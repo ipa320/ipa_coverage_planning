@@ -70,7 +70,7 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 	room_segmentation_server_.start();
 
 	//set this parameter to check if the algorithm needs to be trained
-	train_the_algorithm_ = false;
+	train_the_algorithm_ = true;
 
 	// Parameters
 	std::cout << "\n--------------------------\nRoom Segmentation Parameters:\n--------------------------\n";
@@ -202,13 +202,32 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 		if (train_the_algorithm_)
 		{
 			//load the training maps, change to your maps when you want to train different ones
-			cv::Mat first_room_training_map = cv::imread(package_path + "/common/files/training_maps/room_training_map.png", 0);
+			std::vector<cv::Mat> room_training_maps(5);
+			cv::Mat first_room_training_map = cv::imread(package_path + "/common/files/training_maps/lab_ipa_room_training_map.png", 0);
+			room_training_maps[0] = first_room_training_map;
 			cv::Mat second_room_training_map = cv::imread(package_path + "/common/files/training_maps/lab_d_room_training_map.png", 0);
-			cv::Mat first_hallway_training_map = cv::imread(package_path + "/common/files/training_maps/hallway_training_map.png", 0);
+			room_training_maps[1] = second_room_training_map;
+			cv::Mat third_room_training_map = cv::imread(package_path + "/common/files/training_maps/Freiburg52_scan_room_training.png", 0);
+			room_training_maps[2] = third_room_training_map;
+			cv::Mat fourth_room_training_map = cv::imread(package_path + "/common/files/training_maps/Freiburg52_scan_furnitures_room_training.png", 0);
+			room_training_maps[3] = fourth_room_training_map;
+			cv::Mat fifth_room_training_map = cv::imread(package_path + "/common/files/training_maps/lab_intel_furnitures_room_training_map.png", 0);
+			room_training_maps[4] = fifth_room_training_map;
+
+
+			std::vector<cv::Mat> hallway_training_maps(5);
+			cv::Mat first_hallway_training_map = cv::imread(package_path + "/common/files/training_maps/lab_ipa_hallway_training_map.png", 0);
+			hallway_training_maps[0] = first_hallway_training_map;
 			cv::Mat second_hallway_training_map = cv::imread(package_path + "/common/files/training_maps/lab_a_hallway_training_map.png", 0);
+			hallway_training_maps[1] = second_hallway_training_map;
+			cv::Mat third_hallway_training_map = cv::imread(package_path + "/common/files/training_maps/Freiburg52_scan_hallway_training.png", 0);
+			hallway_training_maps[2] = third_hallway_training_map;
+			cv::Mat fourth_hallway_training_map = cv::imread(package_path + "/common/files/training_maps/Freiburg52_scan_furnitures_hallway_training.png", 0);
+			hallway_training_maps[3] = fourth_hallway_training_map;
+			cv::Mat fifth_hallway_training_map = cv::imread(package_path + "/common/files/training_maps/lab_intel_hallway_training_map.png", 0);
+			hallway_training_maps[4] = fifth_hallway_training_map;
 			//train the algorithm
-			semantic_segmentation_.trainClassifiers(first_room_training_map, second_room_training_map, first_hallway_training_map, second_hallway_training_map,
-				classifier_path);
+			semantic_segmentation_.trainClassifiers(room_training_maps, hallway_training_maps, classifier_path);
 		}
 		semantic_segmentation_.semanticLabeling(original_img, segmented_map, map_resolution, room_lower_limit_semantic_, room_upper_limit_semantic_,
 			classifier_path, display_segmented_map_);

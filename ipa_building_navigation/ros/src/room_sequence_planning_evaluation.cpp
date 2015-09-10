@@ -171,7 +171,7 @@ public:
 		segmented_semant = false;
 		// prepare relevant floor map data
 		std::vector<std::string> map_names;
-//		map_names.push_back("lab_ipa"); // done
+		map_names.push_back("lab_ipa"); // done
 //		map_names.push_back("Freiburg52_scan"); //done
 //		map_names.push_back("Freiburg79_scan"); //done
 //		map_names.push_back("lab_c_scan"); //done
@@ -185,7 +185,7 @@ public:
 
 		//with obstacles:
 //		"Freiburg52_scan_furnitures_trashbins"
-		map_names.push_back("lab_ipa_furnitures");
+//		map_names.push_back("lab_ipa_furnitures");
 
 
 
@@ -438,7 +438,7 @@ public:
 		{
 			for (double max_clique_path_length = 6.; max_clique_path_length <= 20.; max_clique_path_length += 2.0)
 			{
-				for (int room_segmentation_algorithm=1; room_segmentation_algorithm<=4; ++room_segmentation_algorithm)
+				for (int room_segmentation_algorithm=4; room_segmentation_algorithm<=4; ++room_segmentation_algorithm)
 				{
 					for(int tsp_solver = 1; tsp_solver <= 3; ++tsp_solver)
 						evaluation_configurations.push_back(EvaluationConfig(room_segmentation_algorithm, max_clique_path_length, sequence_planning_method, tsp_solver));
