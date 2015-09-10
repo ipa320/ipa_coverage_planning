@@ -124,7 +124,7 @@ std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_
 {
 	std::vector<int> unsorted_order;
 	std::cout << "finding optimal order" << std::endl;
-	std::cout << "number of nodes: " << path_length_Matrix.rows << std::endl;
+	std::cout << "number of nodes: " << path_length_Matrix.rows << " start node: " << start_Node << std::endl;
 	if (path_length_Matrix.rows > 2) //check if the TSP has at least 3 nodes
 	{
 		//create the TSPlib file
@@ -155,9 +155,9 @@ std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_
 	std::vector<int> sorted_order;
 	unsigned int start_node_position;
 
-	for (unsigned int i = 0; i < sorted_order.size(); i++) //find position of the start node in the order
+	for (unsigned int i = 0; i < unsorted_order.size(); i++) //find position of the start node in the order
 	{
-		if (sorted_order[i] == start_Node)
+		if (unsorted_order[i] == start_Node)
 		{
 			start_node_position = i;
 		}

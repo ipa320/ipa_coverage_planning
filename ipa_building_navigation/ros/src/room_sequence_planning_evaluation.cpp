@@ -152,27 +152,45 @@ class Evaluation
 {
 public:
 
+	// to segment the map only once if it is only one and one segmentation algorithm
+	ipa_room_segmentation::MapSegmentationResultConstPtr result_seg_morph;
+	bool segmented_morph;
+	ipa_room_segmentation::MapSegmentationResultConstPtr result_seg_dist;
+	bool segmented_dist;
+	ipa_room_segmentation::MapSegmentationResultConstPtr result_seg_vor;
+	bool segmented_vor;
+	ipa_room_segmentation::MapSegmentationResultConstPtr result_seg_semant;
+	bool segmented_semant;
+
 	Evaluation(const std::string& test_map_path, const std::string& data_storage_path, const double robot_radius)
 	: robot_radius_(robot_radius)
 	{
+		segmented_morph = false;
+		segmented_dist = false;
+		segmented_vor = false;
+		segmented_semant = false;
 		// prepare relevant floor map data
 		std::vector<std::string> map_names;
-//		map_names.push_back("lab_ipa"); //done
-//		map_names.push_back("lab_c_scan"); //done
-//		map_names.push_back("lab_b_scan"); //done
+//		map_names.push_back("lab_ipa"); // done
 //		map_names.push_back("Freiburg52_scan"); //done
 //		map_names.push_back("Freiburg79_scan"); //done
+//		map_names.push_back("lab_c_scan"); //done
+//		map_names.push_back("lab_b_scan"); //done
 //		map_names.push_back("lab_d_scan"); //done
-//		map_names.push_back("lab_intel"); //done (rmb)
-		map_names.push_back("Freiburg101_scan"); //done
+//		map_names.push_back("lab_intel"); //done
+//		map_names.push_back("Freiburg101_scan"); //done
 //		map_names.push_back("lab_a_scan"); //done
-//		map_names.push_back("lab_f_scan");
-//		map_names.push_back("NLB");
+
+		map_names.push_back("lab_f_scan"); //
+//		map_names.push_back("NLB"); //cl16seg2tsp1+2 done
+
+		//with obstacles:
+//		"Freiburg52_scan_furnitures_trashbins"
 
 
 		for (size_t image_index = 0; image_index<map_names.size(); ++image_index)
 		{
-			std::string image_filename = test_map_path + map_names[image_index] + ".png";
+			std::string image_filename = test_map_path + map_names[image_index] + ".png";// + "_furnitures_trashbins.png";
 			std::cout << "loading image: " << image_filename << std::endl;
 			cv::Mat map = cv::imread(image_filename.c_str(), 0);
 			//make non-white pixels black
@@ -218,6 +236,7 @@ public:
 			temp.release();
 			eroded_map.release();
 
+//			+"_furnitures_trashbins"
 			evaluation_data_.push_back(EvaluationData(map_names[image_index], map, map_resoultion_for_evaluation, 0.25, robot_radius_, trash_bin_locations));
 		}
 
@@ -226,16 +245,21 @@ public:
 		setConfigurations(evaluation_configurations);
 
 		// do the evaluation
-		std::vector<std::vector<double> > map_pathlengths(evaluation_data_.size());
-		std::vector<std::vector<double> > map_cleaning_times(evaluation_data_.size());
-		std::vector<std::vector<double> > sequence_solver_times(evaluation_data_.size());
-		for (size_t i=0; i<evaluation_configurations.size(); ++i)
+		for (size_t i=0; i<evaluation_data_.size(); ++i)
 		{
-			if (evaluateAllMaps(evaluation_configurations[i], evaluation_data_, data_storage_path) == false)
+			if (evaluateAllConfigs(evaluation_configurations, evaluation_data_[i], data_storage_path) == false)
 				return;
+			//reset booleans to segment the new map
+			segmented_morph = false;
+			segmented_dist = false;
+			segmented_vor = false;
+			segmented_semant = false;
 		}
 
-//		//read the saved results
+		//read the saved results
+//		std::vector<std::vector<double> > map_pathlengths(evaluation_data_.size());
+//		std::vector<std::vector<double> > map_cleaning_times(evaluation_data_.size());
+//		std::vector<std::vector<double> > sequence_solver_times(evaluation_data_.size());
 //		for (size_t i=0; i<evaluation_configurations.size(); ++i)
 //		{
 //			readFromLocalFiles(evaluation_configurations[i], map_names, data_storage_path, map_pathlengths, map_cleaning_times, sequence_solver_times);
@@ -321,53 +345,41 @@ public:
 	{
 
 		//save the saved parameters in a saving file for each map
-		for(int sequence_planning_method = 0; sequence_planning_method < 2; ++sequence_planning_method)
-		{
-			//define the storage path for each planning method
-			std::stringstream ss;
-			ss << "plmth" << (sequence_planning_method+1);
-			const std::string upper_folder_name = ss.str() + "/";
-			const std::string path = data_storage_path + upper_folder_name;
-			const std::string upper_command = "mkdir -p " + path;
-			int return_value = system(upper_command.c_str());
+
+		//define the storage path for each planning method
+		std::stringstream ss;
+		ss << "global";
+		const std::string upper_folder_name = ss.str() + "/";
+		const std::string path = data_storage_path + upper_folder_name;
+		const std::string upper_command = "mkdir -p " + path;
+		int return_value = system(upper_command.c_str());
+
+		// outputs to log file
+		std::stringstream distance_output[map_names.size()];
+		std::stringstream cleaning_time_output[map_names.size()];
+		std::stringstream sequence_time_output[map_names.size()];
+
+
 			//define values to show how much different algorithms has been implemented
 			double max_clique_path_length = 4.0;
 			int number_of_cliquelenghts = 8;
 			int number_of_segmentation_algorithms = 4;
 			int number_of_tsp_solver = 3;
-			// outputs to log file
-			std::stringstream distance_output [map_names.size()];
-			std::stringstream cleaning_time_output [map_names.size()];
-			std::stringstream sequence_time_output [map_names.size()];
 			for (int max_length = 0; max_length < number_of_cliquelenghts; ++max_length)
 			{
 				max_clique_path_length += 2.0;
 
-				int start = number_of_segmentation_algorithms * number_of_tsp_solver * max_length
-						+ number_of_segmentation_algorithms * number_of_tsp_solver * number_of_cliquelenghts * sequence_planning_method;
-
-//				6 & morph & 178.583 & 176.417 & 176.3 & \\
-//				\cline{2-8}
-//				& dist & 183.46 & 181.294 & 184.046 & \\
-//				\cline{2-8}
-//				& voro & 199.258 & 183.294 & 183.294 & \\
-//				\cline{2-8}
-//			 	& semant & 347.738 & 348.054 & 297.736 & \\
-//			 \hline
-//			 	\multicolumn{8}{|c|}{}\\ [\rowheight]
-//			 \hline
-
+				int start = number_of_segmentation_algorithms * number_of_tsp_solver * max_length;
 
 				for(size_t map = 0; map < map_names.size(); ++map)
 				{
 					//show which maximal clique pathlength this is
-					distance_output[map] << max_clique_path_length << std::endl;
-					cleaning_time_output[map] << max_clique_path_length << max_clique_path_length << std::endl;
-					sequence_time_output[map] << max_clique_path_length << max_clique_path_length << std::endl;
+					distance_output[map] << max_clique_path_length;
+					cleaning_time_output[map] << max_clique_path_length;
+					sequence_time_output[map] << max_clique_path_length;
 					// header
 					for(size_t segmentation = 0; segmentation < number_of_segmentation_algorithms; ++segmentation)
 					{
-						int index = start + number_of_tsp_solver * segmentation;
 						if(segmentation == 0)
 						{
 							distance_output[map] << " & morph";
@@ -393,96 +405,159 @@ public:
 							sequence_time_output[map] << " & semant";
 						}
 
-						for(size_t reading_index = index; reading_index < index+number_of_tsp_solver; ++reading_index)
+						for(int sequence_planning_method = 0; sequence_planning_method < 2; ++sequence_planning_method)
 						{
-							distance_output[map] << " & " << map_pathlengths[map][reading_index] ;
-							cleaning_time_output[map] << " & " << map_cleaning_times[map][reading_index];
-							sequence_time_output[map] << " & " << sequence_solver_times[map][reading_index];
+							int plmth_start = start + number_of_segmentation_algorithms * number_of_tsp_solver * number_of_cliquelenghts * sequence_planning_method;
+							int index = plmth_start + number_of_tsp_solver * segmentation;
+							for(size_t reading_index = index; reading_index < index+number_of_tsp_solver; ++reading_index)
+							{
+								distance_output[map] << " & " << map_pathlengths[map][reading_index] ;
+								cleaning_time_output[map] << " & " << map_cleaning_times[map][reading_index];
+								sequence_time_output[map] << " & " << sequence_solver_times[map][reading_index];
+							}
 						}
+
+						distance_output[map] << "\\\\" << std::endl;
+						cleaning_time_output[map] << "\\\\" << std::endl;
+						sequence_time_output[map] << "\\\\" << std::endl;
 
 						if(segmentation < 3)
 						{
-							distance_output[map] << "\\" << std::endl << "\cline{2-8}" << std::endl;
-							cleaning_time_output[map] << "\\" << std::endl << "\cline{2-8}" << std::endl;
-							sequence_time_output[map] << "\\" << std::endl << "\cline{2-8}" << std::endl;
+							distance_output[map] << "\t\\cline{2-8}" << std::endl;
+							cleaning_time_output[map] << "\t\\cline{2-8}" << std::endl;
+							sequence_time_output[map] << "\t\\cline{2-8}" << std::endl;
 						}
 					}
-					distance_output[map] << std::endl;
-					cleaning_time_output[map] << std::endl;
-					sequence_time_output[map] << std::endl;
+					distance_output[map] << "\\hline" << std::endl << "\t\\multicolumn{8}{|c|}{}\\\\ [\\rowheight]" << std::endl << "\\hline" << std::endl;
+					cleaning_time_output[map] << "\\hline" << std::endl << "\t\\multicolumn{8}{|c|}{}\\\\ [\\rowheight]" << std::endl << "\\hline" << std::endl;
+					sequence_time_output[map] << "\\hline" << std::endl << "\t\\multicolumn{8}{|c|}{}\\\\ [\\rowheight]" << std::endl << "\\hline" << std::endl;
 				}
 			}
-			//write saved parameters to global file
-			for(size_t map = 0; map < map_names.size(); ++map)
-			{
-				std::string pathlength_filename = path + map_names[map] + "_pathlengths.txt";
-				std::ofstream pathlength_file(pathlength_filename.c_str(), std::ios::out);
-				if (pathlength_file.is_open()==true)
-					pathlength_file << distance_output[map].str();
-				pathlength_file.close();
+		//write saved parameters to global file
+		for(size_t map = 0; map < map_names.size(); ++map)
+		{
+			std::string pathlength_filename = path + map_names[map] + "_pathlengths.txt";
+			std::ofstream pathlength_file(pathlength_filename.c_str(), std::ios::out);
+			if (pathlength_file.is_open()==true)
+				pathlength_file << distance_output[map].str();
+			pathlength_file.close();
 
-				std::string cleaningtime_filename = path + map_names[map] + "_cleaningtimes.txt";
-				std::ofstream cleaningtime_file(cleaningtime_filename.c_str(), std::ios::out);
-				if (cleaningtime_file.is_open()==true)
-					cleaningtime_file << cleaning_time_output[map].str();
-				cleaningtime_file.close();
+			std::string cleaningtime_filename = path + map_names[map] + "_cleaningtimes.txt";
+			std::ofstream cleaningtime_file(cleaningtime_filename.c_str(), std::ios::out);
+			if (cleaningtime_file.is_open()==true)
+				cleaningtime_file << cleaning_time_output[map].str();
+			cleaningtime_file.close();
 
-				std::string sequencetime_filename = path + map_names[map] + "_sequencetimes.txt";
-				std::ofstream sequencetime_file(sequencetime_filename.c_str(), std::ios::out);
-				if (sequencetime_file.is_open()==true)
-					sequencetime_file << sequence_time_output[map].str();
-				sequencetime_file.close();
-			}
+			std::string sequencetime_filename = path + map_names[map] + "_sequencetimes.txt";
+			std::ofstream sequencetime_file(sequencetime_filename.c_str(), std::ios::out);
+			if (sequencetime_file.is_open()==true)
+				sequencetime_file << sequence_time_output[map].str();
+			sequencetime_file.close();
+
 		}
 	}
 
 	void setConfigurations(std::vector< EvaluationConfig >& evaluation_configurations)
 	{
 		evaluation_configurations.clear();
-		for(int sequence_planning_method = 2; sequence_planning_method <= 2; ++sequence_planning_method)
+		for(int sequence_planning_method = 1; sequence_planning_method <= 2; ++sequence_planning_method)
 		{
-			for (double max_clique_path_length = 6.0; max_clique_path_length <= 8.; max_clique_path_length += 4.0)
+			for (double max_clique_path_length = 6.; max_clique_path_length <= 20.; max_clique_path_length += 2.0)
 			{
-				for (int room_segmentation_algorithm=4; room_segmentation_algorithm<=4; ++room_segmentation_algorithm)
+				for (int room_segmentation_algorithm=1; room_segmentation_algorithm<=4; ++room_segmentation_algorithm)
 				{
-					for(int tsp_solver = 1; tsp_solver <= 3; ++tsp_solver)
-						evaluation_configurations.push_back(EvaluationConfig(room_segmentation_algorithm, max_clique_path_length, sequence_planning_method, tsp_solver));
+					if(room_segmentation_algorithm == 4)
+					{
+						for(int tsp_solver = 1; tsp_solver <= 3; ++tsp_solver)
+								evaluation_configurations.push_back(EvaluationConfig(room_segmentation_algorithm, max_clique_path_length, sequence_planning_method, tsp_solver));
+					}
+					else
+					{
+						for(int tsp_solver = 3; tsp_solver <= 3; ++tsp_solver)
+							evaluation_configurations.push_back(EvaluationConfig(room_segmentation_algorithm, max_clique_path_length, sequence_planning_method, tsp_solver));
+					}
 				}
 			}
 		}
 	}
 
-	bool evaluateAllMaps(const EvaluationConfig& evaluation_configuration, const std::vector< EvaluationData >& evaluation_data_vector,
+	bool evaluateAllConfigs(const std::vector<EvaluationConfig>& evaluation_configuration_vector, const EvaluationData& evaluation_data,
 			const std::string& data_storage_path)
 	{
-		// prepare folders for storing results
-		const std::string upper_folder_name = evaluation_configuration.generateUpperConfigurationFolderString() + "/";
-		const std::string path = data_storage_path + upper_folder_name;
-		const std::string upper_command = "mkdir -p " + path;
-		int return_value = system(upper_command.c_str());
-
-		const std::string lower_folder_name = evaluation_configuration.generateLowerConfigurationFolderString() + "/";
-		const std::string lower_path = path + lower_folder_name;
-		const std::string lower_command = "mkdir -p " + lower_path;
-		return_value = system(lower_command.c_str());
-
-		std::cout << "Current Configuration:" << std::endl << "segmentation algorithm: " << evaluation_configuration.room_segmentation_algorithm_
-				<< " Maximal Cliquelength: " << evaluation_configuration.max_clique_path_length_ << " planning method: "
-				<< evaluation_configuration.sequence_planning_method_ << " TSP solver: " << evaluation_configuration.tsp_solver_ << std::endl;
-
-		AStarPlanner planner;
-		for (size_t map_index = 0; map_index<evaluation_data_vector.size(); ++map_index)
+		//go trough each configuration for the given map
+		for(size_t config = 0; config < evaluation_configuration_vector.size(); ++config)
 		{
-			const EvaluationData& evaluation_data = evaluation_data_vector[map_index];
+			// prepare folders for storing results
+			const std::string upper_folder_name = evaluation_configuration_vector[config].generateUpperConfigurationFolderString() + "/";
+			const std::string path = data_storage_path + upper_folder_name;
+			const std::string upper_command = "mkdir -p " + path;
+			int return_value = system(upper_command.c_str());
 
+			const std::string lower_folder_name = evaluation_configuration_vector[config].generateLowerConfigurationFolderString() + "/";
+			const std::string lower_path = path + lower_folder_name;
+			const std::string lower_command = "mkdir -p " + lower_path;
+			return_value = system(lower_command.c_str());
+
+			std::cout << "Current Configuration:" << std::endl << "map: " << evaluation_data.map_name_ << " segmentation algorithm: "
+				<< evaluation_configuration_vector[config].room_segmentation_algorithm_
+				<< " Maximal Cliquelength: " << evaluation_configuration_vector[config].max_clique_path_length_ << " planning method: "
+				<< evaluation_configuration_vector[config].sequence_planning_method_ << " TSP solver: " << evaluation_configuration_vector[config].tsp_solver_ << std::endl;
+
+			AStarPlanner planner;
 			//variables for time measurement
 			struct timespec t0, t1, t2, t3;
 
-			// 1. retrieve segmentation
+			// 1. retrieve segmentation and check if the map has already been segmented
 			clock_gettime(CLOCK_MONOTONIC,  &t0); //set time stamp before the segmentation
 			ipa_room_segmentation::MapSegmentationResultConstPtr result_seg;
-			if (segmentFloorPlan(evaluation_data, evaluation_configuration, result_seg) == false)
-				return false;
+			if(evaluation_configuration_vector[config].room_segmentation_algorithm_ == 1)
+			{
+				if(segmented_morph == false)
+				{
+					if (segmentFloorPlan(evaluation_data, evaluation_configuration_vector[config], result_seg_morph) == false)
+						return false;
+					segmented_morph = true;
+				}
+				else
+					std::cout << "map has already been segmented" << std::endl;
+				result_seg = result_seg_morph;
+			}
+			else if (evaluation_configuration_vector[config].room_segmentation_algorithm_ == 2)
+			{
+				if(segmented_dist == false)
+				{
+					if (segmentFloorPlan(evaluation_data, evaluation_configuration_vector[config], result_seg_dist) == false)
+						return false;
+					segmented_dist = true;
+				}
+				else
+					std::cout << "map has already been segmented" << std::endl;
+				result_seg = result_seg_dist;
+			}
+			else if (evaluation_configuration_vector[config].room_segmentation_algorithm_ == 3)
+			{
+				if(segmented_vor == false)
+				{
+					if (segmentFloorPlan(evaluation_data, evaluation_configuration_vector[config], result_seg_vor) == false)
+						return false;
+					segmented_vor = true;
+				}
+				else
+					std::cout << "map has already been segmented" << std::endl;
+				result_seg = result_seg_vor;
+			}
+			else if (evaluation_configuration_vector[config].room_segmentation_algorithm_ == 4)
+			{
+				if(segmented_semant == false)
+				{
+					if (segmentFloorPlan(evaluation_data, evaluation_configuration_vector[config], result_seg_semant) == false)
+						return false;
+					segmented_semant = true;
+				}
+				else
+					std::cout << "map has already been segmented" << std::endl;
+				result_seg = result_seg_semant;
+			}
 			clock_gettime(CLOCK_MONOTONIC,  &t1); //set time stamp after the segmentation
 
 			//check for accesability of the room centers from start position
@@ -504,7 +579,7 @@ public:
 			// 2. solve sequence problem
 			clock_gettime(CLOCK_MONOTONIC,  &t2); //set time stamp before the sequence planning
 			ipa_building_navigation::FindRoomSequenceWithCheckpointsResultConstPtr result_seq;
-			if (computeRoomSequence(evaluation_data, evaluation_configuration, room_centers, result_seq) == false)
+			if (computeRoomSequence(evaluation_data, evaluation_configuration_vector[config], room_centers, result_seq) == false)
 				return false;
 			clock_gettime(CLOCK_MONOTONIC,  &t3); //set time stamp after the sequence planning
 
@@ -610,7 +685,7 @@ public:
 			// write log file
 			std::stringstream output;
 			// header
-			output << evaluation_configuration.getConfigurationString();
+			output << evaluation_configuration_vector[config].getConfigurationString();
 			output << "robot speed" << "\t"<< "trash bin handling time" << "\t" << "number of trash bins" << "\t"
 					<< "trolley handling time" << "\t" << "trolley handling count" << "\t" << "pathlength [m]" << "\t"
 					<< "cleaning time [s]" << "\t" << "calculation time segmentation[s]" << "\t" << "calculation time sequencer[s]" << "\t" << std::endl;
@@ -662,7 +737,6 @@ public:
 			cv_ptr_seq = cv_bridge::toCvCopy(result_seq->sequence_map, sensor_msgs::image_encodings::BGR8);
 			cv::Mat sequence_map = cv_ptr_seq->image;
 			cv::imwrite(sequence_map_filename.c_str(), sequence_map);
-
 		}
 
 		return true;

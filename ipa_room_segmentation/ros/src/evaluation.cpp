@@ -265,8 +265,7 @@ int main(int argc, char **argv) {
 	ros::init(argc, argv, "evaluation");
 	ros::NodeHandle n;
 //	ros::Subscriber semantic_labeler = n.Subscribe("Laser_scanner", 1000, segmentation_algorithm);
-	ROS_INFO(
-			"Evaluation of the segmented maps. Calculates some Parameters describing the rooms.");
+	ROS_INFO("Evaluation of the segmented maps. Calculates some Parameters describing the rooms.");
 //	ros::spin();
 
 	double map_resolution = 0.0500;
@@ -277,7 +276,7 @@ int main(int argc, char **argv) {
 	segmentation_names.push_back("voronoi");
 	segmentation_names.push_back("semantic");
 
-	std::string map_name = "lab_ipa";
+	std::string map_name = "NLB";
 //		"lab_ipa" //done
 //		"lab_c_scan" //done
 //		"Freiburg52_scan" //done

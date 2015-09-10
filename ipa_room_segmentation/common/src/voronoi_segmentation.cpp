@@ -148,6 +148,7 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 		}
 	}
 	map_for_voronoi_generation = map_to_draw_voronoi_in;
+//	cv::imwrite("/home/rmb/Bilder/first_voronoi_graph.png", map_for_voronoi_generation);
 }
 
 void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Room> rooms, double map_resolution_from_subscription, double max_area_for_merging)
@@ -263,8 +264,8 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 	//		2. Reduce the leave-nodes (Point on graph with only one neighbor) of the graph until the reduction
 	//		   hits a node-Point. This is done to reduce the lines along the real voronoi-graph, coming from the discretisation
 	//		   of the contour.
-	//		3. Find the critical Points in the reduced graph by searching in a specified neighbourhood for a local Minimum
-	//		   in distance to the nearest black Pixel. The szie of the epsilon-neighbourhood is dynamical and goes larger
+	//		3. Find the critical Points in the reduced graph by searching in a specified neighborhood for a local Minimum
+	//		   in distance to the nearest black Pixel. The szie of the epsilon-neighborhood is dynamical and goes larger
 	//		   in small areas, so they are split into lesser regions.
 	//	III. It gets the critical lines, which go from the critical Point to its two nearest black Pixels and seperate the
 	//		 regions from each other. This part does following steps:
@@ -290,7 +291,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 	//*********************I. Calculate and draw the Voronoi-Diagram in the given map*****************
 
 	cv::Mat voronoi_map_ = map_to_be_labeled.clone();
-	createVoronoiGraph(voronoi_map_); //voronoi-map for the segmentation-algotihm
+	createVoronoiGraph(voronoi_map_); //voronoi-map for the segmentation-algorithm
 
 	std::vector < cv::Point > node_Points; //variable for Nodepoint-extraction
 
@@ -374,6 +375,10 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 			}
 		}
 	}
+
+//	cv::imwrite("/home/rmb/Bilder/second_voronoi_graph.png", voronoi_map_);
+//	cv::imshow("voronoi", voronoi_map_);
+//	cv::waitKey();
 
 	//3.find the critical Points in the previously calculated generalized Voronoi-Graph by searching in a specified
 	//	neighborhood for the local Minimum of distance to the nearest black Pixel

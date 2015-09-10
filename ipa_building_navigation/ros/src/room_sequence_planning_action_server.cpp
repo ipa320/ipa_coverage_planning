@@ -273,6 +273,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 	{
 		std::cout << "Maximal cliquedistance [m]: "<< goal->max_clique_path_length  << " Maximal cliquedistance [Pixel]: "<< goal->max_clique_path_length/goal->map_resolution << std::endl;
 
+		std::cout << "finding trolley positions" << std::endl;
 		// 1. determine cliques of rooms
 		SetCoverSolver set_cover_solver;
 		cliques = set_cover_solver.solveSetCover(floor_plan, room_centers, goal->map_downsampling_factor, goal->robot_radius, goal->map_resolution, goal->max_clique_path_length/goal->map_resolution);
@@ -289,7 +290,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 
 		//solve the TSP
 		std::vector<int> optimal_trolley_sequence;
-		std::cout << "finding optimal trolley sequence" << std::endl;
+		std::cout << "finding optimal trolley sequence. Start: " << optimal_trolley_start_position << std::endl;
 		if(tsp_solver_ == 1) //nearest neighbor TSP solver
 		{
 			NearestNeighborTSPSolver nearest_neighbor_tsp_solver;
