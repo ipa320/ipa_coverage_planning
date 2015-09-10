@@ -200,7 +200,7 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 	{
 		//only merge rooms that have 2 or less neighbors and are small enough
 		if ((rooms[current_room].getNeighborCount() <= 2 && rooms[current_room].getArea() < max_area_for_merging) //12.5
-				|| (rooms[current_room].getNeighborCount() == 3 && rooms[current_room].getArea() < 3.5))//3.5 --> if room is too small merge it with neighbors
+				|| (rooms[current_room].getNeighborCount() == 3 && rooms[current_room].getArea() < 3.5))//3.5 --> if room is too small merge it with neighbors		// todo: parameter
 		{
 			std::vector<cv::Point> current_room_members = rooms[current_room].getMembers();
 			double max_shared_perimeter = 0;
@@ -232,7 +232,7 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 					//check if current shared boundary is larger than saved one and also check if boundary is larger than
 					//the typical shared boundary in a door
 					if(neighboring_points.size() >= max_shared_perimeter
-							&& neighboring_points.size() >= 24) //24 --> most doors fulfill this criterion
+							&& neighboring_points.size() >= 24) //24 --> most doors fulfill this criterion			// todo: parameter
 					{
 						max_shared_perimeter = neighboring_points.size();
 						largest_ID = rooms[current_neighbor].getID();

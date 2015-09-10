@@ -41,21 +41,20 @@ void DistanceSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labele
 		hierarchy.clear();
 		cv::threshold(distance_map, thresh_map, current_threshold, 255, cv::THRESH_BINARY);
 		cv::findContours(thresh_map, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
+		//cv::drawContours();
 
 		//Get the number of large enough regions to be a room. Only check non-holes.
 		for (int c = 0; c < contours.size(); c++)
 		{
 			if (hierarchy[c][3] == -1)
 			{
-				double room_area = map_resolution_from_subscription * map_resolution_from_subscription
-						* cv::contourArea(contours[c]);
+				double room_area = map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(contours[c]);
 				//subtract the area from the hole contours inside the found contour, because the contour area grows extremly large if it is a closed loop
 				for(int hole = 0; hole < contours.size(); hole++)
 				{
 					if(hierarchy[hole][3] == c)//check if the parent of the hole is the current looked at contour
 					{
-						room_area -= map_resolution_from_subscription * map_resolution_from_subscription
-								* cv::contourArea(contours[hole]);
+						room_area -= map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(contours[hole]);
 					}
 				}
 				if (room_area >= room_area_factor_lower_limit && room_area <= room_area_factor_upper_limit)

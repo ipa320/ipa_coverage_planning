@@ -209,7 +209,7 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 
 	cv::Mat temporary_map = original_Map_to_be_labeled.clone();
 	cv::medianBlur(temporary_map, temporary_map, 3);
-	std::cout << "blured image" << std::endl;
+	std::cout << "blurred image" << std::endl;
 
 	//make regions black, that has been black before
 	for (int x = 0; x < original_Map_to_be_labeled.rows; x++)
@@ -287,7 +287,7 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 					temporary_watershed_centers.push_back(cv::Point(random_x, random_y));
 					center_counter++;
 				}
-			} while (center_counter <= (map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(contours[contour_counter])) / 8);
+			} while (center_counter <= (map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(contours[contour_counter])) / 8);		// todo: parameter
 			cv::Mat temporary_Map_to_wavefront;
 			contour_Map.convertTo(temporary_Map_to_wavefront, CV_32SC1, 256, 0);
 			//draw the centers as white circles into a black map and give the center-map and the contour-map to the opencv watershed-algorithm

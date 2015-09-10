@@ -7,7 +7,7 @@
 
 map_sampling_factor_check: 1.5
 
-# room area factor-> Set the limitation of area of the room -------> in [m]
+# room area factor-> Set the limitation of area of the room -------> in [m^2]
 # 1. choice of value is very important
 # 2. smaller value increase the chance to get every room
 
@@ -23,13 +23,13 @@ room_area_factor_lower_limit_distance: 0.35
 room_area_factor_upper_limit_voronoi: 120.0
 room_area_factor_lower_limit_voronoi: 1.53
 
-#Semantic Segmentation: 23.0 - 1.0
+#Semantic Segmentation: 23.0 - 1.0   (minimum and maximum room sizes in square meters)
 room_area_factor_upper_limit_semantic: 23.0
 room_area_factor_lower_limit_semantic: 1.0
 
 #parameters for the voronoi segmentation that specify the neighborhood for critical Point extraction 
 #and the distance between critical Points. 
-voronoi_neighborhood_index: 280 #larger value sets a larger neighborhood --> int
+voronoi_neighborhood_index: 280 #larger value sets a larger neighborhood for searching critical points --> int
 max_iterations: 150 #sets the maximal number of iterations to search for a neighborhood --> int
 min_critical_point_distance_factor: 1.6 #minimal distance factor between two critical points before one of it gets eliminated --> double
 max_area_for_merging: 12.5 #maximal area [m²] of a room that should be merged with its surrounding rooms
