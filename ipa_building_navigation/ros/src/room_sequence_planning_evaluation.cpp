@@ -181,8 +181,8 @@ public:
 //		map_names.push_back("Freiburg101_scan"); //done
 //		map_names.push_back("lab_a_scan"); //done
 
-		map_names.push_back("lab_f_scan"); //
-//		map_names.push_back("NLB"); //cl16seg2tsp1+2 done
+//		map_names.push_back("lab_f_scan"); //
+		map_names.push_back("NLB"); //cl16seg2tsp1+2 done
 
 		//with obstacles:
 //		"Freiburg52_scan_furnitures_trashbins"
@@ -460,11 +460,11 @@ public:
 	void setConfigurations(std::vector< EvaluationConfig >& evaluation_configurations)
 	{
 		evaluation_configurations.clear();
-		for(int sequence_planning_method = 1; sequence_planning_method <= 2; ++sequence_planning_method)
+		for(int sequence_planning_method = 2; sequence_planning_method <= 2; ++sequence_planning_method)
 		{
 			for (double max_clique_path_length = 6.; max_clique_path_length <= 20.; max_clique_path_length += 2.0)
 			{
-				for (int room_segmentation_algorithm=1; room_segmentation_algorithm<=4; ++room_segmentation_algorithm)
+				for (int room_segmentation_algorithm=1; room_segmentation_algorithm<=3; ++room_segmentation_algorithm)
 				{
 					if(room_segmentation_algorithm == 4)
 					{
