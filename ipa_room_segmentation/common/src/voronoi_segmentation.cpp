@@ -148,7 +148,6 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 		}
 	}
 	map_for_voronoi_generation = map_to_draw_voronoi_in;
-//	cv::imwrite("/home/rmb/Bilder/first_voronoi_graph.png", map_for_voronoi_generation);
 }
 
 void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Room> rooms, double map_resolution_from_subscription, double max_area_for_merging)
@@ -375,10 +374,6 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 			}
 		}
 	}
-
-//	cv::imwrite("/home/rmb/Bilder/second_voronoi_graph.png", voronoi_map_);
-//	cv::imshow("voronoi", voronoi_map_);
-//	cv::waitKey();
 
 	//3.find the critical Points in the previously calculated generalized Voronoi-Graph by searching in a specified
 	//	neighborhood for the local Minimum of distance to the nearest black Pixel
