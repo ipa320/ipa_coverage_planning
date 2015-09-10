@@ -16,7 +16,7 @@ int32 room_segmentation_algorithm		# this variable selects the algorithm for roo
 ---
 
 # result definition
-sensor_msgs/Image segmented_map			# the action server need a map as a input image to segment it
+sensor_msgs/Image segmented_map			# the action server need a map as a input image to segment it, format 32SC1, room labels from 1 to N, room with label i -> access to room_information_in_pixel[i-1]
 float32 map_resolution					# the resolution of the segmented map in [meter/cell]
 geometry_msgs/Pose map_origin			# the origin of the segmented map in [meter]
 # for the following data: value in pixel can be obtained when the value of [return_format_in_pixel] from goal definition is true
