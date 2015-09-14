@@ -8,12 +8,58 @@ Room::Room(int id_of_room)
 	room_perimeter_ = 0;
 }
 
+void Room::mergeRoom(Room& room_to_merge, double map_resolution)
+{
+	// member_points_, room_area_
+	insertMemberPoints(room_to_merge.getMembers(), map_resolution);
+
+	// neighbor_room_ids_
+	const std::vector<int>& neighbor_ids = room_to_merge.getNeighborIDs();
+
+	std::cout << "neighbor_room_ids_:\n";
+	for (size_t i=0; i<neighbor_room_ids_.size(); ++i)
+		std::cout << neighbor_room_ids_[i] << "\n";
+	std::cout << "neighbor_ids:\n";
+		for (size_t i=0; i<neighbor_ids.size(); ++i)
+			std::cout << neighbor_ids[i] << "\n";
+
+	for (size_t i=0; i<neighbor_ids.size(); ++i)
+	{
+		if (!contains(neighbor_room_ids_, neighbor_ids[i]) && neighbor_ids[i]!=id_number_)
+			neighbor_room_ids_.push_back(neighbor_ids[i]);
+	}
+	for (std::vector<int>::iterator it = neighbor_room_ids_.begin(); it != neighbor_room_ids_.end();)
+	{
+		if (*it == id_number_ || *it == room_to_merge.getID())
+			neighbor_room_ids_.erase(it);
+		else
+			++it;
+	}
+
+	std::cout << "neighbor_room_ids_after_merge:\n";
+	for (size_t i=0; i<neighbor_room_ids_.size(); ++i)
+		std::cout << neighbor_room_ids_[i] << "\n";
+
+	// neighbor_room_statistics_
+	for (std::map<int,int>::const_iterator it = room_to_merge.getNeighborStatistics().begin(); it != room_to_merge.getNeighborStatistics().end(); ++it)
+	{
+		if (it->first != id_number_)
+		{
+			if (neighbor_room_statistics_.find(it->first) != neighbor_room_statistics_.end())
+				neighbor_room_statistics_[it->first] += it->second;
+			else
+				neighbor_room_statistics_[it->first] = it->second;
+		}
+	}
+	neighbor_room_statistics_.erase(room_to_merge.getID());
+}
+
 //function to add a Point to the Room
 int Room::insertMemberPoint(cv::Point new_member, double map_resolution)
 {
-	if (!contains(member_Points_, new_member))
+	if (!contains(member_points_, new_member))
 	{
-		member_Points_.push_back(new_member);
+		member_points_.push_back(new_member);
 		room_area_ += map_resolution * map_resolution;
 		return 0;
 	}
@@ -21,17 +67,26 @@ int Room::insertMemberPoint(cv::Point new_member, double map_resolution)
 }
 
 //function to add a few Points
-int Room::insertMemberPoints(std::vector<cv::Point> new_members, double map_resolution)
+int Room::insertMemberPoints(const std::vector<cv::Point>& new_members, double map_resolution)
 {
 	for (size_t point = 0; point < new_members.size(); point++)
 	{
-		if (!contains(member_Points_, new_members[point]))
+		if (!contains(member_points_, new_members[point]))
 		{
-			member_Points_.push_back(new_members[point]);
+			member_points_.push_back(new_members[point]);
 		}
 	}
 	room_area_ += map_resolution * map_resolution * new_members.size();
 	return 0;
+}
+
+//function to add a neighbor to the room statistics
+void Room::addNeighbor(int new_neighbor_id)
+{
+	if (neighbor_room_statistics_.find(new_neighbor_id) == neighbor_room_statistics_.end())
+		neighbor_room_statistics_[new_neighbor_id] = 1;
+	else
+		neighbor_room_statistics_[new_neighbor_id]++;
 }
 
 //function to add a neighbor to the Room
@@ -51,7 +106,44 @@ int Room::getNeighborCount()
 	return neighbor_room_ids_.size();
 }
 
-std::vector<int> Room::getNeighborIDs()
+const std::map<int,int>& Room::getNeighborStatistics()
+{
+	return neighbor_room_statistics_;
+}
+
+int Room::getNeighborWithLargestCommonBorder(bool exclude_wall)
+{
+	if (neighbor_room_statistics_.size() == 0)
+		return 0;
+
+	std::map< int,int,std::greater<int> > neighbor_room_statistics_inverse;	// common border length, room_id
+	for (std::map<int,int>::iterator it=neighbor_room_statistics_.begin(); it!=neighbor_room_statistics_.end(); ++it)
+		neighbor_room_statistics_inverse[it->second] = it->first;
+
+	if (exclude_wall == true && neighbor_room_statistics_inverse.begin()->second==0 && neighbor_room_statistics_inverse.size() > 1)
+	{
+		std::map<int,int>::iterator it = neighbor_room_statistics_inverse.begin();
+		it++;
+		return it->second;
+	}
+
+	return neighbor_room_statistics_inverse.begin()->second;
+}
+
+double Room::getWallToPerimeterRatio()
+{
+	room_perimeter_ = 0.;
+	for (std::map<int,int>::iterator it=neighbor_room_statistics_.begin(); it!=neighbor_room_statistics_.end(); ++it)
+		room_perimeter_ += it->second;
+
+	double value = 0.;
+	if (neighbor_room_statistics_.find(0) != neighbor_room_statistics_.end())
+		value = neighbor_room_statistics_[0]/room_perimeter_;
+
+	return value;
+}
+
+const std::vector<int>& Room::getNeighborIDs()
 {
 	return neighbor_room_ids_;
 }
@@ -84,14 +176,20 @@ int Room::getID()
 	return id_number_;
 }
 
-//function to get the Members of this room
-std::vector<cv::Point> Room::getMembers()
+cv::Point Room::getCenter()
 {
-	if (member_Points_.size() == 0)
+	cv::Scalar center = cv::mean(member_points_);
+	return cv::Point(center[0], center[1]);
+}
+
+//function to get the Members of this room
+const std::vector<cv::Point>& Room::getMembers()
+{
+	if (member_points_.size() == 0)
 	{
 		std::cout << "Warning: This room has no members." << std::endl;
 	}
-	return member_Points_;
+	return member_points_;
 }
 
 //This function sets the room ID to a different value. This is useful for merging different rooms together.
@@ -123,4 +221,9 @@ int Room::setPerimeter(double room_perimeter)
 {
 	room_perimeter_ = room_perimeter;
 	return 0;
+}
+
+bool sortRoomsAscending(Room a, Room b)
+{
+	return (a.getArea() < b.getArea());
 }
