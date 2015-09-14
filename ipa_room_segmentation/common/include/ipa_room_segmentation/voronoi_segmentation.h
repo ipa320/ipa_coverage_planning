@@ -16,6 +16,10 @@ class VoronoiSegmentation
 {
 private:
 
+	bool determineRoomIndexFromRoomID(const std::vector<Room>& rooms, const int room_id, size_t& room_index);
+
+	void mergeRoomPair(std::vector<Room>& rooms, const int target_index, const int room_to_merge_index, cv::Mat& segmented_map, const double map_resolution);
+
 	//function to draw the generalized voronoi-diagram into a given map, not drawing lines that start or end at black Pixels
 	void drawVoronoi(cv::Mat &img, const std::vector<std::vector<cv::Point2f> >& facets_of_voronoi, const cv::Scalar voronoi_color,
 			const std::vector<cv::Point>& contour, const std::vector<std::vector<cv::Point> >& hole_contours);

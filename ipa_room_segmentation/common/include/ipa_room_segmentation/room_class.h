@@ -42,19 +42,23 @@ public:
 
 	int getNeighborCount();
 
-	const std::map<int,int>& getNeighborStatistics();
+	std::map<int,int>& getNeighborStatistics();
+
+	void getNeighborStatisticsInverse(std::map< int,int,std::greater<int> >& neighbor_room_statistics_inverse);
 
 	int getNeighborWithLargestCommonBorder(bool exclude_wall=true);
 
+	double getPerimeterRatioOfXLargestRooms(const int number_rooms);
+
 	double getWallToPerimeterRatio();
 
-	const std::vector<int>& getNeighborIDs();
+	std::vector<int>& getNeighborIDs();
 
 	double getArea();
 
 	double getPerimeter();
 
-	int getID();
+	int getID() const;
 
 	cv::Point getCenter();
 

@@ -310,28 +310,28 @@ int main(int argc, char **argv) {
 ////		"lab_a_scan" //done
 ////		"NLB" //done
 	std::vector< std::string > map_names;
-//	map_names.push_back("lab_ipa.png");
+	map_names.push_back("lab_ipa.png");
 	map_names.push_back("lab_c_scan.png");
-//	map_names.push_back("Freiburg52_scan.png");
-//	map_names.push_back("Freiburg79_scan.png");
-//	map_names.push_back("lab_b_scan.png");
-//	map_names.push_back("lab_intel.png");
-//	map_names.push_back("Freiburg101_scan.png");
-//	map_names.push_back("lab_d_scan.png");
+	map_names.push_back("Freiburg52_scan.png");
+	map_names.push_back("Freiburg79_scan.png");
+	map_names.push_back("lab_b_scan.png");
+	map_names.push_back("lab_intel.png");
+	map_names.push_back("Freiburg101_scan.png");
+	map_names.push_back("lab_d_scan.png");
 	map_names.push_back("lab_f_scan.png");
-//	map_names.push_back("lab_a_scan.png");
-//	map_names.push_back("NLB.png");
-//	map_names.push_back("lab_ipa_furnitures.png");
-//	map_names.push_back("lab_c_scan_furnitures.png");
-//	map_names.push_back("Freiburg52_scan_furnitures.png");
-//	map_names.push_back("Freiburg79_scan_furnitures.png");
-//	map_names.push_back("lab_b_scan_furnitures.png");
-//	map_names.push_back("lab_intel_furnitures.png");
-//	map_names.push_back("Freiburg101_scan_furnitures.png");
-//	map_names.push_back("lab_d_scan_furnitures.png");
-//	map_names.push_back("lab_f_scan_furnitures.png");
-//	map_names.push_back("lab_a_scan_furnitures.png");
-//	map_names.push_back("NLB_furnitures.png");
+	map_names.push_back("lab_a_scan.png");
+	map_names.push_back("NLB.png");
+	map_names.push_back("lab_ipa_furnitures.png");
+	map_names.push_back("lab_c_scan_furnitures.png");
+	map_names.push_back("Freiburg52_scan_furnitures.png");
+	map_names.push_back("Freiburg79_scan_furnitures.png");
+	map_names.push_back("lab_b_scan_furnitures.png");
+	map_names.push_back("lab_intel_furnitures.png");
+	map_names.push_back("Freiburg101_scan_furnitures.png");
+	map_names.push_back("lab_d_scan_furnitures.png");
+	map_names.push_back("lab_f_scan_furnitures.png");
+	map_names.push_back("lab_a_scan_furnitures.png");
+	map_names.push_back("NLB_furnitures.png");
 
 	//define vectors to save the parameters
 	std::vector<double> av_compactness_vector(segmentation_names.size()), max_compactness_vector(segmentation_names.size()), min_compactness_vector(segmentation_names.size());

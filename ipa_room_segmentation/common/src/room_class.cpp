@@ -16,12 +16,12 @@ void Room::mergeRoom(Room& room_to_merge, double map_resolution)
 	// neighbor_room_ids_
 	const std::vector<int>& neighbor_ids = room_to_merge.getNeighborIDs();
 
-	std::cout << "neighbor_room_ids_:\n";
-	for (size_t i=0; i<neighbor_room_ids_.size(); ++i)
-		std::cout << neighbor_room_ids_[i] << "\n";
-	std::cout << "neighbor_ids:\n";
-		for (size_t i=0; i<neighbor_ids.size(); ++i)
-			std::cout << neighbor_ids[i] << "\n";
+//	std::cout << "neighbor_room_ids_:\n";
+//	for (size_t i=0; i<neighbor_room_ids_.size(); ++i)
+//		std::cout << neighbor_room_ids_[i] << "\n";
+//	std::cout << "neighbor_ids:\n";
+//		for (size_t i=0; i<neighbor_ids.size(); ++i)
+//			std::cout << neighbor_ids[i] << "\n";
 
 	for (size_t i=0; i<neighbor_ids.size(); ++i)
 	{
@@ -36,9 +36,9 @@ void Room::mergeRoom(Room& room_to_merge, double map_resolution)
 			++it;
 	}
 
-	std::cout << "neighbor_room_ids_after_merge:\n";
-	for (size_t i=0; i<neighbor_room_ids_.size(); ++i)
-		std::cout << neighbor_room_ids_[i] << "\n";
+//	std::cout << "neighbor_room_ids_after_merge:\n";
+//	for (size_t i=0; i<neighbor_room_ids_.size(); ++i)
+//		std::cout << neighbor_room_ids_[i] << "\n";
 
 	// neighbor_room_statistics_
 	for (std::map<int,int>::const_iterator it = room_to_merge.getNeighborStatistics().begin(); it != room_to_merge.getNeighborStatistics().end(); ++it)
@@ -106,9 +106,16 @@ int Room::getNeighborCount()
 	return neighbor_room_ids_.size();
 }
 
-const std::map<int,int>& Room::getNeighborStatistics()
+std::map<int,int>& Room::getNeighborStatistics()
 {
 	return neighbor_room_statistics_;
+}
+
+void Room::getNeighborStatisticsInverse(std::map< int,int,std::greater<int> >& neighbor_room_statistics_inverse)
+{
+	//std::map< int,int,std::greater<int> > neighbor_room_statistics_inverse;	// common border length, room_id
+	for (std::map<int,int>::iterator it=neighbor_room_statistics_.begin(); it!=neighbor_room_statistics_.end(); ++it)
+		neighbor_room_statistics_inverse[it->second] = it->first;
 }
 
 int Room::getNeighborWithLargestCommonBorder(bool exclude_wall)
@@ -130,20 +137,37 @@ int Room::getNeighborWithLargestCommonBorder(bool exclude_wall)
 	return neighbor_room_statistics_inverse.begin()->second;
 }
 
+double Room::getPerimeterRatioOfXLargestRooms(const int number_rooms)
+{
+	if (neighbor_room_statistics_.size() == 0)
+		return 0;
+
+	std::map< int,int,std::greater<int> > neighbor_room_statistics_inverse;	// common border length, room_id
+	for (std::map<int,int>::iterator it=neighbor_room_statistics_.begin(); it!=neighbor_room_statistics_.end(); ++it)
+		neighbor_room_statistics_inverse[it->second] = it->first;
+
+	int counter = 0;
+	double value = 0.;
+	for (std::map<int,int>::iterator it=neighbor_room_statistics_inverse.begin(); it!=neighbor_room_statistics_inverse.end() && counter<number_rooms; ++it)
+	{
+		value += it->first;
+		if (it->second != 0)
+			counter++;
+	}
+
+	return value/getPerimeter();
+}
+
 double Room::getWallToPerimeterRatio()
 {
-	room_perimeter_ = 0.;
-	for (std::map<int,int>::iterator it=neighbor_room_statistics_.begin(); it!=neighbor_room_statistics_.end(); ++it)
-		room_perimeter_ += it->second;
-
 	double value = 0.;
 	if (neighbor_room_statistics_.find(0) != neighbor_room_statistics_.end())
-		value = neighbor_room_statistics_[0]/room_perimeter_;
+		value = neighbor_room_statistics_[0]/getPerimeter();
 
 	return value;
 }
 
-const std::vector<int>& Room::getNeighborIDs()
+std::vector<int>& Room::getNeighborIDs()
 {
 	return neighbor_room_ids_;
 }
@@ -162,16 +186,20 @@ double Room::getArea()
 //function to get the perimeter of this room, which has been set previously
 double Room::getPerimeter()
 {
-	if (room_perimeter_ != 0)
-	{
-		return room_perimeter_;
-	}
-	std::cout << "Warning: Room Perimeter hasn't been set for this room." << std::endl;
-	return -1;
+//	if (room_perimeter_ != 0)
+//	{
+//		return room_perimeter_;
+//	}
+//	std::cout << "Warning: Room Perimeter hasn't been set for this room." << std::endl;
+	room_perimeter_ = 0.;
+	for (std::map<int,int>::iterator it=neighbor_room_statistics_.begin(); it!=neighbor_room_statistics_.end(); ++it)
+		room_perimeter_ += it->second;
+
+	return room_perimeter_;
 }
 
 //function to get the ID number of this room
-int Room::getID()
+int Room::getID() const
 {
 	return id_number_;
 }
