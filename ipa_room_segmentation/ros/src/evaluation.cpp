@@ -268,6 +268,19 @@ double calc_errors_deviation(std::vector<std::vector<cv::Point> > rooms)
 	return std::sqrt(sigma);
 }
 
+int segmentationNameToNumber(const std::string name)
+{
+	if (name.compare("morphological") == 0)
+		return 1;
+	else if (name.compare("distance") == 0)
+		return 2;
+	else if (name.compare("voronoi") == 0)
+		return 3;
+	else if (name.compare("semantic") == 0)
+		return 4;
+	return 1;
+}
+
 
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "evaluation");
@@ -279,10 +292,10 @@ int main(int argc, char **argv) {
 	double map_resolution = 0.0500;
 
 	std::vector<std::string> segmentation_names;
-	segmentation_names.push_back("morphological");
-	segmentation_names.push_back("distance");
+//	segmentation_names.push_back("morphological");
+//	segmentation_names.push_back("distance");
 	segmentation_names.push_back("voronoi");
-	segmentation_names.push_back("semantic");
+//	segmentation_names.push_back("semantic");
 
 //	std::string map_name = "NLB";
 ////		"lab_ipa" //done
@@ -298,36 +311,36 @@ int main(int argc, char **argv) {
 ////		"NLB" //done
 	std::vector< std::string > map_names;
 //	map_names.push_back("lab_ipa.png");
-//	map_names.push_back("lab_c_scan.png");
+	map_names.push_back("lab_c_scan.png");
 //	map_names.push_back("Freiburg52_scan.png");
 //	map_names.push_back("Freiburg79_scan.png");
 //	map_names.push_back("lab_b_scan.png");
 //	map_names.push_back("lab_intel.png");
 //	map_names.push_back("Freiburg101_scan.png");
 //	map_names.push_back("lab_d_scan.png");
-//	map_names.push_back("lab_f_scan.png");
+	map_names.push_back("lab_f_scan.png");
 //	map_names.push_back("lab_a_scan.png");
 //	map_names.push_back("NLB.png");
-	map_names.push_back("lab_ipa_furnitures.png");
-	map_names.push_back("lab_c_scan_furnitures.png");
-	map_names.push_back("Freiburg52_scan_furnitures.png");
-	map_names.push_back("Freiburg79_scan_furnitures.png");
-	map_names.push_back("lab_b_scan_furnitures.png");
-	map_names.push_back("lab_intel_furnitures.png");
-	map_names.push_back("Freiburg101_scan_furnitures.png");
-	map_names.push_back("lab_d_scan_furnitures.png");
-	map_names.push_back("lab_f_scan_furnitures.png");
-	map_names.push_back("lab_a_scan_furnitures.png");
-	map_names.push_back("NLB_furnitures.png");
+//	map_names.push_back("lab_ipa_furnitures.png");
+//	map_names.push_back("lab_c_scan_furnitures.png");
+//	map_names.push_back("Freiburg52_scan_furnitures.png");
+//	map_names.push_back("Freiburg79_scan_furnitures.png");
+//	map_names.push_back("lab_b_scan_furnitures.png");
+//	map_names.push_back("lab_intel_furnitures.png");
+//	map_names.push_back("Freiburg101_scan_furnitures.png");
+//	map_names.push_back("lab_d_scan_furnitures.png");
+//	map_names.push_back("lab_f_scan_furnitures.png");
+//	map_names.push_back("lab_a_scan_furnitures.png");
+//	map_names.push_back("NLB_furnitures.png");
 
 	//define vectors to save the parameters
-	std::vector<double> av_compactness_vector(4), max_compactness_vector(4), min_compactness_vector(4);
-	std::vector<double> av_bb_vector(4), max_bb_vector(4), min_bb_vector(4), dev_bb_vector(4);
-	std::vector<double> av_area_vector(4), max_area_vector(4), min_area_vector(4), dev_area_vector(4);
-	std::vector<double> av_per_vector(4), max_per_vector(4), min_per_vector(4), dev_per_vector(4);
-	std::vector<bool> reachable(4);
-	std::vector<double> av_quo_vector(4), max_quo_vector(4), min_quo_vector(4), dev_quo_vector(4);
-	std::vector<int> segments_number_vector(4);
+	std::vector<double> av_compactness_vector(segmentation_names.size()), max_compactness_vector(segmentation_names.size()), min_compactness_vector(segmentation_names.size());
+	std::vector<double> av_bb_vector(segmentation_names.size()), max_bb_vector(segmentation_names.size()), min_bb_vector(segmentation_names.size()), dev_bb_vector(segmentation_names.size());
+	std::vector<double> av_area_vector(segmentation_names.size()), max_area_vector(segmentation_names.size()), min_area_vector(segmentation_names.size()), dev_area_vector(segmentation_names.size());
+	std::vector<double> av_per_vector(segmentation_names.size()), max_per_vector(segmentation_names.size()), min_per_vector(segmentation_names.size()), dev_per_vector(segmentation_names.size());
+	std::vector<bool> reachable(segmentation_names.size());
+	std::vector<double> av_quo_vector(segmentation_names.size()), max_quo_vector(segmentation_names.size()), min_quo_vector(segmentation_names.size()), dev_quo_vector(segmentation_names.size());
+	std::vector<int> segments_number_vector(segmentation_names.size());
 
 	std::stringstream output;
 	const std::string segmented_map_path = ros::package::getPath("ipa_room_segmentation") + "/common/files/segmented_maps/";
@@ -380,7 +393,7 @@ int main(int argc, char **argv) {
 			goal.map_resolution = 0.05;
 			goal.return_format_in_meter = false;
 			goal.return_format_in_pixel = true;
-			goal.room_segmentation_algorithm = segmentation_index+1;
+			goal.room_segmentation_algorithm = segmentationNameToNumber(segmentation_names[segmentation_index]);
 			ac.sendGoal(goal);
 
 			//wait for the action to return
@@ -554,83 +567,83 @@ int main(int argc, char **argv) {
 
 		//write parameters into file
 		output << "--------------Segmentierungsevaluierung----------------" << std::endl;
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << segmentation_names[i] << " & ";
 		output << std::endl;
 		output << "Kompaktheitsmaße: " << std::endl;
 		output << "Durschnitt: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << av_compactness_vector[i] << " & ";
 		output << std::endl;
 		output << "Maximum: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << max_compactness_vector[i] << " & ";
 		output << std::endl;
 		output << "Minimum: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << min_compactness_vector[i] << " & ";
 		output << std::endl;
 		output << "****************************" << std::endl;
 
 		output << "Überflüssige Fläche Bounding Box: " << std::endl;
 		output << "Durchschnitt Bounding Fehler: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << av_bb_vector[i] << " & ";
 		output << std::endl;
 		output << "Maximum: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << max_bb_vector[i] << " & ";
 		output << std::endl;
 		output << "Minimum: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << min_bb_vector[i] << " & ";
 		output << std::endl;
 		output << "Standardabweichung: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << dev_bb_vector[i] << " & ";
 		output << std::endl;
 		output << "**************************************" << std::endl;
 
 		output << "Flächenmaße: " << std::endl;
 		output << "Durchschnitt: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << av_area_vector[i] << " & ";
 		output << std::endl;
 		output << "Maximum: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << max_area_vector[i] << " & ";
 		output << std::endl;
 		output << "Minimum: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << min_area_vector[i] << " & ";
 		output << std::endl;
 		output << "Standardabweichung: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << dev_area_vector[i] << " & ";
 		output << std::endl;
 		output << "**************************************" << std::endl;
 
 		output << "Umfangsmaße: " << std::endl;
 		output << "Durchschnitt: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << av_per_vector[i] << " & ";
 		output << std::endl;
 		output << "Maximum: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << max_per_vector[i] << " & ";
 		output << std::endl;
 		output << "Minimum: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << min_per_vector[i] << " & ";
 		output << std::endl;
 		output << "Standardabweichung: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << dev_per_vector[i] << " & ";
 		output << std::endl;
 		output << "**************************************" << std::endl;
 
 		output << "Erreichbarkeit für alle Raumzentren: " << std::endl;
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 		{
 			if(reachable[i] == true)
 				output << "Alle Raumzentren erreichbar" << std::endl;
@@ -641,25 +654,25 @@ int main(int argc, char **argv) {
 
 		output << "Quotienten der Ellipsenachsen: " << std::endl;
 		output << "Durchschnitt: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << av_quo_vector[i] << " & ";
 		output << std::endl;
 		output << "Maximum: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << max_quo_vector[i] << " & ";
 		output << std::endl;
 		output << "Minimum: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << min_quo_vector[i] << " & ";
 		output << std::endl;
 		output << "Standardabweichung: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << dev_quo_vector[i] << " & ";
 		output << std::endl;
 		output << "****************************" << std::endl;
 
 		output << "Anzahl Räume: ";
-		for(size_t i = 0; i < 4; ++i)
+		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << segments_number_vector[i] << " & ";
 		output << std::endl;
 
