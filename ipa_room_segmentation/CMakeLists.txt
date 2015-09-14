@@ -18,7 +18,7 @@ set(catkin_BUILD_PACKAGES
 	message_generation
 )
 
-## Find catkin macros and libraries
+## Find catkin macros and libraries 
 find_package(catkin REQUIRED COMPONENTS
 	${catkin_BUILD_PACKAGES}
 	genmsg
