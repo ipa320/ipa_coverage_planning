@@ -172,7 +172,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 			max_iterations_ = 150;
 			min_critical_point_distance_factor_ = 0.5; //1.6;
 			max_area_for_merging_ = 12.5;
-			ROS_INFO("You have chosen the voronoi Segmentation");
+			ROS_INFO("You have chosen the Voronoi segmentation");
 		}
 		if(room_segmentation_algorithm_ == 4) //semantic
 		{

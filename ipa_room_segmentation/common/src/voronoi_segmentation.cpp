@@ -276,7 +276,7 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 
 		if (merge_rooms == true)
 		{
-			std::cout << "merge " << current_room.getCenter() << ", id=" << current_room.getID() << " into " << rooms[merge_index].getCenter() << ", id=" << rooms[merge_index].getID() << std::endl;
+			//std::cout << "merge " << current_room.getCenter() << ", id=" << current_room.getID() << " into " << rooms[merge_index].getCenter() << ", id=" << rooms[merge_index].getID() << std::endl;
 			mergeRoomPair(rooms, merge_index, current_room_index, map_to_merge_rooms, map_resolution_from_subscription);
 			current_room_index = 0;
 		}
@@ -302,7 +302,7 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 
 		if (merge_rooms == true)
 		{
-			std::cout << "merge " << current_room.getCenter() << ", id=" << current_room.getID() << " into " << rooms[merge_index].getCenter() << ", id=" << rooms[merge_index].getID() << std::endl;
+			//std::cout << "merge " << current_room.getCenter() << ", id=" << current_room.getID() << " into " << rooms[merge_index].getCenter() << ", id=" << rooms[merge_index].getID() << std::endl;
 			mergeRoomPair(rooms, merge_index, current_room_index, map_to_merge_rooms, map_resolution_from_subscription);
 			current_room_index = 0;
 		}
@@ -330,7 +330,7 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 
 		if (merge_rooms == true)
 		{
-			std::cout << "merge " << current_room.getCenter() << ", id=" << current_room.getID() << " into " << rooms[merge_index].getCenter() << ", id=" << rooms[merge_index].getID() << std::endl;
+			//std::cout << "merge " << current_room.getCenter() << ", id=" << current_room.getID() << " into " << rooms[merge_index].getCenter() << ", id=" << rooms[merge_index].getID() << std::endl;
 			mergeRoomPair(rooms, merge_index, current_room_index, map_to_merge_rooms, map_resolution_from_subscription);
 			current_room_index = 0;
 		}
@@ -368,7 +368,7 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 
 		if (merge_rooms == true)
 		{
-			std::cout << "merge " << current_room.getCenter() << ", id=" << current_room.getID() << " into " << rooms[merge_index].getCenter() << ", id=" << rooms[merge_index].getID() << std::endl;
+			//std::cout << "merge " << current_room.getCenter() << ", id=" << current_room.getID() << " into " << rooms[merge_index].getCenter() << ", id=" << rooms[merge_index].getID() << std::endl;
 			mergeRoomPair(rooms, merge_index, current_room_index, map_to_merge_rooms, map_resolution_from_subscription);
 			current_room_index = 0;
 		}
@@ -376,29 +376,29 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 			current_room_index++;
 	}
 	cv::imshow("d", map_to_merge_rooms);
-//	// e) largest room neighbor touches > 0.5 perimeter (happens often with furniture)
-//	for (int current_room_index = 0; current_room_index < rooms.size(); )
-//	{
-//		Room& current_room = rooms[current_room_index];
-//		bool merge_rooms = false;
-//		size_t merge_index = 0;
-//
-//		const int max_border_neighbor_id = current_room.getNeighborWithLargestCommonBorder();
-//		if ((double)current_room.getNeighborStatistics()[max_border_neighbor_id]/current_room.getPerimeter() > 0.4)
-//		{
-//			// merge with that neighbor that shares the most neighboring pixels
-//			merge_rooms = determineRoomIndexFromRoomID(rooms, max_border_neighbor_id, merge_index);
-//		}
-//
-//		if (merge_rooms == true)
-//		{
-//			std::cout << "merge " << current_room.getCenter() << ", id=" << current_room.getID() << " into " << rooms[merge_index].getCenter() << ", id=" << rooms[merge_index].getID() << std::endl;
-//			mergeRoomPair(rooms, merge_index, current_room_index, map_to_merge_rooms, map_resolution_from_subscription);
-//			current_room_index = 0;
-//		}
-//		else
-//			current_room_index++;
-//	}
+	// e) largest room neighbor touches > 0.5 perimeter (happens often with furniture)
+	for (int current_room_index = 0; current_room_index < rooms.size(); )
+	{
+		Room& current_room = rooms[current_room_index];
+		bool merge_rooms = false;
+		size_t merge_index = 0;
+
+		const int max_border_neighbor_id = current_room.getNeighborWithLargestCommonBorder();
+		if ((double)current_room.getNeighborStatistics()[max_border_neighbor_id]/current_room.getPerimeter() > 0.4)
+		{
+			// merge with that neighbor that shares the most neighboring pixels
+			merge_rooms = determineRoomIndexFromRoomID(rooms, max_border_neighbor_id, merge_index);
+		}
+
+		if (merge_rooms == true)
+		{
+			//std::cout << "merge " << current_room.getCenter() << ", id=" << current_room.getID() << " into " << rooms[merge_index].getCenter() << ", id=" << rooms[merge_index].getID() << std::endl;
+			mergeRoomPair(rooms, merge_index, current_room_index, map_to_merge_rooms, map_resolution_from_subscription);
+			current_room_index = 0;
+		}
+		else
+			current_room_index++;
+	}
 
 
 
