@@ -18,7 +18,7 @@ int main(int argc, char **argv)
 	ros::init(argc, argv, "room_segmentation_client");
 
 	std::vector< std::string > map_names;
-	map_names.push_back("lab_ipa.png");
+//	map_names.push_back("lab_ipa.png");
 //	map_names.push_back("freiburg_building101.png");
 //	map_names.push_back("freiburg_building52.png");
 //	map_names.push_back("freiburg_building79.png");
@@ -28,6 +28,7 @@ int main(int argc, char **argv)
 //	map_names.push_back("lab_c.png");
 //	map_names.push_back("lab_d.png");
 //	map_names.push_back("lab_e.png");
+	map_names.push_back("lab_f_scan.png");
 
 	for (size_t image_index = 0; image_index<map_names.size(); ++image_index)
 	{
@@ -45,7 +46,8 @@ int main(int argc, char **argv)
 				}
 			}
 		}
-
+		cv::imshow("map", map);
+		cv::waitKey();
 		sensor_msgs::Image labeling;
 
 		cv_bridge::CvImage cv_image;
