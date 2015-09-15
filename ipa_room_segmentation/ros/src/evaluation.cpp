@@ -26,7 +26,7 @@ double calculate_stddev(const std::vector<double>& values, const double mean)
 	double sigma = 0.;
 	for (size_t i=0; i<values.size(); i++)
 		sigma += (values[i] - mean)*(values[i] - mean);
-	sigma = sigma / (double)(values.size() - 1.);
+	sigma = std::sqrt(sigma / (double)(values.size() - 1.));
 
 	return sigma;
 }
@@ -75,6 +75,8 @@ void calculate_basic_measures(const cv::Mat& map, const int number_rooms, std::v
 			if(map.at<int>(v,u) != 0)
 			{
 				const int insert_index = map.at<int>(v,u)-1;
+				if (insert_index >= number_rooms)
+					continue;
 				areas[insert_index] += map_resolution*map_resolution;
 				filled_rooms[insert_index].push_back(cv::Point(u,v));
 				if (check_inner_pixel(map, u, v) == false)
@@ -82,6 +84,9 @@ void calculate_basic_measures(const cv::Mat& map, const int number_rooms, std::v
 			}
 		}
 	}
+
+	std::cout << "a" << std::endl;
+
 	for (size_t r=0; r<room_contours.size(); ++r)
 	{
 		// perimeters
@@ -589,6 +594,8 @@ int main(int argc, char **argv) {
 //				}
 //			}
 
+			std::cout << "1" << std::endl;
+
 			std::vector<double> areas;
 			std::vector<double> perimeters;
 			std::vector<double> area_perimeter_compactness;
@@ -596,12 +603,16 @@ int main(int argc, char **argv) {
 			std::vector<double> pca_eigenvalue_ratio;
 			calculate_basic_measures(segmented_map, (int)result->room_information_in_pixel.size(), areas, perimeters, area_perimeter_compactness, bb_area_compactness, pca_eigenvalue_ratio);
 
+			std::cout << "2" << std::endl;
+
 			// runtime
 			results[segmentation_index].at<double>(0, image_index) = runtime[segmentation_index];
 
 			//number of segments
 			segments_number_vector[segmentation_index] = areas.size();
 			results[segmentation_index].at<double>(1, image_index) = areas.size();
+
+			std::cout << "3" << std::endl;
 
 			//area
 			//std::vector<double> areas = calculate_areas_from_segmented_map(segmented_map, (int)result->room_information_in_pixel.size());
@@ -622,6 +633,8 @@ int main(int argc, char **argv) {
 			results[segmentation_index].at<double>(4, image_index) = min_area_vector[segmentation_index] = min_area;
 			results[segmentation_index].at<double>(5, image_index) = dev_area_vector[segmentation_index] = calculate_stddev(areas, average);
 
+			std::cout << "4" << std::endl;
+
 			//perimeters
 			//std::vector<double> perimeters = calculate_perimeters(saved_contours);
 			average = 0.0;
@@ -640,6 +653,8 @@ int main(int argc, char **argv) {
 			results[segmentation_index].at<double>(7, image_index) = max_per_vector[segmentation_index] = max_per;
 			results[segmentation_index].at<double>(8, image_index) = min_per_vector[segmentation_index] = min_per;
 			results[segmentation_index].at<double>(9, image_index) = dev_per_vector[segmentation_index] = calculate_stddev(perimeters, average);
+
+			std::cout << "5" << std::endl;
 
 			//area compactness
 			//std::vector<double> area_perimeter_compactness = calculate_compactness(saved_contours);
@@ -660,6 +675,8 @@ int main(int argc, char **argv) {
 			results[segmentation_index].at<double>(12, image_index) = min_compactness_vector[segmentation_index] = min_compactness;
 			results[segmentation_index].at<double>(13, image_index) = dev_compactness_vector[segmentation_index] = calculate_stddev(area_perimeter_compactness, average);
 
+			std::cout << "6" << std::endl;
+
 			//Bounding Box
 			//std::vector<double> bb_area_compactness = calculate_bounding_error(saved_contours);
 			average = 0.0;
@@ -678,6 +695,9 @@ int main(int argc, char **argv) {
 			results[segmentation_index].at<double>(15, image_index) = max_bb_vector[segmentation_index] = max_error;
 			results[segmentation_index].at<double>(16, image_index) = min_bb_vector[segmentation_index] = min_error;
 			results[segmentation_index].at<double>(17, image_index) = dev_bb_vector[segmentation_index] = calculate_stddev(bb_area_compactness, average);
+
+
+			std::cout << "7" << std::endl;
 
 //			//reachability
 //			if (check_reachability(saved_contours, segmented_map))
@@ -707,6 +727,8 @@ int main(int argc, char **argv) {
 			results[segmentation_index].at<double>(19, image_index) = max_quo_vector[segmentation_index] = max_quo;
 			results[segmentation_index].at<double>(20, image_index) = min_quo_vector[segmentation_index] = min_quo;
 			results[segmentation_index].at<double>(21, image_index) = dev_quo_vector[segmentation_index] = calculate_stddev(pca_eigenvalue_ratio, average);
+
+			std::cout << "8" << std::endl;
 		}
 
 		//write parameters into file

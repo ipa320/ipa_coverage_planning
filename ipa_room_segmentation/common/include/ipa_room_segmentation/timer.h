@@ -79,6 +79,8 @@ public:
         stopped = 0;
         startTimeInMicroSec = 0;
         endTimeInMicroSec = 0;
+
+        start();
     }
 
     // default destructor
