@@ -536,7 +536,7 @@ int main(int argc, char **argv) {
 			ac.sendGoal(goal);
 
 			//wait for the action to return
-			bool finished_before_timeout = ac.waitForResult(ros::Duration(1200.0));
+			bool finished_before_timeout = ac.waitForResult();
 
 			if (!finished_before_timeout)
 				continue;
