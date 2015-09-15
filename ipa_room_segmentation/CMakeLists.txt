@@ -117,7 +117,7 @@ target_link_libraries(evaluation ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 add_dependencies(evaluation ${catkin_EXPORTED_TARGETS})
 
 add_executable(evaluation_segmentation common/src/evaluation_segmentation.cpp)
-target_link_libraries(evaluation ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+target_link_libraries(evaluation_segmentation ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 add_dependencies(evaluation_segmentation ${catkin_EXPORTED_TARGETS})
 
  
