@@ -170,22 +170,64 @@ public:
 		segmented_vor = false;
 		segmented_semant = false;
 		// prepare relevant floor map data
-		std::vector<std::string> map_names;
-//		map_names.push_back("lab_ipa"); // done
-//		map_names.push_back("Freiburg52_scan"); //done
-//		map_names.push_back("Freiburg79_scan"); //done
-//		map_names.push_back("lab_c_scan"); //done
-//		map_names.push_back("lab_b_scan"); //done
-//		map_names.push_back("lab_d_scan"); //done
-//		map_names.push_back("lab_intel"); //done
-//		map_names.push_back("Freiburg101_scan"); //done
-//		map_names.push_back("lab_a_scan"); //done
-		map_names.push_back("lab_f_scan"); //done
-//		map_names.push_back("NLB"); //done
+//		std::vector<std::string> map_names;
+////		map_names.push_back("lab_ipa"); // done
+////		map_names.push_back("Freiburg52_scan"); //done
+////		map_names.push_back("Freiburg79_scan"); //done
+////		map_names.push_back("lab_c_scan"); //done
+////		map_names.push_back("lab_b_scan"); //done
+////		map_names.push_back("lab_d_scan"); //done
+////		map_names.push_back("lab_intel"); //done
+////		map_names.push_back("Freiburg101_scan"); //done
+////		map_names.push_back("lab_a_scan"); //done
+//		map_names.push_back("lab_f_scan"); //done
+////		map_names.push_back("NLB"); //done
 
 		//with obstacles:
 //		"Freiburg52_scan_furnitures_trashbins"
 //		map_names.push_back("lab_ipa_furnitures");
+
+		std::vector< std::string > map_names;
+		map_names.push_back("lab_ipa");
+		map_names.push_back("lab_c_scan");
+		map_names.push_back("Freiburg52_scan");
+		map_names.push_back("Freiburg79_scan");
+		map_names.push_back("lab_b_scan");
+		map_names.push_back("lab_intel");
+		map_names.push_back("Freiburg101_scan");
+		map_names.push_back("lab_d_scan");
+		map_names.push_back("lab_f_scan");
+		map_names.push_back("lab_a_scan");
+		map_names.push_back("NLB");
+		map_names.push_back("office_a");
+		map_names.push_back("office_b");
+		map_names.push_back("office_c");
+		map_names.push_back("office_d");
+		map_names.push_back("office_e");
+		map_names.push_back("office_f");
+		map_names.push_back("office_g");
+		map_names.push_back("office_h");
+		map_names.push_back("office_i");
+	//	map_names.push_back("lab_ipa_furnitures");
+	//	map_names.push_back("lab_c_scan_furnitures");
+	//	map_names.push_back("Freiburg52_scan_furnitures");
+	//	map_names.push_back("Freiburg79_scan_furnitures");
+	//	map_names.push_back("lab_b_scan_furnitures");
+	//	map_names.push_back("lab_intel_furnitures");
+	//	map_names.push_back("Freiburg101_scan_furnitures");
+	//	map_names.push_back("lab_d_scan_furnitures");
+	//	map_names.push_back("lab_f_scan_furnitures");
+	//	map_names.push_back("lab_a_scan_furnitures");
+	//	map_names.push_back("NLB_furnitures");
+	//	map_names.push_back("office_a_furnitures");
+	//	map_names.push_back("office_b_furnitures");
+	//	map_names.push_back("office_c_furnitures");
+	//	map_names.push_back("office_d_furnitures");
+	//	map_names.push_back("office_e_furnitures");
+	//	map_names.push_back("office_f_furnitures");
+	//	map_names.push_back("office_g_furnitures");
+	//	map_names.push_back("office_h_furnitures");
+	//	map_names.push_back("office_i_furnitures");
 
 
 
@@ -438,7 +480,7 @@ public:
 		{
 			for (double max_clique_path_length = 6.; max_clique_path_length <= 20.; max_clique_path_length += 2.0)
 			{
-				for (int room_segmentation_algorithm=2; room_segmentation_algorithm<=2; ++room_segmentation_algorithm)
+				for (int room_segmentation_algorithm=1; room_segmentation_algorithm<=4; ++room_segmentation_algorithm)
 				{
 					for(int tsp_solver = 1; tsp_solver <= 3; ++tsp_solver)
 						evaluation_configurations.push_back(EvaluationConfig(room_segmentation_algorithm, max_clique_path_length, sequence_planning_method, tsp_solver));
