@@ -480,7 +480,7 @@ public:
 		{
 			for (double max_clique_path_length = 6.; max_clique_path_length <= 20.; max_clique_path_length += 2.0)
 			{
-				for (int room_segmentation_algorithm=1; room_segmentation_algorithm<=4; ++room_segmentation_algorithm)
+				for (int room_segmentation_algorithm=1; room_segmentation_algorithm<=3; ++room_segmentation_algorithm)
 				{
 					for(int tsp_solver = 1; tsp_solver <= 3; ++tsp_solver)
 						evaluation_configurations.push_back(EvaluationConfig(room_segmentation_algorithm, max_clique_path_length, sequence_planning_method, tsp_solver));

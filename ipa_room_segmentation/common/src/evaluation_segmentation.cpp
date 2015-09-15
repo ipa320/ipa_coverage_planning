@@ -58,7 +58,7 @@ int main(int argc, char** argv)
 	cv::Mat segmented_map = cv::imread(argv[2],CV_8U);
 
 	EvaluationSegmentation EvaluationSegmentation;
-	std::vector<double> gt;
+	std::vector<cv::Mat> gt;
 
 	gt = EvaluationSegmentation.gt_calculation(gt_map);
 
