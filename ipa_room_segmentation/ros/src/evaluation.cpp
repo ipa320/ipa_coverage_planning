@@ -394,10 +394,10 @@ int main(int argc, char **argv) {
 	double map_resolution = 0.0500;
 
 	std::vector<std::string> segmentation_names;
-	segmentation_names.push_back("morphological");
-	segmentation_names.push_back("distance");
-	segmentation_names.push_back("voronoi");
-	//segmentation_names.push_back("semantic");
+//	segmentation_names.push_back("morphological");
+//	segmentation_names.push_back("distance");
+//	segmentation_names.push_back("voronoi");
+	segmentation_names.push_back("semantic");
 
 //	std::string map_name = "NLB";
 ////		"lab_ipa" //done
@@ -414,8 +414,8 @@ int main(int argc, char **argv) {
 	std::vector< std::string > map_names;
 //	map_names.push_back("lab_ipa.png");
 //	map_names.push_back("lab_c_scan.png");
-//	map_names.push_back("Freiburg52_scan.png");
-//	map_names.push_back("Freiburg79_scan.png");
+//	map_names.push_back("Freiburg52_scan.png"); //*
+//	map_names.push_back("Freiburg79_scan.png"); //*
 //	map_names.push_back("lab_b_scan.png");
 //	map_names.push_back("lab_intel.png");
 //	map_names.push_back("Freiburg101_scan.png");
@@ -425,33 +425,33 @@ int main(int argc, char **argv) {
 //	map_names.push_back("NLB.png");
 //	map_names.push_back("office_a.png");
 //	map_names.push_back("office_b.png");
-//	map_names.push_back("office_c.png");
+//	map_names.push_back("office_c.png"); //*
 //	map_names.push_back("office_d.png");
 //	map_names.push_back("office_e.png");
 //	map_names.push_back("office_f.png");
-//	map_names.push_back("office_g.png");
+//	map_names.push_back("office_g.png"); //*
 //	map_names.push_back("office_h.png");
-//	map_names.push_back("office_i.png");
+//	map_names.push_back("office_i.png"); //*
 	map_names.push_back("lab_ipa_furnitures.png");
 	map_names.push_back("lab_c_scan_furnitures.png");
 	map_names.push_back("Freiburg52_scan_furnitures.png");
 	map_names.push_back("Freiburg79_scan_furnitures.png");
 	map_names.push_back("lab_b_scan_furnitures.png");
 	map_names.push_back("lab_intel_furnitures.png");
-	map_names.push_back("Freiburg101_scan_furnitures.png");
+	map_names.push_back("Freiburg101_scan_furnitures.png"); // *
 	map_names.push_back("lab_d_scan_furnitures.png");
 	map_names.push_back("lab_f_scan_furnitures.png");
 	map_names.push_back("lab_a_scan_furnitures.png");
 	map_names.push_back("NLB_furnitures.png");
 	map_names.push_back("office_a_furnitures.png");
 	map_names.push_back("office_b_furnitures.png");
-	map_names.push_back("office_c_furnitures.png");
+	map_names.push_back("office_c_furnitures.png"); // *
 	map_names.push_back("office_d_furnitures.png");
 	map_names.push_back("office_e_furnitures.png");
-	map_names.push_back("office_f_furnitures.png");
-	map_names.push_back("office_g_furnitures.png");
+	map_names.push_back("office_f_furnitures.png"); // *
+	map_names.push_back("office_g_furnitures.png"); // *
 	map_names.push_back("office_h_furnitures.png");
-	map_names.push_back("office_i_furnitures.png");
+	map_names.push_back("office_i_furnitures.png"); //*
 
 	std::stringstream output;
 	const std::string segmented_map_path = ros::package::getPath("ipa_room_segmentation") + "/common/files/segmented_maps/";

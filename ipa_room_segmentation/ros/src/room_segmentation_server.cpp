@@ -177,7 +177,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 		if(room_segmentation_algorithm_ == 4) //semantic
 		{
 			room_lower_limit_semantic_ = 1.0;
-			room_upper_limit_semantic_ = 23.0;
+			room_upper_limit_semantic_ = 1000000.;//23.0;
 			ROS_INFO("You have chosen the semantic segmentation.");
 		}
 	}
