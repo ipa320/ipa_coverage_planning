@@ -428,7 +428,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		return;
 	}
 
-	std::cout << "done sequence planning" << std::endl;
+	std::cout << "done sequence planning" << std::endl << std::endl;
 
 	// return results
 	ipa_building_navigation::FindRoomSequenceWithCheckpointsResult action_result;

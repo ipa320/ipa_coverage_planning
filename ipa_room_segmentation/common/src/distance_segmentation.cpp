@@ -73,7 +73,7 @@ void DistanceSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labele
 		}
 //		current_energy = current_energy / temporary_contours.size();
 		//check if current step has a better energy than the saved one
-		if (current_energy >= saved_energy)//(temporary_contours.size() >= saved_contours.size())
+		if (temporary_contours.size() >= saved_contours.size())//(current_energy >= saved_energy)
 		{
 			saved_contours.clear();
 			hole_contour_saver.clear();

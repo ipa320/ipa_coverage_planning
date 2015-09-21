@@ -139,7 +139,7 @@ struct EvaluationData
 		bool robot_start_coordinate_set = false;
 		for (int v=0; v<map_eroded.rows && robot_start_coordinate_set==false; ++v)
 			for (int u=0; u<map_eroded.cols && robot_start_coordinate_set==false; ++u)
-				if (map_eroded.at<uchar>(v,u) != 0 && distance_map.at<uchar>(v,u) > 15)
+				if (map_eroded.at<uchar>(v,u) != 0 && distance_map.at<uchar>(v,u) > 25)
 				{
 					robot_start_position_.position.x = u*map_resolution_ + map_origin_.position.x;
 					robot_start_position_.position.y = v*map_resolution_ + map_origin_.position.y;
@@ -188,46 +188,46 @@ public:
 //		map_names.push_back("lab_ipa_furnitures");
 
 		std::vector< std::string > map_names;
-		map_names.push_back("lab_ipa");
-		map_names.push_back("lab_c_scan");
-		map_names.push_back("Freiburg52_scan");
-		map_names.push_back("Freiburg79_scan");
-		map_names.push_back("lab_b_scan");
-		map_names.push_back("lab_intel");
-		map_names.push_back("Freiburg101_scan");
-		map_names.push_back("lab_d_scan");
-		map_names.push_back("lab_f_scan");
-		map_names.push_back("lab_a_scan");
-		map_names.push_back("NLB");
-		map_names.push_back("office_a");
-		map_names.push_back("office_b");
-		map_names.push_back("office_c");
-		map_names.push_back("office_d");
-		map_names.push_back("office_e");
-		map_names.push_back("office_f");
-		map_names.push_back("office_g");
-		map_names.push_back("office_h");
-		map_names.push_back("office_i");
-	//	map_names.push_back("lab_ipa_furnitures");
-	//	map_names.push_back("lab_c_scan_furnitures");
-	//	map_names.push_back("Freiburg52_scan_furnitures");
-	//	map_names.push_back("Freiburg79_scan_furnitures");
-	//	map_names.push_back("lab_b_scan_furnitures");
-	//	map_names.push_back("lab_intel_furnitures");
-	//	map_names.push_back("Freiburg101_scan_furnitures");
-	//	map_names.push_back("lab_d_scan_furnitures");
-	//	map_names.push_back("lab_f_scan_furnitures");
-	//	map_names.push_back("lab_a_scan_furnitures");
-	//	map_names.push_back("NLB_furnitures");
-	//	map_names.push_back("office_a_furnitures");
-	//	map_names.push_back("office_b_furnitures");
-	//	map_names.push_back("office_c_furnitures");
-	//	map_names.push_back("office_d_furnitures");
-	//	map_names.push_back("office_e_furnitures");
-	//	map_names.push_back("office_f_furnitures");
-	//	map_names.push_back("office_g_furnitures");
-	//	map_names.push_back("office_h_furnitures");
-	//	map_names.push_back("office_i_furnitures");
+//		map_names.push_back("lab_ipa"); //done icra
+//		map_names.push_back("lab_c_scan"); //done icra
+//		map_names.push_back("Freiburg52_scan"); //done icra
+//		map_names.push_back("Freiburg79_scan"); //done icra
+//		map_names.push_back("lab_b_scan"); //done icra
+//		map_names.push_back("lab_intel"); //done icra
+//		map_names.push_back("Freiburg101_scan"); //done icra
+//		map_names.push_back("lab_d_scan"); //done icra
+//		map_names.push_back("lab_f_scan");
+//		map_names.push_back("lab_a_scan");
+//		map_names.push_back("NLB");
+//		map_names.push_back("office_a");
+//		map_names.push_back("office_b");
+//		map_names.push_back("office_c");
+//		map_names.push_back("office_d");
+//		map_names.push_back("office_e");
+//		map_names.push_back("office_f");
+//		map_names.push_back("office_g");
+//		map_names.push_back("office_h");
+//		map_names.push_back("office_i");
+//		map_names.push_back("lab_ipa_furnitures"); //done icra
+//		map_names.push_back("lab_c_scan_furnitures"); //done icra
+		map_names.push_back("Freiburg52_scan_furnitures");
+//		map_names.push_back("Freiburg79_scan_furnitures");
+//		map_names.push_back("lab_b_scan_furnitures");
+//		map_names.push_back("lab_intel_furnitures");
+//		map_names.push_back("Freiburg101_scan_furnitures");
+//		map_names.push_back("lab_d_scan_furnitures");
+//		map_names.push_back("lab_f_scan_furnitures");
+//		map_names.push_back("lab_a_scan_furnitures");
+//		map_names.push_back("NLB_furnitures");
+//		map_names.push_back("office_a_furnitures");
+//		map_names.push_back("office_b_furnitures");
+//		map_names.push_back("office_c_furnitures");
+//		map_names.push_back("office_d_furnitures");
+//		map_names.push_back("office_e_furnitures");
+//		map_names.push_back("office_f_furnitures");
+//		map_names.push_back("office_g_furnitures");
+//		map_names.push_back("office_h_furnitures");
+//		map_names.push_back("office_i_furnitures");
 
 
 
@@ -288,16 +288,25 @@ public:
 		setConfigurations(evaluation_configurations);
 
 		// do the evaluation
+		std::string bugfile = data_storage_path + "bugfile.txt";
+		std::ofstream failed_maps(bugfile.c_str(), std::ios::out);
+		if(failed_maps.is_open())
+			failed_maps << "maps that had a bug during the simulation and couldn't be finished: " << std::endl;
 		for (size_t i=0; i<evaluation_data_.size(); ++i)
 		{
 			if (evaluateAllConfigs(evaluation_configurations, evaluation_data_[i], data_storage_path) == false)
-				return;
+			{
+				std::cout << "failed to simulate map " << evaluation_data_[i].map_name_ << std::endl;
+				if(failed_maps.is_open())
+					failed_maps << evaluation_data_[i].map_name_ << std::endl;
+			}
 			//reset booleans to segment the new map
 			segmented_morph = false;
 			segmented_dist = false;
 			segmented_vor = false;
 			segmented_semant = false;
 		}
+		failed_maps.close();
 
 		//read the saved results
 //		std::vector<std::vector<double> > map_pathlengths(evaluation_data_.size());
@@ -480,7 +489,7 @@ public:
 		{
 			for (double max_clique_path_length = 6.; max_clique_path_length <= 20.; max_clique_path_length += 2.0)
 			{
-				for (int room_segmentation_algorithm=1; room_segmentation_algorithm<=3; ++room_segmentation_algorithm)
+				for (int room_segmentation_algorithm=1; room_segmentation_algorithm<=4; ++room_segmentation_algorithm)
 				{
 					for(int tsp_solver = 1; tsp_solver <= 3; ++tsp_solver)
 						evaluation_configurations.push_back(EvaluationConfig(room_segmentation_algorithm, max_clique_path_length, sequence_planning_method, tsp_solver));
@@ -516,13 +525,13 @@ public:
 			struct timespec t0, t1, t2, t3;
 
 			// 1. retrieve segmentation and check if the map has already been segmented
-			clock_gettime(CLOCK_MONOTONIC,  &t0); //set time stamp before the segmentation
 			ipa_room_segmentation::MapSegmentationResultConstPtr result_seg;
+			clock_gettime(CLOCK_MONOTONIC,  &t0); //set time stamp before the segmentation
 			if(evaluation_configuration_vector[config].room_segmentation_algorithm_ == 1)
 			{
 				if(segmented_morph == false)
 				{
-					if (segmentFloorPlan(evaluation_data, evaluation_configuration_vector[config], result_seg_morph) == false)
+					if (segmentFloorPlan(evaluation_data, evaluation_configuration_vector[config], result_seg_morph, t0) == false)
 						return false;
 					segmented_morph = true;
 				}
@@ -534,7 +543,7 @@ public:
 			{
 				if(segmented_dist == false)
 				{
-					if (segmentFloorPlan(evaluation_data, evaluation_configuration_vector[config], result_seg_dist) == false)
+					if (segmentFloorPlan(evaluation_data, evaluation_configuration_vector[config], result_seg_dist, t0) == false)
 						return false;
 					segmented_dist = true;
 				}
@@ -546,7 +555,7 @@ public:
 			{
 				if(segmented_vor == false)
 				{
-					if (segmentFloorPlan(evaluation_data, evaluation_configuration_vector[config], result_seg_vor) == false)
+					if (segmentFloorPlan(evaluation_data, evaluation_configuration_vector[config], result_seg_vor, t0) == false)
 						return false;
 					segmented_vor = true;
 				}
@@ -558,7 +567,7 @@ public:
 			{
 				if(segmented_semant == false)
 				{
-					if (segmentFloorPlan(evaluation_data, evaluation_configuration_vector[config], result_seg_semant) == false)
+					if (segmentFloorPlan(evaluation_data, evaluation_configuration_vector[config], result_seg_semant, t0) == false)
 						return false;
 					segmented_semant = true;
 				}
@@ -584,10 +593,15 @@ public:
 					room_centers.push_back(current_center);
 			}
 
+			if(room_centers.size() == 0) //no roomcenter is reachable for the given start position --> needs to be looked at seperatly
+			{
+				return false;
+			}
+
 			// 2. solve sequence problem
 			clock_gettime(CLOCK_MONOTONIC,  &t2); //set time stamp before the sequence planning
 			ipa_building_navigation::FindRoomSequenceWithCheckpointsResultConstPtr result_seq;
-			if (computeRoomSequence(evaluation_data, evaluation_configuration_vector[config], room_centers, result_seq) == false)
+			if (computeRoomSequence(evaluation_data, evaluation_configuration_vector[config], room_centers, result_seq, t2) == false)
 				return false;
 			clock_gettime(CLOCK_MONOTONIC,  &t3); //set time stamp after the sequence planning
 
@@ -751,90 +765,170 @@ public:
 	}
 
 	bool segmentFloorPlan(const EvaluationData& evaluation_data, const EvaluationConfig& evaluation_configuration,
-			ipa_room_segmentation::MapSegmentationResultConstPtr& result_seg)
+			ipa_room_segmentation::MapSegmentationResultConstPtr& result_seg, struct timespec& t0)
 	{
-		sensor_msgs::Image map_msg;
-		cv_bridge::CvImage cv_image;
-		cv_image.encoding = "mono8";
-		cv_image.image = evaluation_data.floor_plan_;
-		cv_image.toImageMsg(map_msg);
-		actionlib::SimpleActionClient<ipa_room_segmentation::MapSegmentationAction> ac_seg("/room_segmentation/room_segmentation_server", true);
-		ROS_INFO("Waiting for action server '/room_segmentation/room_segmentation_server' to start.");
-		ac_seg.waitForServer(); // wait for the action server to start, will wait for infinite time
-
-		std::cout << "Action server started, sending goal_seg." << std::endl;
-		// send a goal to the action
-		ipa_room_segmentation::MapSegmentationGoal goal_seg;
-		goal_seg.input_map = map_msg;
-		goal_seg.map_origin = evaluation_data.map_origin_;
-		goal_seg.map_resolution = evaluation_data.map_resolution_;
-		goal_seg.return_format_in_meter = false;
-		goal_seg.return_format_in_pixel = true;
-		goal_seg.room_segmentation_algorithm = evaluation_configuration.room_segmentation_algorithm_;
-		ac_seg.sendGoal(goal_seg);
-
-		//wait for the action to return
-		bool finished_before_timeout = ac_seg.waitForResult();//ros::Duration(900.0));
-		if (finished_before_timeout == false)
+		int loopcounter = 0;
+		bool segmented = false;
+		do
 		{
-			ROS_ERROR("Timeout on room segmentation.");
+			clock_gettime(CLOCK_MONOTONIC, &t0); //set time stamp before the segmentation
+			sensor_msgs::Image map_msg;
+			cv_bridge::CvImage cv_image;
+			cv_image.encoding = "mono8";
+			cv_image.image = evaluation_data.floor_plan_;
+			cv_image.toImageMsg(map_msg);
+			actionlib::SimpleActionClient<ipa_room_segmentation::MapSegmentationAction> ac_seg("/room_segmentation/room_segmentation_server", true);
+			ROS_INFO("Waiting for action server '/room_segmentation/room_segmentation_server' to start.");
+			ac_seg.waitForServer(); // wait for the action server to start, will wait for infinite time
+
+			std::cout << "Action server started, sending goal_seg." << std::endl;
+			// send a goal to the action
+			ipa_room_segmentation::MapSegmentationGoal goal_seg;
+			goal_seg.input_map = map_msg;
+			goal_seg.map_origin = evaluation_data.map_origin_;
+			goal_seg.map_resolution = evaluation_data.map_resolution_;
+			goal_seg.return_format_in_meter = false;
+			goal_seg.return_format_in_pixel = true;
+			goal_seg.room_segmentation_algorithm = evaluation_configuration.room_segmentation_algorithm_;
+			ac_seg.sendGoal(goal_seg);
+
+			//wait for the action to return
+			bool finished_before_timeout = ac_seg.waitForResult(ros::Duration(600.0 + loopcounter * 100.0));
+			if (finished_before_timeout == false) //if it takes too long the server should be killed and restarted
+			{
+				std::cout << "action server took too long" << std::endl;
+				std::string pid_cmd = "pidof room_segmentation_server > room_sequence_planning/seg_srv_pid.txt";
+				int pid_result = system(pid_cmd.c_str());
+				std::ifstream pid_reader("room_sequence_planning/seg_srv_pid.txt");
+				int value;
+				std::string line;
+				if (pid_reader.is_open())
+				{
+					while (getline(pid_reader, line))
+					{
+						std::istringstream iss(line);
+						while (iss >> value)
+						{
+							std::cout << "PID of room_segmentation_server: " << value << std::endl;
+							std::stringstream ss;
+							ss << "kill " << value;
+							std::string kill_cmd = ss.str();
+							int kill_result = system(kill_cmd.c_str());
+							std::cout << "kill result: " << kill_result << std::endl;
+						}
+					}
+					pid_reader.close();
+					remove("room_sequence_planning/seg_srv_pid.txt");
+				}
+				else
+				{
+					std::cout << "missing logfile" << std::endl;
+				}
+			}
+			else // segmentation finished while given time --> return result
+			{
+				result_seg = ac_seg.getResult();
+				segmented = true;
+				std::cout << "Finished segmentation successfully!" << std::endl;
+			}
+			++loopcounter; //enlarge the loop counter so the client will wait longer for the server to start
+		}while(segmented == false && loopcounter <= 6);
+
+		if(loopcounter > 6)
 			return false;
-		}
-		result_seg = ac_seg.getResult();
-		std::cout << "Finished segmentation successfully!" << std::endl;
 
 		return true;
 	}
 
 	bool computeRoomSequence(const EvaluationData& evaluation_data, const EvaluationConfig& evaluation_configuration,
 			const std::vector<cv::Point>& reachable_roomcenters,
-			ipa_building_navigation::FindRoomSequenceWithCheckpointsResultConstPtr& result_seq)
+			ipa_building_navigation::FindRoomSequenceWithCheckpointsResultConstPtr& result_seq, struct timespec& t2)
 	{
-		sensor_msgs::Image map_msg;
-		cv_bridge::CvImage cv_image;
-		cv_image.encoding = "mono8";
-		cv_image.image = evaluation_data.floor_plan_;
-		cv_image.toImageMsg(map_msg);
-
-		actionlib::SimpleActionClient<ipa_building_navigation::FindRoomSequenceWithCheckpointsAction> ac_seq("/room_sequence_planning/room_sequence_planning_server", true);
-		ROS_INFO("Waiting for action server '/room_sequence_planning/room_sequence_planning_server' to start.");
-		// wait for the action server to start
-		ac_seq.waitForServer(); //will wait for infinite time
-
-		//put the vector<Point> format in the msg format
-		std::vector<ipa_room_segmentation::RoomInformation> roomcenters_for_sequence_planning(reachable_roomcenters.size());
-		for(size_t room = 0; room < reachable_roomcenters.size(); ++room)
+		bool planned = false;
+		int loopcounter = 0;
+		do
 		{
-			roomcenters_for_sequence_planning[room].room_center.x = reachable_roomcenters[room].x;
-			roomcenters_for_sequence_planning[room].room_center.y = reachable_roomcenters[room].y;
-		}
+			clock_gettime(CLOCK_MONOTONIC,  &t2);
+			sensor_msgs::Image map_msg;
+			cv_bridge::CvImage cv_image;
+			cv_image.encoding = "mono8";
+			cv_image.image = evaluation_data.floor_plan_;
+			cv_image.toImageMsg(map_msg);
 
-		std::cout << "Action server started, sending goal_seq." << std::endl;
-		// send a goal_seg to the action
-		ipa_building_navigation::FindRoomSequenceWithCheckpointsGoal goal_seq;
-		goal_seq.input_map = map_msg;
-		goal_seq.map_resolution = evaluation_data.map_resolution_;
-		goal_seq.map_origin = evaluation_data.map_origin_;
-		goal_seq.room_information_in_pixel = roomcenters_for_sequence_planning;
-		goal_seq.max_clique_path_length = evaluation_configuration.max_clique_path_length_;
-		goal_seq.map_downsampling_factor = evaluation_data.map_downsampling_factor_;
-		goal_seq.robot_radius = robot_radius_;
-		goal_seq.robot_start_coordinate = evaluation_data.robot_start_position_;
-		goal_seq.planning_method = evaluation_configuration.sequence_planning_method_;
-		goal_seq.tsp_solver = evaluation_configuration.tsp_solver_;
-		goal_seq.return_sequence_map = true;
-		goal_seq.check_accessibility_of_rooms = false;
-		ac_seq.sendGoal(goal_seq);
+			actionlib::SimpleActionClient<ipa_building_navigation::FindRoomSequenceWithCheckpointsAction> ac_seq("/room_sequence_planning/room_sequence_planning_server", true);
+			ROS_INFO("Waiting for action server '/room_sequence_planning/room_sequence_planning_server' to start.");
+			// wait for the action server to start
+			ac_seq.waitForServer(); //will wait for infinite time
 
-		//wait for the action to return
-		bool finished_before_timeout = ac_seq.waitForResult();//ros::Duration(600.0));
-		if (finished_before_timeout == false)
-		{
-			ROS_ERROR("Timeout on room sequence planning.");
+			//put the vector<Point> format in the msg format
+			std::vector<ipa_room_segmentation::RoomInformation> roomcenters_for_sequence_planning(reachable_roomcenters.size());
+			for(size_t room = 0; room < reachable_roomcenters.size(); ++room)
+			{
+				roomcenters_for_sequence_planning[room].room_center.x = reachable_roomcenters[room].x;
+				roomcenters_for_sequence_planning[room].room_center.y = reachable_roomcenters[room].y;
+			}
+
+			std::cout << "Action server started, sending goal_seq." << std::endl;
+			// send a goal_seg to the action
+			ipa_building_navigation::FindRoomSequenceWithCheckpointsGoal goal_seq;
+			goal_seq.input_map = map_msg;
+			goal_seq.map_resolution = evaluation_data.map_resolution_;
+			goal_seq.map_origin = evaluation_data.map_origin_;
+			goal_seq.room_information_in_pixel = roomcenters_for_sequence_planning;
+			goal_seq.max_clique_path_length = evaluation_configuration.max_clique_path_length_;
+			goal_seq.map_downsampling_factor = evaluation_data.map_downsampling_factor_;
+			goal_seq.robot_radius = robot_radius_;
+			goal_seq.robot_start_coordinate = evaluation_data.robot_start_position_;
+			goal_seq.planning_method = evaluation_configuration.sequence_planning_method_;
+			goal_seq.tsp_solver = evaluation_configuration.tsp_solver_;
+			goal_seq.return_sequence_map = true;
+			goal_seq.check_accessibility_of_rooms = false;
+			ac_seq.sendGoal(goal_seq);
+
+			//wait for the action to return
+			bool finished_before_timeout = ac_seq.waitForResult(ros::Duration(600.0 + 100 * loopcounter));
+			if (finished_before_timeout == false) //if it takes too long the server should be killed and restarted
+			{
+				std::cout << "action server took too long" << std::endl;
+				std::string pid_cmd = "pidof room_sequence_planning_server > room_sequence_planning/seq_srv_pid.txt";
+				int pid_result = system(pid_cmd.c_str());
+				std::ifstream pid_reader("room_sequence_planning/seq_srv_pid.txt");
+				int value;
+				std::string line;
+				if (pid_reader.is_open())
+				{
+					while (getline(pid_reader, line))
+					{
+						std::istringstream iss(line);
+						while (iss >> value)
+						{
+							std::cout << "PID of room_sequence_planning_server: " << value << std::endl;
+							std::stringstream ss;
+							ss << "kill " << value;
+							std::string kill_cmd = ss.str();
+							int kill_result = system(kill_cmd.c_str());
+							std::cout << "kill result: " << kill_result << std::endl;
+						}
+					}
+					pid_reader.close();
+					remove("room_sequence_planning/seq_srv_pid.txt");
+				}
+				else
+				{
+					std::cout << "missing logfile" << std::endl;
+				}
+			}
+			else
+			{
+				result_seq = ac_seq.getResult();
+				std::cout << "Finished sequence planning successfully!" << std::endl;
+				planned = true;
+			}
+			++loopcounter;
+		}while(planned == false && loopcounter <= 6);
+
+		if(loopcounter > 6)
 			return false;
-		}
-		result_seq = ac_seq.getResult();
-		std::cout << "Finished sequence planning successfully!" << std::endl;
 
 		return true;
 	}

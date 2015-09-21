@@ -122,14 +122,6 @@ protected:
 	//This is the execution function used by action server
 	void execute_segmentation_server(const ipa_room_segmentation::MapSegmentationGoalConstPtr &goal);
 
-	//segmentation-objects that segment the map
-	DistanceSegmentation distance_segmentation_; //distance segmentation method
-
-	MorphologicalSegmentation morphological_segmentation_; //morphological segmentation method
-
-	VoronoiSegmentation voronoi_segmentation_; //voronoi segmentation method
-
-	AdaboostClassifier semantic_segmentation_; //semantic segmentation method
 
 	//!!Important!!
 	// define the Nodehandle before the action server, or else the server won't start
