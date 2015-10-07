@@ -517,7 +517,6 @@ public:
 			// 1. retrieve segmentation and check if the map has already been segmented
 			ipa_room_segmentation::MapSegmentationResultConstPtr result_seg;
 			clock_gettime(CLOCK_MONOTONIC,  &t0); //set time stamp before the segmentation
-			ipa_room_segmentation::MapSegmentationResultConstPtr result_seg;
 			if(evaluation_configuration_vector[config].room_segmentation_algorithm_ == 1)
 			{
 				if(segmented_morph == false)
@@ -591,8 +590,8 @@ public:
 			}
 
 			// 2. solve sequence problem
-			clock_gettime(CLOCK_MONOTONIC,  &t2); //set time stamp before the sequence planning
 			ipa_building_navigation::FindRoomSequenceWithCheckpointsResultConstPtr result_seq;
+			clock_gettime(CLOCK_MONOTONIC,  &t2); //set time stamp before the sequence planning
 			if (computeRoomSequence(evaluation_data, evaluation_configuration_vector[config], room_centers, result_seq, t2) == false)
 				return false;
 			clock_gettime(CLOCK_MONOTONIC,  &t3); //set time stamp after the sequence planning
@@ -828,9 +827,6 @@ public:
 
 		if(loopcounter > 6)
 			return false;
-		}
-		result_seg = ac_seg.getResult();
-		std::cout << "Finished segmentation successfully!" << std::endl;
 
 		return true;
 	}
@@ -924,9 +920,6 @@ public:
 
 		if(loopcounter > 6)
 			return false;
-		}
-		result_seq = ac_seq.getResult();
-		std::cout << "Finished sequence planning successfully!" << std::endl;
 
 		return true;
 	}
