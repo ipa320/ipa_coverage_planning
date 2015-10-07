@@ -139,7 +139,7 @@ struct EvaluationData
 		bool robot_start_coordinate_set = false;
 		for (int v=0; v<map_eroded.rows && robot_start_coordinate_set==false; ++v)
 			for (int u=0; u<map_eroded.cols && robot_start_coordinate_set==false; ++u)
-				if (map_eroded.at<uchar>(v,u) != 0 && distance_map.at<uchar>(v,u) > 25)
+				if (map_eroded.at<uchar>(v,u) != 0 && distance_map.at<uchar>(v,u) > 20)
 				{
 					robot_start_position_.position.x = u*map_resolution_ + map_origin_.position.x;
 					robot_start_position_.position.y = v*map_resolution_ + map_origin_.position.y;
@@ -152,7 +152,7 @@ class Evaluation
 {
 public:
 
-	// to segment the map only once if it is only one and one segmentation algorithm
+	// to segment the map only once for each segmentation algorithm
 	ipa_room_segmentation::MapSegmentationResultConstPtr result_seg_morph;
 	bool segmented_morph;
 	ipa_room_segmentation::MapSegmentationResultConstPtr result_seg_dist;
@@ -171,17 +171,17 @@ public:
 		segmented_semant = false;
 		// prepare relevant floor map data
 //		std::vector<std::string> map_names;
-////		map_names.push_back("lab_ipa"); // done
-////		map_names.push_back("Freiburg52_scan"); //done
-////		map_names.push_back("Freiburg79_scan"); //done
-////		map_names.push_back("lab_c_scan"); //done
-////		map_names.push_back("lab_b_scan"); //done
-////		map_names.push_back("lab_d_scan"); //done
-////		map_names.push_back("lab_intel"); //done
-////		map_names.push_back("Freiburg101_scan"); //done
-////		map_names.push_back("lab_a_scan"); //done
+////	map_names.push_back("lab_ipa"); // done
+////	map_names.push_back("Freiburg52_scan"); //done
+////	map_names.push_back("Freiburg79_scan"); //done
+////	map_names.push_back("lab_c_scan"); //done
+////	map_names.push_back("lab_b_scan"); //done
+////	map_names.push_back("lab_d_scan"); //done
+////	map_names.push_back("lab_intel"); //done
+////	map_names.push_back("Freiburg101_scan"); //done
+////	map_names.push_back("lab_a_scan"); //done
 //		map_names.push_back("lab_f_scan"); //done
-////		map_names.push_back("NLB"); //done
+////	map_names.push_back("NLB"); //done
 
 		//with obstacles:
 //		"Freiburg52_scan_furnitures_trashbins"
@@ -196,38 +196,38 @@ public:
 //		map_names.push_back("lab_intel"); //done icra
 //		map_names.push_back("Freiburg101_scan"); //done icra
 //		map_names.push_back("lab_d_scan"); //done icra
-//		map_names.push_back("lab_f_scan");
-//		map_names.push_back("lab_a_scan");
-//		map_names.push_back("NLB");
-//		map_names.push_back("office_a");
-//		map_names.push_back("office_b");
-//		map_names.push_back("office_c");
-//		map_names.push_back("office_d");
-//		map_names.push_back("office_e");
-//		map_names.push_back("office_f");
-//		map_names.push_back("office_g");
-//		map_names.push_back("office_h");
-//		map_names.push_back("office_i");
+//		map_names.push_back("lab_f_scan"); //done icra
+//		map_names.push_back("lab_a_scan"); //done icra
+//		map_names.push_back("NLB"); //done icra
+//		map_names.push_back("office_a"); //done icra
+//		map_names.push_back("office_b"); //done icra
+		map_names.push_back("office_c");
+		map_names.push_back("office_d");
+		map_names.push_back("office_e");
+		map_names.push_back("office_f");
+		map_names.push_back("office_g");
+		map_names.push_back("office_h");
+		map_names.push_back("office_i");
 //		map_names.push_back("lab_ipa_furnitures"); //done icra
 //		map_names.push_back("lab_c_scan_furnitures"); //done icra
-		map_names.push_back("Freiburg52_scan_furnitures");
-//		map_names.push_back("Freiburg79_scan_furnitures");
-//		map_names.push_back("lab_b_scan_furnitures");
-//		map_names.push_back("lab_intel_furnitures");
-//		map_names.push_back("Freiburg101_scan_furnitures");
-//		map_names.push_back("lab_d_scan_furnitures");
-//		map_names.push_back("lab_f_scan_furnitures");
-//		map_names.push_back("lab_a_scan_furnitures");
-//		map_names.push_back("NLB_furnitures");
-//		map_names.push_back("office_a_furnitures");
-//		map_names.push_back("office_b_furnitures");
-//		map_names.push_back("office_c_furnitures");
-//		map_names.push_back("office_d_furnitures");
-//		map_names.push_back("office_e_furnitures");
-//		map_names.push_back("office_f_furnitures");
-//		map_names.push_back("office_g_furnitures");
-//		map_names.push_back("office_h_furnitures");
-//		map_names.push_back("office_i_furnitures");
+//		map_names.push_back("Freiburg52_scan_furnitures"); //done icra
+//		map_names.push_back("Freiburg79_scan_furnitures"); //done icra
+//		map_names.push_back("lab_b_scan_furnitures"); // done icra
+//		map_names.push_back("lab_intel_furnitures"); // done icra
+//		map_names.push_back("Freiburg101_scan_furnitures"); // done icra
+		map_names.push_back("lab_d_scan_furnitures");
+		map_names.push_back("lab_f_scan_furnitures");
+		map_names.push_back("lab_a_scan_furnitures");
+		map_names.push_back("NLB_furnitures");
+		map_names.push_back("office_a_furnitures");
+		map_names.push_back("office_b_furnitures");
+		map_names.push_back("office_c_furnitures");
+		map_names.push_back("office_d_furnitures");
+		map_names.push_back("office_e_furnitures");
+		map_names.push_back("office_f_furnitures");
+		map_names.push_back("office_g_furnitures");
+		map_names.push_back("office_h_furnitures");
+		map_names.push_back("office_i_furnitures");
 
 
 
@@ -379,6 +379,16 @@ public:
 		const std::string upper_command = "mkdir -p " + path;
 		int return_value = system(upper_command.c_str());
 
+		const std::string cleaning_time_folder = "cleaningtime/";
+		std::string lower_command = "mkdir -p " + path + cleaning_time_folder;
+		return_value = system(lower_command.c_str());
+		const std::string path_length_folder = "pathlengths/";
+		lower_command = "mkdir -p " + path + path_length_folder;
+		return_value = system(lower_command.c_str());
+		const std::string computation_time_folder = "comp_time/";
+		lower_command = "mkdir -p " + path + computation_time_folder;
+		return_value = system(lower_command.c_str());
+
 		// outputs to log file
 		std::stringstream distance_output[map_names.size()];
 		std::stringstream cleaning_time_output[map_names.size()];
@@ -390,6 +400,15 @@ public:
 			int number_of_cliquelenghts = 8;
 			int number_of_segmentation_algorithms = 4;
 			int number_of_tsp_solver = 3;
+			for(size_t i = 0; i < map_names.size(); ++i)
+			{
+				distance_output[i] << "\t" << "Nachziehmethode" << "\t" << "\t" << "Trolley-Gruppen" << std::endl
+						<< "max. Fahrdistanz" << "\t" << "nearest" << "\t" << "genetic" << "\t" << "concorde" << "\t" << "nearest" << "\t" << "genetic" << "\t" << "concorde" << std::endl;
+				cleaning_time_output[i] << "\t" << "\t" << "Nachziehmethode" << "\t" << "\t" << "Trolley-Gruppen" << std::endl
+						<< "max. Fahrdistanz" << "\t" << "nearest" << "\t" << "genetic" << "\t" << "concorde" << "\t" << "nearest" << "\t" << "genetic" << "\t" << "concorde" << std::endl;
+				sequence_time_output[i] << "\t" << "\t" << "Nachziehmethode" << "\t" << "\t" << "Trolley-Gruppen" << std::endl
+						<< "max. Fahrdistanz" << "\t" << "nearest" << "\t" << "genetic" << "\t" << "concorde" << "\t" << "nearest" << "\t" << "genetic" << "\t" << "concorde" << std::endl;
+			}
 			for (int max_length = 0; max_length < number_of_cliquelenghts; ++max_length)
 			{
 				max_clique_path_length += 2.0;
@@ -399,81 +418,52 @@ public:
 				for(size_t map = 0; map < map_names.size(); ++map)
 				{
 					//show which maximal clique pathlength this is
-					distance_output[map] << max_clique_path_length;
-					cleaning_time_output[map] << max_clique_path_length;
-					sequence_time_output[map] << max_clique_path_length;
+					distance_output[map] << std::endl << max_clique_path_length;
+					cleaning_time_output[map] << std::endl << max_clique_path_length;
+					sequence_time_output[map] << std::endl << max_clique_path_length;
 					// header
 					for(size_t segmentation = 0; segmentation < number_of_segmentation_algorithms; ++segmentation)
 					{
-						if(segmentation == 0)
+						if(segmentation > 0)
 						{
-							distance_output[map] << " & morph";
-							cleaning_time_output[map] << " & morph";
-							sequence_time_output[map] << " & morph";
+							distance_output[map] << 0;
+							cleaning_time_output[map] << 0;
+							sequence_time_output[map] << 0;
 						}
-						if(segmentation == 1)
-						{
-							distance_output[map] << " & dist";
-							cleaning_time_output[map] << " & dist";
-							sequence_time_output[map] << " & dist";
-						}
-						if(segmentation == 2)
-						{
-							distance_output[map] << " & voro";
-							cleaning_time_output[map] << " & voro";
-							sequence_time_output[map] << " & voro";
-						}
-						if(segmentation == 3)
-						{
-							distance_output[map] << " & semant";
-							cleaning_time_output[map] << " & semant";
-							sequence_time_output[map] << " & semant";
-						}
-
 						for(int sequence_planning_method = 0; sequence_planning_method < 2; ++sequence_planning_method)
 						{
 							int plmth_start = start + number_of_segmentation_algorithms * number_of_tsp_solver * number_of_cliquelenghts * sequence_planning_method;
 							int index = plmth_start + number_of_tsp_solver * segmentation;
 							for(size_t reading_index = index; reading_index < index+number_of_tsp_solver; ++reading_index)
 							{
-								distance_output[map] << " & " << map_pathlengths[map][reading_index] ;
-								cleaning_time_output[map] << " & " << map_cleaning_times[map][reading_index];
-								sequence_time_output[map] << " & " << sequence_solver_times[map][reading_index];
+								distance_output[map] << " " << map_pathlengths[map][reading_index] ;
+								cleaning_time_output[map] << " " << map_cleaning_times[map][reading_index];
+								sequence_time_output[map] << " " << sequence_solver_times[map][reading_index];
 							}
 						}
 
-						distance_output[map] << "\\\\" << std::endl;
-						cleaning_time_output[map] << "\\\\" << std::endl;
-						sequence_time_output[map] << "\\\\" << std::endl;
-
-						if(segmentation < 3)
-						{
-							distance_output[map] << "\t\\cline{2-8}" << std::endl;
-							cleaning_time_output[map] << "\t\\cline{2-8}" << std::endl;
-							sequence_time_output[map] << "\t\\cline{2-8}" << std::endl;
-						}
+						distance_output[map] << std::endl;
+						cleaning_time_output[map] << std::endl;
+						sequence_time_output[map] << std::endl;
 					}
-					distance_output[map] << "\\hline" << std::endl << "\t\\multicolumn{8}{|c|}{}\\\\ [\\rowheight]" << std::endl << "\\hline" << std::endl;
-					cleaning_time_output[map] << "\\hline" << std::endl << "\t\\multicolumn{8}{|c|}{}\\\\ [\\rowheight]" << std::endl << "\\hline" << std::endl;
-					sequence_time_output[map] << "\\hline" << std::endl << "\t\\multicolumn{8}{|c|}{}\\\\ [\\rowheight]" << std::endl << "\\hline" << std::endl;
 				}
 			}
 		//write saved parameters to global file
 		for(size_t map = 0; map < map_names.size(); ++map)
 		{
-			std::string pathlength_filename = path + map_names[map] + "_pathlengths.txt";
+			std::string pathlength_filename = path + path_length_folder + map_names[map] + "_pathlengths.txt";
 			std::ofstream pathlength_file(pathlength_filename.c_str(), std::ios::out);
 			if (pathlength_file.is_open()==true)
 				pathlength_file << distance_output[map].str();
 			pathlength_file.close();
 
-			std::string cleaningtime_filename = path + map_names[map] + "_cleaningtimes.txt";
+			std::string cleaningtime_filename = path + cleaning_time_folder + map_names[map] + "_cleaningtimes.txt";
 			std::ofstream cleaningtime_file(cleaningtime_filename.c_str(), std::ios::out);
 			if (cleaningtime_file.is_open()==true)
 				cleaningtime_file << cleaning_time_output[map].str();
 			cleaningtime_file.close();
 
-			std::string sequencetime_filename = path + map_names[map] + "_sequencetimes.txt";
+			std::string sequencetime_filename = path + computation_time_folder + map_names[map] + "_sequencetimes.txt";
 			std::ofstream sequencetime_file(sequencetime_filename.c_str(), std::ios::out);
 			if (sequencetime_file.is_open()==true)
 				sequencetime_file << sequence_time_output[map].str();
@@ -584,7 +574,7 @@ public:
 											(evaluation_data.robot_start_position_.position.y - evaluation_data.map_origin_.position.y)/evaluation_data.map_resolution_);
 
 			// get the reachable room centers as cv::Point
-			std::cout << "starting to check accessibility of rooms" << std::endl;
+			std::cout << "starting to check accessibility of rooms. Start Position: " << robot_start_position << std::endl;
 			std::vector<cv::Point> room_centers;
 			for(size_t i = 0; i < result_seg->room_information_in_pixel.size(); ++i)
 			{
@@ -595,6 +585,7 @@ public:
 
 			if(room_centers.size() == 0) //no roomcenter is reachable for the given start position --> needs to be looked at seperatly
 			{
+				std::cout << "++++++++++no roomcenter reachable from given startposition++++++++++++" << std::endl;
 				return false;
 			}
 
@@ -949,6 +940,7 @@ int main(int argc, char **argv)
 	const std::string test_map_path = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/";
 	const std::string data_storage_path = "room_sequence_planning/";
 	Evaluation ev(test_map_path, data_storage_path, 0.3);
+	ros::shutdown();
 
 	//exit
 	return 0;
