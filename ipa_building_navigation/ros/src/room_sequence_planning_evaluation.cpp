@@ -201,7 +201,7 @@ public:
 //		map_names.push_back("NLB"); //done icra
 //		map_names.push_back("office_a"); //done icra
 //		map_names.push_back("office_b"); //done icra
-		map_names.push_back("office_c");
+//		map_names.push_back("office_c"); //done icra
 		map_names.push_back("office_d");
 		map_names.push_back("office_e");
 		map_names.push_back("office_f");
