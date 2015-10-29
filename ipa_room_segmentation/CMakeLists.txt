@@ -105,7 +105,7 @@ target_link_libraries(room_segmentation_client
 add_dependencies(room_segmentation_client ${catkin_EXPORTED_TARGETS}  ${ipa_room_segmentation_EXPORTED_TARGETS})
 
 #segmentation action server. See room_segmentation_action_server_params.yaml to change the used method.
-add_executable(room_segmentation_server ros/src/room_segmentation_server.cpp common/src/distance_segmentation.cpp common/src/morphological_segmentation.cpp common/src/voronoi_segmentation.cpp common/src/adaboost_classifier.cpp common/src/wavefront_region_growing.cpp common/src/contains.cpp common/src/features.cpp common/src/raycasting.cpp common/src/meanshift2d.cpp common/src/room_class.cpp)
+add_executable(room_segmentation_server ros/src/room_segmentation_server.cpp common/src/distance_segmentation.cpp common/src/morphological_segmentation.cpp common/src/voronoi_segmentation.cpp common/src/adaboost_classifier.cpp common/src/wavefront_region_growing.cpp common/src/contains.cpp common/src/features.cpp common/src/raycasting.cpp common/src/meanshift2d.cpp common/src/room_class.cpp common/src/voronoi_random_field_segmentation.cpp)
 target_link_libraries(room_segmentation_server 
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBRARIES}
@@ -120,6 +120,11 @@ add_dependencies(evaluation ${catkin_EXPORTED_TARGETS})
 add_executable(evaluation_segmentation common/src/evaluation_segmentation.cpp)
 target_link_libraries(evaluation_segmentation ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 add_dependencies(evaluation_segmentation ${catkin_EXPORTED_TARGETS})
+
+#test algorithm for implementing new segmentation algorihtms
+add_executable(segmentation_tester common/src/segmentation_tester.cpp common/src/voronoi_random_field_segmentation.cpp)
+target_link_libraries(segmentation_tester ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+add_dependencies(segmentation_tester ${catkin_EXPORTED_TARGETS})
 
  
 #############
