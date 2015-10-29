@@ -62,7 +62,46 @@
 #include <ipa_room_segmentation/wavefront_region_growing.h> // some useful functions defined for all segmentations
 #include <ipa_room_segmentation/contains.h>
 
+class testfunc // this class overloads the () operator, so that it can be passed to the dlib library, finding the min of the implemented f(x)
+{
+public:
+	testfunc()
+	{
+
+	}
+
+    double operator()(const column_vector& arg) const
+    {
+    	const double x = arg(0);
+    	const double y = arg(1);
+
+    	return 100.0*std::pow(y - x*x, 2.0) + std::pow(1 - x, 2.0);
+    }
+};
+
 VoronoiRandomFieldSegmentation::VoronoiRandomFieldSegmentation()
 {
 
 }
+
+double rosen(const column_vector& m)
+{
+	const double x = m(0);
+	const double y = m(1);
+
+	return 100.0*std::pow(y - x*x, 2.0) + std::pow(1 - x, 2.0);
+}
+
+column_vector VoronoiRandomFieldSegmentation::find_min_value()
+{
+	column_vector starting_point(2);
+
+	starting_point = 4,8;
+
+	dlib::find_min_using_approximate_derivatives(dlib::bfgs_search_strategy(), dlib::objective_delta_stop_strategy(1e-7), testfunc(), starting_point, -1);
+
+	return starting_point;
+}
+
+
+
