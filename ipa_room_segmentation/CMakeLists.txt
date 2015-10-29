@@ -10,6 +10,7 @@ set(catkin_RUN_PACKAGES
 	sensor_msgs
 	geometry_msgs
 	cv_bridge
+	dlib_lib
 )
 
 set(catkin_BUILD_PACKAGES

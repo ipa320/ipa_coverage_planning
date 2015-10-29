@@ -33,6 +33,7 @@
 	<depend>geometry_msgs</depend>
 	<depend>message_generation</depend>
 	<depend>genmsg</depend>
+	<depend>dlib_lib</depend>
 	
 	<exec_depend>message_runtime</exec_depend>
 
