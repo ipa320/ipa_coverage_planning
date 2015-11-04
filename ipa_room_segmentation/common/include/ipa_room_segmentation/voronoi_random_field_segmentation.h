@@ -85,8 +85,6 @@ public:
 
 	VoronoiRandomFieldSegmentation(); //constructor
 
-//	double rosen(const column_vector& m); // testfunction --> implements the rosen function
-
 	column_vector find_min_value();
 
 };
