@@ -80,11 +80,23 @@ class VoronoiRandomFieldSegmentation
 {
 protected:
 
+	// Function to draw the approximated voronoi graph into a given map. It doesn't draw lines of the graph that start or end
+	// in a black region. This is necessary because the voronoi graph gets approximated by diskretizing the maps contour and
+	// using these points as centers for the graph. It gets wrong lines, that are eliminated in this function. See the .cpp
+	// files for further information.
+	void drawVoronoi(cv::Mat &img, const std::vector<std::vector<cv::Point2f> >& facets_of_voronoi, const cv::Scalar voronoi_color,
+			const std::vector<cv::Point>& contour, const std::vector<std::vector<cv::Point> >& hole_contours);
+
+	void createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation); // Function that takes a map and draws a pruned voronoi
+																	    // graph in it.
 
 public:
 
 	VoronoiRandomFieldSegmentation(); //constructor
 
-	column_vector find_min_value();
+	column_vector findMinValue(); // Function to find the minimal value of a function. Used to find the optimal weights for
+								  // the conditional random field.
+
+	void segmentMap(cv::Mat& original_map); // Function to segment a given map into different regions.
 
 };
