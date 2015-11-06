@@ -62,25 +62,6 @@
 #include <ipa_room_segmentation/wavefront_region_growing.h> // some useful functions defined for all segmentations
 #include <ipa_room_segmentation/contains.h>
 
-class testfunc // this class overloads the () operator, so that it can be passed to the dlib library, finding the min of the implemented f(x)
-{
-public:
-	double t;
-
-	testfunc()
-	{
-
-	}
-
-    double operator()(const column_vector& arg) const
-    {
-    	const double x = arg(0);
-    	const double y = arg(1);
-
-    	return t*std::pow(y - x*x, 2.0) + std::pow(1 - x, 2.0);
-    }
-};
-
 // This function is the optimization function L(w) = -1 * sum(i)(log(p(y_i|MB(y_i, w), x)) + ((w - w_r)^T (w - w_r)) / 2 * sigma^2)
 // to find the optimal weights for the given prelabeled map. to find these the function has to be minimized.
 // i indicates the labeled example
@@ -217,9 +198,72 @@ void VoronoiRandomFieldSegmentation::drawVoronoi(cv::Mat &img, const std::vector
 }
 
 // Function to train the AdaBoost classifiers that are used for feature induction in the conditional random field.
-void trainBoostClassifiers(std::vector<cv::Mat> room_training_maps)
+void VoronoiRandomFieldSegmentation::trainBoostClassifiers(std::vector<cv::Mat> room_training_maps, const std::string& classifier_storage_path)
 {
+	//**************************Training-Algorithm for the AdaBoost-classifiers*****************************
+	// This Alogrithm trains two AdaBoost-classifiers from OpenCV. It takes the given training maps and finds the Points
+	// that are labeled as the specified classes and calculates the features defined in
+	// ipa_room_segmentation/voronoi_random_field_segmentation.h.
+	// Then these vectors are put in a format that OpenCV expects for the classifiers and then they are trained.
+	std::vector<float> labels_for_hallways, labels_for_rooms;
+	std::vector<std::vector<float> > hallway_features, room_features;
+	std::vector<double> temporary_beams;
+	std::vector<float> temporary_features;
+	std::cout << "Starting to train the algorithm." << std::endl;
+	std::cout << "number of room training maps: " << room_training_maps.size() << std::endl;
+	//Get the labels for every training point. 1.0 means it belongs to a room and -1.0 means it belongs to a hallway
+	for(size_t map = 0; map < room_training_maps.size(); ++map)
+	{
+		for (int y = 0; y < room_training_maps[map].cols; y++)
+		{
+			for (int x = 0; x < room_training_maps[map].rows; x++)
+			{
+				if (room_training_maps[map].at<unsigned char>(x, y) != 0)
+				{
+					//check for label of each Pixel (if it belongs to doors the label is 1, otherwise it is -1)
+					if (room_training_maps[map].at<unsigned char>(x, y) > 250)
+					{
+						labels_for_rooms.push_back(1.0);
+					}
+					else
+					{
+						labels_for_rooms.push_back(-1.0);
+					}
+					//simulate the beams and features for every position and save it
+					temporary_beams = raycasting(room_training_maps[map], cv::Point(x, y));
+					for (int f = 1; f <= get_feature_count(); f++)
+					{
+						temporary_features.push_back((float) get_feature(temporary_beams, angles_for_simulation_, cv::Point(x, y), f));
+					}
+					room_features.push_back(temporary_features);
+					temporary_features.clear();
+				}
+			}
+		}
+		std::cout << "extracted features from one room map" << std::endl;
+	}
 
+	//*************room***************
+	//save the found labels and features in Matrices
+	cv::Mat room_labels_Mat(labels_for_rooms.size(), 1, CV_32FC1);
+	cv::Mat room_features_Mat(room_features.size(), get_feature_count(), CV_32FC1);
+	for (int i = 0; i < labels_for_rooms.size(); i++)
+	{
+		room_labels_Mat.at<float>(i, 0) = labels_for_rooms[i];
+		for (int f = 0; f < get_feature_count(); f++)
+		{
+			room_features_Mat.at<float>(i, f) = (float) room_features[i][f];
+		}
+	}
+	// Train a boost classifier
+	room_boost_.train(room_features_Mat, CV_ROW_SAMPLE, room_labels_Mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
+	//save the trained booster
+	std::string filename_room = classifier_storage_path + "voronoi_room_boost.xml";
+	room_boost_.save(filename_room.c_str(), "boost");
+	//set the trained-variabel true, so the labeling-algorithm knows the classifiers have been trained already
+	trained_ = true;
+	ROS_INFO("Done room classifiers.");
+	ROS_INFO("Finished training the algorithm.");
 }
 
 void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation)
@@ -439,6 +483,69 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue()
 	dlib::find_min_using_approximate_derivatives(dlib::bfgs_search_strategy(), dlib::objective_delta_stop_strategy(1e-7), tester, starting_point, -1);
 
 	return starting_point;
+}
+
+//****************** Segmentation Function *********************
+// This function segments the given original_map into different regions by using the voronoi random field method from
+// Stephen Friedman and Dieter Fox ( http://www.cs.washington.edu/robotics/projects/semantic-mapping/abstracts/vrf-place-labeling-ijcai-07.abstract.html ).
+// This algorithm has two parts, the training step and the actual segmentation. In the segmentation step following actions
+// are made:
+//		I.) From the given map that should be labeled (original_map) a pruned generalized Voronoi diagram is extracted ( https://www.sthu.org/research/voronoidiagrams/ ).
+//			This is done using the method from Karimipour and Ghandehari ( A Stable Voronoi-based Algorithm for Medial Axis Extraction through Labeling Sample Points )
+//			that samples the building contour to get centerpoints to compute the voronoi graph. This approximated graph has
+//			some errors in it, so two elimination steps are done:
+//				i) eliminate lines of the graph that start or end in black regions
+//				ii) reduce the graph from after the first step until the nodes of the graph
+//			See the createPrunedVoronoiGraph() function above for better information. OpenCV is used to do this.
+//		II.) It looks at this pruned voronoi graph and concentrates a defined region on this graph into one point, that is
+//			used as a node in a graph. In this graph nodes are connected, that
+//				i) are right beside each other
+//				ii) and if a Point in the graph has three or more neighbors all of these four nodes are connected to each other
+//			so that different cliques occur. This is neccessary to use a Conditional Random Filed to label the nodes as a
+//			defined class.
+//
+void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int size_of_region_on_voronoi)
+{
+	// ************* I. Create the pruned generalized Voronoi graph *************
+	cv::Mat voronoi_map = original_map.clone();
+
+	// use the above defined functio to create a pruned Voronoi graph
+	createPrunedVoronoiGraph(voronoi_map);
+
+	// ************* 2. Extract the graph used for the conditional random field *************
+	//
+	// 1. Find the node Points of the graph. A node point of the graph is a point in the voronoi graph that has at least
+	//	  three neighbors.
+
+	std::vector < cv::Point > node_points; //variable for node point extraction
+
+	for (int v = 1; v < voronoi_map.rows-1; v++)
+	{
+		for (int u = 1; u < voronoi_map.cols-1; u++)
+		{
+			if (voronoi_map.at<unsigned char>(v, u) == 127)
+			{
+				int neighbor_count = 0;	//variable to save the number of neighbors for each point
+				//check 3x3 region around current pixel
+				for (int row_counter = -1; row_counter <= 1; row_counter++)
+				{
+					for (int column_counter = -1; column_counter <= 1; column_counter++)
+					{
+						//check if neighbors are colored with the voronoi-color
+						if (voronoi_map.at<unsigned char>(v + row_counter, u + column_counter) == 127 && (row_counter !=0 || column_counter != 0))
+						{
+							neighbor_count++;
+						}
+					}
+				}
+				if (neighbor_count > 2)
+				{
+					node_points.push_back(cv::Point(v, u));
+				}
+			}
+		}
+	}
+
 }
 
 

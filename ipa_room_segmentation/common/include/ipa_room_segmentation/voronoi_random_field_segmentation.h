@@ -92,6 +92,8 @@ protected:
 
 	bool trained_; // Variable that shows if the classifiers has already been trained.
 
+	CvBoost room_boost_; // The AdaBoost-Classifier to induct the features needed in the conditional random field.
+
 	// Function to draw the approximated voronoi graph into a given map. It doesn't draw lines of the graph that start or end
 	// in a black region. This is necessary because the voronoi graph gets approximated by diskretizing the maps contour and
 	// using these points as centers for the graph. It gets wrong lines, that are eliminated in this function. See the .cpp
@@ -102,7 +104,7 @@ protected:
 	void createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation); // Function that takes a map and draws a pruned voronoi
 																	    // graph in it.
 
-	void trainBoostClassifiers(std::vector<cv::Mat> room_training_maps); // Function to train the AdaBoost classifiers, used for feature induction of the conditional
+	void trainBoostClassifiers(std::vector<cv::Mat> room_training_maps, const std::string& classifier_storage_path); // Function to train the AdaBoost classifiers, used for feature induction of the conditional
 								  	  	  	  	  	  	  	  	  	  	 // random field.
 public:
 
@@ -111,6 +113,6 @@ public:
 	column_vector findMinValue(); // Function to find the minimal value of a function. Used to find the optimal weights for
 								  // the conditional random field.
 
-	void segmentMap(cv::Mat& original_map); // Function to segment a given map into different regions.
+	void segmentMap(cv::Mat& original_map, const int size_of_region_on_voronoi); // Function to segment a given map into different regions.
 
 };
