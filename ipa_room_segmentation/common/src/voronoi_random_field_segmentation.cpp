@@ -97,6 +97,7 @@ public:
 //			- f_k is the feature function, calculating a vector of features, that are individual for each clique
 // An example for this function, regarding to the voronoi random fields, is:
 // L(w) = -(log( (exp(5w_1 + 10w_2)) / (exp(5w_1 + 10w_2) + exp(4w_1 + 7w_2)) ) + log( (exp(7w_1 + 8w_2)) / (exp(7w_1 + 8w_2) + exp(4w_1 + 1w_2)) )) + (w_1-2 w_2-2)^T * (w_1-2 w_2-2) / 2 * 3^2
+//
 class pseudoLikelihoodOptimization
 {
 public:
@@ -166,7 +167,15 @@ public:
 
 VoronoiRandomFieldSegmentation::VoronoiRandomFieldSegmentation()
 {
-
+	//save the angles between the simulated beams, used in the following algorithm
+	for (double angle = 0; angle < 360; angle++)
+	{
+		angles_for_simulation_.push_back(angle);
+	}
+	// Set up boosting parameters
+	CvBoostParams params(CvBoost::DISCRETE, 350, 0, 2, false, 0);
+	params_ = params;
+	trained_ = false;
 }
 
 void VoronoiRandomFieldSegmentation::drawVoronoi(cv::Mat &img, const std::vector<std::vector<cv::Point2f> >& facets_of_voronoi, const cv::Scalar voronoi_color,
@@ -205,6 +214,12 @@ void VoronoiRandomFieldSegmentation::drawVoronoi(cv::Mat &img, const std::vector
 			last_point = current_point;
 		}
 	}
+}
+
+// Function to train the AdaBoost classifiers that are used for feature induction in the conditional random field.
+void trainBoostClassifiers(std::vector<cv::Mat> room_training_maps)
+{
+
 }
 
 void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation)

@@ -72,6 +72,11 @@
 
 #include <ctime>
 
+#include <ipa_room_segmentation/contains.h>
+#include <ipa_room_segmentation/voronoi_random_field_features.h>
+#include <ipa_room_segmentation/raycasting.h>
+#include <ipa_room_segmentation/wavefront_region_growing.h>
+
 #pragma once
 
 typedef dlib::matrix<double,0,1> column_vector;
@@ -79,6 +84,13 @@ typedef dlib::matrix<double,0,1> column_vector;
 class VoronoiRandomFieldSegmentation
 {
 protected:
+
+	std::vector<double> angles_for_simulation_; // Vector that saves the angles, used to simulate the laser measurements
+												// for the AdaBoost classifier.
+
+	CvBoostParams params_; // Parameters for the classifiers
+
+	bool trained_; // Variable that shows if the classifiers has already been trained.
 
 	// Function to draw the approximated voronoi graph into a given map. It doesn't draw lines of the graph that start or end
 	// in a black region. This is necessary because the voronoi graph gets approximated by diskretizing the maps contour and
@@ -90,9 +102,11 @@ protected:
 	void createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation); // Function that takes a map and draws a pruned voronoi
 																	    // graph in it.
 
+	void trainBoostClassifiers(std::vector<cv::Mat> room_training_maps); // Function to train the AdaBoost classifiers, used for feature induction of the conditional
+								  	  	  	  	  	  	  	  	  	  	 // random field.
 public:
 
-	VoronoiRandomFieldSegmentation(); //constructor
+	VoronoiRandomFieldSegmentation(); // constructor
 
 	column_vector findMinValue(); // Function to find the minimal value of a function. Used to find the optimal weights for
 								  // the conditional random field.

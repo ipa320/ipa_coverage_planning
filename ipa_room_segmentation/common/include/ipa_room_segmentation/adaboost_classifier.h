@@ -17,13 +17,13 @@ class AdaboostClassifier
 {
 protected:
 
-	bool trained_; //variable that shows if the classifiers has already been trained
+	bool trained_; // variable that shows if the classifiers has already been trained
 
-	std::vector<double> angles_for_simulation_; //angle-vector used to calculate the features for this algorithm
+	std::vector<double> angles_for_simulation_; // angle-vector used to calculate the features for this algorithm
 
-	CvBoostParams params_; //Parameters for the classifiers
+	CvBoostParams params_; // Parameters for the classifiers
 
-	CvBoost hallway_boost_, room_boost_; //the AdaBoost-classifiers for rooms and hallways
+	CvBoost hallway_boost_, room_boost_; // the AdaBoost-classifiers for rooms and hallways
 
 public:
 

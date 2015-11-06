@@ -122,7 +122,7 @@ target_link_libraries(evaluation_segmentation ${catkin_LIBRARIES} ${OpenCV_LIBRA
 add_dependencies(evaluation_segmentation ${catkin_EXPORTED_TARGETS})
 
 #test algorithm for implementing new segmentation algorihtms
-add_executable(segmentation_tester common/src/segmentation_tester.cpp common/src/voronoi_random_field_segmentation.cpp)
+add_executable(segmentation_tester common/src/segmentation_tester.cpp common/src/voronoi_random_field_segmentation.cpp common/src/contains.cpp common/src/voronoi_random_field_features.cpp common/src/raycasting.cpp common/src/wavefront_region_growing.cpp)
 target_link_libraries(segmentation_tester ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 add_dependencies(segmentation_tester ${catkin_EXPORTED_TARGETS})
 
