@@ -10,5 +10,7 @@ int main()
 
 	VoronoiRandomFieldSegmentation segmenter;
 
+	segmenter.segmentMap(map, 17, 50, true);
+
 	return 0;
 }

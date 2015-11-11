@@ -266,22 +266,24 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(std::vector<cv::Mat> 
 	ROS_INFO("Finished training the algorithm.");
 }
 
-void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation)
-{
-	//****************Create the pruned generalized Voronoi-Graph**********************
-	//This function is here to create the pruned generalized voronoi-graph in the given map. It does following steps:
-	//	1. It finds every discretized contour in the given map (they are saved as vector<Point>). Then it takes these
-	//	   contour-Points and adds them to the OpenCV Delaunay generator from which the voronoi-cells can be generated.
-	//	2. Then it finds the largest eroded contour in the given map, which is the contour of the map itself. It searches the
-	//	   largest contour, because smaller contours correspond to mapping errors
-	//	3. Then it gets the boundary-Points of the voronoi-cells with getVoronoiFacetList. It takes these facets
-	//	   and draws them using the drawVoronoi function. This function draws the facets that only have Points inside
-	//	   the map-contour (other lines go to not-reachable places and are not necessary to be looked at).
-	//  4. It reduces the graph until the nodes in the graph. A node is a point on the voronoi graph, that has at least 3
-	//	   neighbors. This deletes errors from the approximate generation of the graph that hasn't been eliminated from
-	//	   the drawVoronoi function. the resulting graph is the pruned generalized voronoi graph.
-	//	5. It returns the map that has the pruned generalized voronoi-graph drawn in.
+//
+//****************Create the pruned generalized Voronoi-Graph**********************
+//
+//This function is here to create the pruned generalized voronoi-graph in the given map. It does following steps:
+//	1. It finds every discretized contour in the given map (they are saved as vector<Point>). Then it takes these
+//	   contour-Points and adds them to the OpenCV Delaunay generator from which the voronoi-cells can be generated.
+//	2. Then it finds the largest eroded contour in the given map, which is the contour of the map itself. It searches the
+//	   largest contour, because smaller contours correspond to mapping errors
+//	3. Then it gets the boundary-Points of the voronoi-cells with getVoronoiFacetList. It takes these facets
+//	   and draws them using the drawVoronoi function. This function draws the facets that only have Points inside
+//	   the map-contour (other lines go to not-reachable places and are not necessary to be looked at).
+//  4. It reduces the graph until the nodes in the graph. A node is a point on the voronoi graph, that has at least 3
+//	   neighbors. This deletes errors from the approximate generation of the graph that hasn't been eliminated from
+//	   the drawVoronoi function. the resulting graph is the pruned generalized voronoi graph.
+//	5. It returns the map that has the pruned generalized voronoi-graph drawn in.
 
+void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation, std::vector<cv::Point>& node_points)
+{
 	cv::Mat map_to_draw_voronoi_in = map_for_voronoi_generation.clone(); //variable to save the given map for drawing in the voronoi-diagram
 
 	cv::Mat temporary_map_to_calculate_voronoi = map_for_voronoi_generation.clone(); //variable to save the given map in the createVoronoiGraph-function
@@ -370,9 +372,8 @@ void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_v
 			}
 		}
 	}
+//	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/unpruned_voronoi.png", map_to_draw_voronoi_in);
 	//********************4. Reduce the graph until its nodes******************************
-
-	std::vector < cv::Point > node_points; //variable for node point extraction
 
 	//1.extract the node-points that have at least three neighbors on the voronoi diagram
 	for (int v = 1; v < map_to_draw_voronoi_in.rows-1; v++)
@@ -382,18 +383,26 @@ void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_v
 			if (map_to_draw_voronoi_in.at<unsigned char>(v, u) == 127)
 			{
 				int neighbor_count = 0;	//variable to save the number of neighbors for each point
-				//check 3x3 region around current pixel
-				for (int row_counter = -1; row_counter <= 1; row_counter++)
-				{
-					for (int column_counter = -1; column_counter <= 1; column_counter++)
-					{
-						//check if neighbors are colored with the voronoi-color
-						if (map_to_draw_voronoi_in.at<unsigned char>(v + row_counter, u + column_counter) == 127 && (row_counter !=0 || column_counter != 0))
-						{
-							neighbor_count++;
-						}
-					}
-				}
+				if(map_to_draw_voronoi_in.at<unsigned char>(v - 1, u) == 127)
+					neighbor_count++;
+				if(map_to_draw_voronoi_in.at<unsigned char>(v, u + 1) == 127)
+					neighbor_count++;
+				if(map_to_draw_voronoi_in.at<unsigned char>(v, u - 1) == 127)
+					neighbor_count++;
+				if(map_to_draw_voronoi_in.at<unsigned char>(v + 1, u) == 127)
+					neighbor_count++;
+//				//check 3x3 region around current pixel
+//				for (int row_counter = -1; row_counter <= 1; row_counter++)
+//				{
+//					for (int column_counter = -1; column_counter <= 1; column_counter++)
+//					{
+//						//check if neighbors are colored with the voronoi-color
+//						if (map_to_draw_voronoi_in.at<unsigned char>(v + row_counter, u + column_counter) == 127 && (row_counter !=0 || column_counter != 0))
+//						{
+//							neighbor_count++;
+//						}
+//					}
+//				}
 				if (neighbor_count > 2)
 				{
 					node_points.push_back(cv::Point(v, u));
@@ -485,7 +494,9 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue()
 	return starting_point;
 }
 
+//
 //****************** Segmentation Function *********************
+//
 // This function segments the given original_map into different regions by using the voronoi random field method from
 // Stephen Friedman and Dieter Fox ( http://www.cs.washington.edu/robotics/projects/semantic-mapping/abstracts/vrf-place-labeling-ijcai-07.abstract.html ).
 // This algorithm has two parts, the training step and the actual segmentation. In the segmentation step following actions
@@ -502,48 +513,122 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue()
 //				i) are right beside each other
 //				ii) and if a Point in the graph has three or more neighbors all of these four nodes are connected to each other
 //			so that different cliques occur. This is neccessary to use a Conditional Random Filed to label the nodes as a
-//			defined class.
+//			defined class. To do so the following steps are done:
+//				1. Look at an epsilon neighborhood on the graph and choose the point fartest away from the black pixels as
+//				   point for the conditional random field graph. The farthes point is chosen, because else it would be posible
+//				   that the chosen point is too near at the black pixels.
 //
-void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int size_of_region_on_voronoi)
+void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int epsilon_for_neighborhood,
+		const int max_iterations, bool show_nodes)
 {
 	// ************* I. Create the pruned generalized Voronoi graph *************
 	cv::Mat voronoi_map = original_map.clone();
 
+	std::vector < cv::Point > node_points; // variable for node point extraction
+
 	// use the above defined functio to create a pruned Voronoi graph
-	createPrunedVoronoiGraph(voronoi_map);
+	createPrunedVoronoiGraph(voronoi_map, node_points);
 
-	// ************* 2. Extract the graph used for the conditional random field *************
+	// ************* II. Extract the graph used for the conditional random field *************
 	//
-	// 1. Find the node Points of the graph. A node point of the graph is a point in the voronoi graph that has at least
-	//	  three neighbors.
+	// 1. Get the points for the conditional random field graph by looking at an epsilon neighborhood.
 
-	std::vector < cv::Point > node_points; //variable for node point extraction
+	std::vector< cv::Point > conditional_field_nodes;
 
-	for (int v = 1; v < voronoi_map.rows-1; v++)
-	{
-		for (int u = 1; u < voronoi_map.cols-1; u++)
+	// get the distance transformed map, which shows the distance of every white pixel to the closest zero-pixel
+	cv::Mat distance_map; //distance-map of the original-map (used to check the distance of each point to nearest black pixel)
+	cv::distanceTransform(original_map, distance_map, CV_DIST_L2, 5);
+	cv::convertScaleAbs(distance_map, distance_map);
+
+	cv::Mat voronoi_map_for_node_extraction = voronoi_map.clone();
+	// find the points farthest away in the defined epsilon neighborhood
+	for (int v = 0; v < voronoi_map_for_node_extraction.rows; v++)
 		{
-			if (voronoi_map.at<unsigned char>(v, u) == 127)
+			for (int u = 0; u < voronoi_map_for_node_extraction.cols; u++)
 			{
-				int neighbor_count = 0;	//variable to save the number of neighbors for each point
-				//check 3x3 region around current pixel
-				for (int row_counter = -1; row_counter <= 1; row_counter++)
+				if (voronoi_map_for_node_extraction.at<unsigned char>(v, u) == 127)
 				{
-					for (int column_counter = -1; column_counter <= 1; column_counter++)
+					int loopcounter = 0; // if a part of the graph is not connected to the rest this variable helps to stop the loop
+					std::vector<cv::Point> neighbor_points, temporary_points;	// neighboring-variables, which are different for each point
+					int neighbor_count = 0;		// variable to save the number of neighbors for each point
+					neighbor_points.push_back(cv::Point(u, v)); //add the current Point to the neighborhood
+					// find every Point along the voronoi graph in a specified neighborhood
+					do
 					{
-						//check if neighbors are colored with the voronoi-color
-						if (voronoi_map.at<unsigned char>(v + row_counter, u + column_counter) == 127 && (row_counter !=0 || column_counter != 0))
+						loopcounter++;
+						// check every point in the neighborhood for other neighbors connected to it
+						for (int current_neighbor_point_index = 0; current_neighbor_point_index < neighbor_points.size(); current_neighbor_point_index++)
 						{
-							neighbor_count++;
+							for (int row_counter = -1; row_counter <= 1; row_counter++)
+							{
+								for (int column_counter = -1; column_counter <= 1; column_counter++)
+								{
+									// check the neighboring points
+									// (if it already is in the neighborhood it doesn't need to be checked again)
+									const cv::Point& current_neighbor_point = neighbor_points[current_neighbor_point_index];
+									const int nu = current_neighbor_point.x + column_counter;
+									const int nv = current_neighbor_point.y + row_counter;
+//									if(u > 250 && v > 250)
+//									{
+//										cv::Mat tester = original_map.clone();
+//										cv::circle(tester, cv::Point(nu, nv), 2, cv::Scalar(100), CV_FILLED);
+//										cv::imshow("tester", tester);
+//										cv::waitKey();
+//									}
+									if (!contains(neighbor_points, cv::Point(nu, nv)) && nv >= 0 && nu >= 0 && nv < voronoi_map_for_node_extraction.rows && nu < voronoi_map_for_node_extraction.cols &&
+											voronoi_map_for_node_extraction.at<unsigned char>(nv, nu) == 127 && (row_counter != 0 || column_counter != 0))
+									{
+										neighbor_count++;
+										temporary_points.push_back(cv::Point(nu, nv));
+									}
+								}
+							}
+						}
+						// go trough every found point after all neighborhood points have been checked and add them to it
+						for (int temporary_point_index = 0; temporary_point_index < temporary_points.size(); temporary_point_index++)
+						{
+							neighbor_points.push_back(temporary_points[temporary_point_index]);
+							// make the found points white in the voronoi-map (already looked at)
+							voronoi_map_for_node_extraction.at<unsigned char>(temporary_points[temporary_point_index].y, temporary_points[temporary_point_index].x) = 255;
+							voronoi_map_for_node_extraction.at<unsigned char>(v, u) = 255;
+						}
+						// check if enough neighbors have been checked or checked enough times (e.g. at a small segment of the graph)
+					} while (neighbor_count <= epsilon_for_neighborhood && loopcounter < max_iterations);
+					// check every found point in the neighborhood if it is the local minimum in the distanceMap
+					cv::Point current_conditional_field_point = cv::Point(u, v);
+					for (int p = 0; p < neighbor_points.size(); p++)
+					{
+						if (distance_map.at<unsigned char>(neighbor_points[p].y, neighbor_points[p].x) < distance_map.at<unsigned char>(current_conditional_field_point.y, current_conditional_field_point.x))
+						{
+							current_conditional_field_point = cv::Point(neighbor_points[p]);
 						}
 					}
-				}
-				if (neighbor_count > 2)
-				{
-					node_points.push_back(cv::Point(v, u));
+					// add the local minimum point to the critical points
+					conditional_field_nodes.push_back(current_conditional_field_point);
 				}
 			}
 		}
+
+	// add the voronoi graph node points to the conditional random field nodes if they are not already in it
+	for(size_t node = 0; node < node_points.size(); ++node)
+	{
+		if(!contains(conditional_field_nodes, cv::Point(node_points[node].y, node_points[node].x)))
+			conditional_field_nodes.push_back(cv::Point(node_points[node].y, node_points[node].x));
+	}
+
+	// show the node points if wanted
+	if(show_nodes == true)
+	{
+		cv::Mat node_map = voronoi_map.clone();
+		cv::cvtColor(node_map, node_map, CV_GRAY2BGR);
+		for(size_t node = 0; node < conditional_field_nodes.size(); ++node)
+		{
+			cv::circle(node_map, cv::Point(conditional_field_nodes[node].x, conditional_field_nodes[node].y), 0, cv::Scalar(0,250,0), CV_FILLED);
+		}
+
+//		cv::imshow("nodes of the conditional random field", voronoi_map);
+//		cv::waitKey();
+		cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/node_map.png", node_map);
 	}
 
 }

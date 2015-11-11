@@ -101,8 +101,8 @@ protected:
 	void drawVoronoi(cv::Mat &img, const std::vector<std::vector<cv::Point2f> >& facets_of_voronoi, const cv::Scalar voronoi_color,
 			const std::vector<cv::Point>& contour, const std::vector<std::vector<cv::Point> >& hole_contours);
 
-	void createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation); // Function that takes a map and draws a pruned voronoi
-																	    // graph in it.
+	void createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation, std::vector<cv::Point>& node_points); // Function that takes a map and draws a pruned voronoi
+																	    									// graph in it.
 
 	void trainBoostClassifiers(std::vector<cv::Mat> room_training_maps, const std::string& classifier_storage_path); // Function to train the AdaBoost classifiers, used for feature induction of the conditional
 								  	  	  	  	  	  	  	  	  	  	 // random field.
@@ -113,6 +113,7 @@ public:
 	column_vector findMinValue(); // Function to find the minimal value of a function. Used to find the optimal weights for
 								  // the conditional random field.
 
-	void segmentMap(cv::Mat& original_map, const int size_of_region_on_voronoi); // Function to segment a given map into different regions.
+	void segmentMap(cv::Mat& original_map, const int epsilon_for_neighborhood,
+			const int max_iterations, bool show_nodes); // Function to segment a given map into different regions.
 
 };
