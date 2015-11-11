@@ -198,20 +198,24 @@ void VoronoiRandomFieldSegmentation::drawVoronoi(cv::Mat &img, const std::vector
 }
 
 // Function to train the AdaBoost classifiers that are used for feature induction in the conditional random field.
-void VoronoiRandomFieldSegmentation::trainBoostClassifiers(std::vector<cv::Mat> room_training_maps, const std::string& classifier_storage_path)
+void VoronoiRandomFieldSegmentation::trainBoostClassifiers(std::vector<cv::Mat>& room_training_maps, std::vector<cv::Mat>& hallway_training_maps,
+		std::vector<cv::Mat>& doorway_training_maps, const std::string& classifier_storage_path)
 {
 	//**************************Training-Algorithm for the AdaBoost-classifiers*****************************
 	// This Alogrithm trains two AdaBoost-classifiers from OpenCV. It takes the given training maps and finds the Points
 	// that are labeled as the specified classes and calculates the features defined in
 	// ipa_room_segmentation/voronoi_random_field_segmentation.h.
 	// Then these vectors are put in a format that OpenCV expects for the classifiers and then they are trained.
-	std::vector<float> labels_for_hallways, labels_for_rooms;
-	std::vector<std::vector<float> > hallway_features, room_features;
+	std::vector<float> labels_for_rooms, labels_for_hallways, labels_for_doorways;
+	std::vector<std::vector<float> > room_features, hallway_features, doorway_features;
 	std::vector<double> temporary_beams;
 	std::vector<float> temporary_features;
 	std::cout << "Starting to train the algorithm." << std::endl;
 	std::cout << "number of room training maps: " << room_training_maps.size() << std::endl;
-	//Get the labels for every training point. 1.0 means it belongs to a room and -1.0 means it belongs to a hallway
+	//
+	// Train the room classifiers
+	//
+	//Get the labels for every training point. 1.0 means it belongs to a room and -1.0 means it doesn't
 	for(size_t map = 0; map < room_training_maps.size(); ++map)
 	{
 		for (int y = 0; y < room_training_maps[map].cols; y++)
@@ -220,12 +224,12 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(std::vector<cv::Mat> 
 			{
 				if (room_training_maps[map].at<unsigned char>(x, y) != 0)
 				{
-					//check for label of each Pixel (if it belongs to doors the label is 1, otherwise it is -1)
-					if (room_training_maps[map].at<unsigned char>(x, y) > 250)
+					// check for label of each Pixel (if it belongs to rooms the label is 1, otherwise it is -1)
+					if (room_training_maps[map].at<unsigned char>(x, y) < 127)
 					{
 						labels_for_rooms.push_back(1.0);
 					}
-					else
+					else if(room_training_maps[map].at<unsigned char>(x, y) > 127 && room_training_maps[map].at<unsigned char>(x, y) != 255)
 					{
 						labels_for_rooms.push_back(-1.0);
 					}
@@ -242,7 +246,76 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(std::vector<cv::Mat> 
 		}
 		std::cout << "extracted features from one room map" << std::endl;
 	}
+	//
+	// Train the hallway classifiers
+	//
+	//Get the labels for every training point. 1.0 means it belongs to a hallway and -1.0 means it doesn't
+	for(size_t map = 0; map < hallway_training_maps.size(); ++map)
+	{
+		for (int y = 0; y < hallway_training_maps[map].cols; y++)
+		{
+			for (int x = 0; x < hallway_training_maps[map].rows; x++)
+			{
+				if (hallway_training_maps[map].at<unsigned char>(x, y) != 0)
+				{
+					// check for label of each Pixel (if it belongs to hallways the label is 1, otherwise it is -1)
+					if (hallway_training_maps[map].at<unsigned char>(x, y) < 127)
+					{
+						labels_for_hallways.push_back(1.0);
+					}
+					else if(hallway_training_maps[map].at<unsigned char>(x, y) > 127 && hallway_training_maps[map].at<unsigned char>(x, y) != 255)
+					{
+						labels_for_hallways.push_back(-1.0);
+					}
+					//simulate the beams and features for every position and save it
+					temporary_beams = raycasting(hallway_training_maps[map], cv::Point(x, y));
+					for (int f = 1; f <= get_feature_count(); f++)
+					{
+						temporary_features.push_back((float) get_feature(temporary_beams, angles_for_simulation_, cv::Point(x, y), f));
+					}
+					hallway_features.push_back(temporary_features);
+					temporary_features.clear();
+				}
+			}
+		}
+		std::cout << "extracted features from one hallway map" << std::endl;
+	}
+	//
+	// Train the doorway classifiers
+	//
+	//Get the labels for every training point. 1.0 means it belongs to a doorway and -1.0 means it doesn't
+	for(size_t map = 0; map < doorway_training_maps.size(); ++map)
+	{
+		for (int y = 0; y < doorway_training_maps[map].cols; y++)
+		{
+			for (int x = 0; x < doorway_training_maps[map].rows; x++)
+			{
+				if (doorway_training_maps[map].at<unsigned char>(x, y) != 0)
+				{
+					// check for label of each Pixel (if it belongs to doorway the label is 1, otherwise it is -1)
+					if (doorway_training_maps[map].at<unsigned char>(x, y) < 127)
+					{
+						labels_for_doorways.push_back(1.0);
+					}
+					else if(doorway_training_maps[map].at<unsigned char>(x, y) > 127 && doorway_training_maps[map].at<unsigned char>(x, y) != 255)
+					{
+						labels_for_doorways.push_back(-1.0);
+					}
+					//simulate the beams and features for every position and save it
+					temporary_beams = raycasting(doorway_training_maps[map], cv::Point(x, y));
+					for (int f = 1; f <= get_feature_count(); f++)
+					{
+						temporary_features.push_back((float) get_feature(temporary_beams, angles_for_simulation_, cv::Point(x, y), f));
+					}
+					doorway_features.push_back(temporary_features);
+					temporary_features.clear();
+				}
+			}
+		}
+		std::cout << "extracted features from one doorway map" << std::endl;
+	}
 
+	//
 	//*************room***************
 	//save the found labels and features in Matrices
 	cv::Mat room_labels_Mat(labels_for_rooms.size(), 1, CV_32FC1);
@@ -260,10 +333,51 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(std::vector<cv::Mat> 
 	//save the trained booster
 	std::string filename_room = classifier_storage_path + "voronoi_room_boost.xml";
 	room_boost_.save(filename_room.c_str(), "boost");
+	std::cout << "Trained room classifier" << std::endl;
+
+	//
+	//*************hallway***************
+	//save the found labels and features in Matrices
+	cv::Mat hallway_labels_Mat(labels_for_hallways.size(), 1, CV_32FC1);
+	cv::Mat hallway_features_Mat(hallway_features.size(), get_feature_count(), CV_32FC1);
+	for (int i = 0; i < labels_for_hallways.size(); i++)
+	{
+		hallway_labels_Mat.at<float>(i, 0) = labels_for_hallways[i];
+		for (int f = 0; f < get_feature_count(); f++)
+		{
+			hallway_features_Mat.at<float>(i, f) = (float) hallway_features[i][f];
+		}
+	}
+	// Train a boost classifier
+	hallway_boost_.train(hallway_features_Mat, CV_ROW_SAMPLE, hallway_labels_Mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
+	//save the trained booster
+	std::string filename_hallway = classifier_storage_path + "voronoi_hallway_boost.xml";
+	hallway_boost_.save(filename_hallway.c_str(), "boost");
+	std::cout << "Trained hallway classifier" << std::endl;
+
+	//
+	//*************doorway***************
+	//save the found labels and features in Matrices
+	cv::Mat doorway_labels_Mat(labels_for_doorways.size(), 1, CV_32FC1);
+	cv::Mat doorway_features_Mat(doorway_features.size(), get_feature_count(), CV_32FC1);
+	for (int i = 0; i < labels_for_doorways.size(); i++)
+	{
+		doorway_labels_Mat.at<float>(i, 0) = labels_for_doorways[i];
+		for (int f = 0; f < get_feature_count(); f++)
+		{
+			doorway_features_Mat.at<float>(i, f) = (float) doorway_features[i][f];
+		}
+	}
+	// Train a boost classifier
+	doorway_boost_.train(doorway_features_Mat, CV_ROW_SAMPLE, doorway_labels_Mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
+	//save the trained booster
+	std::string filename_doorway = classifier_storage_path + "voronoi_doorway_boost.xml";
+	doorway_boost_.save(filename_doorway.c_str(), "boost");
+	std::cout << "Trained doorway classifier" << std::endl;
+
 	//set the trained-variabel true, so the labeling-algorithm knows the classifiers have been trained already
 	trained_ = true;
-	ROS_INFO("Done room classifiers.");
-	ROS_INFO("Finished training the algorithm.");
+	ROS_INFO("Finished training the Boost algorithm.");
 }
 
 //
@@ -372,7 +486,6 @@ void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_v
 			}
 		}
 	}
-//	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/unpruned_voronoi.png", map_to_draw_voronoi_in);
 	//********************4. Reduce the graph until its nodes******************************
 
 	//1.extract the node-points that have at least three neighbors on the voronoi diagram
@@ -414,8 +527,8 @@ void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_v
 	//2.reduce the side-lines along the voronoi-graph by checking if it has only one neighbor until a node-point is reached
 	//	--> make it white
 	//	repeat a large enough number of times so the graph converges
-		bool real_voronoi_point; //variable for reducing the side-lines
-		for (int step = 0; step < 100; step++)
+	bool real_voronoi_point; //variable for reducing the side-lines
+	for (int step = 0; step < 100; step++)
 	{
 		for (int v = 0; v < map_to_draw_voronoi_in.rows; v++)
 		{
@@ -461,6 +574,8 @@ void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_v
 
 	// Return the calculated map with the pruned voronoi graph drawn in.
 	map_for_voronoi_generation = map_to_draw_voronoi_in;
+
+//	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/pruned_voronoi.png", map_to_draw_voronoi_in);
 
 }
 
@@ -619,7 +734,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	// show the node points if wanted
 	if(show_nodes == true)
 	{
-		cv::Mat node_map = voronoi_map.clone();
+		cv::Mat node_map = original_map.clone();
 		cv::cvtColor(node_map, node_map, CV_GRAY2BGR);
 		for(size_t node = 0; node < conditional_field_nodes.size(); ++node)
 		{
