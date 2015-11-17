@@ -125,7 +125,7 @@ add_dependencies(evaluation_segmentation ${catkin_EXPORTED_TARGETS})
 ## Install ##
 #############
 ## Mark executables and/or libraries for installation
-install(TARGETS room_segmentation_server evaluation
+install(TARGETS room_segmentation_server evaluation evaluation_segmentation room_segmentation_client
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
