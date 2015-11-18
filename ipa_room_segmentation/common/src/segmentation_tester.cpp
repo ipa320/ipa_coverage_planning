@@ -6,7 +6,7 @@
 
 int main()
 {
-	cv::Mat map = cv::imread("/home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/common/files/test_maps/office_e.png", 0);
+	cv::Mat map = cv::imread("/home/rmb-fj/Pictures/map.png", 0);
 
 	for(unsigned int u = 0; u < map.rows; ++u)
 	{

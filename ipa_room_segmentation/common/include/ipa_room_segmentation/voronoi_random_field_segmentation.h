@@ -76,6 +76,7 @@
 #include <ipa_room_segmentation/voronoi_random_field_features.h>
 #include <ipa_room_segmentation/raycasting.h>
 #include <ipa_room_segmentation/wavefront_region_growing.h>
+#include <ipa_room_segmentation/clique_class.h>
 
 #pragma once
 

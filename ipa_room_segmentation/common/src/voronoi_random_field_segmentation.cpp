@@ -627,11 +627,17 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue()
 //			used as a node in a graph. In this graph nodes are connected, that
 //				i) are right beside each other
 //				ii) and if a Point in the graph has three or more neighbors all of these four nodes are connected to each other
-//			so that different cliques occur. This is neccessary to use a Conditional Random Filed to label the nodes as a
+//			so that different cliques occure. This is neccessary to use a Conditional Random Filed to label the nodes as a
 //			defined class. To do so the following steps are done:
 //				1. Look at an epsilon neighborhood on the graph and choose the point fartest away from the black pixels as
 //				   point for the conditional random field graph. The farthes point is chosen, because else it would be posible
 //				   that the chosen point is too near at the black pixels.
+//				2. Add the previously found node points on the voronoi graph to the Conditional Random Field graph, if they
+//				   weren't found by the first part.
+//		III.) It constructs the Conditional Random Field graph from the previously found points, by creating the edges of
+//			  this graph from the cliques as described before. This is done by searching the two nearest neighbors for each
+//			  Point that isn't a node and the three nearest neighbors for points that are nodes and defining them as a new
+//			  clique.
 //
 void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int epsilon_for_neighborhood,
 		const int max_iterations, bool show_nodes)
@@ -658,71 +664,71 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	cv::Mat voronoi_map_for_node_extraction = voronoi_map.clone();
 	// find the points farthest away in the defined epsilon neighborhood
 	for (int v = 0; v < voronoi_map_for_node_extraction.rows; v++)
+	{
+		for (int u = 0; u < voronoi_map_for_node_extraction.cols; u++)
 		{
-			for (int u = 0; u < voronoi_map_for_node_extraction.cols; u++)
+			if (voronoi_map_for_node_extraction.at<unsigned char>(v, u) == 127)
 			{
-				if (voronoi_map_for_node_extraction.at<unsigned char>(v, u) == 127)
+				int loopcounter = 0; // if a part of the graph is not connected to the rest this variable helps to stop the loop
+				std::vector<cv::Point> neighbor_points, temporary_points;	// neighboring-variables, which are different for each point
+				int neighbor_count = 0;		// variable to save the number of neighbors for each point
+				neighbor_points.push_back(cv::Point(u, v)); //add the current Point to the neighborhood
+				// find every Point along the voronoi graph in a specified neighborhood
+				do
 				{
-					int loopcounter = 0; // if a part of the graph is not connected to the rest this variable helps to stop the loop
-					std::vector<cv::Point> neighbor_points, temporary_points;	// neighboring-variables, which are different for each point
-					int neighbor_count = 0;		// variable to save the number of neighbors for each point
-					neighbor_points.push_back(cv::Point(u, v)); //add the current Point to the neighborhood
-					// find every Point along the voronoi graph in a specified neighborhood
-					do
+					loopcounter++;
+					// check every point in the neighborhood for other neighbors connected to it
+					for (int current_neighbor_point_index = 0; current_neighbor_point_index < neighbor_points.size(); current_neighbor_point_index++)
 					{
-						loopcounter++;
-						// check every point in the neighborhood for other neighbors connected to it
-						for (int current_neighbor_point_index = 0; current_neighbor_point_index < neighbor_points.size(); current_neighbor_point_index++)
+						for (int row_counter = -1; row_counter <= 1; row_counter++)
 						{
-							for (int row_counter = -1; row_counter <= 1; row_counter++)
+							for (int column_counter = -1; column_counter <= 1; column_counter++)
 							{
-								for (int column_counter = -1; column_counter <= 1; column_counter++)
+								// check the neighboring points
+								// (if it already is in the neighborhood it doesn't need to be checked again)
+								const cv::Point& current_neighbor_point = neighbor_points[current_neighbor_point_index];
+								const int nu = current_neighbor_point.x + column_counter;
+								const int nv = current_neighbor_point.y + row_counter;
+//								if(u > 250 && v > 250)
+//								{
+//									cv::Mat tester = original_map.clone();
+//									cv::circle(tester, cv::Point(nu, nv), 2, cv::Scalar(100), CV_FILLED);
+//									cv::imshow("tester", tester);
+//									cv::waitKey();
+//								}
+								if (!contains(neighbor_points, cv::Point(nu, nv)) && nv >= 0 && nu >= 0 && nv < voronoi_map_for_node_extraction.rows && nu < voronoi_map_for_node_extraction.cols &&
+										voronoi_map_for_node_extraction.at<unsigned char>(nv, nu) == 127 && (row_counter != 0 || column_counter != 0))
 								{
-									// check the neighboring points
-									// (if it already is in the neighborhood it doesn't need to be checked again)
-									const cv::Point& current_neighbor_point = neighbor_points[current_neighbor_point_index];
-									const int nu = current_neighbor_point.x + column_counter;
-									const int nv = current_neighbor_point.y + row_counter;
-//									if(u > 250 && v > 250)
-//									{
-//										cv::Mat tester = original_map.clone();
-//										cv::circle(tester, cv::Point(nu, nv), 2, cv::Scalar(100), CV_FILLED);
-//										cv::imshow("tester", tester);
-//										cv::waitKey();
-//									}
-									if (!contains(neighbor_points, cv::Point(nu, nv)) && nv >= 0 && nu >= 0 && nv < voronoi_map_for_node_extraction.rows && nu < voronoi_map_for_node_extraction.cols &&
-											voronoi_map_for_node_extraction.at<unsigned char>(nv, nu) == 127 && (row_counter != 0 || column_counter != 0))
-									{
-										neighbor_count++;
-										temporary_points.push_back(cv::Point(nu, nv));
-									}
+									neighbor_count++;
+									temporary_points.push_back(cv::Point(nu, nv));
 								}
 							}
 						}
-						// go trough every found point after all neighborhood points have been checked and add them to it
-						for (int temporary_point_index = 0; temporary_point_index < temporary_points.size(); temporary_point_index++)
-						{
-							neighbor_points.push_back(temporary_points[temporary_point_index]);
-							// make the found points white in the voronoi-map (already looked at)
-							voronoi_map_for_node_extraction.at<unsigned char>(temporary_points[temporary_point_index].y, temporary_points[temporary_point_index].x) = 255;
-							voronoi_map_for_node_extraction.at<unsigned char>(v, u) = 255;
-						}
-						// check if enough neighbors have been checked or checked enough times (e.g. at a small segment of the graph)
-					} while (neighbor_count <= epsilon_for_neighborhood && loopcounter < max_iterations);
-					// check every found point in the neighborhood if it is the local minimum in the distanceMap
-					cv::Point current_conditional_field_point = cv::Point(u, v);
-					for (int p = 0; p < neighbor_points.size(); p++)
-					{
-						if (distance_map.at<unsigned char>(neighbor_points[p].y, neighbor_points[p].x) < distance_map.at<unsigned char>(current_conditional_field_point.y, current_conditional_field_point.x))
-						{
-							current_conditional_field_point = cv::Point(neighbor_points[p]);
-						}
 					}
-					// add the local minimum point to the critical points
-					conditional_field_nodes.push_back(current_conditional_field_point);
+					// go trough every found point after all neighborhood points have been checked and add them to it
+					for (int temporary_point_index = 0; temporary_point_index < temporary_points.size(); temporary_point_index++)
+					{
+						neighbor_points.push_back(temporary_points[temporary_point_index]);
+						// make the found points white in the voronoi-map (already looked at)
+						voronoi_map_for_node_extraction.at<unsigned char>(temporary_points[temporary_point_index].y, temporary_points[temporary_point_index].x) = 255;
+						voronoi_map_for_node_extraction.at<unsigned char>(v, u) = 255;
+					}
+					// check if enough neighbors have been checked or checked enough times (e.g. at a small segment of the graph)
+				}while (neighbor_count <= epsilon_for_neighborhood && loopcounter < max_iterations);
+				// check every found point in the neighborhood if it is the local minimum in the distanceMap
+				cv::Point current_conditional_field_point = cv::Point(u, v);
+				for (int p = 0; p < neighbor_points.size(); p++)
+				{
+					if (distance_map.at<unsigned char>(neighbor_points[p].y, neighbor_points[p].x) < distance_map.at<unsigned char>(current_conditional_field_point.y, current_conditional_field_point.x))
+					{
+						current_conditional_field_point = cv::Point(neighbor_points[p]);
+					}
 				}
+				// add the local minimum point to the critical points
+				conditional_field_nodes.push_back(current_conditional_field_point);
 			}
 		}
+	}
 
 	// add the voronoi graph node points to the conditional random field nodes if they are not already in it
 	for(size_t node = 0; node < node_points.size(); ++node)
@@ -741,9 +747,9 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 			cv::circle(node_map, cv::Point(conditional_field_nodes[node].x, conditional_field_nodes[node].y), 0, cv::Scalar(0,250,0), CV_FILLED);
 		}
 
-//		cv::imshow("nodes of the conditional random field", voronoi_map);
-//		cv::waitKey();
-		cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/node_map.png", node_map);
+		cv::imshow("nodes of the conditional random field", voronoi_map);
+		cv::waitKey();
+//		cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/node_map.png", node_map);
 	}
 
 }
