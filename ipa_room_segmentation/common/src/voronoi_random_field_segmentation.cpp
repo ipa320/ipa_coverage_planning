@@ -650,7 +650,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	// use the above defined functio to create a pruned Voronoi graph
 	createPrunedVoronoiGraph(voronoi_map, node_points);
 
-	// ************* II. Extract the graph used for the conditional random field *************
+	// ************* II. Extract the nodes used for the conditional random field *************
 	//
 	// 1. Get the points for the conditional random field graph by looking at an epsilon neighborhood.
 
@@ -730,7 +730,8 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 		}
 	}
 
-	// add the voronoi graph node points to the conditional random field nodes if they are not already in it
+	// 2. add the voronoi graph node points to the conditional random field nodes if they are not already in it
+
 	for(size_t node = 0; node < node_points.size(); ++node)
 	{
 		if(!contains(conditional_field_nodes, cv::Point(node_points[node].y, node_points[node].x)))
@@ -752,6 +753,14 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 //		cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/node_map.png", node_map);
 	}
 
+	// ************* III. Construct the Conditional Random Field from the found nodes *************
+	//
+	// go trough each point and find the 2 or rather 3 nearest neighbors and construct a clique out of them
+
+	for(size_t current_point = 0; current_point < conditional_field_nodes.size(); ++current_point)
+	{
+
+	}
 }
 
 
