@@ -772,7 +772,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 		cv::Point first_nearest_point = conditional_field_nodes[0], second_nearest_point = conditional_field_nodes[1]; // initialization
 		double first_nearest_distance = std::pow(first_nearest_point.x - conditional_field_nodes[current_point].x, 2.0) + std::pow(first_nearest_point.y - conditional_field_nodes[current_point].y, 2.0);
 		double second_nearest_distance = std::pow(second_nearest_point.x - conditional_field_nodes[current_point].x, 2.0) + std::pow(second_nearest_point.y - conditional_field_nodes[current_point].y, 2.0);
-		std::cout << first_nearest_distance << " cv: " << cv::norm(first_nearest_point - conditional_field_nodes[current_point]);
+		std::cout << first_nearest_distance << " cv: " << cv::norm(first_nearest_point - conditional_field_nodes[current_point]) << std::endl;
 		for(std::vector<cv::Point>::iterator it = conditional_field_nodes.begin(); it != conditional_field_nodes.end(); ++it)
 		{
 			if(*it != conditional_field_nodes[current_point])
