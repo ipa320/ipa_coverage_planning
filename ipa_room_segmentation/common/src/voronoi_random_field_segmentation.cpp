@@ -96,6 +96,8 @@ public:
 
 	pseudoLikelihoodOptimization()
 	{
+		number_of_weights = 0;
+		sigma = 1.;
 	}
 
 	double operator()(const column_vector& weights) const
@@ -759,7 +761,24 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 
 	for(size_t current_point = 0; current_point < conditional_field_nodes.size(); ++current_point)
 	{
+		// Set the number of nodes that should be added to a clique. If the current point is a node of the voronoi graph
+		// the clique should consist of n=4 nodes, else a clique consists of the point itself and one of the 2 neighbors of
+		// it and so two ciques get constructed.
+		int number_of_clique_members = 2;
+		if(contains(node_points, conditional_field_nodes[current_point]))
+			number_of_clique_members = 4;
 
+		// find the n-1 nearest neighbors of the current point
+		cv::Point first_nearest_point = conditional_field_nodes[0], second_nearest_point = conditional_field_nodes[1]; // initialization
+		double first_nearest_distance = std::pow(first_nearest_point.x - conditional_field_nodes[current_point].x, 2.0) + std::pow(first_nearest_point.y - conditional_field_nodes[current_point].y, 2.0);
+		double second_nearest_distance = std::pow(second_nearest_point.x - conditional_field_nodes[current_point].x, 2.0) + std::pow(second_nearest_point.y - conditional_field_nodes[current_point].y, 2.0);
+		std::cout << first_nearest_distance << " cv: " << cv::norm(first_nearest_point - conditional_field_nodes[current_point]);
+		for(std::vector<cv::Point>::iterator it = conditional_field_nodes.begin(); it != conditional_field_nodes.end(); ++it)
+		{
+			if(*it != conditional_field_nodes[current_point])
+			{
+			}
+		}
 	}
 }
 
