@@ -639,7 +639,8 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue()
 //		III.) It constructs the Conditional Random Field graph from the previously found points, by creating the edges of
 //			  this graph from the cliques as described before. This is done by searching the two nearest neighbors for each
 //			  Point that isn't a node and the three nearest neighbors for points that are nodes and defining them as a new
-//			  clique.
+//			  clique. The nearest nodes are found by going along the pruned Voronoi graph to ensure that the found clique is
+//			  the wanted clique.
 //
 void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int epsilon_for_neighborhood,
 		const int max_iterations, bool show_nodes)
@@ -649,7 +650,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 
 	std::vector < cv::Point > node_points; // variable for node point extraction
 
-	// use the above defined functio to create a pruned Voronoi graph
+	// use the above defined function to create a pruned Voronoi graph
 	createPrunedVoronoiGraph(voronoi_map, node_points);
 
 	// ************* II. Extract the nodes used for the conditional random field *************
@@ -664,6 +665,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	cv::convertScaleAbs(distance_map, distance_map);
 
 	cv::Mat voronoi_map_for_node_extraction = voronoi_map.clone();
+
 	// find the points farthest away in the defined epsilon neighborhood
 	for (int v = 0; v < voronoi_map_for_node_extraction.rows; v++)
 	{
@@ -747,39 +749,98 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 		cv::cvtColor(node_map, node_map, CV_GRAY2BGR);
 		for(size_t node = 0; node < conditional_field_nodes.size(); ++node)
 		{
-			cv::circle(node_map, cv::Point(conditional_field_nodes[node].x, conditional_field_nodes[node].y), 0, cv::Scalar(0,250,0), CV_FILLED);
+			cv::circle(node_map, cv::Point(conditional_field_nodes[node].x, conditional_field_nodes[node].y), 2, cv::Scalar(250,0,0), CV_FILLED);
 		}
 
-		cv::imshow("nodes of the conditional random field", voronoi_map);
+		cv::imshow("nodes of the conditional random field", node_map);
 		cv::waitKey();
 //		cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/node_map.png", node_map);
 	}
 
 	// ************* III. Construct the Conditional Random Field from the found nodes *************
 	//
-	// go trough each point and find the 2 or rather 3 nearest neighbors and construct a clique out of them
+	// go along the voronoi graph each point and find the 2 or 3 nearest neighbors and construct a clique out of them
+	//
 
-	for(size_t current_point = 0; current_point < conditional_field_nodes.size(); ++current_point)
+	cv::imshow("voronoi map", voronoi_map);
+//	cv::waitKey();
+
+	for(std::vector<cv::Point>::iterator current_point = conditional_field_nodes.begin(); current_point != conditional_field_nodes.end(); ++current_point)
 	{
-		// Set the number of nodes that should be added to a clique. If the current point is a node of the voronoi graph
-		// the clique should consist of n=4 nodes, else a clique consists of the point itself and one of the 2 neighbors of
-		// it and so two ciques get constructed.
-		int number_of_clique_members = 2;
-		if(contains(node_points, conditional_field_nodes[current_point]))
-			number_of_clique_members = 4;
+		// check how many neighbors need to be found --> 3 if the current node is a voronoi graph node, 2 else
+		int number_of_neighbors = 2;
+		if(contains(node_points, *current_point))
+			number_of_neighbors = 3;
 
-		// find the n-1 nearest neighbors of the current point
-		cv::Point first_nearest_point = conditional_field_nodes[0], second_nearest_point = conditional_field_nodes[1]; // initialization
-		double first_nearest_distance = std::pow(first_nearest_point.x - conditional_field_nodes[current_point].x, 2.0) + std::pow(first_nearest_point.y - conditional_field_nodes[current_point].y, 2.0);
-		double second_nearest_distance = std::pow(second_nearest_point.x - conditional_field_nodes[current_point].x, 2.0) + std::pow(second_nearest_point.y - conditional_field_nodes[current_point].y, 2.0);
-		std::cout << first_nearest_distance << " cv: " << cv::norm(first_nearest_point - conditional_field_nodes[current_point]) << std::endl;
-		for(std::vector<cv::Point>::iterator it = conditional_field_nodes.begin(); it != conditional_field_nodes.end(); ++it)
+		// vector to save the searched points
+		std::vector<cv::Point> searched_point_vector;
+		searched_point_vector.push_back(*current_point);
+
+		// vector to save the found neighbors
+		std::vector<cv::Point> found_neighbors;
+
+		// integer to check if new voronoi nodes could be found
+		int prevoius_size_of_searched_nodes;
+
+		// TODO: algorithm only finds one neighbor in most cases and then stops --> maybe one search-direction gets suppressed?
+
+		// go along the Voronoi Graph starting from the current node and find the nearest conditional random field nodes
+		do
 		{
-			if(*it != conditional_field_nodes[current_point])
+			// save the size of the searched-points vector
+			prevoius_size_of_searched_nodes = searched_point_vector.size();
+
+//			std::cout << "starting new iteration. Points to find: " << number_of_neighbors - found_neighbors.size() << std::endl;
+
+			// create temporary-vector to save the new found nodes
+			std::vector<cv::Point> temporary_point_vector = searched_point_vector;
+
+			// if the searched-points vector contains a conditional random field node this one don't need to be checked anymore
+			// 	--> direction is finished
+			for(size_t searching_point = 0; searching_point < searched_point_vector.size() && contains(found_neighbors, searched_point_vector[searching_point]) == false; ++searching_point)
 			{
+//				std::cout << "Point to look at: " << searched_point_vector[searching_point] << std::endl;
+				// check around a 3x3 region for nodes of the voronoi graph
+				for(int du = -1; du <= 1; ++du)
+				{
+					for(int dv = -1; dv <= 1; ++dv)
+					{
+//						std::cout << "Point to check: " << cv::Point(searched_point_vector[searching_point].y + du, searched_point_vector[searching_point].x + dv) << " value of map: " << (int)voronoi_map.at<unsigned char>(searched_point_vector[searching_point].y + du, searched_point_vector[searching_point].x + dv) << std::endl;
+						// voronoi node is drawn with a value of 127 in the map, don't check already checked points
+						if(voronoi_map.at<unsigned char>(searched_point_vector[searching_point].y + du, searched_point_vector[searching_point].x + dv) == 127
+								&& contains(temporary_point_vector, cv::Point(searched_point_vector[searching_point].x + du, searched_point_vector[searching_point].y + dv)) == false)
+						{
+							// add found voronoi node to searched-points vector
+							temporary_point_vector.push_back(cv::Point(searched_point_vector[searching_point].x + du, searched_point_vector[searching_point].y + dv));
+
+							// check if point is a conditional random field node
+							if(contains(conditional_field_nodes, cv::Point(searched_point_vector[searching_point].x + du, searched_point_vector[searching_point].y + dv)))
+								found_neighbors.push_back(cv::Point(searched_point_vector[searching_point].x + du, searched_point_vector[searching_point].y + dv));
+						}
+					}
+				}
 			}
+
+			// assign the temporary-vector as the new nearched-points vector
+			searched_point_vector = temporary_point_vector;
+
+//			std::cout << "finished one iteration. Size of searched points: " << searched_point_vector.size() << std::endl << std::endl;
+
+		}while(found_neighbors.size() < number_of_neighbors && prevoius_size_of_searched_nodes != searched_point_vector.size());
+
+
+		// show the found neighbors
+		cv::Mat neighbor_map = original_map.clone();
+		cv::cvtColor(neighbor_map, neighbor_map, CV_GRAY2BGR);
+		cv::circle(neighbor_map, *current_point, 2, cv::Scalar(250,0,0), CV_FILLED);
+		for(size_t i = 0; i < found_neighbors.size(); ++i)
+		{
+			cv::circle(neighbor_map, found_neighbors[i], 2, cv::Scalar(0,0,250), CV_FILLED);
 		}
+		cv::imshow("neighbors", neighbor_map);
+		cv::waitKey();
 	}
+
 }
 
 
