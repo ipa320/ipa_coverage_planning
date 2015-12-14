@@ -72,7 +72,7 @@
 
 #include <ctime>
 
-#include <ipa_room_segmentation/contains.h>
+#include <ipa_room_segmentation/contains.h> // some useful functions defined for all segmentations
 #include <ipa_room_segmentation/voronoi_random_field_features.h>
 #include <ipa_room_segmentation/raycasting.h>
 #include <ipa_room_segmentation/wavefront_region_growing.h>
@@ -80,7 +80,7 @@
 
 #pragma once
 
-typedef dlib::matrix<double,0,1> column_vector;
+typedef dlib::matrix<double,0,1> column_vector; // typedef used for the dlib optimization
 
 class VoronoiRandomFieldSegmentation
 {
@@ -95,6 +95,9 @@ protected:
 
 	CvBoost room_boost_, hallway_boost_, doorway_boost_; // The AdaBoost-Classifier to induct the features needed in the conditional random field.
 
+	// Function to check if the given point is more far away from each point in the given vector than the min_distance.
+	bool pointMoreFarAway(const std::vector<cv::Point>& points, const cv::Point& point, const double min_distance);
+
 	// Function to draw the approximated voronoi graph into a given map. It doesn't draw lines of the graph that start or end
 	// in a black region. This is necessary because the voronoi graph gets approximated by diskretizing the maps contour and
 	// using these points as centers for the graph. It gets wrong lines, that are eliminated in this function. See the .cpp
@@ -108,14 +111,20 @@ protected:
 	void trainBoostClassifiers(std::vector<cv::Mat>& room_training_maps, std::vector<cv::Mat>& hallway_training_maps,
 			std::vector<cv::Mat>& doorway_training_maps, const std::string& classifier_storage_path); // Function to train the AdaBoost classifiers, used for feature induction of the conditional
 								  	  	  	  	  	  	  	  	  	  	 	 	 	 	 	 	 	  // random field.
+
+	void createConditionalField(const cv::Mat& voronoi_map, const std::vector<cv::Point>& node_points, 					// Function to create a conditional random field out of given points. It needs
+			std::vector<Clique>& conditional_random_field_cliques, const std::vector<cv::Point> voronoi_node_points);	// the voronoi-map extracted from the original map to find the neighbors for each point
+																														// and the voronoi-node-points to add the right points as nodes.
+
 public:
 
-	VoronoiRandomFieldSegmentation(); // constructor
+	VoronoiRandomFieldSegmentation(bool trained); // constructor
 
 	column_vector findMinValue(); // Function to find the minimal value of a function. Used to find the optimal weights for
 								  // the conditional random field.
 
+	// Function to segment a given map into different regions.
 	void segmentMap(cv::Mat& original_map, const int epsilon_for_neighborhood,
-			const int max_iterations, bool show_nodes); // Function to segment a given map into different regions.
+			const int max_iterations, unsigned int min_neighborhood_size, const double min_node_distance, bool show_nodes);
 
 };

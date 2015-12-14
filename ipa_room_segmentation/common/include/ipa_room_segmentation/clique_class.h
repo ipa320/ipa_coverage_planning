@@ -84,7 +84,7 @@
 class Clique
 {
 protected:
-	std::vector<cv::Point> member_points; // vector that stores the membor points of the clique
+	std::vector<cv::Point> member_points; // vector that stores the member points of the clique
 
 public:
 
@@ -96,9 +96,9 @@ public:
 
 	std::vector<cv::Point> getMemberPoints(); // function that returns a vector with all member points stored in
 
-	void insertMember(cv::Point new_member); // function that inserts a member if it isn't already a member
+	void insertMember(cv::Point& new_member); // function that inserts a member if it isn't already a member
 
-	void insertMember(std::vector<cv::Point> new_members); // function that inserts multiple members, if they are not already members
+	void insertMember(std::vector<cv::Point>& new_members); // function that inserts multiple members, if they are not already members
 
 	unsigned int getNumberOfMembers(); // function that returns the number of members stored in this clique
 

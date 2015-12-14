@@ -6,7 +6,7 @@
 
 int main()
 {
-	cv::Mat map = cv::imread("/home/rmb-fj/Pictures/map.png", 0);
+	cv::Mat map = cv::imread("/home/rmb-fj/Pictures/map.png", 0); // office_b.png
 
 	for(unsigned int u = 0; u < map.rows; ++u)
 	{
@@ -23,9 +23,9 @@ int main()
 		}
 	}
 
-	VoronoiRandomFieldSegmentation segmenter;
+	VoronoiRandomFieldSegmentation segmenter(false);
 
-	segmenter.segmentMap(map, 7, 50, true);
+	segmenter.segmentMap(map, 7, 50, 4, 7, true); // 7, 50, 4, 5
 
 	return 0;
 }

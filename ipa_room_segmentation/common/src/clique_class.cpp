@@ -1,7 +1,7 @@
 #include <ipa_room_segmentation/clique_class.h>
 
 //
-// This classis used to easily create cliques that are sugraphs of a large graph.A Clique is a subgraph of this graph, in which
+// This class is used to easily create cliques that are subgraphs of a large graph.A Clique is a subgraph of this graph, in which
 // all nodes are connected to each other. See the Header for further information.
 //
 
@@ -33,17 +33,19 @@ std::vector<cv::Point> Clique::getMemberPoints()
 }
 
 // function that inserts a single point as a new member
-void Clique::insertMember(cv::Point new_member)
+void Clique::insertMember(cv::Point& new_member)
 {
-	member_points.push_back(new_member);
+	if(contains(member_points, new_member) == false)
+		member_points.push_back(new_member);
 }
 
 // function that inserts multiple points as new members
-void Clique::insertMember(std::vector<cv::Point> new_members)
+void Clique::insertMember(std::vector<cv::Point>& new_members)
 {
-	for(size_t new_member = 0; new_member < new_members.size(); ++new_member)
+	for(std::vector<cv::Point>::iterator new_member = new_members.begin(); new_member != new_members.end(); ++new_member)
 	{
-		member_points.push_back(new_members[new_member]);
+		if(contains(member_points, *new_member) == false)
+			member_points.push_back(*new_member);
 	}
 }
 
