@@ -102,6 +102,4 @@ public:
 
 	unsigned int getNumberOfMembers(); // function that returns the number of members stored in this clique
 
-	double getCliquePotential(std::vector<unsigned int> labels_for_points, std::vector<CvBoost> boost_classifiers); // function that calculates the Clique potential as described above
-
 };
