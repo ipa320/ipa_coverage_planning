@@ -105,12 +105,12 @@ protected:
 	void drawVoronoi(cv::Mat &img, const std::vector<std::vector<cv::Point2f> >& facets_of_voronoi, const cv::Scalar voronoi_color,
 			const std::vector<cv::Point>& contour, const std::vector<std::vector<cv::Point> >& hole_contours);
 
+	// Function to calculate the feature vector for a given clique, using the trained AdaBoost classifiers.
+	void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double>& feature_vector, const std::vector<cv::Point> clique);
+
+
 	void createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation, std::vector<cv::Point>& node_points); // Function that takes a map and draws a pruned voronoi
 																	    									// graph in it.
-
-	void trainBoostClassifiers(std::vector<cv::Mat>& room_training_maps, std::vector<cv::Mat>& hallway_training_maps,
-			std::vector<cv::Mat>& doorway_training_maps, const std::string& classifier_storage_path); // Function to train the AdaBoost classifiers, used for feature induction of the conditional
-								  	  	  	  	  	  	  	  	  	  	 	 	 	 	 	 	 	  // random field.
 
 	void createConditionalField(const cv::Mat& voronoi_map, const std::vector<cv::Point>& node_points, 					// Function to create a conditional random field out of given points. It needs
 			std::vector<Clique>& conditional_random_field_cliques, const std::vector<cv::Point> voronoi_node_points);	// the voronoi-map extracted from the original map to find the neighbors for each point
@@ -119,6 +119,12 @@ protected:
 public:
 
 	VoronoiRandomFieldSegmentation(bool trained); // constructor
+
+	void trainBoostClassifiers(std::vector<cv::Mat>& room_training_maps, std::vector<cv::Mat>& hallway_training_maps,
+				std::vector<cv::Mat>& doorway_training_maps, const std::string& classifier_storage_path); // Function to train the AdaBoost classifiers, used for feature induction of the conditional
+									  	  	  	  	  	  	  	  	  	  	 	 	 	 	 	 	 	  // random field.
+	void findConditionalWeights(const std::vector<cv::Mat>& training_maps, const std::vector<cv::Mat>& voronoi_maps, const unsigned char voronoi_node_color); // Function to find the weights used to calculate the clique potentials.
+
 
 	column_vector findMinValue(); // Function to find the minimal value of a function. Used to find the optimal weights for
 								  // the conditional random field.

@@ -25,7 +25,41 @@ int main()
 
 	VoronoiRandomFieldSegmentation segmenter(false);
 
-	segmenter.segmentMap(map, 7, 50, 4, 7, true); // 7, 50, 4, 5
+	segmenter.segmentMap(map, 7, 50, 5, 7, true); // 7, 50, 4, 5
+
+//	std::vector<cv::Point> testpoints;
+//	testpoints.push_back(cv::Point(200, 205));
+//	testpoints.push_back(cv::Point(210, 205));
+//	testpoints.push_back(cv::Point(200, 300));
+//
+//	cv::Point2f center;
+//	float radius;
+//
+//	cv::minEnclosingCircle(testpoints, center, radius);
+//
+//    cv::circle(map, center, radius, cv::Scalar(127), CV_FILLED);
+//    cv::circle(map, testpoints[0], 1, cv::Scalar(100), CV_FILLED);
+//    cv::circle(map, testpoints[1], 1, cv::Scalar(100), CV_FILLED);
+//    cv::circle(map, testpoints[2], 1, cv::Scalar(100), CV_FILLED);
+//    cv::imshow("ellipse", map);
+//    cv::imwrite("/home/rmb-fj/Pictures/ellipse.png", map);
+//    cv::waitKey();
+
+
+
+
+//	for(unsigned int i = 1; i < 4; ++i)
+//	{
+//		std::cout << i << " ";
+//		if((i+1)%4 == 0)
+//		{
+//			std::cout << 1 << std::endl;
+//		}
+//		else
+//		{
+//			std::cout << i+1 << std::endl;
+//		}
+//	}
 
 	return 0;
 }

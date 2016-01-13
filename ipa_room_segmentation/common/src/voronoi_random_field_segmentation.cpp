@@ -213,6 +213,108 @@ void VoronoiRandomFieldSegmentation::drawVoronoi(cv::Mat &img, const std::vector
 	}
 }
 
+//
+// ******* Function to create a conditional random field out of the given points *******************
+//
+// This function constructs the Conditional Random Field out of the given points, by creating the edges of
+// this graph from the cliques as described in segment. This is done by:
+//		1. Searching the two nearest neighbors for each Point that isn't a voronoi-node and the three nearest neighbors for
+//		   points that are voronoi-nodes. The nearest nodes are found by going along the pruned Voronoi graph
+//		   to ensure that the found clique is the wanted clique, containing nodes that are connected by the voronoi-graph.
+//		   The searching in a direction on the graph stops, if a new found node is a conditional-random-field-node,
+//		   because in this direction the nearest neighbor has been found, and if the algorithm can't find new
+//  	   voronoi-graph-points. The second case occurs, when the current node is a dead end and has only one neighbor.
+//		2. The found neighbors are defined as a new clique with the current looked at point.
+void VoronoiRandomFieldSegmentation::createConditionalField(const cv::Mat& voronoi_map, const std::vector<cv::Point>& node_points,
+		std::vector<Clique>& conditional_random_field_cliques, const std::vector<cv::Point> voronoi_node_points)
+{
+	//*********************
+	// 1. Search fo the n neighbors of the each point by going along the voronoi graph until a conditional-field-node gets
+	//	  found.
+	//
+	for(std::vector<cv::Point>::const_iterator current_point = node_points.begin(); current_point != node_points.end(); ++current_point)
+	{
+		// check how many neighbors need to be found --> 3 if the current node is a voronoi graph node, 2 else
+		int number_of_neighbors = 2;
+		if(contains(voronoi_node_points, *current_point))
+			number_of_neighbors = 3;
+
+		// vector to save the searched points
+		std::vector<cv::Point> searched_point_vector;
+		searched_point_vector.push_back(*current_point);
+
+		// vector to save the found neighbors
+		std::vector<cv::Point> found_neighbors;
+
+		// integer to check if new voronoi nodes could be found
+		unsigned int previous_size_of_searched_nodes;
+
+		// go along the Voronoi Graph starting from the current node and find the nearest conditional random field nodes
+		do
+		{
+			// save the size of the searched-points vector
+			previous_size_of_searched_nodes = searched_point_vector.size();
+
+//			std::cout << "starting new iteration. Points to find: " << number_of_neighbors - found_neighbors.size() << std::endl;
+
+			// create temporary-vector to save the new found nodes
+			std::vector<cv::Point> temporary_point_vector = searched_point_vector;
+
+			for(size_t searching_point = 0; searching_point < searched_point_vector.size(); ++searching_point)
+			{
+				bool random_field_node = false; // if the current node is a node of the conditional random field, don't go further in this direction
+				if(contains(found_neighbors, searched_point_vector[searching_point]) == true)
+					random_field_node = true;
+
+				if(random_field_node == false)
+				{
+					// check around a 3x3 region for nodes of the voronoi graph
+					for(int du = -1; du <= 1; du++)
+					{
+						for(int dv = -1; dv <= 1; dv++) // && abs(du) + abs(dv) != 0
+						{
+							cv::Point point_to_check = cv::Point(searched_point_vector[searching_point].x + dv, searched_point_vector[searching_point].y + du);
+							// voronoi node is drawn with a value of 127 in the map, don't check already checked points
+							if(voronoi_map.at<unsigned char>(point_to_check) == 127
+									&& contains(temporary_point_vector, point_to_check) == false)
+							{
+								// add found voronoi node to searched-points vector
+								temporary_point_vector.push_back(point_to_check);
+
+								// Check if point is a conditional random field node. Check on size is to prevent addition of
+								// points that appear in the same step and would make the clique too large.
+								if(contains(node_points, point_to_check) && found_neighbors.size() < number_of_neighbors)
+									found_neighbors.push_back(point_to_check);
+							}
+						}
+					}
+				}
+			}
+
+			// assign the temporary-vector as the new reached-points vector
+			searched_point_vector = temporary_point_vector;
+
+//			cv::Mat path_map = node_map.clone();
+//			for(size_t i = 0; i < searched_point_vector.size(); ++i)
+//				cv::circle(path_map, searched_point_vector[i], 0, cv::Scalar(0,0,250), CV_FILLED);
+////				path_map.at<unsigned char>(searched_point_vector[i]) = 0;
+//			cv::resize(path_map, path_map, cv::Size(), 1.5, 1.5, cv::INTER_LINEAR);
+//			cv::imshow("path map", path_map);
+//			cv::waitKey();
+
+//			std::cout << "finished one iteration. Size of found points: " << found_neighbors.size() << std::endl << std::endl;
+
+		}while(found_neighbors.size() < number_of_neighbors && previous_size_of_searched_nodes != searched_point_vector.size());
+
+		//****************
+		// 2. create a clique out of the current node and its found neighbors
+		//
+		conditional_random_field_cliques.push_back(Clique(*current_point));
+		conditional_random_field_cliques.end()[-1].insertMember(found_neighbors);
+
+	}
+}
+
 //**************************Training-Algorithm for the AdaBoost-classifiers*****************************
 // This Function trains the AdaBoost-classifiers from OpenCV. It takes the given training maps and finds the Points
 // that are labeled as the specified classes and calculates the features defined in
@@ -226,6 +328,7 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(std::vector<cv::Mat>&
 	std::vector<std::vector<float> > room_features, hallway_features, doorway_features;
 	std::vector<double> temporary_beams;
 	std::vector<float> temporary_features;
+	std::vector<cv::Point> clique_points;
 	std::cout << "Starting to train the algorithm." << std::endl;
 	std::cout << "number of room training maps: " << room_training_maps.size() << std::endl;
 	//
@@ -253,7 +356,7 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(std::vector<cv::Mat>&
 					temporary_beams = raycasting(room_training_maps[map], cv::Point(x, y));
 					for (int f = 1; f <= getFeatureCount(); f++)
 					{
-						temporary_features.push_back((float) getFeature(temporary_beams, angles_for_simulation_, cv::Point(x, y), f));
+						temporary_features.push_back((float) getFeature(temporary_beams, angles_for_simulation_, clique_points, cv::Point(x, y), f));
 					}
 					room_features.push_back(temporary_features);
 					temporary_features.clear();
@@ -287,7 +390,7 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(std::vector<cv::Mat>&
 					temporary_beams = raycasting(hallway_training_maps[map], cv::Point(x, y));
 					for (int f = 1; f <= getFeatureCount(); f++)
 					{
-						temporary_features.push_back((float) getFeature(temporary_beams, angles_for_simulation_, cv::Point(x, y), f));
+						temporary_features.push_back((float) getFeature(temporary_beams, angles_for_simulation_, clique_points, cv::Point(x, y), f));
 					}
 					hallway_features.push_back(temporary_features);
 					temporary_features.clear();
@@ -321,7 +424,7 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(std::vector<cv::Mat>&
 					temporary_beams = raycasting(doorway_training_maps[map], cv::Point(x, y));
 					for (int f = 1; f <= getFeatureCount(); f++)
 					{
-						temporary_features.push_back((float) getFeature(temporary_beams, angles_for_simulation_, cv::Point(x, y), f));
+						temporary_features.push_back((float) getFeature(temporary_beams, angles_for_simulation_, clique_points, cv::Point(x, y), f));
 					}
 					doorway_features.push_back(temporary_features);
 					temporary_features.clear();
@@ -394,6 +497,79 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(std::vector<cv::Mat>&
 	//set the trained-variabel true, so the labeling-algorithm knows the classifiers have been trained already
 	trained_ = true;
 	ROS_INFO("Finished training the Boost algorithm.");
+}
+
+//
+// ********************* Function to calculate the feature-vector for a given clique. ***********************
+//
+// This function calculates the feature vector for a given clique, using the trained AdaBoost classifiers. These calculate
+// different boost-features specific for the given point and neighbors of it and then multiplies these with a weight-vector
+// producing weak hypothesis to specify the label of the current point. These weak hypothesis are used as features for the
+// conditional random field.
+//
+void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double>& feature_vector, const std::vector<cv::Point> clique)
+{
+
+}
+
+//
+//********************* Function to find the conditional field weights. ****************
+//
+// This function is used to find the weights, that are used to compute the clique potentials. The AdaBoost classifier trained
+// before gives the vector f(y_k, x) that stores the values for each feature that is calculated for a given clique in the
+// random field. to get the clique potential this vector gets multiplied by w^T, which is the transposed weight-vector, calculated
+// here. These weights define the importance of one single feature in classifying the clique. To calculate the weights the
+// following steps are done:
+//		1. Go trough each given training map and find the drawn points, that represent the nodes for the conditional random
+//		   field. Also it finds the voronoi-nodes that are drawn in a different color than the other nodes. These points are
+//		   used in the second step of this function to create the cliques in the conditional random field.
+//		2. From the found nodes create a conditional random field for each map, finding all cliques in this map, by using the
+//		   defined function createConditionalField(). Each clique consits of the node itself and the two direct neighbors of
+//		   it. Only the cliques of the previously found voronoi-nodes consist of the node itself and the three neighboring points.
+//		   The cliques get defined in that way, because it is wanted that the cliques connect in a way that each part of the
+//		   conditional random field is connected to every other part of the field.
+//		3. Calculate the features for each clique, given different labels for each in the clique.
+//
+void VoronoiRandomFieldSegmentation::findConditionalWeights(const std::vector<cv::Mat>& training_maps,
+		const std::vector<cv::Mat>& voronoi_maps, const unsigned char voronoi_node_color)
+{
+	// ********** 1. Go trough each map and find the drawn node-points for it and then create the voronoi maps. *****************
+	std::vector<std::vector<cv::Point> > random_field_node_points, voronoi_node_points;
+	for(size_t current_map_index = 0; current_map_index < training_maps.size(); ++current_map_index)
+	{
+		// Find conditional field nodes b< checking each pixel for its color.
+		cv::Mat current_map = training_maps[current_map_index];
+		std::vector<cv::Point> current_nodes, current_voronoi_nodes;
+		for(size_t v = 0; v < current_map.rows; ++v)
+		{
+			for(size_t u = 0; u < current_map.cols; ++u)
+			{
+				// if a pixel is drawn in a color different than white or black it is a node of the conditional field
+				if(current_map.at<unsigned char>(v, u) != 255 && current_map.at<unsigned char>(v, u) != 0)
+				{
+					current_nodes.push_back(cv::Point(u,v));
+					if(current_map.at<unsigned char>(v, u) == voronoi_node_color)
+						current_voronoi_nodes.push_back(cv::Point(u,v));
+				}
+			}
+		}
+
+		// save the found nodes
+		random_field_node_points.push_back(current_nodes);
+		voronoi_node_points.push_back(current_voronoi_nodes);
+	}
+
+	// ********** 2. Create the conditional random fields. *****************
+	std::vector<std::vector<Clique> > conditional_random_field_cliques;
+	for(size_t current_map = 0; current_map < training_maps.size(); ++current_map)
+	{
+		// create conditional random field
+		std::vector<Clique> current_cliques;
+		createConditionalField(voronoi_maps[current_map],random_field_node_points[current_map], current_cliques, voronoi_node_points[current_map]);
+
+		// save the found cliques
+		conditional_random_field_cliques.push_back(current_cliques);
+	}
 }
 
 //
@@ -622,107 +798,7 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue()
 	return starting_point;
 }
 
-//
-// ******* Function to create a conditional random field out of the given points *******************
-//
-// This function constructs the Conditional Random Field out of the given points, by creating the edges of
-// this graph from the cliques as described in segment. This is done by:
-//		1. Searching the two nearest neighbors for each Point that isn't a voronoi-node and the three nearest neighbors for
-//		   points that are voronoi-nodes. The nearest nodes are found by going along the pruned Voronoi graph
-//		   to ensure that the found clique is the wanted clique, containing nodes that are connected by the voronoi-graph.
-//		   The searching in a direction on the graph stops, if a new found node is a conditional-random-field-node,
-//		   because in this direction the nearest neighbor has been found, and if the algorithm can't find new
-//  	   voronoi-graph-points. The second case occurs, when the current node is a dead end and has only one neighbor.
-//		2. The found neighbors are defined as a new clique with the current looked at point.
-void VoronoiRandomFieldSegmentation::createConditionalField(const cv::Mat& voronoi_map, const std::vector<cv::Point>& node_points,
-		std::vector<Clique>& conditional_random_field_cliques, const std::vector<cv::Point> voronoi_node_points)
-{
-	//*********************
-	// 1. Search fo the n neighbors of the each point by going along the voronoi graph until a conditional-field-node gets
-	//	  found.
-	//
-	for(std::vector<cv::Point>::const_iterator current_point = node_points.begin(); current_point != node_points.end(); ++current_point)
-	{
-		// check how many neighbors need to be found --> 3 if the current node is a voronoi graph node, 2 else
-		int number_of_neighbors = 2;
-		if(contains(voronoi_node_points, *current_point))
-			number_of_neighbors = 3;
 
-		// vector to save the searched points
-		std::vector<cv::Point> searched_point_vector;
-		searched_point_vector.push_back(*current_point);
-
-		// vector to save the found neighbors
-		std::vector<cv::Point> found_neighbors;
-
-		// integer to check if new voronoi nodes could be found
-		unsigned int previous_size_of_searched_nodes;
-
-		// go along the Voronoi Graph starting from the current node and find the nearest conditional random field nodes
-		do
-		{
-			// save the size of the searched-points vector
-			previous_size_of_searched_nodes = searched_point_vector.size();
-
-//			std::cout << "starting new iteration. Points to find: " << number_of_neighbors - found_neighbors.size() << std::endl;
-
-			// create temporary-vector to save the new found nodes
-			std::vector<cv::Point> temporary_point_vector = searched_point_vector;
-
-			for(size_t searching_point = 0; searching_point < searched_point_vector.size(); ++searching_point)
-			{
-				bool random_field_node = false; // if the current node is a node of the conditional random field, don't go further in this direction
-				if(contains(found_neighbors, searched_point_vector[searching_point]) == true)
-					random_field_node = true;
-
-				if(random_field_node == false)
-				{
-					// check around a 3x3 region for nodes of the voronoi graph
-					for(int du = -1; du <= 1; du++)
-					{
-						for(int dv = -1; dv <= 1; dv++) // && abs(du) + abs(dv) != 0
-						{
-							cv::Point point_to_check = cv::Point(searched_point_vector[searching_point].x + dv, searched_point_vector[searching_point].y + du);
-							// voronoi node is drawn with a value of 127 in the map, don't check already checked points
-							if(voronoi_map.at<unsigned char>(point_to_check) == 127
-									&& contains(temporary_point_vector, point_to_check) == false)
-							{
-								// add found voronoi node to searched-points vector
-								temporary_point_vector.push_back(point_to_check);
-
-								// Check if point is a conditional random field node. Check on size is to prevent addition of
-								// points that appear in the same step and would make the clique too large.
-								if(contains(node_points, point_to_check) && found_neighbors.size() < number_of_neighbors)
-									found_neighbors.push_back(point_to_check);
-							}
-						}
-					}
-				}
-			}
-
-			// assign the temporary-vector as the new reached-points vector
-			searched_point_vector = temporary_point_vector;
-
-//			cv::Mat path_map = node_map.clone();
-//			for(size_t i = 0; i < searched_point_vector.size(); ++i)
-//				cv::circle(path_map, searched_point_vector[i], 0, cv::Scalar(0,0,250), CV_FILLED);
-////				path_map.at<unsigned char>(searched_point_vector[i]) = 0;
-//			cv::resize(path_map, path_map, cv::Size(), 1.5, 1.5, cv::INTER_LINEAR);
-//			cv::imshow("path map", path_map);
-//			cv::waitKey();
-
-//			std::cout << "finished one iteration. Size of found points: " << found_neighbors.size() << std::endl << std::endl;
-
-		}while(found_neighbors.size() < number_of_neighbors && previous_size_of_searched_nodes != searched_point_vector.size());
-
-		//****************
-		// 2. create a clique out of the current node and its found neighbors
-		//
-		conditional_random_field_cliques.push_back(Clique(*current_point));
-		conditional_random_field_cliques.end()[-1].insertMember(found_neighbors);
-
-	}
-}
 
 //
 //****************** Segmentation Function *********************
@@ -883,6 +959,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	// Go along the voronoi graph each point and find the 2 or 3 nearest neighbors and construct a clique out of them.
 	// If enough neighbors are found or no new voronoi-nodes were found in the last step, the algorithm stops. If no new
 	// Voronoi-nodes got found, the current node is a dead end and has only one neighbor.
+	// This is done using the above defined function createConditionalField, so see this function for further information.
 	//
 
 //	cv::imshow("voronoi map", voronoi_map);

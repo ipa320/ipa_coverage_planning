@@ -11,11 +11,15 @@
 //get the number of implemented features. Needs to be changed to the new value if you change it
 int getFeatureCount()
 {
-	return 23;
+	return 24;
 }
+
+// TODO: clean up and speed up
+
 //**********************see features.h for a better overview of what is calculated and needed*************************
 //Method for calculating the feature for the classifier
-double getFeature(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point point, const int feature)
+double getFeature(const std::vector<double>& beams, const std::vector<double>& angles,
+		const std::vector<cv::Point> clique_points, cv::Point point, const int feature)
 {
 	switch (feature)
 	{
@@ -65,6 +69,10 @@ double getFeature(const std::vector<double>& beams, const std::vector<double>& a
 		return calcFeature22(beams);
 	case 23:
 		return calcFeature23(beams);
+	case 24:
+		return calcFeature24(clique_points);
+	default:
+		return -1;
 	}
 }
 
@@ -614,3 +622,59 @@ double calcFeature21(const std::vector<double>& beams, const std::vector<double>
 {
 	return (calcFeature19(beams, angles, location) / calcFeature20(beams, angles, location));
 }
+
+// Calculate Feature 24: The curvature of the voronoi graph approximated by the points of the clique. The curvature of a graph
+//						 is given by k = 1/r, with r as the radius of the approximate circle at this position.
+double calcFeature24(std::vector<cv::Point> clique_points)
+{
+	float radius;
+	cv::Point2f center;
+
+	// Get the circle that approaches the points of the clique. If the clique has more than three neighbors it is a voronoi-node
+	// clique, in which case the mean of the curvatures gets calculated.
+	if(clique_points.size() <= 3)
+	{
+		// get the enclosing circle together with the radius of it
+		cv::minEnclosingCircle(clique_points, center, radius);
+	}
+	else
+	{
+		// go trough each 3-point combination and calculate the sum of the radius
+		for(unsigned int curvature = 1; curvature < clique_points.size(); ++curvature)
+		{
+			float temporary_radius;
+
+			std::vector<cv::Point> temporary_point_vector(3); // vector that stores the current points
+
+			// fill vector
+			temporary_point_vector[0] = clique_points[0];
+			temporary_point_vector[1] = clique_points[curvature];
+			// Check if i+1 would be larger than last index. If so take the first point that isn't zero as second point.
+			if((curvature+1)%clique_points.size() == 0)
+				temporary_point_vector[2] = clique_points[1];
+			else
+				temporary_point_vector[2] = clique_points[(curvature+1)%clique_points.size()];
+
+			// calculate the enclosing circle for this combination
+			cv::minEnclosingCircle(temporary_point_vector, center, temporary_radius);
+
+			// add the current radius to sum
+			radius += temporary_radius;
+		}
+
+		// get the mean
+		radius = radius/(clique_points.size()-1);
+	}
+
+	// return the curvature
+	return 1/(double)radius;
+}
+
+//// Calculate Feature 25: The relation between the labels of Points from the central point to the other points in the clique.
+////						 If two neighboring points have the labels hallway-hallway this feature gets very high and if they
+////						 are differing from each other it gets small.
+//double calcFeature25(std::vector<unsigned int> labels_for_points)
+//{
+//	double feature_value = 100; // initial value of the feature
+//	return 1;
+//}

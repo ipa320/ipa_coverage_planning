@@ -1,13 +1,13 @@
 //Header for featurecalculation
 //number of Features that can be calculated: 23
-#ifndef FEATURES
-#define FEATURES
+#pragma once
 #include <opencv/cv.h>
 
 //function to get the number of the features implemented
 int getFeatureCount();
 //function for calculating the feature
-double getFeature(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point point, int feature);
+double getFeature(const std::vector<double>& beams, const std::vector<double>& angles,
+		const std::vector<cv::Point> clique_points, cv::Point point, int feature);
 //feature 1: average difference between beamlenghts
 double calcFeature1(const std::vector<double>& beams);
 //feature 2: standard deviation of difference between beamlengths
@@ -59,5 +59,6 @@ double calcFeature19(const std::vector<double>& beams, const std::vector<double>
 double calcFeature20(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point location);
 //feature 21: major axis/minor axis
 double calcFeature21(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point location);
+// feature 24: the curvature for a given clique
+double calcFeature24(std::vector<cv::Point> clique_points);
 
-#endif
