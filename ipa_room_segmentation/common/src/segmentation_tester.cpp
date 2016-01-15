@@ -1,3 +1,5 @@
+#include <functional>
+
 #include <ipa_room_segmentation/voronoi_random_field_segmentation.h>
 
 #include <opencv/cv.h>
@@ -25,7 +27,21 @@ int main()
 
 	VoronoiRandomFieldSegmentation segmenter(false);
 
-	segmenter.segmentMap(map, 7, 50, 5, 7, true); // 7, 50, 4, 5
+//	segmenter.segmentMap(map, 7, 50, 5, 7, true); // 7, 50, 4, 5
+
+
+	std::vector<std::vector<double> > d(4);
+	std::vector<double> a (4, 100);
+	std::vector<double> b (4, 200);
+
+	std::vector<double> c = a + b; // operator overload in voronoi_random_field_segmentation.h
+	d[0] = d[0] + a; // TODO: overload operator +=
+	d[0] = d[0] + b;
+
+	for(size_t i = 0; i < d.size(); ++i)
+		for(size_t j = 0; j < d[i].size(); ++j)
+			std::cout << d[i][j] << std::endl;
+
 
 //	CvBoost boost;
 //	boost.load("/home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/common/files/training_results/trained_room_boost.xml");

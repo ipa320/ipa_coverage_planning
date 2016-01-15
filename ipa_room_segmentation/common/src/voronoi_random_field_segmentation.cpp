@@ -154,6 +154,9 @@ VoronoiRandomFieldSegmentation::VoronoiRandomFieldSegmentation(bool trained)
 		angles_for_simulation_.push_back(angle);
 	}
 
+	// set number of classes this algorithm can detect
+	number_of_classes_ = 3;
+
 	// Set up boosting parameters
 	number_of_classifiers_ = 350;
 	CvBoostParams params(CvBoost::DISCRETE, number_of_classifiers_, 0, 2, false, 0);
@@ -512,11 +515,12 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(std::vector<cv::Mat>&
 //		room, hallway, doorway
 //
 void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double>& feature_vector, Clique& clique,
-		const unsigned int given_label, const std::vector<unsigned int>& possible_labels, const cv::Mat& original_map)
+		const cv::Point& point_to_look_at, const unsigned int given_label, const std::vector<unsigned int>& possible_labels,
+		const cv::Mat& original_map)
 {
 	// The first stored point in the clique is always the point that needs to be looked at.
 	std::vector<cv::Point> clique_members = clique.getMemberPoints();
-	cv::Point current_point = clique_members[0];
+	cv::Point current_point = point_to_look_at;
 
 	// Check which classifier (room, hallway or doorway) needs to be used.
 	unsigned int classifier;
@@ -580,7 +584,7 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 //		3. For each node calculate the features of the clique, using the AdaBoost classifiers.
 //
 void VoronoiRandomFieldSegmentation::findConditionalWeights(const std::vector<cv::Mat>& training_maps,
-		const std::vector<cv::Mat>& voronoi_maps, const std::vector<cv::Mat>& voronoi_node_maps,
+		const std::vector<cv::Mat>& voronoi_maps, const std::vector<cv::Mat>& voronoi_node_maps, std::vector<cv::Mat>& original_maps,
 		const unsigned char voronoi_node_color, const std::vector<unsigned int>& possible_labels)
 {
 	// ********** 1. Go trough each map and find the drawn node-points for it and then create the voronoi maps. *****************
@@ -634,7 +638,52 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(const std::vector<cv
 	// ********** 3. Go trough each found point and find the cliques that contain this point ****************
 	for(size_t current_map_index = 0; current_map_index < training_maps.size(); ++current_map_index)
 	{
+		std::vector<Clique> cliques_for_point; // vector to save the cliques that were found for one point
+		unsigned int point_index = 0; // index in the point-vector to access the label for this point
+		for(std::vector<cv::Point>::iterator current_point = random_field_node_points[current_map_index].begin(); current_point != random_field_node_points[current_map_index].end(); ++current_point)
+		{
+			// set the given training label for this point
+			unsigned int real_label = labels_for_nodes[current_map_index][point_index];
+			// for each point find the cliques that this point belongs to
+			for(std::vector<Clique>::iterator current_clique = conditional_random_field_cliques[current_map_index].begin(); current_clique != conditional_random_field_cliques[current_map_index].end(); ++current_clique)
+			{
+				if(current_clique->containsMember(*current_point))
+					cliques_for_point.push_back(*current_clique);
+			}
 
+			// For each found clique compute the feature vector for different labels. The first label is the label that was
+			// given to the algorithm by the training data and the other are the remaining labels, different from the first.
+			std::vector<std::vector<double> > feature_vectors(number_of_classes_); // vector to store the found feature-vectors for each class
+
+			std::vector<std::vector<double> > temporary_feature_vectors(cliques_for_point.size()); // vector to store the feature-vectors computed for the different cliques
+
+			// get the clique-feature-vectors for the given training label and add them to the first feature-vector for this label
+			for(size_t clique = 0; clique < cliques_for_point.size(); ++clique)
+			{
+				getAdaBoostFeatureVector(temporary_feature_vectors[clique], cliques_for_point[clique], *current_point, real_label, possible_labels, original_maps[current_map_index]);
+				feature_vectors[0] = feature_vectors[0] + temporary_feature_vectors[clique];
+			}
+
+			// get the other feature-vectors for the different labels
+			unsigned int label_index = 1;
+			for(size_t possible_label = 0; possible_label < possible_labels.size(); ++possible_label)
+			{
+				// only compute different labels
+				if(possible_labels[possible_label] != real_label)
+				{
+					for(size_t clique = 0; clique < cliques_for_point.size(); ++clique)
+					{
+						getAdaBoostFeatureVector(temporary_feature_vectors[clique], cliques_for_point[clique], *current_point, possible_labels[possible_label], possible_labels, original_maps[current_map_index]);
+						feature_vectors[label_index] = feature_vectors[label_index] + temporary_feature_vectors[clique];
+					}
+					// set index for labels one step higher
+					++label_index;
+				}
+			}
+
+			// set index for node-points one step higher
+			++point_index;
+		}
 	}
 
 }
