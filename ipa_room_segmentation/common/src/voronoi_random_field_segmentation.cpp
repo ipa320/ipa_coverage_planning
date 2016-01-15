@@ -635,7 +635,14 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(const std::vector<cv
 		conditional_random_field_cliques.push_back(current_cliques);
 	}
 
-	// ********** 3. Go trough each found point and find the cliques that contain this point ****************
+	// ************ 3. Go trough each found point and find the cliques that contain this point ****************
+
+	std::vector<std::vector<double> > all_point_feature_vectors; // Vector that stores every feature vector calculated for the
+																 // found nodes of the CRF. One vector of it stores all features
+																 // for different labels, in a specified order. The first
+																 // values are for the real training label and the rest of it
+																 // for labels different than the given one.
+
 	for(size_t current_map_index = 0; current_map_index < training_maps.size(); ++current_map_index)
 	{
 		std::vector<Clique> cliques_for_point; // vector to save the cliques that were found for one point
@@ -664,6 +671,9 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(const std::vector<cv
 				feature_vectors[0] = feature_vectors[0] + temporary_feature_vectors[clique];
 			}
 
+			// assign the first feature-vector to the complete feature-vector
+			all_point_feature_vectors.push_back(feature_vectors[0]);
+
 			// get the other feature-vectors for the different labels
 			unsigned int label_index = 1;
 			for(size_t possible_label = 0; possible_label < possible_labels.size(); ++possible_label)
@@ -676,6 +686,8 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(const std::vector<cv
 						getAdaBoostFeatureVector(temporary_feature_vectors[clique], cliques_for_point[clique], *current_point, possible_labels[possible_label], possible_labels, original_maps[current_map_index]);
 						feature_vectors[label_index] = feature_vectors[label_index] + temporary_feature_vectors[clique];
 					}
+					// append the last vector in all_point_feature_vector by the calculated vector
+					all_point_feature_vectors.back() += feature_vectors[label_index];
 					// set index for labels one step higher
 					++label_index;
 				}

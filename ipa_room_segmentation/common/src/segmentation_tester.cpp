@@ -35,8 +35,11 @@ int main()
 	std::vector<double> b (4, 200);
 
 	std::vector<double> c = a + b; // operator overload in voronoi_random_field_segmentation.h
-	d[0] = d[0] + a; // TODO: overload operator +=
+	d[0] = d[0] + a;
 	d[0] = d[0] + b;
+//	d[1] = d[0];
+	d[3] += b;
+	d.back() += a;
 
 	for(size_t i = 0; i < d.size(); ++i)
 		for(size_t j = 0; j < d[i].size(); ++j)
