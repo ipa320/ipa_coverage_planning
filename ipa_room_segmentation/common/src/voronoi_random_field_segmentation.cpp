@@ -153,8 +153,10 @@ VoronoiRandomFieldSegmentation::VoronoiRandomFieldSegmentation(bool trained)
 	{
 		angles_for_simulation_.push_back(angle);
 	}
+
 	// Set up boosting parameters
-	CvBoostParams params(CvBoost::DISCRETE, 350, 0, 2, false, 0);
+	number_of_classifiers_ = 350;
+	CvBoostParams params(CvBoost::DISCRETE, number_of_classifiers_, 0, 2, false, 0);
 	params_ = params;
 	trained_ = trained;
 }
@@ -519,34 +521,43 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 	// Check which classifier (room, hallway or doorway) needs to be used.
 	unsigned int classifier;
 	for(size_t label = 0; label < possible_labels.size(); ++label)
+	{
 		if(possible_labels[label] == given_label)
+		{
 			classifier = label;
+			break;
+		}
+	}
 
 	// get the features for the current point
+	// TODO: check if x and y of the point is right for raycasting
 	std::vector<double> temporary_beams = raycasting(original_map, current_point);
-	cv::Mat featuresMat = cv::Mat(1, getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
+	cv::Mat featuresMat(1, getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
 	for (int f = 1; f <= getFeatureCount(); ++f)
 	{
 		//get the features for each room and put it in the featuresMat
 		featuresMat.at<float>(0, f - 1) = (float) getFeature(temporary_beams, angles_for_simulation_, clique_members, current_point, f);
 	}
-
 	// Calculate the weak hypothesis by using the wanted classifier.
-	//const CvMat* sample, const CvMat* missing=0, CvMat* weak_responses=0,
-	//CvSlice slice=CV_WHOLE_SEQ, bool raw_mode=false, bool return_sum=false
-	cv::Mat weak_hypothesis = cvCreateMat(1, getFeatureCount(), CV_32F);
+	CvMat features = featuresMat;									// Wanted from OpenCV to get the weak hypothesis from the
+	CvMat weak_hypothesis = cv::Mat(1, number_of_classifiers_, CV_32F);	// separate weak classifiers.
+
 	switch(classifier)
 	{
 	case 0:
-		room_boost_.predict(&CvMat((featuresMat)), NULL, &CvMat((weak_hypothesis)));
+		room_boost_.predict(&features, 0, &weak_hypothesis);
 		break;
 	case 1:
-		hallway_boost_;
+		hallway_boost_.predict(&features, 0, &weak_hypothesis);
 		break;
 	case 2:
-		doorway_boost_;
+		doorway_boost_.predict(&features, 0, &weak_hypothesis);
 		break;
 	}
+
+	// Write the weak hypothesis in the feature vector.
+	for(size_t f = 0; f < number_of_classifiers_; ++f)
+		feature_vector[f] = (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
 
 }
 
@@ -597,7 +608,7 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(const std::vector<cv
 				}
 
 				// check if the current point is a voronoi-node by checking the color in the voronoi-node map
-				if(current_voronoi_node_map.at<unsigned char>(v, u) == 255 && current_voronoi_node_map.at<unsigned char>(v, u) != 0)
+				if(current_voronoi_node_map.at<unsigned char>(v, u) != 255 && current_voronoi_node_map.at<unsigned char>(v, u) != 0)
 					current_voronoi_nodes.push_back(cv::Point(u,v));
 			}
 		}
@@ -619,6 +630,13 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(const std::vector<cv
 		// save the found cliques
 		conditional_random_field_cliques.push_back(current_cliques);
 	}
+
+	// ********** 3. Go trough each found point and find the cliques that contain this point ****************
+	for(size_t current_map_index = 0; current_map_index < training_maps.size(); ++current_map_index)
+	{
+
+	}
+
 }
 
 //

@@ -91,6 +91,8 @@ protected:
 
 	CvBoostParams params_; // Parameters for the classifiers
 
+	int number_of_classifiers_; // Number of weak classifiers used from the OpenCV AdaBoost function.
+
 	bool trained_; // Variable that shows if the classifiers has already been trained.
 
 	CvBoost room_boost_, hallway_boost_, doorway_boost_; // The AdaBoost-Classifier to induct the features needed in the conditional random field.
@@ -106,7 +108,7 @@ protected:
 			const std::vector<cv::Point>& contour, const std::vector<std::vector<cv::Point> >& hole_contours);
 
 	// Function to calculate the feature vector for a given clique, using the trained AdaBoost classifiers.
-	void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double>& feature_vector, Clique& clique,
+	void getAdaBoostFeatureVector(std::vector<double>& feature_vector, Clique& clique,
 			const unsigned int given_label, const std::vector<unsigned int>& possible_labels, const cv::Mat& original_map);
 
 
@@ -116,7 +118,6 @@ protected:
 	void createConditionalField(const cv::Mat& voronoi_map, const std::vector<cv::Point>& node_points, 					// Function to create a conditional random field out of given points. It needs
 			std::vector<Clique>& conditional_random_field_cliques, const std::vector<cv::Point> voronoi_node_points);	// the voronoi-map extracted from the original map to find the neighbors for each point
 																														// and the voronoi-node-points to add the right points as nodes.
-
 public:
 
 	VoronoiRandomFieldSegmentation(bool trained); // constructor

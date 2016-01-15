@@ -27,6 +27,57 @@ int main()
 
 	segmenter.segmentMap(map, 7, 50, 5, 7, true); // 7, 50, 4, 5
 
+//	CvBoost boost;
+//	boost.load("/home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/common/files/training_results/trained_room_boost.xml");
+//
+//	std::vector<double> angles_for_simulation_;
+//	for (double angle = 0; angle < 360; angle++)
+//	{
+//		angles_for_simulation_.push_back(angle);
+//	}
+//
+//	std::vector<cv::Point> clique_members;
+//
+//	std::vector<double> temporary_beams = raycasting(map, cv::Point(350,350));
+//
+//	std::cout << "map value: " << (double) map.at<unsigned char>(350,350) << std::endl;
+//
+//	cv::Mat featuresMat(1, getFeatureCount()-1, CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
+//	for (int f = 1; f <= getFeatureCount()-1; ++f)
+//	{
+//		//get the features for each room and put it in the featuresMat
+//		featuresMat.at<float>(0, f - 1) = (float) getFeature(temporary_beams, angles_for_simulation_, clique_members, cv::Point(350,350), f);
+//	}
+//
+//	CvMat features = featuresMat;									// Wanted from OpenCV to get the weak hypothesis from the
+//	CvMat weak_hypothesis = cv::Mat(1, boost.get_weak_predictors()->total, CV_32F);	// separate weak classifiers.
+//
+//	std::cout << "weak: " << weak_hypothesis.cols << " features: " << features.cols << std::endl;
+//
+//	float sum = boost.predict(&features, 0, &weak_hypothesis, CV_WHOLE_SEQ, false, true);
+//
+//	float test_sum = 0;
+//
+//	for(size_t f = 0; f < weak_hypothesis.cols; ++f)
+//	{
+//		std::cout << CV_MAT_ELEM(weak_hypothesis, float, 0, f) << " " << f << std::endl;
+//		test_sum += CV_MAT_ELEM(weak_hypothesis, float, 0, f);
+//	}
+//
+//	std::cout << "complete sum: " << test_sum << " real sum: " << sum << std::endl;
+
+
+//	cv::Mat ger(1,2,CV_32F);
+//
+//	ger.at<float>(0,0) = 2.3;
+//	ger.at<float>(0,1) = 3.5;
+//
+//	CvMat test = ger;
+//
+//	float pixval = CV_MAT_ELEM(test, float, 0, 1);
+//
+//	std::cout << "normal Mat: " << (double) ger.at<float>(0, 1) << " new Mat: " << (double) pixval << std::endl;
+
 //	std::vector<cv::Point> testpoints;
 //	testpoints.push_back(cv::Point(200, 205));
 //	testpoints.push_back(cv::Point(210, 205));

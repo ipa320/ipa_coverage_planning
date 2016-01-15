@@ -49,6 +49,12 @@ void Clique::insertMember(std::vector<cv::Point>& new_members)
 	}
 }
 
+// function to check if a given point is part of the clique
+bool Clique::containsMember(const cv::Point& point)
+{
+	return contains(member_points, point);
+}
+
 // function that returns the number of members of this clique
 unsigned int Clique::getNumberOfMembers()
 {

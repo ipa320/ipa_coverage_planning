@@ -100,6 +100,8 @@ public:
 
 	void insertMember(std::vector<cv::Point>& new_members); // function that inserts multiple members, if they are not already members
 
+	bool containsMember(const cv::Point& point); // function that checks if a given point is part of this clique
+
 	unsigned int getNumberOfMembers(); // function that returns the number of members stored in this clique
 
 };
