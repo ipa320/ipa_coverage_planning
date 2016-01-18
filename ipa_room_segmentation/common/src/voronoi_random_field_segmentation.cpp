@@ -146,7 +146,7 @@ public:
 };
 
 // Constructor
-VoronoiRandomFieldSegmentation::VoronoiRandomFieldSegmentation(bool trained)
+VoronoiRandomFieldSegmentation::VoronoiRandomFieldSegmentation()
 {
 	//save the angles between the simulated beams, used in the following algorithm
 	for (double angle = 0; angle < 360; angle++)
@@ -161,7 +161,8 @@ VoronoiRandomFieldSegmentation::VoronoiRandomFieldSegmentation(bool trained)
 	number_of_classifiers_ = 350;
 	CvBoostParams params(CvBoost::DISCRETE, number_of_classifiers_, 0, 2, false, 0);
 	params_ = params;
-	trained_ = trained;
+	trained_boost_ = false;
+	trained_conditional_field_ = false;
 }
 
 // function to check if the given cv::Point is more far away from the cv::Points in the given vector
@@ -334,7 +335,7 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(std::vector<cv::Mat>&
 	std::vector<double> temporary_beams;
 	std::vector<float> temporary_features;
 	std::vector<cv::Point> clique_points;
-	std::cout << "Starting to train the algorithm." << std::endl;
+	std::cout << "Starting to train the boost algorithm." << std::endl;
 	std::cout << "number of room training maps: " << room_training_maps.size() << std::endl;
 	//
 	// Train the room classifiers
@@ -500,7 +501,7 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(std::vector<cv::Mat>&
 	std::cout << "Trained doorway classifier" << std::endl;
 
 	//set the trained-variabel true, so the labeling-algorithm knows the classifiers have been trained already
-	trained_ = true;
+	trained_boost_ = true;
 	ROS_INFO("Finished training the Boost algorithm.");
 }
 
@@ -573,23 +574,35 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 // random field. to get the clique potential this vector gets multiplied by w^T, which is the transposed weight-vector, calculated
 // here. These weights define the importance of one single feature in classifying the clique. To calculate the weights the
 // following steps are done:
-//		1. Go trough each given training map and find the drawn points, that represent the nodes for the conditional random
+//		I. Go trough each given training map and find the drawn points, that represent the nodes for the conditional random
 //		   field. Also it finds the voronoi-nodes that are drawn in a different color than the other nodes. These points are
 //		   used in the second step of this function to create the cliques in the conditional random field.
-//		2. From the found nodes create a conditional random field for each map, finding all cliques in this map, by using the
-//		   defined function createConditionalField(). Each clique consists of the node itself and the two direct neighbors of
-//		   it. Only the cliques of the previously found voronoi-nodes consist of the node itself and the three neighboring points.
-//		   The cliques get defined in that way, because it is wanted that the cliques connect in a way that each part of the
-//		   conditional random field is connected to every other part of the field.
-//		3. For each node calculate the features of the clique, using the AdaBoost classifiers.
+//		II. From the found nodes create a conditional random field for each map, finding all cliques in this map, by using the
+//		    defined function createConditionalField(). Each clique consists of the node itself and the two direct neighbors of
+//		    it. Only the cliques of the previously found voronoi-nodes consist of the node itself and the three neighboring points.
+//		    The cliques get defined in that way, because it is wanted that the cliques connect in a way that each part of the
+//		    conditional random field is connected to every other part of the field.
+//		III. For each node calculate the features of the clique, using the AdaBoost classifiers. The features for the
+//			 conditonal-random-field are the weak hypothesis, prduced by the AdaBoost classifers. This hypothesis is the
+//			 predicted label for a given point, multiplied by the weight for the selected classifier. For more details see
+//			 the trainBoostClassifiers() or any document on Boosting.
+//		IV. The above defined features are used to maximize the pseudo-likelihood over all training-data by minimizing a
+//			feature-function, by using the Dlib-c++-library. The found weights are then saved at the location, which is given
+//			to this function.
 //
 void VoronoiRandomFieldSegmentation::findConditionalWeights(const std::vector<cv::Mat>& training_maps,
 		const std::vector<cv::Mat>& voronoi_maps, const std::vector<cv::Mat>& voronoi_node_maps, std::vector<cv::Mat>& original_maps,
-		const unsigned char voronoi_node_color, const std::vector<unsigned int>& possible_labels)
+		const unsigned char voronoi_node_color, const std::vector<unsigned int>& possible_labels, const std::string weights_filepath)
 {
-	// ********** 1. Go trough each map and find the drawn node-points for it and then create the voronoi maps. *****************
+	// check if the AdaBoost-classifiers has already been trained yet, if not the conditional field can't be trained
+	if(trained_boost_ == false)
+		ROS_ERROR("AdaBoost-classifiers haven't been trained yet. First train the AdaBoost algorithm before training the conditional-random-field");
+	// ********** I. Go trough each map and find the drawn node-points for it and then create the voronoi maps. *****************
 	std::vector<std::vector<cv::Point> > random_field_node_points, voronoi_node_points;
 	std::vector<std::vector<unsigned int> > labels_for_nodes; // variable to store the labels of the found nodes, given by the training maps
+
+	std::cout << "Starting to train the conditional-random-field." << std::endl;
+
 	for(size_t current_map_index = 0; current_map_index < training_maps.size(); ++current_map_index)
 	{
 		// Find conditional field nodes by checking each pixel for its color.
@@ -623,7 +636,7 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(const std::vector<cv
 		voronoi_node_points.push_back(current_voronoi_nodes);
 	}
 
-	// ********** 2. Create the conditional random fields. *****************
+	// ********** II. Create the conditional random fields. *****************
 	std::vector<std::vector<Clique> > conditional_random_field_cliques;
 	for(size_t current_map = 0; current_map < training_maps.size(); ++current_map)
 	{
@@ -635,7 +648,7 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(const std::vector<cv
 		conditional_random_field_cliques.push_back(current_cliques);
 	}
 
-	// ************ 3. Go trough each found point and find the cliques that contain this point ****************
+	// ************ III. Go trough each found point and compute the pseudo-likelihood of it to get one big likelihood. ****************
 
 	std::vector<std::vector<double> > all_point_feature_vectors; // Vector that stores every feature vector calculated for the
 																 // found nodes of the CRF. One vector of it stores all features
@@ -675,7 +688,7 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(const std::vector<cv
 			all_point_feature_vectors.push_back(feature_vectors[0]);
 
 			// get the other feature-vectors for the different labels
-			unsigned int label_index = 1;
+			unsigned int label_index = 1; // variable to access the right places in feature_vectors for each possible label
 			for(size_t possible_label = 0; possible_label < possible_labels.size(); ++possible_label)
 			{
 				// only compute different labels
@@ -697,6 +710,31 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(const std::vector<cv
 			++point_index;
 		}
 	}
+
+	//
+	// ********* IV. Find the weights that minimize the total likelihood by using the Dlib-library. ***********
+	//
+	// define the mean-weights for the gaussian shrinking function
+	std::vector<double> mean_weights(number_of_classifiers_, 0);
+
+	// find the best weights --> minimize the defined function for the pseudo-likelihood
+	column_vector weight_results;
+	weight_results = findMinValue(number_of_classifiers_, 3.0, all_point_feature_vectors, mean_weights);
+
+	// save the found weights to a std::vector<double>
+	for(size_t weight = 0; weight < number_of_classifiers_; ++weight)
+		trained_conditional_weights_.push_back(weight_results(0, weight));
+
+	// save the weights to a file
+	// /home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/common/files/training_results/conditional_field_weights.txt
+	std::ofstream output_file(weights_filepath.c_str(), std::ios::out);
+	if (output_file.is_open()==true)
+		output_file << weight_results;
+	output_file.close();
+
+	//set the trained-variable true, so the labeling-algorithm knows the classifiers have been trained already
+	trained_conditional_field_ = true;
+	ROS_INFO("Finished training the Conditional Field.");
 
 }
 
@@ -896,31 +934,27 @@ void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_v
 
 }
 
-column_vector VoronoiRandomFieldSegmentation::findMinValue()
+column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_of_weights, double sigma,
+		const std::vector<std::vector<double> >& likelihood_parameters, const std::vector<double>& starting_weights)
 {
-	column_vector starting_point(1);
+	// create a column vector as starting search point, that is needed from Dlib to find the min. value of a function
+	column_vector starting_point(number_of_weights);
 
-	starting_point = 1;
+	// initialize the starting point as zero to favour small weights
+	starting_point = 0;
 
+	// create a Likelihoodoptimizer-object to find the weights that maximize the pseudo-likelihood
 	pseudoLikelihoodOptimization tester;
-	tester.sigma = 3.0;
-	tester.number_of_weights = 1;
 
-	double params_1[] = {10, 7};
-	std::vector<double> params_1_vec(params_1, params_1 + sizeof(params_1) / sizeof(double) );
-	double params_2[] = {8, 5};
-	std::vector<double> params_2_vec(params_2, params_2 + sizeof(params_2) / sizeof(double) );
-	std::vector<std::vector<double> > parameters;
-	parameters.push_back(params_1_vec);
-	parameters.push_back(params_2_vec);
+	// set the values for this optimization-object
+	tester.sigma = sigma;
+	tester.number_of_weights = number_of_weights;
 
-	double weight_starts[] = {0};
-	std::vector<double> weight_starts_vec(weight_starts, weight_starts + sizeof(weight_starts) / sizeof(double) );
-
-	tester.log_parameters = parameters;
-	tester.starting_weights = weight_starts_vec;
+	tester.log_parameters = likelihood_parameters;
+	tester.starting_weights = starting_weights;
 
 
+	// find the best weights for the given parameters
 	dlib::find_min_using_approximate_derivatives(dlib::bfgs_search_strategy(), dlib::objective_delta_stop_strategy(1e-7), tester, starting_point, -1);
 
 	return starting_point;
@@ -957,8 +991,48 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue()
 //		III.) It constructs the Conditional Random Field graph from the previously found points, by using the above defined function.
 //
 void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int epsilon_for_neighborhood,
-		const int max_iterations, unsigned int min_neighborhood_size, const double min_node_distance,  bool show_nodes)
+		const int max_iterations, unsigned int min_neighborhood_size,
+		const double min_node_distance,  bool show_nodes, std::string boost_storage_path, std::string crf_storage_path)
 {
+	// if the training results haven't been loaded or trained before load them
+	if(trained_boost_ == false)
+	{
+		// load the AdaBoost-classifiers
+		std::string filename_room = boost_storage_path + "voronoi_room_boost.xml";
+		room_boost_.load(filename_room.c_str());
+		std::string filename_hallway = boost_storage_path + "voronoi_hallway_boost.xml";
+		room_boost_.load(filename_hallway.c_str());
+		std::string filename_doorway = boost_storage_path + "voronoi_doorway_boost.xml";
+		room_boost_.load(filename_doorway.c_str());
+
+		// set the trained-Boolean true to only load parameters once
+		trained_boost_ = true;
+	}
+
+	if(trained_conditional_field_ == false)
+	{
+		// load the weights out of the file
+		std::ifstream input_file(crf_storage_path.c_str());
+		std::string line;
+		double value;
+		if (input_file.is_open())
+		{
+			while (getline(input_file, line))
+			{
+				std::istringstream iss(line);
+				while (iss >> value)
+				{
+					std::cout << value << std::endl;
+					trained_conditional_weights_.push_back(value);
+				}
+			}
+			input_file.close();
+		}
+
+		// set the trained-Boolean to true so the weights only get read in once
+		trained_conditional_field_ = true;
+	}
+
 	// ************* I. Create the pruned generalized Voronoi graph *************
 	cv::Mat voronoi_map = original_map.clone();
 
