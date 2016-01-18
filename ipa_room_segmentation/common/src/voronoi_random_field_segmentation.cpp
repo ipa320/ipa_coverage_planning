@@ -597,6 +597,7 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(const std::vector<cv
 	// check if the AdaBoost-classifiers has already been trained yet, if not the conditional field can't be trained
 	if(trained_boost_ == false)
 		ROS_ERROR("AdaBoost-classifiers haven't been trained yet. First train the AdaBoost algorithm before training the conditional-random-field");
+
 	// ********** I. Go trough each map and find the drawn node-points for it and then create the voronoi maps. *****************
 	std::vector<std::vector<cv::Point> > random_field_node_points, voronoi_node_points;
 	std::vector<std::vector<unsigned int> > labels_for_nodes; // variable to store the labels of the found nodes, given by the training maps
