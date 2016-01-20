@@ -9,7 +9,7 @@
 #define PI 3.14159265
 
 // structure to perform breadth-first-search to detect minimal loops
-struct graphNode
+struct breadthSearchNode
 {
 	unsigned int x, y; // position of this node in the map
 
@@ -28,7 +28,7 @@ int getFeatureCount()
 //**********************see features.h for a better overview of what is calculated and needed*************************
 //Method for calculating the feature for the classifier
 double getFeature(const std::vector<double>& beams, const std::vector<double>& angles,
-		const std::vector<cv::Point> clique_points, cv::Point point, const int feature)
+		const std::vector<cv::Point>& clique_points, cv::Point point, const int feature)
 {
 	switch (feature)
 	{
@@ -635,6 +635,31 @@ double calcFeature21(const std::vector<double>& beams, const std::vector<double>
 //
 // ************* The following features are used only for the conditional random field and use the neighboring-realtion between points **********
 //
+// Expand function that is used later (for Feature 26) to search for a loop in the voronoi-graph by using breadth-first-search
+//
+inline std::vector<breadthSearchNode> expandNode(const cv::Mat& voronoi_map, breadthSearchNode parent_node)
+{
+	std::vector<breadthSearchNode> neighboring_points; // vector to save the found neighbors of the given node
+
+	// check in a 3x3 region around point for a node that is a voronoi-graph-point
+	for(int du = -1; du <= 1; ++du)
+	{
+		for(int dv = -1; dv <= 1; ++dv)
+		{
+			if(voronoi_map.at<unsigned char>(parent_node.y + du, parent_node.x + dv) != 0 && voronoi_map.at<unsigned char>(parent_node.y + du, parent_node.x + dv) != 255)
+			{
+				// add the found neighbor with the depth of it increased by one
+				breadthSearchNode neighboring_node = {parent_node.x + dv, parent_node.y + du, parent_node.depth+1};
+
+				neighboring_points.push_back(neighboring_node);
+			}
+		}
+	}
+
+	return neighboring_points;
+}
+
+
 // Calculate Feature 24: The curvature of the voronoi graph approximated by the points of the clique. The curvature of a graph
 //						 is given by k = 1/r, with r as the radius of the approximate circle at this position.
 double calcFeature24(std::vector<cv::Point> clique_points)
@@ -742,8 +767,47 @@ double calcFeature25(std::vector<unsigned int>& possible_labels, std::vector<uns
 	return feature_value;
 }
 
-// size of min. loop for one point
-double getFeature26(Clique& clique, const cv::Mat& voronoi_map)
+// size of min. loop for one point by using breadth-first search
+double getFeature26(const std::vector<cv::Point>& clique_points, const cv::Mat& voronoi_map)
 {
+	// define the starting point as the central point for each clique
+	breadthSearchNode starting_point = {clique_points[0].x, clique_points[0].y, 0};
 
+	// define and initialize the FIFO-queue to search for a loop
+	std::queue<breadthSearchNode> search_queue;
+
+	// expand the starting node and add the neighboring points to the search queue
+	std::vector<breadthSearchNode> expanded_nodes = expandNode(voronoi_map, starting_point);
+	for(size_t neighbor = 0; neighbor < expanded_nodes.size(); ++neighbor)
+		search_queue.push(expanded_nodes[neighbor]);
+
+	// define vector that stores all already visited points
+	std::vector<cv::Point> visited_points;
+	visited_points.push_back(cv::Point(starting_point.x, starting_point.y));
+
+	// do the breadth-first search --> do until search queue is not empty and goal hasn't been reached again
+	bool found_goal = false;
+	breadthSearchNode last_node; // variable to save the last node that gets searched
+	do
+	{
+		// get next node in queue and add it to visited nodes
+		breadthSearchNode current_node = search_queue.front();
+		search_queue.pop(); // remove the node from the search-queue
+		visited_points.push_back(cv::Point(current_node.x, current_node.y));
+
+		// check if the current node is the start node
+		if(current_node == starting_point)
+		{
+			found_goal = true;
+			break;
+		}
+
+		// if the goal wasn't found expand the current node and add the found nodes to the search-queue
+		expanded_nodes = expandNode(voronoi_map, current_node);
+		for(size_t neighbor = 0; neighbor < expanded_nodes.size(); ++neighbor)
+			search_queue.push(expanded_nodes[neighbor]);
+
+	}while(found_goal == false && search_queue.empty() == false);
+
+	return 1;
 }

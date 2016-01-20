@@ -2,12 +2,14 @@
 //number of Features that can be calculated: 23
 #pragma once
 #include <opencv/cv.h>
+#include <queue>
+#include <ipa_room_segmentation/contains.h>
 
 //function to get the number of the features implemented
 int getFeatureCount();
 //function for calculating the feature
 double getFeature(const std::vector<double>& beams, const std::vector<double>& angles,
-		const std::vector<cv::Point> clique_points, cv::Point point, int feature);
+		const std::vector<cv::Point>& clique_points, cv::Point point, int feature);
 //feature 1: average difference between beamlenghts
 double calcFeature1(const std::vector<double>& beams);
 //feature 2: standard deviation of difference between beamlengths
