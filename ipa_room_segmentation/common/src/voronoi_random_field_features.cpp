@@ -11,9 +11,29 @@
 // structure to perform breadth-first-search to detect minimal loops
 struct breadthSearchNode
 {
+	// constructors
+	breadthSearchNode(uint x = -1, uint y = -1, uint depth = 0, breadthSearchNode *parent = 0, std::vector<cv::Point> children = std::vector<cv::Point>(1,0))
+	{
+		this->x = x;
+		this->y = y;
+		this->depth = depth;
+		this->parent = parent;
+		this->children = children;
+	}
+
+	// is equal operator
+	bool operator==(const breadthSearchNode& a) const
+	{
+	    return (x == a.x && y == a.y);
+	}
+
 	unsigned int x, y; // position of this node in the map
 
 	unsigned int depth; // depth of the node in the search tree
+
+	breadthSearchNode *parent; // node this node has been extracted from
+
+	std::vector<cv::Point> children; // vector that stores the children for a node when they have been computed
 };
 
 
@@ -649,7 +669,7 @@ inline std::vector<breadthSearchNode> expandNode(const cv::Mat& voronoi_map, bre
 			if(voronoi_map.at<unsigned char>(parent_node.y + du, parent_node.x + dv) != 0 && voronoi_map.at<unsigned char>(parent_node.y + du, parent_node.x + dv) != 255)
 			{
 				// add the found neighbor with the depth of it increased by one
-				breadthSearchNode neighboring_node = {parent_node.x + dv, parent_node.y + du, parent_node.depth+1};
+				breadthSearchNode neighboring_node (parent_node.x + dv, parent_node.y + du, parent_node.depth+1, &parent_node);
 
 				neighboring_points.push_back(neighboring_node);
 			}
@@ -771,7 +791,7 @@ double calcFeature25(std::vector<unsigned int>& possible_labels, std::vector<uns
 double getFeature26(const std::vector<cv::Point>& clique_points, const cv::Mat& voronoi_map)
 {
 	// define the starting point as the central point for each clique
-	breadthSearchNode starting_point = {clique_points[0].x, clique_points[0].y, 0};
+	breadthSearchNode starting_point(clique_points[0].x, clique_points[0].y, 0);
 
 	// define and initialize the FIFO-queue to search for a loop
 	std::queue<breadthSearchNode> search_queue;
