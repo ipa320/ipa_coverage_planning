@@ -8,6 +8,15 @@
 
 #define PI 3.14159265
 
+// structure to perform breadth-first-search to detect minimal loops
+struct graphNode
+{
+	unsigned int x, y; // position of this node in the map
+
+	unsigned int depth; // depth of the node in the search tree
+};
+
+
 //get the number of implemented features. Needs to be changed to the new value if you change it
 int getFeatureCount()
 {
@@ -623,6 +632,9 @@ double calcFeature21(const std::vector<double>& beams, const std::vector<double>
 	return (calcFeature19(beams, angles, location) / calcFeature20(beams, angles, location));
 }
 
+//
+// ************* The following features are used only for the conditional random field and use the neighboring-realtion between points **********
+//
 // Calculate Feature 24: The curvature of the voronoi graph approximated by the points of the clique. The curvature of a graph
 //						 is given by k = 1/r, with r as the radius of the approximate circle at this position.
 double calcFeature24(std::vector<cv::Point> clique_points)
@@ -670,11 +682,68 @@ double calcFeature24(std::vector<cv::Point> clique_points)
 	return 1/(double)radius;
 }
 
-//// Calculate Feature 25: The relation between the labels of Points from the central point to the other points in the clique.
-////						 If two neighboring points have the labels hallway-hallway this feature gets very high and if they
-////						 are differing from each other it gets small.
-//double calcFeature25(std::vector<unsigned int> labels_for_points)
-//{
-//	double feature_value = 100; // initial value of the feature
-//	return 1;
-//}
+// Calculate Feature 25: The relation between the labels of Points from the central point to the other points in the clique.
+//						 If two neighboring points have the labels hallway-hallway this feature gets very high and if they
+//						 are differing from each other it gets small. To do this the possible_labels-vector stores all the
+//						 labels for the different classes that can occur.
+//						 !!!!!! Important: !!!!!!
+//							The possible_lables-vector stores in this program the labels in the order
+//										room-hallway-doorway
+double calcFeature25(std::vector<unsigned int>& possible_labels, std::vector<unsigned int>& labels_for_points)
+{
+	// count how often each possible label occurs in the given labels
+	int maximal_amount = -1; // integer to save the maximal amount one label occurs
+
+	for(size_t label = 0; label < possible_labels.size(); ++label)
+	{
+		// check for one label how often it appears
+		int label_count = std::count(labels_for_points.begin(), labels_for_points.end(), possible_labels[label]);
+
+		// check if current label appears more often than the previously checked
+		if(label_count > maximal_amount)
+			maximal_amount = label_count;
+	}
+
+	// set the initial value for the feature (40 * maximal_amount, so the feature is always >= 0, even if later a lot of the value gets subtracted)
+	double feature_value = 40 * maximal_amount;
+
+	// Check for possibility that two neighboring labels can occur. For example it is very unlikely that a hallway appears right
+	// after a room, without a doorway between, but it is very likely that a hallway adds to a hallway.
+
+	// Create a map to get a factor to add or subtract from the inital-value for a feature. The key for this map is the sum of
+	// two labels, so shows the relation between two points, and the Data for a key is  the factor.
+	std::map<unsigned int, double> label_mapping;
+
+	// create each possible key and data (done by hand because in this case all possible configurations are known before --> room,hallway,doorway)
+	label_mapping[possible_labels[0] + possible_labels[0]] = 10; // room-room
+	label_mapping[possible_labels[0] + possible_labels[1]] = -10; // room-hallway
+	label_mapping[possible_labels[0] + possible_labels[2]] = 5; // room-doorway
+	label_mapping[possible_labels[1] + possible_labels[1]] = 10; // hallway-hallway
+	label_mapping[possible_labels[1] + possible_labels[2]] = 5; // hallway-doorway
+	label_mapping[possible_labels[2] + possible_labels[2]] = 10; // doorway-doorway
+
+	// increase or decrease the feature-value
+	for(std::vector<unsigned int>::iterator current_point = labels_for_points.begin(); current_point != labels_for_points.end(); ++current_point)
+	{
+		// check each neighbor that isn't the point itself
+		for(std::vector<unsigned int>::iterator current_neighbor = labels_for_points.begin(); current_neighbor != labels_for_points.end(); ++current_neighbor)
+		{
+			// check if the two labels are not from the same point by calculating the distance in the vector between these two
+			if(std::distance(current_point, current_neighbor) != 0)
+			{
+				// get the key for the mapping
+				unsigned int current_sum = *current_point + *current_neighbor;
+
+				feature_value += label_mapping[current_sum];
+			}
+		}
+	}
+
+	return feature_value;
+}
+
+// size of min. loop for one point
+double getFeature26(Clique& clique, const cv::Mat& voronoi_map)
+{
+
+}

@@ -8,7 +8,7 @@
 
 int main()
 {
-	cv::Mat map = cv::imread("/home/rmb-fj/Pictures/map.png", 0); // office_b.png
+	cv::Mat map = cv::imread("/home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/common/files/test_maps/office_a_furnitures.png", 0); // office_b.png
 
 	for(unsigned int u = 0; u < map.rows; ++u)
 	{
@@ -25,73 +25,73 @@ int main()
 		}
 	}
 
-	VoronoiRandomFieldSegmentation segmenter();
+	VoronoiRandomFieldSegmentation segmenter;
 
-//	segmenter.segmentMap(map, 7, 50, 5, 7, true); // 7, 50, 4, 5
+	segmenter.segmentMap(map, 7, 50, 5, 7, true, "aa", "bb"); // 7, 50, 4, 5
 
 
-	std::vector<std::vector<double> > d(4);
-	std::vector<double> a (4, 100);
-	std::vector<double> b (4, 200);
-
-	std::vector<double> c = a + b; // operator overload in voronoi_random_field_segmentation.h
-	d[0] = d[0] + a;
-	d[0] = d[0] + b;
-//	d[1] = d[0];
-	d[3] += b;
-	d.back() += a;
-
-	for(size_t i = 0; i < d.size(); ++i)
-		for(size_t j = 0; j < d[i].size(); ++j)
-			std::cout << d[i][j] << std::endl;
-
-	column_vector test(4);
-
-	test = 1, 2, 3, 4;
-
-	std::cout << std::endl << test << std::endl;
-
-	std::ofstream output_file("/home/rmb-fj/Dokumente/test.txt", std::ios::out);
-	if (output_file.is_open()==true)
-		output_file << test;
-	output_file.close();
-
-	std::vector<double> weight_vector;
-
-	for(size_t weight = 0; weight < 4; ++weight)
-		weight_vector.push_back(test(0, weight));
-
-	std::cout << std::endl << "resaved vector: " << std::endl;
-
-	for(size_t i = 0; i < weight_vector.size(); ++i)
-		std::cout << weight_vector[i] << std::endl;
-
-	std::cout << "read in weights" << std::endl;
-
-	std::ifstream input_file("/home/rmb-fj/Dokumente/test.txt");
-	std::string line;
-	double value;
-	std::vector<double> read_weights;
-	if (input_file.is_open())
-	{
-		while (getline(input_file, line))
-		{
-			std::istringstream iss(line);
-			while (iss >> value)
-			{
-				std::cout << value << std::endl;
-				read_weights.push_back(value);
-			}
-		}
-		input_file.close();
-	}
-
-	std::cout << std::endl << "read vector: " << std::endl;
-
-	for(size_t i = 0; i < read_weights.size(); ++i)
-	{
-		std::cout << read_weights[i] << std::endl;
-	}
+//	std::vector<std::vector<double> > d(4);
+//	std::vector<double> a (4, 100);
+//	std::vector<double> b (4, 200);
+//
+//	std::vector<double> c = a + b; // operator overload in voronoi_random_field_segmentation.h
+//	d[0] = d[0] + a;
+//	d[0] = d[0] + b;
+////	d[1] = d[0];
+//	d[3] += b;
+//	d.back() += a;
+//
+//	for(size_t i = 0; i < d.size(); ++i)
+//		for(size_t j = 0; j < d[i].size(); ++j)
+//			std::cout << d[i][j] << std::endl;
+//
+//	column_vector test(4);
+//
+//	test = 1, 2, 3, 4;
+//
+//	std::cout << std::endl << test << std::endl;
+//
+//	std::ofstream output_file("/home/rmb-fj/Dokumente/test.txt", std::ios::out);
+//	if (output_file.is_open()==true)
+//		output_file << test;
+//	output_file.close();
+//
+//	std::vector<double> weight_vector;
+//
+//	for(size_t weight = 0; weight < 4; ++weight)
+//		weight_vector.push_back(test(0, weight));
+//
+//	std::cout << std::endl << "resaved vector: " << std::endl;
+//
+//	for(size_t i = 0; i < weight_vector.size(); ++i)
+//		std::cout << weight_vector[i] << std::endl;
+//
+//	std::cout << "read in weights" << std::endl;
+//
+//	std::ifstream input_file("/home/rmb-fj/Dokumente/test.txt");
+//	std::string line;
+//	double value;
+//	std::vector<double> read_weights;
+//	if (input_file.is_open())
+//	{
+//		while (getline(input_file, line))
+//		{
+//			std::istringstream iss(line);
+//			while (iss >> value)
+//			{
+//				std::cout << value << std::endl;
+//				read_weights.push_back(value);
+//			}
+//		}
+//		input_file.close();
+//	}
+//
+//	std::cout << std::endl << "read vector: " << std::endl;
+//
+//	for(size_t i = 0; i < read_weights.size(); ++i)
+//	{
+//		std::cout << read_weights[i] << std::endl;
+//	}
 
 //	CvBoost boost;
 //	boost.load("/home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/common/files/training_results/trained_room_boost.xml");
