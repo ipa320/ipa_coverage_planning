@@ -1205,5 +1205,18 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 
 }
 
+// Function to test several functions of this algorithm independent of other functions
+void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map)
+{
+	std::vector<cv::Point> node_points;
+	cv::Mat voronoi_map = original_map.clone();
+	createPrunedVoronoiGraph(voronoi_map, node_points);
 
+	std::cout << "starting to get cycle" << std::endl;
+	std::cout << getFeature26(node_points, voronoi_map) << std::endl;
+
+	cv::circle(voronoi_map, *(node_points.end()-320), 3, cv::Scalar(100), CV_FILLED); // end()-150
+	cv::imshow("test", voronoi_map);
+	cv::waitKey();
+}
 

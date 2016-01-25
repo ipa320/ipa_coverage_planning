@@ -8,7 +8,7 @@
 
 int main()
 {
-	cv::Mat map = cv::imread("/home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/common/files/test_maps/office_a_furnitures.png", 0); // office_b.png
+	cv::Mat map = cv::imread("/home/rmb-fj/Pictures/map.png", 0); // office_b.png
 
 	for(unsigned int u = 0; u < map.rows; ++u)
 	{
@@ -27,7 +27,9 @@ int main()
 
 	VoronoiRandomFieldSegmentation segmenter;
 
-	segmenter.segmentMap(map, 7, 50, 5, 7, true, "aa", "bb"); // 7, 50, 4, 5
+	segmenter.testFunc(map);
+
+//	segmenter.segmentMap(map, 7, 50, 5, 7, true, "aa", "bb"); // 7, 50, 4, 5
 
 
 //	std::vector<std::vector<double> > d(4);

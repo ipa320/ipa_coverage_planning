@@ -12,7 +12,7 @@
 struct breadthSearchNode
 {
 	// constructors
-	breadthSearchNode(uint x = -1, uint y = -1, uint depth = 0, breadthSearchNode *parent = 0, std::vector<cv::Point> children = std::vector<cv::Point>(1,0))
+	breadthSearchNode(uint x = -1, uint y = -1, uint depth = 1e6, breadthSearchNode *parent = 0, std::vector<cv::Point> children = std::vector<cv::Point>(1,cv::Point(-1,-1)))
 	{
 		this->x = x;
 		this->y = y;
@@ -21,10 +21,22 @@ struct breadthSearchNode
 		this->children = children;
 	}
 
-	// is equal operator
+	// is equal operator for breadtSearchNode
 	bool operator==(const breadthSearchNode& a) const
 	{
 	    return (x == a.x && y == a.y);
+	}
+
+	// is equal operator for cv::Point
+	bool operator==(const cv::Point& a) const
+	{
+	    return (x == a.x && y == a.y);
+	}
+
+	// is not equal operator for breadtSearchNode
+	bool operator!=(const breadthSearchNode& a) const
+	{
+	    return (x != a.x || y != a.y);
 	}
 
 	unsigned int x, y; // position of this node in the map
@@ -657,21 +669,30 @@ double calcFeature21(const std::vector<double>& beams, const std::vector<double>
 //
 // Expand function that is used later (for Feature 26) to search for a loop in the voronoi-graph by using breadth-first-search
 //
-inline std::vector<breadthSearchNode> expandNode(const cv::Mat& voronoi_map, breadthSearchNode parent_node)
+inline std::vector<breadthSearchNode> expandNode(const cv::Mat& voronoi_map, breadthSearchNode& parent_node)
 {
 	std::vector<breadthSearchNode> neighboring_points; // vector to save the found neighbors of the given node
 
 	// check in a 3x3 region around point for a node that is a voronoi-graph-point
+	std::cout << std::endl << "parent expansion: " << parent_node.x << " " << parent_node.y << std::endl;
 	for(int du = -1; du <= 1; ++du)
 	{
 		for(int dv = -1; dv <= 1; ++dv)
 		{
 			if(voronoi_map.at<unsigned char>(parent_node.y + du, parent_node.x + dv) != 0 && voronoi_map.at<unsigned char>(parent_node.y + du, parent_node.x + dv) != 255)
 			{
+				std::cout << std::endl << "expansion: " << parent_node.y + du << " " << parent_node.x + dv << std::endl << std::endl;
 				// add the found neighbor with the depth of it increased by one
 				breadthSearchNode neighboring_node (parent_node.x + dv, parent_node.y + du, parent_node.depth+1, &parent_node);
 
-				neighboring_points.push_back(neighboring_node);
+				// don't add the parent itself as a expanded node
+				if(neighboring_node != parent_node)
+				{
+					neighboring_points.push_back(neighboring_node);
+
+					// add the found node as cv::Point to the children-vector of the parent node
+					parent_node.children.push_back(cv::Point(parent_node.x + dv, parent_node.y + du));
+				}
 			}
 		}
 	}
@@ -791,43 +812,81 @@ double calcFeature25(std::vector<unsigned int>& possible_labels, std::vector<uns
 double getFeature26(const std::vector<cv::Point>& clique_points, const cv::Mat& voronoi_map)
 {
 	// define the starting point as the central point for each clique
-	breadthSearchNode starting_point(clique_points[0].x, clique_points[0].y, 0);
+//	breadthSearchNode starting_point(clique_points[0].x, clique_points[0].y, 0);
+	breadthSearchNode starting_point((clique_points.end()-320)->x, (clique_points.end()-320)->y, 0);
+
+	std::cout << "Starting Point: " << *(clique_points.end()-320) << std::endl;
 
 	// define and initialize the FIFO-queue to search for a loop
 	std::queue<breadthSearchNode> search_queue;
 
 	// expand the starting node and add the neighboring points to the search queue
-	std::vector<breadthSearchNode> expanded_nodes = expandNode(voronoi_map, starting_point);
-	for(size_t neighbor = 0; neighbor < expanded_nodes.size(); ++neighbor)
-		search_queue.push(expanded_nodes[neighbor]);
+	std::vector<breadthSearchNode> first_expanded_nodes = expandNode(voronoi_map, starting_point);
+	std::cout << "Number of neighbors: " << first_expanded_nodes.size() << std::endl;
+	for(size_t neighbor = 0; neighbor < first_expanded_nodes.size(); ++neighbor)
+		search_queue.push(first_expanded_nodes[neighbor]);
+
+	std::cout << "size of children: " << starting_point.children.size() << std::endl;
 
 	// define vector that stores all already visited points
-	std::vector<cv::Point> visited_points;
-	visited_points.push_back(cv::Point(starting_point.x, starting_point.y));
+	std::vector<breadthSearchNode> visited_points;
+	visited_points.push_back(starting_point);
 
 	// do the breadth-first search --> do until search queue is not empty and goal hasn't been reached again
 	bool found_goal = false;
 	breadthSearchNode last_node; // variable to save the last node that gets searched
+	std::cout << "starting to iterate" << std::endl; int i = 0; // increment for testing purpose
 	do
 	{
+		++i;
 		// get next node in queue and add it to visited nodes
 		breadthSearchNode current_node = search_queue.front();
-		search_queue.pop(); // remove the node from the search-queue
-		visited_points.push_back(cv::Point(current_node.x, current_node.y));
+		visited_points.push_back(current_node);
 
 		// check if the current node is the start node
 		if(current_node == starting_point)
 		{
+			std::cout << "found goal: " << cv::Point(current_node.x, current_node.y) << std::endl;
+			// save the parent of the current node and set the found_goal Boolean to true
+			last_node = *current_node.parent;
 			found_goal = true;
 			break;
 		}
 
 		// if the goal wasn't found expand the current node and add the found nodes to the search-queue
-		expanded_nodes = expandNode(voronoi_map, current_node);
+		std::cout << visited_points.back().x << " " << visited_points.back().y << std::endl;
+		std::vector<breadthSearchNode> expanded_nodes = expandNode(voronoi_map, visited_points.back());
+
+		std::cout << "size of expanded nodes: " << expanded_nodes.size() << " parents children: " << std::endl;
+		for(size_t j = 0; j < current_node.parent->children.size(); ++j)
+			std::cout << current_node.parent->children[j] << std::endl;
+
 		for(size_t neighbor = 0; neighbor < expanded_nodes.size(); ++neighbor)
-			search_queue.push(expanded_nodes[neighbor]);
+		{
+			std::cout << std::endl << cv::Point(expanded_nodes[neighbor].x, expanded_nodes[neighbor].y) << std::endl;
+			std::cout << "boolean: " << (expanded_nodes[neighbor] != *current_node.parent) << std::endl;
+			std::cout << "parent: " << current_node.parent->x << " " << current_node.parent->y << std::endl;
+			// if the expanded node is not the parent of the current node or a child of its parent add it to the search-queue
+			if(contains(current_node.parent->children, cv::Point(expanded_nodes[neighbor].x, expanded_nodes[neighbor].y)) == false &&
+					expanded_nodes[neighbor] != *current_node.parent)
+			{
+				std::cout << "adding new node" << std::endl;
+				search_queue.push(expanded_nodes[neighbor]);
+			}
+		}
+
+		if(i%15 == 0)
+			std::cout << "finished another 15 iterations" << std::endl;
+
+		// remove the node from the search-queue
+		search_queue.pop();
+
+		std::cout << "size of search queue: " << search_queue.size() << std::endl;
 
 	}while(found_goal == false && search_queue.empty() == false);
 
-	return 1;
+	std::cout << "finished to iterate" << std::endl;
+
+	// return the depth of the last visited node --> length of cycle
+	return last_node.depth;
 }

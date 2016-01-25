@@ -170,4 +170,6 @@ public:
 			const int max_iterations, unsigned int min_neighborhood_size, const double min_node_distance, bool show_nodes,
 			std::string boost_storage_path, std::string crf_storage_path);
 
+	void testFunc(cv::Mat& original_map);
+
 };

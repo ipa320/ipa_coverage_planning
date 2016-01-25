@@ -63,4 +63,5 @@ double calcFeature20(const std::vector<double>& beams, const std::vector<double>
 double calcFeature21(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point location);
 // feature 24: the curvature for a given clique
 double calcFeature24(std::vector<cv::Point> clique_points);
-
+// size of min. loop for one point by using breadth-first search
+double getFeature26(const std::vector<cv::Point>& clique_points, const cv::Mat& voronoi_map);
