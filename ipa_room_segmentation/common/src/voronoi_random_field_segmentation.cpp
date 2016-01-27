@@ -235,7 +235,8 @@ void VoronoiRandomFieldSegmentation::drawVoronoi(cv::Mat &img, const std::vector
 //		3. For each found clique simulate the laserbeams at this point by using the defined raycasting-function. This step is done
 //		   because the beams only need to be computed once for each clique and doing this at this point saves time later.
 void VoronoiRandomFieldSegmentation::createConditionalField(const cv::Mat& voronoi_map, const std::vector<cv::Point>& node_points,
-		std::vector<Clique>& conditional_random_field_cliques, const std::vector<cv::Point> voronoi_node_points)
+		std::vector<Clique>& conditional_random_field_cliques, const std::vector<cv::Point> voronoi_node_points,
+		const cv::Mat& original_map)
 {
 	// 1. Search for the n neighbors of the each point by going along the voronoi graph until a conditional-field-node gets
 	//	  found.
@@ -325,7 +326,7 @@ void VoronoiRandomFieldSegmentation::createConditionalField(const cv::Mat& voron
 
 		for(size_t member = 0; member < clique_members.size(); ++member)
 		{
-//			laser_beams[member] = raycasting(original_image, clique_members[member]);
+			laser_beams[member] = raycasting(original_map, clique_members[member]);
 		}
 
 		conditional_random_field_cliques.back().setBeamsForMembers(laser_beams);
@@ -516,7 +517,7 @@ void VoronoiRandomFieldSegmentation::createConditionalField(const cv::Mat& voron
 // ipa_room_segmentation/voronoi_random_field_segmentation.h.
 // These vectors are put in a format that OpenCV expects for the classifiers and then they are trained.
 //
-void VoronoiRandomFieldSegmentation::trainBoostClassifiers(std::vector<cv::Mat>& training_maps,
+void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv::Mat>& training_maps,
 		std::vector< std::vector<Clique> >& cliques_of_training_maps, std::vector<uint> possible_labels,
 		const std::string& classifier_storage_path)
 {
@@ -602,7 +603,7 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(std::vector<cv::Mat>&
 	//
 	//*************doorway***************
 	//save the found labels and features in Matrices
-	cv::Mat doorway_labels_Mat(labels_for_classes[1].size(), 1, CV_32FC1);
+	cv::Mat doorway_labels_Mat(labels_for_classes[2].size(), 1, CV_32FC1);
 	for (int i = 0; i < labels_for_classes[2].size(); i++)
 		doorway_labels_Mat.at<float>(i, 0) = labels_for_classes[2][i];
 	// Train a boost classifier
@@ -612,6 +613,9 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(std::vector<cv::Mat>&
 	doorway_boost_.save(filename_doorway.c_str(), "boost");
 	std::cout << "Trained doorway classifier" << std::endl;
 
+	// set the trained Boolean for the AdaBoost-classifiers to true
+	trained_boost_ = true;
+	std::cout << "Finished training the Boost algorithm." << std::endl;
 }
 
 //
@@ -625,53 +629,60 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(std::vector<cv::Mat>&
 //		room, hallway, doorway
 //
 void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double>& feature_vector, Clique& clique,
-		const cv::Point& point_to_look_at, const unsigned int given_label, const std::vector<unsigned int>& possible_labels,
-		const cv::Mat& original_map)
+		std::vector<uint> given_labels, std::vector<unsigned int>& possible_labels)
 {
-	// The first stored point in the clique is always the point that needs to be looked at.
+	// Get the points that belong to the clique and the stored simulated beams for each one.
 	std::vector<cv::Point> clique_members = clique.getMemberPoints();
-	cv::Point current_point = point_to_look_at;
+	std::vector< std::vector<double> > beams_for_points = clique.getBeams();
 
-	// Check which classifier (room, hallway or doorway) needs to be used.
-	unsigned int classifier;
-	for(size_t label = 0; label < possible_labels.size(); ++label)
+	// vector that is used to sum the calculated features
+	std::vector<double> temporary_feature_vector(feature_vector.size(), 0.0);
+
+	// For each member of this clique calculate the weak-hypothesis and add the resulting vectors in the end
+	for(size_t point = 0; point < clique_members.size(); ++point)
 	{
-		if(possible_labels[label] == given_label)
+		// Check which classifier (room, hallway or doorway) needs to be used.
+		unsigned int classifier;
+		for(size_t label = 0; label < possible_labels.size(); ++label)
 		{
-			classifier = label;
+			if(possible_labels[label] == given_labels[point])
+			{
+				classifier = label;
+				break;
+			}
+		}
+
+		// get the features for the central point of the clique
+		cv::Mat featuresMat(1, getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
+		for (int f = 1; f <= getFeatureCount(); ++f)
+		{
+			//get the features for each room and put it in the featuresMat
+			featuresMat.at<float>(0, f - 1) = (float) getFeature(beams_for_points[point], angles_for_simulation_, clique_members, given_labels, possible_labels, clique_members[point], f);
+		}
+		// Calculate the weak hypothesis by using the wanted classifier.
+		CvMat features = featuresMat;									// Wanted from OpenCV to get the weak hypothesis from the
+		CvMat weak_hypothesis = cv::Mat(1, number_of_classifiers_, CV_32F);	// separate weak classifiers.
+
+		switch(classifier)
+		{
+		case 0:
+			room_boost_.predict(&features, 0, &weak_hypothesis);
+			break;
+		case 1:
+			hallway_boost_.predict(&features, 0, &weak_hypothesis);
+			break;
+		case 2:
+			doorway_boost_.predict(&features, 0, &weak_hypothesis);
 			break;
 		}
+
+		// Write the weak hypothesis in the feature vector.
+		for(size_t f = 0; f < number_of_classifiers_; ++f)
+			temporary_feature_vector[f] = temporary_feature_vector[f] + (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
 	}
 
-	// get the features for the current point
-	// TODO: check if x and y of the point is right for raycasting
-	std::vector<double> temporary_beams = raycasting(original_map, current_point);
-	cv::Mat featuresMat(1, getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
-	for (int f = 1; f <= getFeatureCount(); ++f)
-	{
-		//get the features for each room and put it in the featuresMat
-//		featuresMat.at<float>(0, f - 1) = (float) getFeature(temporary_beams, angles_for_simulation_, clique_members, current_point, f);
-	}
-	// Calculate the weak hypothesis by using the wanted classifier.
-	CvMat features = featuresMat;									// Wanted from OpenCV to get the weak hypothesis from the
-	CvMat weak_hypothesis = cv::Mat(1, number_of_classifiers_, CV_32F);	// separate weak classifiers.
-
-	switch(classifier)
-	{
-	case 0:
-		room_boost_.predict(&features, 0, &weak_hypothesis);
-		break;
-	case 1:
-		hallway_boost_.predict(&features, 0, &weak_hypothesis);
-		break;
-	case 2:
-		doorway_boost_.predict(&features, 0, &weak_hypothesis);
-		break;
-	}
-
-	// Write the weak hypothesis in the feature vector.
-	for(size_t f = 0; f < number_of_classifiers_; ++f)
-		feature_vector[f] = (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
+	// copy the summed vector to the given feature-vector
+	feature_vector = temporary_feature_vector;
 
 }
 
@@ -686,79 +697,25 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 //		I. Go trough each given training map and find the drawn points, that represent the nodes for the conditional random
 //		   field. Also it finds the voronoi-nodes that are drawn in a different color than the other nodes. These points are
 //		   used in the second step of this function to create the cliques in the conditional random field.
-//		II. From the found nodes create a conditional random field for each map, finding all cliques in this map, by using the
-//		    defined function createConditionalField(). Each clique consists of the node itself and the two direct neighbors of
-//		    it. Only the cliques of the previously found voronoi-nodes consist of the node itself and the three neighboring points.
-//		    The cliques get defined in that way, because it is wanted that the cliques connect in a way that each part of the
-//		    conditional random field is connected to every other part of the field.
-//		III. For each node calculate the features of the clique, using the AdaBoost classifiers. The features for the
-//			 conditonal-random-field are the weak hypothesis, prduced by the AdaBoost classifers. This hypothesis is the
-//			 predicted label for a given point, multiplied by the weight for the selected classifier. For more details see
-//			 the trainBoostClassifiers() or any document on Boosting.
-//		IV. The above defined features are used to maximize the pseudo-likelihood over all training-data by minimizing a
-//			feature-function, by using the Dlib-c++-library. The found weights are then saved at the location, which is given
-//			to this function.
+//		II. For each node calculate the features of the clique, using the AdaBoost classifiers. The features for the
+//			conditonal-random-field are the weak hypothesis, prduced by the AdaBoost classifers. This hypothesis is the
+//			predicted label for a given point, multiplied by the weight for the selected classifier. For more details see
+//			the trainBoostClassifiers() or any document on Boosting.
+//		III. The above defined features are used to maximize the pseudo-likelihood over all training-data by minimizing a
+//			 feature-function, by using the Dlib-c++-library. The found weights are then saved at the location, which is given
+//			 to this function.
 //
-void VoronoiRandomFieldSegmentation::findConditionalWeights(const std::vector<cv::Mat>& training_maps,
-		const std::vector<cv::Mat>& voronoi_maps, const std::vector<cv::Mat>& voronoi_node_maps, std::vector<cv::Mat>& original_maps,
-		const unsigned char voronoi_node_color, const std::vector<unsigned int>& possible_labels, const std::string weights_filepath)
+void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::vector<Clique> >& conditional_random_field_cliques,
+		std::vector<std::vector<cv::Point> >& random_field_node_points, const std::vector<cv::Mat>& training_maps,
+		const size_t number_of_training_maps, std::vector<uint>& possible_labels, const std::string weights_filepath)
 {
 	// check if the AdaBoost-classifiers has already been trained yet, if not the conditional field can't be trained
 	if(trained_boost_ == false)
 		ROS_ERROR("AdaBoost-classifiers haven't been trained yet. First train the AdaBoost algorithm before training the conditional-random-field");
 
-	// ********** I. Go trough each map and find the drawn node-points for it and then create the voronoi maps. *****************
-	std::vector<std::vector<cv::Point> > random_field_node_points, voronoi_node_points;
-	std::vector<std::vector<unsigned int> > labels_for_nodes; // variable to store the labels of the found nodes, given by the training maps
-
 	std::cout << "Starting to train the conditional-random-field." << std::endl;
 
-	for(size_t current_map_index = 0; current_map_index < training_maps.size(); ++current_map_index)
-	{
-		// Find conditional field nodes by checking each pixel for its color.
-		cv::Mat current_map = training_maps[current_map_index];
-		cv::Mat current_voronoi_node_map = voronoi_node_maps[current_map_index];
-
-		std::vector<cv::Point> current_nodes, current_voronoi_nodes;
-
-		std::vector<unsigned int> current_labels_for_nodes;
-
-		for(size_t v = 0; v < current_map.rows; ++v)
-		{
-			for(size_t u = 0; u < current_map.cols; ++u)
-			{
-				// if a pixel is drawn in a color different than white or black it is a node of the conditional field
-				if(current_map.at<unsigned char>(v, u) != 255 && current_map.at<unsigned char>(v, u) != 0)
-				{
-					current_nodes.push_back(cv::Point(u,v));
-					current_labels_for_nodes.push_back(current_map.at<unsigned char>(v, u));
-				}
-
-				// check if the current point is a voronoi-node by checking the color in the voronoi-node map
-				if(current_voronoi_node_map.at<unsigned char>(v, u) != 255 && current_voronoi_node_map.at<unsigned char>(v, u) != 0)
-					current_voronoi_nodes.push_back(cv::Point(u,v));
-			}
-		}
-
-		// save the found nodes
-		random_field_node_points.push_back(current_nodes);
-		labels_for_nodes.push_back(current_labels_for_nodes);
-		voronoi_node_points.push_back(current_voronoi_nodes);
-	}
-
-	// ********** II. Create the conditional random fields. *****************
-	std::vector<std::vector<Clique> > conditional_random_field_cliques;
-	for(size_t current_map = 0; current_map < training_maps.size(); ++current_map)
-	{
-		// create conditional random field
-		std::vector<Clique> current_cliques;
-		createConditionalField(voronoi_maps[current_map],random_field_node_points[current_map], current_cliques, voronoi_node_points[current_map]);
-
-		// save the found cliques
-		conditional_random_field_cliques.push_back(current_cliques);
-	}
-
-	// ************ III. Go trough each found point and compute the pseudo-likelihood of it to get one big likelihood. ****************
+	// ************ II. Go trough each found point and compute the pseudo-likelihood of it to get one big likelihood. ****************
 
 	std::vector<std::vector<double> > all_point_feature_vectors; // Vector that stores every feature vector calculated for the
 																 // found nodes of the CRF. One vector of it stores all features
@@ -766,31 +723,48 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(const std::vector<cv
 																 // values are for the real training label and the rest of it
 																 // for labels different than the given one.
 
-	for(size_t current_map_index = 0; current_map_index < training_maps.size(); ++current_map_index)
+	for(size_t current_map_index = 0; current_map_index < number_of_training_maps; ++current_map_index)
 	{
 		std::vector<Clique> cliques_for_point; // vector to save the cliques that were found for one point
 		unsigned int point_index = 0; // index in the point-vector to access the label for this point
 		for(std::vector<cv::Point>::iterator current_point = random_field_node_points[current_map_index].begin(); current_point != random_field_node_points[current_map_index].end(); ++current_point)
 		{
+			// vector that stores the labels of each clique-member for the current point
+			std::vector< std::vector<uint> > labels_of_cliques;
+
 			// set the given training label for this point
-			unsigned int real_label = labels_for_nodes[current_map_index][point_index];
+			unsigned int real_label = training_maps[current_map_index].at<unsigned char>(*current_point);
+
 			// for each point find the cliques that this point belongs to
 			for(std::vector<Clique>::iterator current_clique = conditional_random_field_cliques[current_map_index].begin(); current_clique != conditional_random_field_cliques[current_map_index].end(); ++current_clique)
 			{
 				if(current_clique->containsMember(*current_point))
+				{
 					cliques_for_point.push_back(*current_clique);
+
+					// search for the labels of the clique-members
+					std::vector<uint> temporary_clique_labels(current_clique->getNumberOfMembers());
+					std::vector<cv::Point> members = current_clique->getMemberPoints();
+
+					for(size_t member = 0; member < current_clique->getNumberOfMembers(); ++member)
+						temporary_clique_labels[member] = training_maps[current_map_index].at<unsigned char>(members[member]);
+
+					// save the found labels
+					labels_of_cliques.push_back(temporary_clique_labels);
+				}
 			}
 
 			// For each found clique compute the feature vector for different labels. The first label is the label that was
 			// given to the algorithm by the training data and the other are the remaining labels, different from the first.
 			std::vector<std::vector<double> > feature_vectors(number_of_classes_); // vector to store the found feature-vectors for each class
 
-			std::vector<std::vector<double> > temporary_feature_vectors(cliques_for_point.size()); // vector to store the feature-vectors computed for the different cliques
+			// vector to store the feature-vectors computed for the different cliques
+			std::vector<std::vector<double> > temporary_feature_vectors(cliques_for_point.size(), std::vector<double>(number_of_classifiers_, 0.0));
 
 			// get the clique-feature-vectors for the given training label and add them to the first feature-vector for this label
 			for(size_t clique = 0; clique < cliques_for_point.size(); ++clique)
 			{
-				getAdaBoostFeatureVector(temporary_feature_vectors[clique], cliques_for_point[clique], *current_point, real_label, possible_labels, original_maps[current_map_index]);
+				getAdaBoostFeatureVector(temporary_feature_vectors[clique], cliques_for_point[clique], labels_of_cliques[clique], possible_labels);
 				feature_vectors[0] = feature_vectors[0] + temporary_feature_vectors[clique];
 			}
 
@@ -799,14 +773,23 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(const std::vector<cv
 
 			// get the other feature-vectors for the different labels
 			unsigned int label_index = 1; // variable to access the right places in feature_vectors for each possible label
-			for(size_t possible_label = 0; possible_label < possible_labels.size(); ++possible_label)
+			for(size_t label_position = 0; label_position < possible_labels.size(); ++label_position)
 			{
 				// only compute different labels
-				if(possible_labels[possible_label] != real_label)
+				if(possible_labels[label_position] != real_label)
 				{
 					for(size_t clique = 0; clique < cliques_for_point.size(); ++clique)
 					{
-						getAdaBoostFeatureVector(temporary_feature_vectors[clique], cliques_for_point[clique], *current_point, possible_labels[possible_label], possible_labels, original_maps[current_map_index]);
+						// copy the real-label-vector and change the label for the current point --> see how clique potential changes
+						std::vector<uint> temporary_labels = labels_of_cliques[clique];
+						std::vector<cv::Point> current_clique_members = cliques_for_point[clique].getMemberPoints();
+
+						int point_position = std::find(current_clique_members.begin(), current_clique_members.end(), *current_point) - current_clique_members.begin();
+
+						temporary_labels[point_position] = possible_labels[label_position];
+
+						// get the AdaBoost-feature-vector
+						getAdaBoostFeatureVector(temporary_feature_vectors[clique], cliques_for_point[clique], temporary_labels, possible_labels);
 						feature_vectors[label_index] = feature_vectors[label_index] + temporary_feature_vectors[clique];
 					}
 					// append the last vector in all_point_feature_vector by the calculated vector
@@ -822,7 +805,7 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(const std::vector<cv
 	}
 
 	//
-	// ********* IV. Find the weights that minimize the total likelihood by using the Dlib-library. ***********
+	// ********* III. Find the weights that minimize the total likelihood by using the Dlib-library. ***********
 	//
 	// define the mean-weights for the gaussian shrinking function
 	std::vector<double> mean_weights(number_of_classifiers_, 0);
@@ -846,6 +829,63 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(const std::vector<cv
 	trained_conditional_field_ = true;
 	ROS_INFO("Finished training the Conditional Field.");
 
+}
+
+void VoronoiRandomFieldSegmentation::trainAlgorithms(const std::vector<cv::Mat>& training_maps,
+		const std::vector<cv::Mat>& voronoi_maps, const std::vector<cv::Mat>& voronoi_node_maps, std::vector<cv::Mat>& original_maps,
+		std::vector<unsigned int>& possible_labels, const std::string weights_filepath, const std::string boost_filepath)
+{
+	// ********** I. Go trough each map and find the drawn node-points for it and check if it is a voronoi-node. *****************
+	std::vector<std::vector<cv::Point> > random_field_node_points, voronoi_node_points;
+
+	std::cout << "Starting to find the conditional-random-field-cliques." << std::endl;
+
+	for(size_t current_map_index = 0; current_map_index < training_maps.size(); ++current_map_index)
+	{
+		// Find conditional field nodes by checking each pixel for its color.
+		cv::Mat current_map = training_maps[current_map_index];
+		cv::Mat current_voronoi_node_map = voronoi_node_maps[current_map_index];
+
+		std::vector<cv::Point> current_nodes, current_voronoi_nodes;
+
+		for(size_t v = 0; v < current_map.rows; ++v)
+		{
+			for(size_t u = 0; u < current_map.cols; ++u)
+			{
+				// if a pixel is drawn in a color different than white or black it is a node of the conditional field
+				if(current_map.at<unsigned char>(v, u) != 255 && current_map.at<unsigned char>(v, u) != 0)
+					current_nodes.push_back(cv::Point(u,v));
+
+				// check if the current point is a voronoi-node by checking the color in the voronoi-node map
+				if(current_voronoi_node_map.at<unsigned char>(v, u) != 255 && current_voronoi_node_map.at<unsigned char>(v, u) != 0)
+					current_voronoi_nodes.push_back(cv::Point(u,v));
+			}
+		}
+
+		// save the found nodes
+		random_field_node_points.push_back(current_nodes);
+		voronoi_node_points.push_back(current_voronoi_nodes);
+	}
+
+
+	// ********** II. Create the conditional random fields. *****************
+	std::vector<std::vector<Clique> > conditional_random_field_cliques;
+	for(size_t current_map = 0; current_map < training_maps.size(); ++current_map)
+	{
+		// create conditional random field
+		std::vector<Clique> current_cliques;
+		createConditionalField(voronoi_maps[current_map],random_field_node_points[current_map], current_cliques, voronoi_node_points[current_map], original_maps[current_map]);
+
+		// save the found cliques
+		conditional_random_field_cliques.push_back(current_cliques);
+	}
+
+
+	// ********** III. Train the AdaBoost-classifiers. *****************
+	trainBoostClassifiers(training_maps, conditional_random_field_cliques, possible_labels, boost_filepath);
+
+	// ********** IV. Find the conditional-random-field weights. *****************
+	findConditionalWeights(conditional_random_field_cliques, random_field_node_points, training_maps, training_maps.size(), possible_labels, weights_filepath);
 }
 
 //
@@ -1104,6 +1144,9 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 		const int max_iterations, unsigned int min_neighborhood_size,
 		const double min_node_distance,  bool show_nodes, std::string boost_storage_path, std::string crf_storage_path)
 {
+	// save a copy of the original image
+	cv::Mat original_image = original_map.clone();
+
 	// if the training results haven't been loaded or trained before load them
 	if(trained_boost_ == false)
 	{
@@ -1282,7 +1325,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	std::vector<Clique> conditional_random_field_cliques; // vector to save the found cliques of the conditional random field
 
 	// construct the conditional random field
-	createConditionalField(voronoi_map, conditional_field_nodes, conditional_random_field_cliques, node_points);
+	createConditionalField(voronoi_map, conditional_field_nodes, conditional_random_field_cliques, node_points, original_image);
 
 	std::cout << "number of cliques: " << conditional_random_field_cliques.size() << std::endl;
 

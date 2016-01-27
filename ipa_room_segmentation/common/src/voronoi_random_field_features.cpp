@@ -777,7 +777,7 @@ double calcFeature25(std::vector<unsigned int>& possible_labels, std::vector<uns
 	// set the initial value for the feature (40 * maximal_amount, so the feature is always >= 0, even if later a lot of the value gets subtracted)
 	double feature_value = 40 * maximal_amount;
 
-	// Check for possibility that two neighboring labels can occur. For example it is very unlikely that a hallway appears right
+	// ***Check for possibility that two neighboring labels can occur. For example it is very unlikely that a hallway appears right
 	// after a room, without a doorway between, but it is very likely that a hallway adds to a hallway.
 
 	// Create a map to get a factor to add or subtract from the inital-value for a feature. The key for this map is the sum of

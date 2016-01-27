@@ -141,26 +141,35 @@ protected:
 
 	// Function to calculate the feature vector for a given clique, using the trained AdaBoost classifiers.
 	void getAdaBoostFeatureVector(std::vector<double>& feature_vector, Clique& clique,
-			const cv::Point& point_to_look_at, const unsigned int given_label, const std::vector<unsigned int>& possible_labels, const cv::Mat& original_map);
+			std::vector<uint> given_labels, std::vector<unsigned int>& possible_labels);
 
 
 	void createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation, std::vector<cv::Point>& node_points); // Function that takes a map and draws a pruned voronoi
 																	    									// graph in it.
 
 	void createConditionalField(const cv::Mat& voronoi_map, const std::vector<cv::Point>& node_points, 					// Function to create a conditional random field out of given points. It needs
-			std::vector<Clique>& conditional_random_field_cliques, const std::vector<cv::Point> voronoi_node_points);	// the voronoi-map extracted from the original map to find the neighbors for each point
-																														// and the voronoi-node-points to add the right points as nodes.
+			std::vector<Clique>& conditional_random_field_cliques, const std::vector<cv::Point> voronoi_node_points,    // the voronoi-map extracted from the original map to find the neighbors for each point
+			const cv::Mat& original_map);																				// and the voronoi-node-points to add the right points as nodes.
+
+
+	void trainBoostClassifiers(const std::vector<cv::Mat>& training_maps,
+			std::vector< std::vector<Clique> >& cliques_of_training_maps, const std::vector<uint> possible_labels,
+			const std::string& classifier_storage_path); // Function to train the AdaBoost classifiers, used for feature induction of the conditional
+									  	  	  	  	  	  	  	  	  	  	 	 	 	 	 	 	 	  // random field.
+
+	// Function to find the weights used to calculate the clique potentials.
+	void findConditionalWeights(std::vector< std::vector<Clique> >& conditional_random_field_cliques,
+			std::vector<std::vector<cv::Point> >& random_field_node_points, const std::vector<cv::Mat>& training_maps,
+			const size_t number_of_training_maps, std::vector<uint>& possible_labels, const std::string weights_filepath);
+
+
 public:
 
 	VoronoiRandomFieldSegmentation(bool trained_boost = true, bool trained_conditional_field = true); // constructor
 
-	void trainBoostClassifiers(std::vector<cv::Mat>& training_maps,
-			std::vector< std::vector<Clique> >& cliques_of_training_maps, const std::vector<uint> possible_labels,
-			const std::string& classifier_storage_path); // Function to train the AdaBoost classifiers, used for feature induction of the conditional
-									  	  	  	  	  	  	  	  	  	  	 	 	 	 	 	 	 	  // random field.
-	void findConditionalWeights(const std::vector<cv::Mat>& training_maps, const std::vector<cv::Mat>& voronoi_maps, // Function to find the weights used to calculate the clique potentials.
-			const std::vector<cv::Mat>& voronoi_node_maps, std::vector<cv::Mat>& original_maps, const unsigned char voronoi_node_color, const std::vector<unsigned int>& possible_labels, const std::string weights_filepath);
-
+	void trainAlgorithms(const std::vector<cv::Mat>& training_maps, const std::vector<cv::Mat>& voronoi_maps,
+			const std::vector<cv::Mat>& voronoi_node_maps, std::vector<cv::Mat>& original_maps,
+			std::vector<unsigned int>& possible_labels, const std::string weights_filepath, const std::string boost_filepath);
 
 	column_vector findMinValue(unsigned int number_of_weights, double sigma,
 			const std::vector<std::vector<double> >& likelihood_parameters, const std::vector<double>& starting_weights); // Function to find the minimal value of a function. Used to find the optimal weights for
