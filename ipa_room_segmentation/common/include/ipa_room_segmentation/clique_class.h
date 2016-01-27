@@ -84,7 +84,9 @@
 class Clique
 {
 protected:
-	std::vector<cv::Point> member_points; // vector that stores the member points of the clique
+	std::vector<cv::Point> member_points_; // vector that stores the member points of the clique
+
+	std::vector< std::vector<double> > beams_for_members_; // vector that stores the simulated beams for each member (simulated using raycasting)
 
 public:
 
@@ -103,5 +105,9 @@ public:
 	bool containsMember(const cv::Point& point); // function that checks if a given point is part of this clique
 
 	unsigned int getNumberOfMembers(); // function that returns the number of members stored in this clique
+
+	void setBeamsForMembers(const std::vector< std::vector<double> > beams); // function that stores the given beams in the class parameter
+
+	std::vector< std::vector<double> > getBeams(); // function that returns the stored laser-beams for the member points
 
 };

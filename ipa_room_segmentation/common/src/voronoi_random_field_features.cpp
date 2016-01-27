@@ -52,7 +52,7 @@ struct breadthSearchNode
 //get the number of implemented features. Needs to be changed to the new value if you change it
 int getFeatureCount()
 {
-	return 24;
+	return 25;
 }
 
 // TODO: clean up and speed up
@@ -60,7 +60,8 @@ int getFeatureCount()
 //**********************see features.h for a better overview of what is calculated and needed*************************
 //Method for calculating the feature for the classifier
 double getFeature(const std::vector<double>& beams, const std::vector<double>& angles,
-		const std::vector<cv::Point>& clique_points, cv::Point point, const int feature)
+		const std::vector<cv::Point>& clique_points, std::vector<unsigned int>& labels_for_clique_points,
+		std::vector<unsigned int>& possible_labels, cv::Point point, const int feature)
 {
 	switch (feature)
 	{
@@ -112,6 +113,8 @@ double getFeature(const std::vector<double>& beams, const std::vector<double>& a
 		return calcFeature23(beams);
 	case 24:
 		return calcFeature24(clique_points);
+	case 25:
+		return calcFeature25(possible_labels, labels_for_clique_points);
 	default:
 		return -1;
 	}
@@ -701,6 +704,7 @@ inline std::vector<breadthSearchNode> expandNode(const cv::Mat& voronoi_map, bre
 }
 
 
+// TODO: check what happens when all points are in one line
 // Calculate Feature 24: The curvature of the voronoi graph approximated by the points of the clique. The curvature of a graph
 //						 is given by k = 1/r, with r as the radius of the approximate circle at this position.
 double calcFeature24(std::vector<cv::Point> clique_points)
@@ -808,6 +812,7 @@ double calcFeature25(std::vector<unsigned int>& possible_labels, std::vector<uns
 	return feature_value;
 }
 
+// %%%%%%%%%%% not working correctly, but probably not very important %%%%%%%%%%%%%%%%%
 // size of min. loop for one point by using breadth-first search
 double getFeature26(const std::vector<cv::Point>& clique_points, const cv::Mat& voronoi_map)
 {

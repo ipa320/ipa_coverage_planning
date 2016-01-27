@@ -25,9 +25,14 @@ int main()
 		}
 	}
 
+	uchar t = 127;
+	uint g = 127;
+
+	std::cout << (t == g) << std::endl;
+
 	VoronoiRandomFieldSegmentation segmenter;
 
-	segmenter.testFunc(map);
+//	segmenter.testFunc(map);
 
 //	segmenter.segmentMap(map, 7, 50, 5, 7, true, "aa", "bb"); // 7, 50, 4, 5
 

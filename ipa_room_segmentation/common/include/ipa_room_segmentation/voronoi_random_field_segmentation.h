@@ -152,10 +152,11 @@ protected:
 																														// and the voronoi-node-points to add the right points as nodes.
 public:
 
-	VoronoiRandomFieldSegmentation(); // constructor
+	VoronoiRandomFieldSegmentation(bool trained_boost = true, bool trained_conditional_field = true); // constructor
 
-	void trainBoostClassifiers(std::vector<cv::Mat>& room_training_maps, std::vector<cv::Mat>& hallway_training_maps,
-				std::vector<cv::Mat>& doorway_training_maps, const std::string& classifier_storage_path); // Function to train the AdaBoost classifiers, used for feature induction of the conditional
+	void trainBoostClassifiers(std::vector<cv::Mat>& training_maps,
+			std::vector< std::vector<Clique> >& cliques_of_training_maps, const std::vector<uint> possible_labels,
+			const std::string& classifier_storage_path); // Function to train the AdaBoost classifiers, used for feature induction of the conditional
 									  	  	  	  	  	  	  	  	  	  	 	 	 	 	 	 	 	  // random field.
 	void findConditionalWeights(const std::vector<cv::Mat>& training_maps, const std::vector<cv::Mat>& voronoi_maps, // Function to find the weights used to calculate the clique potentials.
 			const std::vector<cv::Mat>& voronoi_node_maps, std::vector<cv::Mat>& original_maps, const unsigned char voronoi_node_color, const std::vector<unsigned int>& possible_labels, const std::string weights_filepath);

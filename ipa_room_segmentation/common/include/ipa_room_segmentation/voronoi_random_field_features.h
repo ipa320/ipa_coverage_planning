@@ -1,5 +1,5 @@
 //Header for featurecalculation
-//number of Features that can be calculated: 23
+//number of Features that can be calculated: 25
 #pragma once
 #include <opencv/cv.h>
 #include <queue>
@@ -7,9 +7,10 @@
 
 //function to get the number of the features implemented
 int getFeatureCount();
-//function for calculating the feature
+//function for calculating the wanted feature
 double getFeature(const std::vector<double>& beams, const std::vector<double>& angles,
-		const std::vector<cv::Point>& clique_points, cv::Point point, int feature);
+		const std::vector<cv::Point>& clique_points, std::vector<unsigned int>& labels_for_clique_points,
+		std::vector<unsigned int>& possible_labels, cv::Point point, const int feature);
 //feature 1: average difference between beamlenghts
 double calcFeature1(const std::vector<double>& beams);
 //feature 2: standard deviation of difference between beamlengths
@@ -43,7 +44,7 @@ double calcFeature23(const std::vector<double>& beams);
 //****************from now on Features that need a polygonal approximation of the beams*****************************
 //calculate the polygonal approximation
 std::vector<cv::Point> calcPolygonalApprox(const std::vector<double>&, const std::vector<double>&, cv::Point location);
-//calcilate the centroid for each polygonal approximation
+//calculate the centroid for each polygonal approximation
 cv::Point calcCentroid(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point location);
 //feature 14: area of the polygonal approximation
 double calcFeature14(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point location);
@@ -63,5 +64,8 @@ double calcFeature20(const std::vector<double>& beams, const std::vector<double>
 double calcFeature21(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point location);
 // feature 24: the curvature for a given clique
 double calcFeature24(std::vector<cv::Point> clique_points);
+// feature 25: the relation between the labels of Points from the central point to the other points in the clique
+double calcFeature25(std::vector<unsigned int>& possible_labels, std::vector<unsigned int>& labels_for_points);
+// %%%%%%%%%% not working %%%%%%%%%%%%%%
 // size of min. loop for one point by using breadth-first search
 double getFeature26(const std::vector<cv::Point>& clique_points, const cv::Mat& voronoi_map);
