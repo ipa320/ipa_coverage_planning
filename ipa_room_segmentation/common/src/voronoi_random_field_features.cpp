@@ -70,9 +70,9 @@ double getFeature(const std::vector<double>& beams, const std::vector<double>& a
 	case 2:
 		return calcFeature2(beams);
 	case 3:
-		return calcFeature3(beams, 10);
+		return calcFeature3(beams, 30);
 	case 4:
-		return calcFeature4(beams, 10);
+		return calcFeature4(beams, 30);
 	case 5:
 		return calcFeature5(beams);
 	case 6:
@@ -123,7 +123,7 @@ double getFeature(const std::vector<double>& beams, const std::vector<double>& a
 //Calculation of Feature 1: average difference of the beams
 double calcFeature1(const std::vector<double>& beams)
 {
-	double differences_sum;
+	double differences_sum = 0;
 	for (int b = 0; b < beams.size() - 1; b++)
 	{
 		differences_sum += abs(beams[b] - beams[b + 1]);
@@ -148,6 +148,7 @@ double calcFeature2(const std::vector<double>& beams)
 	{
 		sum += std::pow((beams[b] - mean), 2.0);
 	}
+//	std::cout << "f2: (" << sum << ") ";
 	sum = sum / (beams.size() - 1);
 	feature2_value = std::sqrt(sum);
 	return feature2_value;
@@ -156,7 +157,7 @@ double calcFeature2(const std::vector<double>& beams)
 //Calculation of Feature 3: average difference of the to a max_value limited beams
 double calcFeature3(const std::vector<double>& beams, double maxval)
 {
-	double differences_sum;
+	double differences_sum = 0;
 	double val1, val2;
 	for (int b = 0; b < beams.size() - 1; b++)
 	{
@@ -236,7 +237,7 @@ double calcFeature4(const std::vector<double>& beams, double maxval)
 //Calculation of Feature 5: The average beamlength
 double calcFeature5(const std::vector<double>& beams)
 {
-	double sum;
+	double sum = 0;
 	//get the sum of the beamlengths
 	for (int b = 0; b < beams.size(); b++)
 	{
@@ -250,24 +251,25 @@ double calcFeature5(const std::vector<double>& beams)
 double calcFeature6(const std::vector<double>& beams)
 {
 	double mean; //mean-value of the beamlenghts, calculated with calcFeature5
-	double sum; //helping variable
-	//initialise
+	double sum, res; //helping variables
+	//initialize
 	mean = calcFeature5(beams);
 	sum = 0;
 	//calculate deviation
 	for (int b = 0; b < beams.size(); b++)
 	{
-		sum += std::pow((beams[b] - mean), 2);
+		sum += std::pow((beams[b] - mean), 2.0);
 	}
-	sum = sum / (beams.size() - 1);
-	return std::sqrt(sum);
+	res = sum / (beams.size() - 1);
+//	std::cout << "f6: (" << res << ") ";
+	return std::sqrt(res);
 }
 
 //Calculation of Feature 7: The number of gaps between the beams, a gap is when the difference of the lenghts is larger
 //than a specified threshold
 double calcFeature7(const std::vector<double>& beams)
 {
-	double threshold = 0.5; //[m], see "Semantic labeling of places"
+	double threshold = 10; //[pixel], see "Semantic labeling of places"
 	double gaps = 0;
 	for (int b = 0; b < beams.size() - 1; b++)
 	{
@@ -346,6 +348,9 @@ double calcFeature9(const std::vector<double>& beams, const std::vector<double>&
 	//calculate and return the angle between the Points
 	double coordvec = (x_1 * x_2) + (y_1 * y_2);
 	double absvec = (length_1 * length_2);
+	// if the raycasting-algorithm only found zero-beams return 0
+	if(length_1 == 0 && length_2 == 0)
+		return 0;
 	return std::acos(coordvec / absvec) * 180.0 / PI;
 }
 
@@ -401,8 +406,9 @@ double calcFeature11(const std::vector<double>& beams)
 //specified threshold
 double calcFeature12(const std::vector<double>& beams)
 {
-	double threshold = 0.5; //[m] see "Semantic labeling of places"
-	double gaps, length_1, length_2;
+	double threshold = 0.85;
+	double gaps = 0;
+	double length_1, length_2;
 	for (int b = 0; b < beams.size() - 1; b++)
 	{
 		length_1 = beams[b];

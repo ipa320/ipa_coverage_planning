@@ -7,7 +7,7 @@ std::vector<double> raycasting(const cv::Mat& map, const cv::Point& location)
 	//of the simulated beams
 	double simulated_x, simulated_y, simulated_cos, simulated_sin;
 	double temporary_distance;
-	std::vector<double> distances(360);
+	std::vector<double> distances(360, 0);
 	double delta_x, delta_y;
 	double pi_to_rad = PI / 180;
 	for (double angle = 0; angle < 360; angle++)

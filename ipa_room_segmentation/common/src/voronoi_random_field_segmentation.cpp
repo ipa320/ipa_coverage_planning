@@ -548,17 +548,38 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 			std::vector<uint> current_labels_for_points(current_clique_members.size());
 
 			for(size_t point = 0; point < current_clique_members.size(); ++point)
+			{
 				current_labels_for_points[point] = current_map.at<uchar>(current_clique_members[point]);
+//				if(current_labels_for_points[point] != possible_labels[0] && current_labels_for_points[point] != possible_labels[1] && current_labels_for_points[point] != possible_labels[2])
+//					std::cout << current_labels_for_points[point] << std::endl;
+			}
 
 			// get the stored laser-beams for the central point
 			std::vector<double> current_beams = current_clique->getBeams()[0];
+
+//			cv::Mat testmap = current_map.clone();
+//			double pi_to_rad = PI / 180;
+//			for(size_t i = 0; i < current_beams.size(); ++i)
+//			{
+//				cv::Point current_beampoint (current_clique_members[0].x + sin(angles_for_simulation_[i]*pi_to_rad)*current_beams[i], current_clique_members[0].y + cos(angles_for_simulation_[i]*pi_to_rad)*current_beams[i]);
+//				cv::line(testmap, current_clique_members[0], current_beampoint, cv::Scalar(50), 1);
+//			}
+//			cv::circle(testmap, current_clique_members[0], 3, cv::Scalar(50), CV_FILLED);
 
 			// get the feature for the current point and store it in the global vector
 			std::vector<float> current_features(getFeatureCount());
 
 			for(int f = 1; f <= getFeatureCount(); ++f)
-				current_features[f] = getFeature(current_beams, angles_for_simulation_, current_clique_members, current_labels_for_points, possible_labels, current_point, f);
+			{
+				current_features[f-1] = getFeature(current_beams, angles_for_simulation_, current_clique_members, current_labels_for_points, possible_labels, current_point, f);
+//				std::cout << current_features[f-1] << " ";
+			}
 			features_for_points.push_back(current_features);
+//			std::cout << "f7: (" << current_features[6] << ") ";
+//			std::cout << std::endl;
+
+//			cv::imshow("tester", testmap);
+//			cv::waitKey();
 
 			// get the labels-vector for each class
 			//		--> OpenCV expects the labels: +1 if it belongs to the class, -1 if it doesn't
@@ -586,9 +607,9 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 		for (int f = 0; f < getFeatureCount(); f++)
 		{
 			features_Mat.at<float>(i, f) = (float) features_for_points[i][f];
-			std::cout << (float) features_for_points[i][f] << " ";
+//			std::cout << (float) features_for_points[i][f] << " ";
 		}
-		std::cout << std::endl;
+//		std::cout << std::endl;
 	}
 	// Train a boost classifier
 	room_boost_.train(features_Mat, CV_ROW_SAMPLE, room_labels_Mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
@@ -1313,10 +1334,10 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	if(show_nodes == true)
 	{
 		cv::cvtColor(node_map, node_map, CV_GRAY2BGR);
-		for(size_t node = 0; node < node_points.size(); ++node)
+		for(size_t node = 0; node < conditional_field_nodes.size(); ++node)
 		{
-			if(contains(conditional_field_nodes, node_points[node]) == true)
-				cv::circle(node_map, node_points[node], 0, cv::Scalar(250,0,0), CV_FILLED);
+			if(contains(conditional_field_nodes, conditional_field_nodes[node]) == true)
+				cv::circle(node_map, conditional_field_nodes[node], 0, cv::Scalar(250,0,0), CV_FILLED);
 		}
 
 //		cv::imshow("nodes of the conditional random field", node_map);
