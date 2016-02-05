@@ -103,26 +103,33 @@ public:
 		// go trough each part of the function and calculate the log(.) and add it to the result
 		for(unsigned int function_part = 0; function_part < log_parameters.size(); ++function_part)
 		{
-			double log_numerator, log_denominator = 0; // nominator and denominator for each log
-			double exp_exponent = 0; // helping variable to get each exponent for exp(.)
+			long double log_numerator, log_denominator = 0; // numerator and denominator for each log
+			long double exp_exponent = 0; // helping variable to get each exponent for exp(.)
 			// get the log_numerator for each function part
 			for(unsigned int numerator_factor = 0; numerator_factor < number_of_weights; ++numerator_factor)
 			{
-				exp_exponent += log_parameters[function_part][numerator_factor] * weights(numerator_factor);
+				exp_exponent += (1/5) * log_parameters[function_part][numerator_factor] * weights(numerator_factor);
 			}
 			log_numerator = exp(exp_exponent);
+			if(exp_exponent > 250.0)
+			{
+				std::cout << "exp exponent: " << exp_exponent << " numerator: " << log_numerator<<  std::endl;
+//				for(int i = 0; i < number_of_weights; ++i)
+//					std::cout << weights(i) << " ";
+//				std::cout << std::endl;
+			}
 
 			// add the numerator to the denominator, because it has to appear here
 			log_denominator += log_numerator;
 			// add each clique-value to the denominator
-			unsigned int vector_position = number_of_weights; // variable to get the current absoulte starting position
+			unsigned int vector_position = number_of_weights; // variable to get the current absolute starting position
 															  // for the vector
 			do
 			{
 				exp_exponent = 0;
 				for(unsigned int relative_position = 0; relative_position < number_of_weights; ++relative_position)
 				{
-					exp_exponent += log_parameters[function_part][vector_position + relative_position] * weights(relative_position);
+					exp_exponent += (1/5) * log_parameters[function_part][vector_position + relative_position] * weights(relative_position);
 				}
 				// update the absolute vector position
 				vector_position += number_of_weights;
@@ -131,8 +138,14 @@ public:
 			}while(vector_position < log_parameters[function_part].size());
 
 			// update the result to return
+//			if(((log_numerator / log_denominator) == (log_numerator / log_denominator)) == false)
+//				std::cout << "quotient: " << (log_numerator / log_denominator) << " numerator: " << log_numerator << " denominator: " << log_denominator <<  std::endl;
 			result -= log10(log_numerator / log_denominator);
+//			if((result == result) == false)
+//				std::cout << "quotient: " << (log_numerator / log_denominator) << std::endl;
 		}
+//		if((result == result) == false)
+//			std::cout << "first result: " << result << std::endl;
 
 		// add the gaussian shrinking function
 		double gaussian_numerator = 0;
@@ -140,7 +153,9 @@ public:
 		{
 			gaussian_numerator += std::pow(weights(weight) - starting_weights[weight], 2.0);
 		}
-		result += gaussian_numerator / (2 * sigma * sigma);
+		result += gaussian_numerator / (2.0 * sigma * sigma);
+//		std::cout << "gaussian shrinking: " << gaussian_numerator << "/" << (2.0 * sigma * sigma) << std::endl;
+//		std::cout << "res: " << result << std::endl;
 		return result;
 	}
 };
@@ -158,7 +173,7 @@ VoronoiRandomFieldSegmentation::VoronoiRandomFieldSegmentation(bool trained_boos
 	number_of_classes_ = 3;
 
 	// Set up boosting parameters
-	number_of_classifiers_ = 350;
+	number_of_classifiers_ = 25;
 	CvBoostParams params(CvBoost::DISCRETE, number_of_classifiers_, 0, 2, false, 0);
 	params_ = params;
 	trained_boost_ = trained_boost;
@@ -689,15 +704,11 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 			//get the features for each room and put it in the featuresMat
 			featuresMat.at<float>(0, f - 1) = (float) getFeature(beams_for_points[point], angles_for_simulation_, clique_members, given_labels, possible_labels, clique_members[point], f);
 		}
-		std::cout << "got features Mat" << std::endl;
 		// Calculate the weak hypothesis by using the wanted classifier.
 		CvMat features = featuresMat;
-		std::cout << "meep" << std::endl;
 		cv::Mat weaker (1, number_of_classifiers_, CV_32F);
 		CvMat weak_hypothesis = weaker;	// Wanted from OpenCV to get the weak hypothesis from the
 																			// separate weak classifiers.
-		std::cout << "sizes: " << featuresMat.cols << " " << featuresMat.rows << " " << weak_hypothesis.cols << " " << weak_hypothesis.rows << std::endl;
-
 		switch(classifier)
 		{
 		case 0:
@@ -714,10 +725,8 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 		// Write the weak hypothesis in the feature vector.
 		for(size_t f = 0; f < number_of_classifiers_; ++f)
 		{
-//			std::cout << "feature: " << f << std::endl;
 			temporary_feature_vector[f] = temporary_feature_vector[f] + (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
 		}
-		std::cout << "resaved predictions" << std::endl;
 	}
 
 	// copy the summed vector to the given feature-vector
@@ -771,7 +780,6 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 
 			// set the given training label for this point
 			unsigned int real_label = training_maps[current_map_index].at<unsigned char>(*current_point);
-			std::cout << "found real label: " << real_label << std::endl;
 
 			// for each point find the cliques that this point belongs to
 			for(std::vector<Clique>::iterator current_clique = conditional_random_field_cliques[current_map_index].begin(); current_clique != conditional_random_field_cliques[current_map_index].end(); ++current_clique)
@@ -791,7 +799,6 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 					labels_of_cliques.push_back(temporary_clique_labels);
 				}
 			}
-			std::cout << "found all cliques" << std::endl;
 
 			// For each found clique compute the feature vector for different labels. The first label is the label that was
 			// given to the algorithm by the training data and the other are the remaining labels, different from the first.
@@ -803,13 +810,9 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 			// get the clique-feature-vectors for the given training label and add them to the first feature-vector for this label
 			for(size_t clique = 0; clique < cliques_for_point.size(); ++clique)
 			{
-				std::cout << "finding AdaBoost-features for clique, sizes: " << temporary_feature_vectors[clique].size() << " " << cliques_for_point[clique].getMemberPoints().size() << " " << labels_of_cliques[clique].size() << " " << possible_labels.size() << std::endl;
 				getAdaBoostFeatureVector(temporary_feature_vectors[clique], cliques_for_point[clique], labels_of_cliques[clique], possible_labels);
-				std::cout << "calculated features" << std::endl;
 				feature_vectors[0] = feature_vectors[0] + temporary_feature_vectors[clique];
-				std::cout << "saved features" << std::endl;
 			}
-			std::cout << "got first feature_vector" << std::endl;
 
 			// assign the first feature-vector to the complete feature-vector
 			all_point_feature_vectors.push_back(feature_vectors[0]);
@@ -851,8 +854,9 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 	std::vector<double> mean_weights(number_of_classifiers_, 0);
 
 	// find the best weights --> minimize the defined function for the pseudo-likelihood
+	std::cout << "finding weights using Dlib" << std::endl;
 	column_vector weight_results;
-	weight_results = findMinValue(number_of_classifiers_, 3.0, all_point_feature_vectors, mean_weights);
+	weight_results = findMinValue(number_of_classifiers_, 9.0, all_point_feature_vectors, mean_weights);
 
 	// save the found weights to a std::vector<double>
 	for(size_t weight = 0; weight < number_of_classifiers_; ++weight)
@@ -1138,13 +1142,14 @@ void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_v
 column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_of_weights, double sigma,
 		const std::vector<std::vector<double> >& likelihood_parameters, const std::vector<double>& starting_weights)
 {
+	std::cout << "finding min values" << std::endl;
 	// create a column vector as starting search point, that is needed from Dlib to find the min. value of a function
 	column_vector starting_point(number_of_weights);
 
 	// initialize the starting point as zero to favour small weights
 	starting_point = 0;
 
-	// create a Likelihoodoptimizer-object to find the weights that maximize the pseudo-likelihood
+	// create a Likelihood-optimizer object to find the weights that maximize the pseudo-likelihood
 	pseudoLikelihoodOptimization minimizer;
 
 	// set the values for this optimization-object
