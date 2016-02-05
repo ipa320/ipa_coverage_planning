@@ -466,7 +466,7 @@ double calcFeature13(const std::vector<double>& beams)
 //Calc Feature 22: The average of the beam lengths divided by the maximal length
 double calcFeature22(const std::vector<double>& beams)
 {
-	double sum;
+	double sum = 0;
 	double maxval = 0;
 	//find maximal value of the beams
 	for (int b = 0; b < beams.size(); b++)

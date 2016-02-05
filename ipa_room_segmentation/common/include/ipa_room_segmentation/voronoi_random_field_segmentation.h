@@ -87,18 +87,18 @@ typedef dlib::matrix<double,0,1> column_vector; // typedef used for the dlib opt
 template <typename T>
 std::vector<T> operator+(const std::vector<T>& a, const std::vector<T>& b)
 {
-    assert(a.size() == b.size());
+//    assert(a.size() == b.size());
+
+    if(a.empty())
+    	return b;
+    else if(b.empty())
+    	return a;
 
     std::vector<T> result;
     result.reserve(a.size());
 
     std::transform(a.begin(), a.end(), b.begin(),
                    std::back_inserter(result), std::plus<T>());
-
-    if(a.empty())
-    	result = b;
-    else if(b.empty())
-    	result = a;
 
     return result;
 }
