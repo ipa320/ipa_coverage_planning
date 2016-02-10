@@ -64,9 +64,7 @@ void VoronoiSegmentation::mergeRoomPair(std::vector<Room>& rooms, const int targ
 	}
 }
 
-void VoronoiSegmentation::drawVoronoi(cv::Mat &img, const std::vector<std::vector<cv::Point2f> >& facets_of_voronoi, const cv::Scalar voronoi_color,
-		//const std::vector<cv::Point>& contour, const std::vector<std::vector<cv::Point> >& hole_contours)
-		const cv::Mat& eroded_map)
+void VoronoiSegmentation::drawVoronoi(cv::Mat &img, const std::vector<std::vector<cv::Point2f> >& facets_of_voronoi, const cv::Scalar voronoi_color, const cv::Mat& eroded_map)
 {
 	//This function draws the Voronoi-diagram into a given map. It needs the facets as vector of Points, the contour of the
 	//map and the contours of the holes. It checks if the endpoints of the facets are both inside the map-contour and not
@@ -89,18 +87,6 @@ void VoronoiSegmentation::drawVoronoi(cv::Mat &img, const std::vector<std::vecto
 				((int)last_point.y<0) || ((int)last_point.y >= eroded_map.rows) ||
 				eroded_map.at<uchar>((int)last_point.y, (int)last_point.x) == 0)
 				inside = false;
-//			if (cv::pointPolygonTest(contour, current_point, false) < 0 || cv::pointPolygonTest(contour, last_point, false) < 0)
-//			{
-//				inside = false;
-//			}
-//			// only draw Points inside the contour that are not inside a hole-contour
-//			for (std::vector<std::vector<cv::Point> >::const_iterator hole = hole_contours.begin(); hole != hole_contours.end(); ++hole)
-//			{
-//				if (cv::pointPolygonTest(*hole, current_point, false) >= 0 || cv::pointPolygonTest(*hole, last_point, false) >= 0)
-//				{
-//					inside = false;
-//				}
-//			}
 			if (inside)
 			{
 				cv::line(img, last_point, current_point, voronoi_color, 1);
@@ -117,7 +103,7 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 	//	1. It finds every discretized contour in the given map (they are saved as vector<Point>). Then it takes these
 	//	   contour-Points and adds them to the OpenCV Delaunay generator from which the voronoi-cells can be generated.
 	//	2. Then it finds the largest eroded contour in the given map, which is the contour of the map itself. It searches the
-	//	   largest contour, because smaller contours correspond to mapping errors
+	//	   largest contour, because smaller contours correspond to mapping errors (obsolete, drawVoronoi does not need the contour anymore)
 	//	3. Finally it gets the boundary-Points of the voronoi-cells with getVoronoiFacetList. It takes these facets
 	//	   and draws them using the drawVoronoi function. This function draws the facets that only have Points inside
 	//	   the map-contour (other lines go to not-reachable places and are not necessary to be looked at).
@@ -132,9 +118,6 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 	//apply a closing-operator on the map so bad parts are neglected
 	cv::erode(temporary_map_to_calculate_voronoi, temporary_map_to_calculate_voronoi, cv::Mat());
 	cv::dilate(temporary_map_to_calculate_voronoi, temporary_map_to_calculate_voronoi, cv::Mat());
-
-	std::cout << "erode/dilate: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
-	tim.start();
 
 	//********************1. Get OpenCV delaunay-traingulation******************************
 
@@ -169,56 +152,21 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 		}
 	}
 
-	std::cout << "delaunay: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
-	tim.start();
-
-	//********************2. Get largest contour******************************
-
-	std::vector < std::vector<cv::Point> > eroded_contours; //variable to save the eroded contours
+	//********************2. Erode map ******************************
+	//erode the map and get the largest contour of it so that points near the boundary are not drawn later (see drawVoronoi)
 	cv::Mat eroded_map;
 	cv::Point anchor(-1, -1);
-
-	std::vector < cv::Point > largest_contour; //variable to save the largest contour of the map --> the contour of the map itself
-
-	//erode the map and get the largest contour of it so that points near the boundary are not drawn later (see drawVoronoi)
 	cv::erode(temporary_map_to_calculate_voronoi, eroded_map, cv::Mat(), anchor, 2);
-//	cv::findContours(eroded_map, eroded_contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE);
-//	//set initial largest contour
-//	largest_contour = eroded_contours[0];
-//	for (int current_contour = 0; current_contour < eroded_contours.size(); current_contour++)
-//	{
-//		//check if the current contour is larger than the saved largest-contour
-//		if (cv::contourArea(largest_contour) < cv::contourArea(eroded_contours[current_contour]))
-//		{
-//			largest_contour = eroded_contours[current_contour];
-//		}
-//		if (hierarchy[current_contour][2] == -1 && hierarchy[current_contour][3] != -1)
-//		{
-//			hole_contours.push_back(eroded_contours[current_contour]);
-//		}
-//	}
-
-	std::cout << "largest contour: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
-	tim.start();
 
 	//********************3. Get facets and draw voronoi-Graph******************************
 	//get the Voronoi regions from the delaunay-subdivision graph
-
 	cv::Scalar voronoi_color(127); //define the voronoi-drawing colour
-
 	std::vector < std::vector<cv::Point2f> > voronoi_facets; //variables to find the facets and centers of the voronoi-cells
 	std::vector < cv::Point2f > voronoi_centers;
-
 	subdiv.getVoronoiFacetList(std::vector<int>(), voronoi_facets, voronoi_centers);
-
-	std::cout << "facets: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
-	tim.start();
 
 	//draw the voronoi-regions into the map
 	drawVoronoi(map_to_draw_voronoi_in, voronoi_facets, voronoi_color, eroded_map); // largest_contour, hole_contours);
-
-	std::cout << "draw: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
-	tim.start();
 
 	//make pixels black, which were black before and were colored by the voronoi-regions
 	for (int v = 0; v < map_to_draw_voronoi_in.rows; v++)
@@ -232,8 +180,6 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 		}
 	}
 	map_for_voronoi_generation = map_to_draw_voronoi_in;
-
-	std::cout << "voronoi finish: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
 }
 
 void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Room>& rooms, double map_resolution_from_subscription, double max_area_for_merging)
