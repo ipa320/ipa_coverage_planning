@@ -103,19 +103,29 @@ public:
 		// go trough each part of the function and calculate the log(.) and add it to the result
 		for(unsigned int function_part = 0; function_part < log_parameters.size(); ++function_part)
 		{
-			double log_numerator, log_denominator = 0; // nominator and denominator for each log
-			double exp_exponent = 0; // helping variable to get each exponent for exp(.)
+			long double log_numerator = 1., log_denominator = 0.; // numerator and denominator for each log
+			long double exp_exponent = 0; // helping variable to get each exponent for exp(.)
 			// get the log_numerator for each function part
 			for(unsigned int numerator_factor = 0; numerator_factor < number_of_weights; ++numerator_factor)
 			{
 				exp_exponent += log_parameters[function_part][numerator_factor] * weights(numerator_factor);
 			}
-			log_numerator = exp(exp_exponent);
+			exp_exponent = exp_exponent / 10;
+			for(size_t split = 0; split < 10; ++split)
+				log_numerator = log_numerator * exp(exp_exponent);
+
+			if(exp_exponent > 250.0)
+			{
+				std::cout << "exp exponent: " << exp_exponent << " numerator: " << log_numerator<<  std::endl;
+//				for(int i = 0; i < number_of_weights; ++i)
+//					std::cout << weights(i) << " ";
+//				std::cout << std::endl;
+			}
 
 			// add the numerator to the denominator, because it has to appear here
 			log_denominator += log_numerator;
 			// add each clique-value to the denominator
-			unsigned int vector_position = number_of_weights; // variable to get the current absoulte starting position
+			unsigned int vector_position = number_of_weights; // variable to get the current absolute starting position
 															  // for the vector
 			do
 			{
@@ -124,15 +134,27 @@ public:
 				{
 					exp_exponent += log_parameters[function_part][vector_position + relative_position] * weights(relative_position);
 				}
+				exp_exponent = exp_exponent / 10;
 				// update the absolute vector position
 				vector_position += number_of_weights;
 				// update the denominator
-				log_denominator += exp(exp_exponent);
+				long double denominator_part = 1.0;
+				for(size_t split = 0; split < 10; ++split)
+					denominator_part *= exp(exp_exponent);
+
+				log_denominator += denominator_part;
+
 			}while(vector_position < log_parameters[function_part].size());
 
 			// update the result to return
+//			if(((log_numerator / log_denominator) == (log_numerator / log_denominator)) == false)
+//				std::cout << "quotient: " << (log_numerator / log_denominator) << " numerator: " << log_numerator << " denominator: " << log_denominator <<  std::endl;
 			result -= log10(log_numerator / log_denominator);
+//			if((result == result) == false)
+//				std::cout << "quotient: " << (log_numerator / log_denominator) << std::endl;
 		}
+//		if((result == result) == false)
+//			std::cout << "first result: " << result << std::endl;
 
 		// add the gaussian shrinking function
 		double gaussian_numerator = 0;
@@ -140,7 +162,9 @@ public:
 		{
 			gaussian_numerator += std::pow(weights(weight) - starting_weights[weight], 2.0);
 		}
-		result += gaussian_numerator / (2 * sigma * sigma);
+		result += gaussian_numerator / (2.0 * sigma * sigma);
+//		std::cout << "gaussian shrinking: " << gaussian_numerator << "/" << (2.0 * sigma * sigma) << std::endl;
+//		std::cout << "res: " << result << std::endl;
 		return result;
 	}
 };
@@ -158,7 +182,7 @@ VoronoiRandomFieldSegmentation::VoronoiRandomFieldSegmentation(bool trained_boos
 	number_of_classes_ = 3;
 
 	// Set up boosting parameters
-	number_of_classifiers_ = 350;
+	number_of_classifiers_ = 35;
 	CvBoostParams params(CvBoost::DISCRETE, number_of_classifiers_, 0, 2, false, 0);
 	params_ = params;
 	trained_boost_ = trained_boost;
@@ -187,25 +211,25 @@ bool VoronoiRandomFieldSegmentation::pointMoreFarAway(const std::vector<cv::Poin
 void VoronoiRandomFieldSegmentation::drawVoronoi(cv::Mat &img, const std::vector<std::vector<cv::Point2f> >& facets_of_voronoi, const cv::Scalar voronoi_color,
 		const std::vector<cv::Point>& contour, const std::vector<std::vector<cv::Point> >& hole_contours)
 {
-	for (int idx = 0; idx < facets_of_voronoi.size(); idx++)
+	for (std::vector<std::vector<cv::Point2f> >::const_iterator current_contour = facets_of_voronoi.begin(); current_contour != facets_of_voronoi.end(); ++current_contour)
 	{
 		// saving-variable for the last Point that has been looked at
-		cv::Point2f last_point = facets_of_voronoi[idx].back();
+		cv::Point2f last_point = current_contour->back();
 		// draw each line of the voronoi-cell
-		for (int c = 0; c < facets_of_voronoi[idx].size(); c++)
+		for (size_t c = 0; c < current_contour->size(); ++c)
 		{
 			// variable to check, whether a Point is inside a white area or not
 			bool inside = true;
-			cv::Point2f current_point = facets_of_voronoi[idx][c];
+			cv::Point2f current_point = current_contour->at(c);
 			// only draw lines that are inside the map-contour
 			if (cv::pointPolygonTest(contour, current_point, false) < 0 || cv::pointPolygonTest(contour, last_point, false) < 0)
 			{
 				inside = false;
 			}
 			// only draw Points inside the contour that are not inside a hole-contour
-			for (int i = 0; i < hole_contours.size(); i++)
+			for (std::vector<std::vector<cv::Point> >::const_iterator hole = hole_contours.begin(); hole != hole_contours.end(); ++hole)
 			{
-				if (cv::pointPolygonTest(hole_contours[i], current_point, false) >= 0 || cv::pointPolygonTest(hole_contours[i], last_point, false) >= 0)
+				if (cv::pointPolygonTest(*hole, current_point, false) >= 0 || cv::pointPolygonTest(*hole, last_point, false) >= 0)
 				{
 					inside = false;
 				}
@@ -689,15 +713,11 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 			//get the features for each room and put it in the featuresMat
 			featuresMat.at<float>(0, f - 1) = (float) getFeature(beams_for_points[point], angles_for_simulation_, clique_members, given_labels, possible_labels, clique_members[point], f);
 		}
-		std::cout << "got features Mat" << std::endl;
 		// Calculate the weak hypothesis by using the wanted classifier.
 		CvMat features = featuresMat;
-		std::cout << "meep" << std::endl;
 		cv::Mat weaker (1, number_of_classifiers_, CV_32F);
 		CvMat weak_hypothesis = weaker;	// Wanted from OpenCV to get the weak hypothesis from the
 																			// separate weak classifiers.
-		std::cout << "sizes: " << featuresMat.cols << " " << featuresMat.rows << " " << weak_hypothesis.cols << " " << weak_hypothesis.rows << std::endl;
-
 		switch(classifier)
 		{
 		case 0:
@@ -714,10 +734,8 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 		// Write the weak hypothesis in the feature vector.
 		for(size_t f = 0; f < number_of_classifiers_; ++f)
 		{
-//			std::cout << "feature: " << f << std::endl;
 			temporary_feature_vector[f] = temporary_feature_vector[f] + (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
 		}
-		std::cout << "resaved predictions" << std::endl;
 	}
 
 	// copy the summed vector to the given feature-vector
@@ -771,7 +789,6 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 
 			// set the given training label for this point
 			unsigned int real_label = training_maps[current_map_index].at<unsigned char>(*current_point);
-			std::cout << "found real label: " << real_label << std::endl;
 
 			// for each point find the cliques that this point belongs to
 			for(std::vector<Clique>::iterator current_clique = conditional_random_field_cliques[current_map_index].begin(); current_clique != conditional_random_field_cliques[current_map_index].end(); ++current_clique)
@@ -791,7 +808,6 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 					labels_of_cliques.push_back(temporary_clique_labels);
 				}
 			}
-			std::cout << "found all cliques" << std::endl;
 
 			// For each found clique compute the feature vector for different labels. The first label is the label that was
 			// given to the algorithm by the training data and the other are the remaining labels, different from the first.
@@ -803,13 +819,9 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 			// get the clique-feature-vectors for the given training label and add them to the first feature-vector for this label
 			for(size_t clique = 0; clique < cliques_for_point.size(); ++clique)
 			{
-				std::cout << "finding AdaBoost-features for clique, sizes: " << temporary_feature_vectors[clique].size() << " " << cliques_for_point[clique].getMemberPoints().size() << " " << labels_of_cliques[clique].size() << " " << possible_labels.size() << std::endl;
 				getAdaBoostFeatureVector(temporary_feature_vectors[clique], cliques_for_point[clique], labels_of_cliques[clique], possible_labels);
-				std::cout << "calculated features" << std::endl;
 				feature_vectors[0] = feature_vectors[0] + temporary_feature_vectors[clique];
-				std::cout << "saved features" << std::endl;
 			}
-			std::cout << "got first feature_vector" << std::endl;
 
 			// assign the first feature-vector to the complete feature-vector
 			all_point_feature_vectors.push_back(feature_vectors[0]);
@@ -851,8 +863,9 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 	std::vector<double> mean_weights(number_of_classifiers_, 0);
 
 	// find the best weights --> minimize the defined function for the pseudo-likelihood
+	std::cout << "finding weights using Dlib" << std::endl;
 	column_vector weight_results;
-	weight_results = findMinValue(number_of_classifiers_, 3.0, all_point_feature_vectors, mean_weights);
+	weight_results = findMinValue(number_of_classifiers_, 9.0, all_point_feature_vectors, mean_weights);
 
 	// save the found weights to a std::vector<double>
 	for(size_t weight = 0; weight < number_of_classifiers_; ++weight)
@@ -1011,7 +1024,7 @@ void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_v
 	cv::findContours(eroded_map, eroded_contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE);
 	//set initial largest contour
 	largest_contour = eroded_contours[0];
-	for (int current_contour = 0; current_contour < eroded_contours.size(); current_contour++)
+	for (size_t current_contour = 0; current_contour < eroded_contours.size(); ++current_contour)
 	{
 		//check if the current contour is larger than the saved largest-contour
 		if (cv::contourArea(largest_contour) < cv::contourArea(eroded_contours[current_contour]))
@@ -1033,7 +1046,9 @@ void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_v
 
 	subdiv.getVoronoiFacetList(std::vector<int>(), voronoi_facets, voronoi_centers);
 	//draw the voronoi-regions into the map
+	std::cout << "drawing graph" << std::endl;
 	drawVoronoi(map_to_draw_voronoi_in, voronoi_facets, voronoi_color, largest_contour, hole_contours);
+	std::cout << "drawn graph" << std::endl;
 	//make pixels black, which were black before and were colored by the voronoi-regions
 	for (int v = 0; v < map_to_draw_voronoi_in.rows; v++)
 	{
@@ -1120,6 +1135,7 @@ void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_v
 					}
 					if (!real_voronoi_point)
 					{
+						// set the line-reduction boolean to true
 						//if the Point isn't on the voronoi-graph make it white
 						map_to_draw_voronoi_in.at<unsigned char>(v, u) = 255;
 					}
@@ -1138,13 +1154,14 @@ void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_v
 column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_of_weights, double sigma,
 		const std::vector<std::vector<double> >& likelihood_parameters, const std::vector<double>& starting_weights)
 {
+	std::cout << "finding min values" << std::endl;
 	// create a column vector as starting search point, that is needed from Dlib to find the min. value of a function
 	column_vector starting_point(number_of_weights);
 
 	// initialize the starting point as zero to favour small weights
 	starting_point = 0;
 
-	// create a Likelihoodoptimizer-object to find the weights that maximize the pseudo-likelihood
+	// create a Likelihood-optimizer object to find the weights that maximize the pseudo-likelihood
 	pseudoLikelihoodOptimization minimizer;
 
 	// set the values for this optimization-object
@@ -1157,6 +1174,12 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_o
 
 	// find the best weights for the given parameters
 	dlib::find_min_using_approximate_derivatives(dlib::bfgs_search_strategy(), dlib::objective_delta_stop_strategy(1e-7), minimizer, starting_point, -1);
+
+//	column_vector test_vector(number_of_weights);
+//
+//	test_vector = 2., 2.;
+//
+//	std::cout << std::endl << "value: " << minimizer(test_vector) << " at vector: " << test_vector << std::endl;
 
 	return starting_point;
 }
@@ -1243,7 +1266,9 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	std::vector < cv::Point > node_points; // variable for node point extraction
 
 	// use the above defined function to create a pruned Voronoi graph
+	std::cout << "creating voronoi graph" << std::endl;
 	createPrunedVoronoiGraph(voronoi_map, node_points);
+	std::cout << "created graph" << std::endl;
 
 	// ************* II. Extract the nodes used for the conditional random field *************
 	//

@@ -68,25 +68,25 @@ void VoronoiSegmentation::drawVoronoi(cv::Mat &img, const std::vector<std::vecto
 	//This function draws the Voronoi-diagram into a given map. It needs the facets as vector of Points, the contour of the
 	//map and the contours of the holes. It checks if the endpoints of the facets are both inside the map-contour and not
 	//inside a hole-contour and doesn't draw the lines that are not.
-	for (int idx = 0; idx < facets_of_voronoi.size(); idx++)
+	for (std::vector<std::vector<cv::Point2f> >::const_iterator current_contour = facets_of_voronoi.begin(); current_contour != facets_of_voronoi.end(); ++current_contour)
 	{
-		//saving-variable for the last Point that has been looked at
-		cv::Point2f last_point = facets_of_voronoi[idx].back();
-		//draw each line of the voronoi-cell
-		for (int c = 0; c < facets_of_voronoi[idx].size(); c++)
+		// saving-variable for the last Point that has been looked at
+		cv::Point2f last_point = current_contour->back();
+		// draw each line of the voronoi-cell
+		for (size_t c = 0; c < current_contour->size(); ++c)
 		{
-			//variable to check, whether a Point is inside a white area or not
+			// variable to check, whether a Point is inside a white area or not
 			bool inside = true;
-			cv::Point2f current_point = facets_of_voronoi[idx][c];
-			//only draw lines that are inside the map-contour
+			cv::Point2f current_point = current_contour->at(c);
+			// only draw lines that are inside the map-contour
 			if (cv::pointPolygonTest(contour, current_point, false) < 0 || cv::pointPolygonTest(contour, last_point, false) < 0)
 			{
 				inside = false;
 			}
-			//only draw Points inside the contour that are not inside a hole-contour
-			for (int i = 0; i < hole_contours.size(); i++)
+			// only draw Points inside the contour that are not inside a hole-contour
+			for (std::vector<std::vector<cv::Point> >::const_iterator hole = hole_contours.begin(); hole != hole_contours.end(); ++hole)
 			{
-				if (cv::pointPolygonTest(hole_contours[i], current_point, false) >= 0 || cv::pointPolygonTest(hole_contours[i], last_point, false) >= 0)
+				if (cv::pointPolygonTest(*hole, current_point, false) >= 0 || cv::pointPolygonTest(*hole, last_point, false) >= 0)
 				{
 					inside = false;
 				}
@@ -123,7 +123,7 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 
 	//********************1. Get OpenCV delaunay-traingulation******************************
 
-	cv::Rect rect(0, 0, map_to_draw_voronoi_in.cols, map_to_draw_voronoi_in.rows); //variables to generate the voronoi-diagram, using OpenCVs delaunay-traingulation
+	cv::Rect rect(0, 0, map_to_draw_voronoi_in.cols, map_to_draw_voronoi_in.rows); //variables to generate the voronoi-diagram, using OpenCVs delaunay-triangulation
 	cv::Subdiv2D subdiv(rect);
 
 	std::vector < std::vector<cv::Point> > hole_contours; //variable to save the hole-contours
@@ -166,7 +166,7 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 	cv::erode(temporary_map_to_calculate_voronoi, eroded_map, cv::Mat(), anchor, 2);
 	cv::findContours(eroded_map, eroded_contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE);
 	//set initial largest contour
-	largest_contour = contours[0];		// todo: should this be eroded_contours[0]?
+	largest_contour = eroded_contours[0];		// todo: should this be eroded_contours[0]?
 	for (int current_contour = 0; current_contour < eroded_contours.size(); current_contour++)
 	{
 		//check if the current contour is larger than the saved largest-contour
