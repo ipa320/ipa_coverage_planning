@@ -122,25 +122,25 @@ int main()
 
 //	segmenter.segmentMap(map, 7, 50, 5, 7, true, "aa", "bb"); // 7, 50, 4, 5
 
-//	segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
+	segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
 
 //	segmenter.testFunc(map);
 
-	std::vector<std::vector<double> > params(2);
-	params[0].push_back(5);
-	params[0].push_back(10);
-	params[0].push_back(4);
-	params[0].push_back(7);
-	params[1].push_back(7);
-	params[1].push_back(8);
-	params[1].push_back(4);
-	params[1].push_back(1);
-
-	std::vector<double> starting(2, 0.0);
-
-	column_vector r = segmenter.findMinValue(2, 9.0, params, starting);
-
-	std::cout << r << std::endl;
+//	std::vector<std::vector<double> > params(2);
+//	params[0].push_back(5);
+//	params[0].push_back(10);
+//	params[0].push_back(2);
+//	params[0].push_back(7);
+//	params[1].push_back(5);
+//	params[1].push_back(8);
+//	params[1].push_back(4);
+//	params[1].push_back(1);
+//
+//	std::vector<double> starting(2, 0.0);
+//
+//	column_vector r = segmenter.findMinValue(2, 3.0, params, starting);
+//
+//	std::cout << r << std::endl;
 
 	return 0;
 }

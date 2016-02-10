@@ -103,14 +103,17 @@ public:
 		// go trough each part of the function and calculate the log(.) and add it to the result
 		for(unsigned int function_part = 0; function_part < log_parameters.size(); ++function_part)
 		{
-			long double log_numerator, log_denominator = 0; // numerator and denominator for each log
+			long double log_numerator = 1., log_denominator = 0.; // numerator and denominator for each log
 			long double exp_exponent = 0; // helping variable to get each exponent for exp(.)
 			// get the log_numerator for each function part
 			for(unsigned int numerator_factor = 0; numerator_factor < number_of_weights; ++numerator_factor)
 			{
-				exp_exponent += (1/5) * log_parameters[function_part][numerator_factor] * weights(numerator_factor);
+				exp_exponent += log_parameters[function_part][numerator_factor] * weights(numerator_factor);
 			}
-			log_numerator = exp(exp_exponent);
+			exp_exponent = exp_exponent / 10;
+			for(size_t split = 0; split < 10; ++split)
+				log_numerator = log_numerator * exp(exp_exponent);
+
 			if(exp_exponent > 250.0)
 			{
 				std::cout << "exp exponent: " << exp_exponent << " numerator: " << log_numerator<<  std::endl;
@@ -129,12 +132,18 @@ public:
 				exp_exponent = 0;
 				for(unsigned int relative_position = 0; relative_position < number_of_weights; ++relative_position)
 				{
-					exp_exponent += (1/5) * log_parameters[function_part][vector_position + relative_position] * weights(relative_position);
+					exp_exponent += log_parameters[function_part][vector_position + relative_position] * weights(relative_position);
 				}
+				exp_exponent = exp_exponent / 10;
 				// update the absolute vector position
 				vector_position += number_of_weights;
 				// update the denominator
-				log_denominator += exp(exp_exponent);
+				long double denominator_part = 1.0;
+				for(size_t split = 0; split < 10; ++split)
+					denominator_part *= exp(exp_exponent);
+
+				log_denominator += denominator_part;
+
 			}while(vector_position < log_parameters[function_part].size());
 
 			// update the result to return
@@ -1162,6 +1171,12 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_o
 
 	// find the best weights for the given parameters
 	dlib::find_min_using_approximate_derivatives(dlib::bfgs_search_strategy(), dlib::objective_delta_stop_strategy(1e-7), minimizer, starting_point, -1);
+
+//	column_vector test_vector(number_of_weights);
+//
+//	test_vector = 2., 2.;
+//
+//	std::cout << std::endl << "value: " << minimizer(test_vector) << " at vector: " << test_vector << std::endl;
 
 	return starting_point;
 }
