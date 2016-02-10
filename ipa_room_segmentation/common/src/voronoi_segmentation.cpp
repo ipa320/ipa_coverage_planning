@@ -598,7 +598,6 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 				{
 					loopcounter++;
 					//check every point in the neighborhood for other neighbors connected to it
-					//for (int current_neighbor_point_index = 0; current_neighbor_point_index < neighbor_points.size(); current_neighbor_point_index++)
 					for(std::set<cv::Point, cv_Point_comp>::iterator it_neighbor_points = neighbor_points.begin(); it_neighbor_points != neighbor_points.end(); it_neighbor_points++)
 					{
 						for (int row_counter = -1; row_counter <= 1; row_counter++)
@@ -610,7 +609,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 
 								//check the neighboring points
 								//(if it already is in the neighborhood it doesn't need to be checked again)
-								const cv::Point& current_neighbor_point = *it_neighbor_points; //neighbor_points[current_neighbor_point_index];
+								const cv::Point& current_neighbor_point = *it_neighbor_points;
 								const int nu = current_neighbor_point.x + column_counter;
 								const int nv = current_neighbor_point.y + row_counter;
 								if (nv >= 0 && nu >= 0 && nv < voronoi_map.rows && nu < voronoi_map.cols &&
@@ -634,7 +633,6 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 				} while (neighbor_count <= eps && loopcounter < max_iterations);
 				//check every found point in the neighborhood if it is the local minimum in the distanceMap
 				cv::Point current_critical_point = cv::Point(u, v);
-				//for (int p = 0; p < neighbor_points.size(); p++)
 				for(std::set<cv::Point, cv_Point_comp>::iterator it_neighbor_points = neighbor_points.begin(); it_neighbor_points != neighbor_points.end(); it_neighbor_points++)
 				{
 					if (distance_map.at<unsigned char>(it_neighbor_points->y, it_neighbor_points->x) < distance_map.at<unsigned char>(current_critical_point.y, current_critical_point.x))
@@ -797,6 +795,8 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 
 	//***********************Find the Contours seperated from the critcal lines and fill them with colour******************
 
+	Timer tim2;
+
 	std::vector < cv::Scalar > already_used_colors; //saving-vector to save the already used coloures
 
 	std::vector < cv::Vec4i > hierarchy; //variables for coloring the map
@@ -842,16 +842,26 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 	}
 	std::cout << "Found " << rooms.size() << " rooms.\n";
 
+	std::cout << "finish 1: " << tim2.getElapsedTimeInMilliSec() << " ms" << std::endl;
+	tim2.start();
+
 	//3.fill the last white areas with the surrounding color
 	wavefrontRegionGrowing(segmented_map);
+
+	std::cout << "finish 3: " << tim2.getElapsedTimeInMilliSec() << " ms" << std::endl;
+	tim2.start();
 
 	if(display_map == true)
 	{
 		cv::imshow("before", segmented_map);
 		cv::waitKey(1);
 	}
+
 	//4.merge the rooms together if neccessary
 	mergeRooms(segmented_map, rooms, map_resolution_from_subscription, max_area_for_merging);
+
+	std::cout << "finish 4: " << tim2.getElapsedTimeInMilliSec() << " ms" << std::endl;
+	tim2.start();
 
 	std::cout << "finish: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
 }
