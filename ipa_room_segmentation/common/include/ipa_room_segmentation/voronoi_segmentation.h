@@ -22,7 +22,8 @@ private:
 
 	//function to draw the generalized voronoi-diagram into a given map, not drawing lines that start or end at black Pixels
 	void drawVoronoi(cv::Mat &img, const std::vector<std::vector<cv::Point2f> >& facets_of_voronoi, const cv::Scalar voronoi_color,
-			const std::vector<cv::Point>& contour, const std::vector<std::vector<cv::Point> >& hole_contours);
+			//const std::vector<cv::Point>& contour, const std::vector<std::vector<cv::Point> >& hole_contours);
+			const cv::Mat& eroded_map);
 
 	//function to get the voronoi-diagram drawn into the map
 	void createVoronoiGraph(cv::Mat& map_for_voronoi_generation);

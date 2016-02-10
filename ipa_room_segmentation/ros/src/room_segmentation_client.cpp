@@ -28,7 +28,8 @@ int main(int argc, char **argv)
 //	map_names.push_back("lab_c.png");
 //	map_names.push_back("lab_d.png");
 //	map_names.push_back("lab_e.png");
-	map_names.push_back("lab_f_scan.png");
+//	map_names.push_back("lab_f_scan.png");
+	map_names.push_back("office_e_furnitures.png");
 
 	for (size_t image_index = 0; image_index<map_names.size(); ++image_index)
 	{
@@ -72,6 +73,7 @@ int main(int argc, char **argv)
 		goal.map_resolution = 0.05;
 		goal.return_format_in_meter = false;
 		goal.return_format_in_pixel = true;
+		goal.room_segmentation_algorithm = 3;
 		ac.sendGoal(goal);
 
 		//wait for the action to return

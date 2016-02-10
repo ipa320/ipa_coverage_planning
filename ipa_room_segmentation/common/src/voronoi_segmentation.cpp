@@ -3,6 +3,8 @@
 #include <ipa_room_segmentation/wavefront_region_growing.h>
 #include <ipa_room_segmentation/contains.h>
 
+#include <ipa_room_segmentation/timer.h>
+
 VoronoiSegmentation::VoronoiSegmentation()
 {
 
@@ -63,7 +65,8 @@ void VoronoiSegmentation::mergeRoomPair(std::vector<Room>& rooms, const int targ
 }
 
 void VoronoiSegmentation::drawVoronoi(cv::Mat &img, const std::vector<std::vector<cv::Point2f> >& facets_of_voronoi, const cv::Scalar voronoi_color,
-		const std::vector<cv::Point>& contour, const std::vector<std::vector<cv::Point> >& hole_contours)
+		//const std::vector<cv::Point>& contour, const std::vector<std::vector<cv::Point> >& hole_contours)
+		const cv::Mat& eroded_map)
 {
 	//This function draws the Voronoi-diagram into a given map. It needs the facets as vector of Points, the contour of the
 	//map and the contours of the holes. It checks if the endpoints of the facets are both inside the map-contour and not
@@ -79,18 +82,25 @@ void VoronoiSegmentation::drawVoronoi(cv::Mat &img, const std::vector<std::vecto
 			bool inside = true;
 			cv::Point2f current_point = current_contour->at(c);
 			// only draw lines that are inside the map-contour
-			if (cv::pointPolygonTest(contour, current_point, false) < 0 || cv::pointPolygonTest(contour, last_point, false) < 0)
-			{
+			if (((int)current_point.x<0) || ((int)current_point.x >= eroded_map.cols) ||
+				((int)current_point.y<0) || ((int)current_point.y >= eroded_map.rows) ||
+				eroded_map.at<uchar>((int)current_point.y, (int)current_point.x) == 0 ||
+				((int)last_point.x<0) || ((int)last_point.x >= eroded_map.cols) ||
+				((int)last_point.y<0) || ((int)last_point.y >= eroded_map.rows) ||
+				eroded_map.at<uchar>((int)last_point.y, (int)last_point.x) == 0)
 				inside = false;
-			}
-			// only draw Points inside the contour that are not inside a hole-contour
-			for (std::vector<std::vector<cv::Point> >::const_iterator hole = hole_contours.begin(); hole != hole_contours.end(); ++hole)
-			{
-				if (cv::pointPolygonTest(*hole, current_point, false) >= 0 || cv::pointPolygonTest(*hole, last_point, false) >= 0)
-				{
-					inside = false;
-				}
-			}
+//			if (cv::pointPolygonTest(contour, current_point, false) < 0 || cv::pointPolygonTest(contour, last_point, false) < 0)
+//			{
+//				inside = false;
+//			}
+//			// only draw Points inside the contour that are not inside a hole-contour
+//			for (std::vector<std::vector<cv::Point> >::const_iterator hole = hole_contours.begin(); hole != hole_contours.end(); ++hole)
+//			{
+//				if (cv::pointPolygonTest(*hole, current_point, false) >= 0 || cv::pointPolygonTest(*hole, last_point, false) >= 0)
+//				{
+//					inside = false;
+//				}
+//			}
 			if (inside)
 			{
 				cv::line(img, last_point, current_point, voronoi_color, 1);
@@ -113,6 +123,8 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 	//	   the map-contour (other lines go to not-reachable places and are not necessary to be looked at).
 	//	4. It returns the map that has the generalized voronoi-graph drawn in.
 
+	Timer tim;
+
 	cv::Mat map_to_draw_voronoi_in = map_for_voronoi_generation.clone(); //variable to save the given map for drawing in the voronoi-diagram
 
 	cv::Mat temporary_map_to_calculate_voronoi = map_for_voronoi_generation.clone(); //variable to save the given map in the createVoronoiGraph-function
@@ -121,12 +133,15 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 	cv::erode(temporary_map_to_calculate_voronoi, temporary_map_to_calculate_voronoi, cv::Mat());
 	cv::dilate(temporary_map_to_calculate_voronoi, temporary_map_to_calculate_voronoi, cv::Mat());
 
+	std::cout << "erode/dilate: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
+	tim.start();
+
 	//********************1. Get OpenCV delaunay-traingulation******************************
 
 	cv::Rect rect(0, 0, map_to_draw_voronoi_in.cols, map_to_draw_voronoi_in.rows); //variables to generate the voronoi-diagram, using OpenCVs delaunay-triangulation
 	cv::Subdiv2D subdiv(rect);
 
-	std::vector < std::vector<cv::Point> > hole_contours; //variable to save the hole-contours
+	std::vector < std::vector<cv::Point> > hole_contours; //variable to save the hole-contours (= black holes inside the white map)
 
 	std::vector < std::vector<cv::Point> > contours; //variables for contour extraction and discretisation
 	//hierarchy saves if the contours are hole-contours:
@@ -154,6 +169,9 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 		}
 	}
 
+	std::cout << "delaunay: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
+	tim.start();
+
 	//********************2. Get largest contour******************************
 
 	std::vector < std::vector<cv::Point> > eroded_contours; //variable to save the eroded contours
@@ -164,21 +182,25 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 
 	//erode the map and get the largest contour of it so that points near the boundary are not drawn later (see drawVoronoi)
 	cv::erode(temporary_map_to_calculate_voronoi, eroded_map, cv::Mat(), anchor, 2);
-	cv::findContours(eroded_map, eroded_contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE);
-	//set initial largest contour
-	largest_contour = eroded_contours[0];		// todo: should this be eroded_contours[0]?
-	for (int current_contour = 0; current_contour < eroded_contours.size(); current_contour++)
-	{
-		//check if the current contour is larger than the saved largest-contour
-		if (cv::contourArea(largest_contour) < cv::contourArea(eroded_contours[current_contour]))
-		{
-			largest_contour = eroded_contours[current_contour];
-		}
-		if (hierarchy[current_contour][2] == -1 && hierarchy[current_contour][3] != -1)
-		{
-			hole_contours.push_back(eroded_contours[current_contour]);
-		}
-	}
+//	cv::findContours(eroded_map, eroded_contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE);
+//	//set initial largest contour
+//	largest_contour = eroded_contours[0];
+//	for (int current_contour = 0; current_contour < eroded_contours.size(); current_contour++)
+//	{
+//		//check if the current contour is larger than the saved largest-contour
+//		if (cv::contourArea(largest_contour) < cv::contourArea(eroded_contours[current_contour]))
+//		{
+//			largest_contour = eroded_contours[current_contour];
+//		}
+//		if (hierarchy[current_contour][2] == -1 && hierarchy[current_contour][3] != -1)
+//		{
+//			hole_contours.push_back(eroded_contours[current_contour]);
+//		}
+//	}
+
+	std::cout << "largest contour: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
+	tim.start();
+
 	//********************3. Get facets and draw voronoi-Graph******************************
 	//get the Voronoi regions from the delaunay-subdivision graph
 
@@ -188,8 +210,16 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 	std::vector < cv::Point2f > voronoi_centers;
 
 	subdiv.getVoronoiFacetList(std::vector<int>(), voronoi_facets, voronoi_centers);
+
+	std::cout << "facets: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
+	tim.start();
+
 	//draw the voronoi-regions into the map
-	drawVoronoi(map_to_draw_voronoi_in, voronoi_facets, voronoi_color, largest_contour, hole_contours);
+	drawVoronoi(map_to_draw_voronoi_in, voronoi_facets, voronoi_color, eroded_map); // largest_contour, hole_contours);
+
+	std::cout << "draw: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
+	tim.start();
+
 	//make pixels black, which were black before and were colored by the voronoi-regions
 	for (int v = 0; v < map_to_draw_voronoi_in.rows; v++)
 	{
@@ -202,6 +232,8 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 		}
 	}
 	map_for_voronoi_generation = map_to_draw_voronoi_in;
+
+	std::cout << "voronoi finish: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
 }
 
 void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Room>& rooms, double map_resolution_from_subscription, double max_area_for_merging)
@@ -496,8 +528,17 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 
 	//*********************I. Calculate and draw the Voronoi-Diagram in the given map*****************
 
+	Timer tim;
+
 	cv::Mat voronoi_map = map_to_be_labeled.clone();
 	createVoronoiGraph(voronoi_map); //voronoi-map for the segmentation-algorithm
+
+	std::cout << "createVoronoiGraph: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
+
+	cv::imshow("voronoi_map", voronoi_map);
+	cv::waitKey();
+
+	tim.start();
 
 	//
 	//***************************II. extract the possible candidates for critical Points****************************
@@ -658,6 +699,9 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 		}
 	}
 
+	std::cout << "critical points: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
+	tim.start();
+
 //	if(display_map == true)
 //	{
 //		cv::Mat display = map_to_be_labeled.clone();
@@ -799,6 +843,9 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 //	if(display_map == true)
 //		cv::imshow("voronoi_map", voronoi_map);
 
+	std::cout << "critical lines: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
+	tim.start();
+
 	//***********************Find the Contours seperated from the critcal lines and fill them with colour******************
 
 	std::vector < cv::Scalar > already_used_colors; //saving-vector to save the already used coloures
@@ -856,4 +903,6 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 	}
 	//4.merge the rooms together if neccessary
 	mergeRooms(segmented_map, rooms, map_resolution_from_subscription, max_area_for_merging);
+
+	std::cout << "finish: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
 }
