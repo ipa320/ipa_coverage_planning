@@ -4,6 +4,7 @@
 #include <iostream>
 #include <list>
 #include <vector>
+#include <set>
 #include <math.h>
 
 bool contains(std::vector<cv::Scalar> vector, cv::Scalar element);

@@ -4,6 +4,7 @@
 #include <ipa_room_segmentation/contains.h>
 
 #include <ipa_room_segmentation/timer.h>
+#include <set>
 
 VoronoiSegmentation::VoronoiSegmentation()
 {
@@ -436,6 +437,14 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 //	}
 }
 
+struct cv_Point_comp
+{
+	bool operator()(const cv::Point& lhs, const cv::Point& rhs) const
+	{
+		return ((lhs.x < rhs.x) || (lhs.x == rhs.x && lhs.y < lhs.y));
+	}
+};
+
 void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription,
 		double room_area_factor_lower_limit, double room_area_factor_upper_limit, int neighborhood_index, int max_iterations,
 		double min_critical_point_distance_factor, double max_area_for_merging, bool display_map)
@@ -480,16 +489,14 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 	createVoronoiGraph(voronoi_map); //voronoi-map for the segmentation-algorithm
 
 	std::cout << "createVoronoiGraph: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
-
-	cv::imshow("voronoi_map", voronoi_map);
-	cv::waitKey();
-
 	tim.start();
 
 	//
 	//***************************II. extract the possible candidates for critical Points****************************
 
-	std::vector < cv::Point > node_points; //variable for node point extraction
+	Timer tim2;
+
+	std::set<cv::Point, cv_Point_comp> node_points; //variable for node point extraction
 
 	//1.extract the node-points that have at least three neighbors on the voronoi diagram
 	//	node-points are points on the voronoi-graph that have at least 3 neighbors
@@ -514,17 +521,22 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 				}
 				if (neighbor_count > 2)
 				{
-					node_points.push_back(cv::Point(v, u));
+					node_points.insert(cv::Point(u,v));
 				}
 			}
 		}
 	}
+
+	std::cout << "critical points 1: " << tim2.getElapsedTimeInMilliSec() << " ms" << std::endl;
+	tim2.start();
 
 	//2.reduce the side-lines along the voronoi-graph by checking if it has only one neighbor until a node-point is reached
 	//	--> make it white
 	//	repeat a large enough number of times so the graph converges
 
 	bool real_voronoi_point; //variable for reducing the side-lines
+
+	std::cout << "node_points: " << node_points.size() << std::endl;
 
 	for (int step = 0; step < 100; step++)
 	{
@@ -533,7 +545,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 			for (int u = 0; u < voronoi_map.cols; u++)
 			{
 				//set that the point is a point along the graph and not a side-line
-				real_voronoi_point = true;
+//				real_voronoi_point = true;
 				if (voronoi_map.at<unsigned char>(v, u) == 127)
 				{
 					int neighbor_count = 0;		//variable to save the number of neighbors for each point
@@ -541,27 +553,30 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 					{
 						for (int column_counter = -1; column_counter <= 1; column_counter++)
 						{
+							if (row_counter == 0 && column_counter == 0)
+								continue;
+
 							const int nv = v + row_counter;
 							const int nu = u + column_counter;
 							if (nv >= 0 && nu >= 0 && nv < voronoi_map.rows && nu < voronoi_map.cols &&
-									voronoi_map.at<unsigned char>(nv, nu) == 127 && (row_counter != 0 || column_counter != 0))
+									voronoi_map.at<unsigned char>(nv, nu) == 127)
 							{
 								neighbor_count++;
 							}
 						}
 					}
-					if (neighbor_count == 1)
-					{
-						//The point is a leaf-node
-						real_voronoi_point = false;
-					}
-					//if the current point is a node point found in the previous step, it belongs to the voronoi-graph
-					if (contains(node_points, cv::Point(v, u)))
-					{
-						real_voronoi_point = true;
-					}
+//					if (neighbor_count <= 1)
+//					{
+//						//The point is a leaf-node
+//						real_voronoi_point = false;
+//					}
+//					//if the current point is a node point found in the previous step, it belongs to the voronoi-graph
+//					if (node_points.find(cv::Point(u,v)) != node_points.end())
+//					{
+//						real_voronoi_point = true;
+//					}
 
-					if (!real_voronoi_point)
+					if (neighbor_count <= 1 && node_points.find(cv::Point(u,v)) == node_points.end())
 					{
 						//if the Point isn't on the voronoi-graph make it white
 						voronoi_map.at<unsigned char>(v, u) = 255;
@@ -570,6 +585,9 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 			}
 		}
 	}
+
+	std::cout << "critical points 2: " << tim2.getElapsedTimeInMilliSec() << " ms" << std::endl;
+	tim2.start();
 
 	//3.find the critical points in the previously calculated generalized Voronoi-graph by searching in a specified
 	//	neighborhood for the local minimum of distance to the nearest black pixel
@@ -644,6 +662,9 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 			}
 		}
 	}
+
+	std::cout << "critical points 3: " << tim2.getElapsedTimeInMilliSec() << " ms" << std::endl;
+	tim2.start();
 
 	std::cout << "critical points: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
 	tim.start();
