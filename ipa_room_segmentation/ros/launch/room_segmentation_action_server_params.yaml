@@ -44,7 +44,7 @@ max_area_for_merging: 12.5 #maximal area [m²] of a room that should be merged w
 # 3 = Voronoi segmentation
 # 4 = semantic segmentation
 # int
-room_segmentation_algorithm: 2
+room_segmentation_algorithm: 3
 
 # displays the segmented map upon service call
 # bool

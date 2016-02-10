@@ -25,7 +25,7 @@ int main()
 		}
 	}
 
-	long double exponent = 1000;
+	long double exponent = 200;
 	long double res = exp(exponent);
 	std::cout << res << std::endl;
 
@@ -120,9 +120,9 @@ int main()
 
 	VoronoiRandomFieldSegmentation segmenter(true, true);
 
-//	segmenter.segmentMap(map, 7, 50, 5, 7, true, "aa", "bb"); // 7, 50, 4, 5
+	segmenter.segmentMap(map, 7, 50, 5, 7, true, "aa", "bb"); // 7, 50, 4, 5
 
-	segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
+//	segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
 
 //	segmenter.testFunc(map);
 

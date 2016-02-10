@@ -182,7 +182,7 @@ VoronoiRandomFieldSegmentation::VoronoiRandomFieldSegmentation(bool trained_boos
 	number_of_classes_ = 3;
 
 	// Set up boosting parameters
-	number_of_classifiers_ = 25;
+	number_of_classifiers_ = 35;
 	CvBoostParams params(CvBoost::DISCRETE, number_of_classifiers_, 0, 2, false, 0);
 	params_ = params;
 	trained_boost_ = trained_boost;
@@ -211,25 +211,25 @@ bool VoronoiRandomFieldSegmentation::pointMoreFarAway(const std::vector<cv::Poin
 void VoronoiRandomFieldSegmentation::drawVoronoi(cv::Mat &img, const std::vector<std::vector<cv::Point2f> >& facets_of_voronoi, const cv::Scalar voronoi_color,
 		const std::vector<cv::Point>& contour, const std::vector<std::vector<cv::Point> >& hole_contours)
 {
-	for (int idx = 0; idx < facets_of_voronoi.size(); idx++)
+	for (std::vector<std::vector<cv::Point2f> >::const_iterator current_contour = facets_of_voronoi.begin(); current_contour != facets_of_voronoi.end(); ++current_contour)
 	{
 		// saving-variable for the last Point that has been looked at
-		cv::Point2f last_point = facets_of_voronoi[idx].back();
+		cv::Point2f last_point = current_contour->back();
 		// draw each line of the voronoi-cell
-		for (int c = 0; c < facets_of_voronoi[idx].size(); c++)
+		for (size_t c = 0; c < current_contour->size(); ++c)
 		{
 			// variable to check, whether a Point is inside a white area or not
 			bool inside = true;
-			cv::Point2f current_point = facets_of_voronoi[idx][c];
+			cv::Point2f current_point = current_contour->at(c);
 			// only draw lines that are inside the map-contour
 			if (cv::pointPolygonTest(contour, current_point, false) < 0 || cv::pointPolygonTest(contour, last_point, false) < 0)
 			{
 				inside = false;
 			}
 			// only draw Points inside the contour that are not inside a hole-contour
-			for (int i = 0; i < hole_contours.size(); i++)
+			for (std::vector<std::vector<cv::Point> >::const_iterator hole = hole_contours.begin(); hole != hole_contours.end(); ++hole)
 			{
-				if (cv::pointPolygonTest(hole_contours[i], current_point, false) >= 0 || cv::pointPolygonTest(hole_contours[i], last_point, false) >= 0)
+				if (cv::pointPolygonTest(*hole, current_point, false) >= 0 || cv::pointPolygonTest(*hole, last_point, false) >= 0)
 				{
 					inside = false;
 				}
@@ -1024,7 +1024,7 @@ void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_v
 	cv::findContours(eroded_map, eroded_contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE);
 	//set initial largest contour
 	largest_contour = eroded_contours[0];
-	for (int current_contour = 0; current_contour < eroded_contours.size(); current_contour++)
+	for (size_t current_contour = 0; current_contour < eroded_contours.size(); ++current_contour)
 	{
 		//check if the current contour is larger than the saved largest-contour
 		if (cv::contourArea(largest_contour) < cv::contourArea(eroded_contours[current_contour]))
@@ -1046,7 +1046,9 @@ void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_v
 
 	subdiv.getVoronoiFacetList(std::vector<int>(), voronoi_facets, voronoi_centers);
 	//draw the voronoi-regions into the map
+	std::cout << "drawing graph" << std::endl;
 	drawVoronoi(map_to_draw_voronoi_in, voronoi_facets, voronoi_color, largest_contour, hole_contours);
+	std::cout << "drawn graph" << std::endl;
 	//make pixels black, which were black before and were colored by the voronoi-regions
 	for (int v = 0; v < map_to_draw_voronoi_in.rows; v++)
 	{
@@ -1133,6 +1135,7 @@ void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_v
 					}
 					if (!real_voronoi_point)
 					{
+						// set the line-reduction boolean to true
 						//if the Point isn't on the voronoi-graph make it white
 						map_to_draw_voronoi_in.at<unsigned char>(v, u) = 255;
 					}
@@ -1263,7 +1266,9 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	std::vector < cv::Point > node_points; // variable for node point extraction
 
 	// use the above defined function to create a pruned Voronoi graph
+	std::cout << "creating voronoi graph" << std::endl;
 	createPrunedVoronoiGraph(voronoi_map, node_points);
+	std::cout << "created graph" << std::endl;
 
 	// ************* II. Extract the nodes used for the conditional random field *************
 	//
