@@ -27,7 +27,7 @@ private:
 	void createVoronoiGraph(cv::Mat& map_for_voronoi_generation);
 
 	//function to merge rooms together
-	void mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Room>& rooms, double map_resolution_from_subscription, double max_area_for_merging);
+	void mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Room>& rooms, double map_resolution_from_subscription, double max_area_for_merging, bool display_map);
 
 public:
 

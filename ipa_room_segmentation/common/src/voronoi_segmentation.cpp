@@ -183,7 +183,7 @@ void VoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_generation
 	map_for_voronoi_generation = map_to_draw_voronoi_in;
 }
 
-void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Room>& rooms, double map_resolution_from_subscription, double max_area_for_merging)
+void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Room>& rooms, double map_resolution_from_subscription, double max_area_for_merging, bool display_map)
 {
 	//This function takes the segmented Map from the original Voronoi-segmentation-algorithm and merges rooms together,
 	//that are small enough and have only two or one neighbor.
@@ -262,7 +262,8 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 		else
 			current_room_index++;
 	}
-	cv::imshow("a", map_to_merge_rooms);
+	if (display_map == true)
+		cv::imshow("a", map_to_merge_rooms);
 	// b) small rooms
 	for (int current_room_index = 0; current_room_index < rooms.size(); )
 	{
@@ -288,7 +289,8 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 		else
 			current_room_index++;
 	}
-	cv::imshow("b", map_to_merge_rooms);
+	if (display_map == true)
+		cv::imshow("b", map_to_merge_rooms);
 	// c) merge a room with one neighbor that has max. 2 neighbors and sufficient wall ratio (connect parts inside a room)
 	for (int current_room_index = 0; current_room_index < rooms.size(); )
 	{
@@ -316,7 +318,8 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 		else
 			current_room_index++;
 	}
-	cv::imshow("c", map_to_merge_rooms);
+	if (display_map == true)
+		cv::imshow("c", map_to_merge_rooms);
 	// d) merge rooms that share a significant part of their perimeter
 	for (int current_room_index = 0; current_room_index < rooms.size(); )
 	{
@@ -354,7 +357,8 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 		else
 			current_room_index++;
 	}
-	cv::imshow("d", map_to_merge_rooms);
+	if (display_map == true)
+		cv::imshow("d", map_to_merge_rooms);
 	// e) largest room neighbor touches > 0.5 perimeter (happens often with furniture)
 	for (int current_room_index = 0; current_room_index < rooms.size(); )
 	{
@@ -858,7 +862,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 	}
 
 	//4.merge the rooms together if neccessary
-	mergeRooms(segmented_map, rooms, map_resolution_from_subscription, max_area_for_merging);
+	mergeRooms(segmented_map, rooms, map_resolution_from_subscription, max_area_for_merging, display_map);
 
 	std::cout << "finish 4: " << tim2.getElapsedTimeInMilliSec() << " ms" << std::endl;
 	tim2.start();
