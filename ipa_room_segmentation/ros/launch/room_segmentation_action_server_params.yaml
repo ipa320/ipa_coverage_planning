@@ -48,4 +48,4 @@ room_segmentation_algorithm: 3
 
 # displays the segmented map upon service call
 # bool
-display_segmented_map: true
+display_segmented_map: false

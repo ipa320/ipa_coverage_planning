@@ -100,7 +100,7 @@ protected:
 
 	bool train_the_algorithm_; //Boolean to say if the algorithm needs to be trained
 
-	int voronoi_neighborhood_index_; //Variable for the Voronoi method that specify the neighborhood that is looked at for critical Point extraction
+	int voronoi_neighborhood_index_; //Variable for the Voronoi method that specifies the neighborhood that is looked at for critical Point extraction
 	int max_iterations_; //number of iterations for search of neighborhood in voronoi method
 	double min_critical_point_distance_factor_; //Variable that sets the minimal distance between two critical Points before one gets eliminated
 	double max_area_for_merging_; //Variable that shows the maximal area of a room that should be merged with its surrounding rooms

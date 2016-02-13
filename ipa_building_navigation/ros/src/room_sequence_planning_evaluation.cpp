@@ -199,15 +199,15 @@ public:
 //		map_names.push_back("lab_f_scan"); //done icra
 //		map_names.push_back("lab_a_scan"); //done icra
 //		map_names.push_back("NLB"); //done icra
-//		map_names.push_back("office_a"); //done icra
-//		map_names.push_back("office_b"); //done icra
-//		map_names.push_back("office_c"); //done icra
-//		map_names.push_back("office_d"); //done icra
-//		map_names.push_back("office_e"); //done icra
-//		map_names.push_back("office_f"); //done icra
-//		map_names.push_back("office_g"); //done icra
-//		map_names.push_back("office_h"); //done icra
-//		map_names.push_back("office_i"); //done icra
+		map_names.push_back("office_a"); //done icra
+		map_names.push_back("office_b"); //done icra
+		map_names.push_back("office_c"); //done icra
+		map_names.push_back("office_d"); //done icra
+		map_names.push_back("office_e"); //done icra
+		map_names.push_back("office_f"); //done icra
+		map_names.push_back("office_g"); //done icra
+		map_names.push_back("office_h"); //done icra
+		map_names.push_back("office_i"); //done icra
 //		map_names.push_back("lab_ipa_furnitures"); //done icra
 //		map_names.push_back("lab_c_scan_furnitures"); //done icra
 //		map_names.push_back("Freiburg52_scan_furnitures"); //done icra
@@ -219,12 +219,12 @@ public:
 //		map_names.push_back("lab_f_scan_furnitures"); //done icra
 //		map_names.push_back("lab_a_scan_furnitures"); //done icra
 //		map_names.push_back("NLB_furnitures"); //done icra
-//		map_names.push_back("office_a_furnitures"); //done icra
-//		map_names.push_back("office_b_furnitures"); //done icra
-//		map_names.push_back("office_c_furnitures"); //done icra
-//		map_names.push_back("office_d_furnitures"); //done icra
-//		map_names.push_back("office_e_furnitures"); //done icra
-//		map_names.push_back("office_f_furnitures"); //done icra
+		map_names.push_back("office_a_furnitures"); //done icra
+		map_names.push_back("office_b_furnitures"); //done icra
+		map_names.push_back("office_c_furnitures"); //done icra
+		map_names.push_back("office_d_furnitures"); //done icra
+		map_names.push_back("office_e_furnitures"); //done icra
+		map_names.push_back("office_f_furnitures"); //done icra
 		map_names.push_back("office_g_furnitures");
 		map_names.push_back("office_h_furnitures");
 		map_names.push_back("office_i_furnitures");
