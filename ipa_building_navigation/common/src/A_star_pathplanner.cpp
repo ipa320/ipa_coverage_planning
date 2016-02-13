@@ -189,8 +189,8 @@ std::string AStarPlanner::pathFind(const int & xStart, const int & yStart, const
 	return ""; // no route found
 }
 
-//This is the pathplanning algorithm for this class. It downsamples the map mith the given factor (0 < factor < 1) so the
-//map gets reduced and calculationtime gets better. If it is set to 1 the map will have original size, if it is 0 the algorithm
+//This is the path planning algorithm for this class. It downsamples the map with the given factor (0 < factor < 1) so the
+//map gets reduced and calculation time gets better. If it is set to 1 the map will have original size, if it is 0 the algorithm
 //won't work, so make sure to not set it to 0. The algorithm also needs the Robot radius [m] and the map resolution [m²/pixel] to
 //calculate the needed amount of erosions to include the radius in the planning.
 double AStarPlanner::planPath(const cv::Mat& map, const cv::Point& start_point, const cv::Point& end_point,
@@ -225,12 +225,12 @@ double AStarPlanner::planPath(const cv::Mat& map, const cv::Point& start_point, 
 	if (route == "")
 	{
 		std::cout << "An empty route generated!" << std::endl;
-		return 9002; //return extremely large distance as pathlength if the rout could not be generated
+		return 9002.; //return extremely large distance as path length if the rout could not be generated
 	}
 	clock_t end = clock();
 	double time_elapsed = double(end - start);
 
-	// follow the route on the map and update the pathlength
+	// follow the route on the map and update the path length
 	if (route.length() > 0)
 	{
 		int j;

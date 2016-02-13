@@ -188,49 +188,49 @@ public:
 //		map_names.push_back("lab_ipa_furnitures");
 
 		std::vector< std::string > map_names;
-//		map_names.push_back("lab_ipa"); //done icra
-//		map_names.push_back("lab_c_scan"); //done icra
-//		map_names.push_back("Freiburg52_scan"); //done icra
-//		map_names.push_back("Freiburg79_scan"); //done icra
-//		map_names.push_back("lab_b_scan"); //done icra
-//		map_names.push_back("lab_intel"); //done icra
-//		map_names.push_back("Freiburg101_scan"); //done icra
-//		map_names.push_back("lab_d_scan"); //done icra
-//		map_names.push_back("lab_f_scan"); //done icra
-//		map_names.push_back("lab_a_scan"); //done icra
-//		map_names.push_back("NLB"); //done icra
-//		map_names.push_back("office_a"); //done icra
-//		map_names.push_back("office_b"); //done icra
-//		map_names.push_back("office_c"); //done icra
-//		map_names.push_back("office_d"); //done icra
-//		map_names.push_back("office_e"); //done icra
-//		map_names.push_back("office_f"); //done icra
-//		map_names.push_back("office_g"); //done icra
-//		map_names.push_back("office_h"); //done icra
-//		map_names.push_back("office_i"); //done icra
-//		map_names.push_back("lab_ipa_furnitures"); //done icra
-//		map_names.push_back("lab_c_scan_furnitures"); //done icra
-//		map_names.push_back("Freiburg52_scan_furnitures"); //done icra
-//		map_names.push_back("Freiburg79_scan_furnitures"); //done icra
-//		map_names.push_back("lab_b_scan_furnitures"); // done icra
-//		map_names.push_back("lab_intel_furnitures"); // done icra
-//		map_names.push_back("Freiburg101_scan_furnitures"); // done icra
-//		map_names.push_back("lab_d_scan_furnitures"); //done icra
-//		map_names.push_back("lab_f_scan_furnitures"); //done icra
-//		map_names.push_back("lab_a_scan_furnitures"); //done icra
-//		map_names.push_back("NLB_furnitures"); //done icra
-//		map_names.push_back("office_a_furnitures"); //done icra
-//		map_names.push_back("office_b_furnitures"); //done icra
-//		map_names.push_back("office_c_furnitures"); //done icra
-//		map_names.push_back("office_d_furnitures"); //done icra
-//		map_names.push_back("office_e_furnitures"); //done icra
-//		map_names.push_back("office_f_furnitures"); //done icra
+		map_names.push_back("lab_ipa"); //done icra
+		map_names.push_back("lab_c_scan"); //done icra
+		map_names.push_back("Freiburg52_scan"); //done icra
+		map_names.push_back("Freiburg79_scan"); //done icra
+		map_names.push_back("lab_b_scan"); //done icra
+		map_names.push_back("lab_intel"); //done icra
+		map_names.push_back("Freiburg101_scan"); //done icra
+		map_names.push_back("lab_d_scan"); //done icra
+		map_names.push_back("lab_f_scan"); //done icra
+		map_names.push_back("lab_a_scan"); //done icra
+		map_names.push_back("NLB"); //done icra
+		map_names.push_back("office_a"); //done icra
+		map_names.push_back("office_b"); //done icra
+		map_names.push_back("office_c"); //done icra
+		map_names.push_back("office_d"); //done icra
+		map_names.push_back("office_e"); //done icra
+		map_names.push_back("office_f"); //done icra
+		map_names.push_back("office_g"); //done icra
+		map_names.push_back("office_h"); //done icra
+		map_names.push_back("office_i"); //done icra
+		map_names.push_back("lab_ipa_furnitures"); //done icra
+		map_names.push_back("lab_c_scan_furnitures"); //done icra
+		map_names.push_back("Freiburg52_scan_furnitures"); //done icra
+		map_names.push_back("Freiburg79_scan_furnitures"); //done icra
+		map_names.push_back("lab_b_scan_furnitures"); // done icra
+		map_names.push_back("lab_intel_furnitures"); // done icra
+		map_names.push_back("Freiburg101_scan_furnitures"); // done icra
+		map_names.push_back("lab_d_scan_furnitures"); //done icra
+		map_names.push_back("lab_f_scan_furnitures"); //done icra
+		map_names.push_back("lab_a_scan_furnitures"); //done icra
+		map_names.push_back("NLB_furnitures"); //done icra
+		map_names.push_back("office_a_furnitures"); //done icra
+		map_names.push_back("office_b_furnitures"); //done icra
+		map_names.push_back("office_c_furnitures"); //done icra
+		map_names.push_back("office_d_furnitures"); //done icra
+		map_names.push_back("office_e_furnitures"); //done icra
+		map_names.push_back("office_f_furnitures"); //done icra
 		map_names.push_back("office_g_furnitures");
 		map_names.push_back("office_h_furnitures");
 		map_names.push_back("office_i_furnitures");
 
 
-
+		// prepare image data for evaluation
 		for (size_t image_index = 0; image_index<map_names.size(); ++image_index)
 		{
 			std::string image_filename = test_map_path + map_names[image_index] + ".png";// + "_furnitures_trashbins.png";
@@ -265,7 +265,7 @@ public:
 			{
 				for (int x = 0; x < temp.cols; x++)
 				{
-					//find blue drawn trash bins and check if they are reachable (if one is not reachable the astar planner will give a extremely large path)
+					//find blue drawn trash bins and check if they are reachable (if one is not reachable the a star planner will give a extremely large path)
 					if (temp.at<cv::Vec3b>(y, x) == blue && eroded_map.at<unsigned char>(y, x) != 0)
 					{
 						trash_bin_locations.push_back(cv::Point(x,y));
@@ -475,13 +475,13 @@ public:
 	void setConfigurations(std::vector< EvaluationConfig >& evaluation_configurations)
 	{
 		evaluation_configurations.clear();
-		for(int sequence_planning_method = 1; sequence_planning_method <= 2; ++sequence_planning_method)
+		for (int room_segmentation_algorithm=1; room_segmentation_algorithm<=4; ++room_segmentation_algorithm)
 		{
-			for (double max_clique_path_length = 6.; max_clique_path_length <= 20.; max_clique_path_length += 2.0)
+			for(int tsp_solver = 1; tsp_solver <= 3; ++tsp_solver)
 			{
-				for (int room_segmentation_algorithm=1; room_segmentation_algorithm<=4; ++room_segmentation_algorithm)
+				for(int sequence_planning_method = 1; sequence_planning_method <= 2; ++sequence_planning_method)
 				{
-					for(int tsp_solver = 1; tsp_solver <= 3; ++tsp_solver)
+					for (double max_clique_path_length = 6.; max_clique_path_length <= 20.; max_clique_path_length += 2.0)
 						evaluation_configurations.push_back(EvaluationConfig(room_segmentation_algorithm, max_clique_path_length, sequence_planning_method, tsp_solver));
 				}
 			}
@@ -491,7 +491,7 @@ public:
 	bool evaluateAllConfigs(const std::vector<EvaluationConfig>& evaluation_configuration_vector, const EvaluationData& evaluation_data,
 			const std::string& data_storage_path)
 	{
-		//go trough each configuration for the given map
+		// go through each configuration for the given map
 		for(size_t config = 0; config < evaluation_configuration_vector.size(); ++config)
 		{
 			// prepare folders for storing results
@@ -505,10 +505,10 @@ public:
 			const std::string lower_command = "mkdir -p " + lower_path;
 			return_value = system(lower_command.c_str());
 
-			std::cout << "Current Configuration:" << std::endl << "map: " << evaluation_data.map_name_ << " segmentation algorithm: "
+			std::cout << "\nCurrent Configuration:" << std::endl << "map: " << evaluation_data.map_name_ << "\tsegmentation algorithm: "
 				<< evaluation_configuration_vector[config].room_segmentation_algorithm_
-				<< " Maximal Cliquelength: " << evaluation_configuration_vector[config].max_clique_path_length_ << " planning method: "
-				<< evaluation_configuration_vector[config].sequence_planning_method_ << " TSP solver: " << evaluation_configuration_vector[config].tsp_solver_ << std::endl;
+				<< "\tmaximal clique length: " << evaluation_configuration_vector[config].max_clique_path_length_ << "\tplanning method: "
+				<< evaluation_configuration_vector[config].sequence_planning_method_ << "\tTSP solver: " << evaluation_configuration_vector[config].tsp_solver_ << std::endl;
 
 			AStarPlanner planner;
 			//variables for time measurement
@@ -567,14 +567,14 @@ public:
 			}
 			clock_gettime(CLOCK_MONOTONIC,  &t1); //set time stamp after the segmentation
 
-			//check for accesability of the room centers from start position
+			//check for accessibility of the room centers from start position
 			cv::Mat downsampled_map;
 			planner.downsampleMap(evaluation_data.floor_plan_, downsampled_map, evaluation_data.map_downsampling_factor_, evaluation_data.robot_radius_, evaluation_data.map_resolution_);
 			cv::Point robot_start_position((evaluation_data.robot_start_position_.position.x - evaluation_data.map_origin_.position.x)/evaluation_data.map_resolution_,
 											(evaluation_data.robot_start_position_.position.y - evaluation_data.map_origin_.position.y)/evaluation_data.map_resolution_);
 
 			// get the reachable room centers as cv::Point
-			std::cout << "starting to check accessibility of rooms. Start Position: " << robot_start_position << std::endl;
+			std::cout << "Starting to check accessibility of rooms. Start position: " << robot_start_position << std::endl;
 			std::vector<cv::Point> room_centers;
 			for(size_t i = 0; i < result_seg->room_information_in_pixel.size(); ++i)
 			{
@@ -583,7 +583,7 @@ public:
 					room_centers.push_back(current_center);
 			}
 
-			if(room_centers.size() == 0) //no roomcenter is reachable for the given start position --> needs to be looked at seperatly
+			if(room_centers.size() == 0) //no room center is reachable for the given start position --> needs to be looked at separately
 			{
 				std::cout << "++++++++++no roomcenter reachable from given startposition++++++++++++" << std::endl;
 				return false;
@@ -593,7 +593,10 @@ public:
 			ipa_building_navigation::FindRoomSequenceWithCheckpointsResultConstPtr result_seq;
 			clock_gettime(CLOCK_MONOTONIC,  &t2); //set time stamp before the sequence planning
 			if (computeRoomSequence(evaluation_data, evaluation_configuration_vector[config], room_centers, result_seq, t2) == false)
+			{
+				std::cout << "++++++++++ computeRoomSequence failed ++++++++++++" << std::endl;
 				return false;
+			}
 			clock_gettime(CLOCK_MONOTONIC,  &t3); //set time stamp after the sequence planning
 
 			// 3. assign trash bins to rooms of the respective segmentation
@@ -699,11 +702,15 @@ public:
 			std::stringstream output;
 			// header
 			output << evaluation_configuration_vector[config].getConfigurationString();
-			output << "robot speed" << "\t"<< "trash bin handling time" << "\t" << "number of trash bins" << "\t"
-					<< "trolley handling time" << "\t" << "trolley handling count" << "\t" << "pathlength [m]" << "\t"
-					<< "cleaning time [s]" << "\t" << "calculation time segmentation[s]" << "\t" << "calculation time sequencer[s]" << "\t" << std::endl;
-			output << robot_speed_without_trolley << "\t" << time_for_trashbin_manipulation << "\t" << evaluation_data.trash_bin_locations_.size() << "\t"
-					<< time_for_trolley_manipulation << "\t" << (result_seq->checkpoints.size()+1) << "\t" << path_length_total_in_meter << "\t"
+			output << "robot_speed_without_trolley" << "\t" << "robot_speed_with_trolley" << "\t" << "time_for_trashbin_manipulation" << "\t"
+					<< "time_for_trolley_manipulation" << "\t" << "number_of_trash_bins" << "\t" << "number_trolley_movements" << "\t"
+					<< "path_length_robot_in_meter" << "\t" << "path_length_trolley_in_meter" << "\t"
+					<< "pathlength [m]" << "\t"
+					<< "cleaning time [s]" << "\t" << "calculation time segmentation [s]" << "\t" << "calculation time sequencer [s]" << "\t" << std::endl;
+			output << robot_speed_without_trolley << "\t" << robot_speed_with_trolley << "\t" << time_for_trashbin_manipulation << "\t" << time_for_trolley_manipulation << "\t"
+					<< evaluation_data.trash_bin_locations_.size() << "\t"
+					<< (result_seq->checkpoints.size()+1) << "\t" << path_length_robot_in_meter << "\t" << path_length_trolley_in_meter << "\t"
+					<< path_length_total_in_meter << "\t"
 					<< time << "\t" << segmentation_time << "\t" << sequence_time;
 
 			std::string log_filename = lower_path + evaluation_data.map_name_ + "_results.txt";
@@ -736,11 +743,11 @@ public:
 					}
 				}
 			}
-			//draw the roomcenters into the map
+			//draw the room centers into the map
 			for(size_t i = 0; i < result_seg->room_information_in_pixel.size(); ++i)
 			{
 				cv::Point current_center (result_seg->room_information_in_pixel[i].room_center.x, result_seg->room_information_in_pixel[i].room_center.y);
-				cv::circle(colour_segmented_map, current_center, 2, CV_RGB(0,0,0), CV_FILLED);
+				cv::circle(colour_segmented_map, current_center, 2, CV_RGB(0,0,255), CV_FILLED);
 			}
 			//colour image in unique colour to show the segmentation
 			cv::imwrite(segmented_map_filename.c_str(), colour_segmented_map);
