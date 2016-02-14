@@ -192,11 +192,11 @@ public:
 //		map_names.push_back("lab_c_scan"); //done icra
 //		map_names.push_back("Freiburg52_scan"); //done icra
 //		map_names.push_back("Freiburg79_scan"); //done icra
-		map_names.push_back("lab_b_scan"); //done icra
+//		map_names.push_back("lab_b_scan"); //done icra
 //		map_names.push_back("lab_intel"); //done icra
 //		map_names.push_back("Freiburg101_scan"); //done icra
 //		map_names.push_back("lab_d_scan"); //done icra
-//		map_names.push_back("lab_f_scan"); //done icra
+		map_names.push_back("lab_f_scan"); //done icra
 //		map_names.push_back("lab_a_scan"); //done icra
 		map_names.push_back("NLB"); //done icra
 //		map_names.push_back("office_a"); //done icra
@@ -728,7 +728,7 @@ public:
 			cv::cvtColor(colour_segmented_map, colour_segmented_map, CV_GRAY2BGR);
 			for(size_t i = 1; i <= result_seg->room_information_in_pixel.size(); ++i)
 			{
-				//choose random colour for each room
+				// choose random color for each room
 				int blue = (rand() % 250) + 1;
 				int green = (rand() % 250) + 1;
 				int red = (rand() % 250) + 1;
@@ -745,13 +745,13 @@ public:
 					}
 				}
 			}
-			//draw the room centers into the map
+			// draw the room centers into the map
 			for(size_t i = 0; i < result_seg->room_information_in_pixel.size(); ++i)
 			{
 				cv::Point current_center (result_seg->room_information_in_pixel[i].room_center.x, result_seg->room_information_in_pixel[i].room_center.y);
 				cv::circle(colour_segmented_map, current_center, 2, CV_RGB(0,0,255), CV_FILLED);
 			}
-			//colour image in unique colour to show the segmentation
+			// color image in unique colour to show the segmentation
 			if (cv::imwrite(segmented_map_filename.c_str(), colour_segmented_map) == false)
 				ROS_ERROR("Error on writing file '%s'", segmented_map_filename.c_str());
 

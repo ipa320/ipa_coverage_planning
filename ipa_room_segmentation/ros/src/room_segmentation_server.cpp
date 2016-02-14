@@ -310,10 +310,14 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	{
 		// consider robot radius for exclusion of non-reachable points
 		segmented_map_copy = segmented_map.clone();
-		cv::Mat eroded_map;
+		cv::Mat map_8u, eroded_map;
+		segmented_map_copy.convertTo(map_8u, CV_8UC1, 1., 0.);
 		int number_of_erosions = (goal->robot_radius / goal->map_resolution);
-		cv::erode(segmented_map_copy, eroded_map, cv::Mat(), cv::Point(-1, -1), number_of_erosions);
-		segmented_map_copy = eroded_map;
+		cv::erode(map_8u, eroded_map, cv::Mat(), cv::Point(-1, -1), number_of_erosions);
+		for (int v=0; v<segmented_map_copy.rows; ++v)
+			for (int u=0; u<segmented_map_copy.cols; ++u)
+				if (eroded_map.at<uchar>(v,u) == 0)
+					segmented_map_copy.at<int>(v,u) = 0;
 
 		// compute connectivity to other rooms
 		bool stop = false;
@@ -343,7 +347,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 							if (neighbor_label>0 && neighbor_label<65280 && (neighbor_label!=label || (neighbor_label==label && connection_to_other_rooms.at<uchar>(v+dv,u+du)==255)))
 							{
 								// either the room cell has a direct border to a different room or the room cell has a neighbor from the same room label with a connecting path to another room
-								connection_to_other_rooms.at<uchar>(v+dv,u+du) = 255;
+								connection_to_other_rooms.at<uchar>(v,u) = 255;
 								stop = false;
 							}
 						}
