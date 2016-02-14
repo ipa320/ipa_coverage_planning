@@ -192,7 +192,7 @@ public:
 //		map_names.push_back("lab_c_scan"); //done icra
 //		map_names.push_back("Freiburg52_scan"); //done icra
 //		map_names.push_back("Freiburg79_scan"); //done icra
-//		map_names.push_back("lab_b_scan"); //done icra
+		map_names.push_back("lab_b_scan"); //done icra
 //		map_names.push_back("lab_intel"); //done icra
 //		map_names.push_back("Freiburg101_scan"); //done icra
 //		map_names.push_back("lab_d_scan"); //done icra
