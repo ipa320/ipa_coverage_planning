@@ -188,46 +188,46 @@ public:
 //		map_names.push_back("lab_ipa_furnitures");
 
 		std::vector< std::string > map_names;
-		map_names.push_back("lab_ipa"); //done icra
-		map_names.push_back("lab_c_scan"); //done icra
-		map_names.push_back("Freiburg52_scan"); //done icra
-		map_names.push_back("Freiburg79_scan"); //done icra
-		map_names.push_back("lab_b_scan"); //done icra
-		map_names.push_back("lab_intel"); //done icra
-		map_names.push_back("Freiburg101_scan"); //done icra
-		map_names.push_back("lab_d_scan"); //done icra
-		map_names.push_back("lab_f_scan"); //done icra
-		map_names.push_back("lab_a_scan"); //done icra
+//		map_names.push_back("lab_ipa"); //done icra
+//		map_names.push_back("lab_c_scan"); //done icra
+//		map_names.push_back("Freiburg52_scan"); //done icra
+//		map_names.push_back("Freiburg79_scan"); //done icra
+//		map_names.push_back("lab_b_scan"); //done icra
+//		map_names.push_back("lab_intel"); //done icra
+//		map_names.push_back("Freiburg101_scan"); //done icra
+//		map_names.push_back("lab_d_scan"); //done icra
+//		map_names.push_back("lab_f_scan"); //done icra
+//		map_names.push_back("lab_a_scan"); //done icra
 		map_names.push_back("NLB"); //done icra
-		map_names.push_back("office_a"); //done icra
-		map_names.push_back("office_b"); //done icra
-		map_names.push_back("office_c"); //done icra
+//		map_names.push_back("office_a"); //done icra
+//		map_names.push_back("office_b"); //done icra
+//		map_names.push_back("office_c"); //done icra
 		map_names.push_back("office_d"); //done icra
 		map_names.push_back("office_e"); //done icra
 		map_names.push_back("office_f"); //done icra
-		map_names.push_back("office_g"); //done icra
-		map_names.push_back("office_h"); //done icra
+//		map_names.push_back("office_g"); //done icra
+//		map_names.push_back("office_h"); //done icra
 		map_names.push_back("office_i"); //done icra
-		map_names.push_back("lab_ipa_furnitures"); //done icra
-		map_names.push_back("lab_c_scan_furnitures"); //done icra
-		map_names.push_back("Freiburg52_scan_furnitures"); //done icra
-		map_names.push_back("Freiburg79_scan_furnitures"); //done icra
-		map_names.push_back("lab_b_scan_furnitures"); // done icra
-		map_names.push_back("lab_intel_furnitures"); // done icra
-		map_names.push_back("Freiburg101_scan_furnitures"); // done icra
-		map_names.push_back("lab_d_scan_furnitures"); //done icra
-		map_names.push_back("lab_f_scan_furnitures"); //done icra
-		map_names.push_back("lab_a_scan_furnitures"); //done icra
-		map_names.push_back("NLB_furnitures"); //done icra
-		map_names.push_back("office_a_furnitures"); //done icra
-		map_names.push_back("office_b_furnitures"); //done icra
-		map_names.push_back("office_c_furnitures"); //done icra
-		map_names.push_back("office_d_furnitures"); //done icra
-		map_names.push_back("office_e_furnitures"); //done icra
-		map_names.push_back("office_f_furnitures"); //done icra
-		map_names.push_back("office_g_furnitures");
-		map_names.push_back("office_h_furnitures");
-		map_names.push_back("office_i_furnitures");
+//		map_names.push_back("lab_ipa_furnitures"); //done icra
+//		map_names.push_back("lab_c_scan_furnitures"); //done icra
+//		map_names.push_back("Freiburg52_scan_furnitures"); //done icra
+//		map_names.push_back("Freiburg79_scan_furnitures"); //done icra
+//		map_names.push_back("lab_b_scan_furnitures"); // done icra
+//		map_names.push_back("lab_intel_furnitures"); // done icra
+//		map_names.push_back("Freiburg101_scan_furnitures"); // done icra
+//		map_names.push_back("lab_d_scan_furnitures"); //done icra
+//		map_names.push_back("lab_f_scan_furnitures"); //done icra
+//		map_names.push_back("lab_a_scan_furnitures"); //done icra
+//		map_names.push_back("NLB_furnitures"); //done icra
+//		map_names.push_back("office_a_furnitures"); //done icra
+//		map_names.push_back("office_b_furnitures"); //done icra
+//		map_names.push_back("office_c_furnitures"); //done icra
+//		map_names.push_back("office_d_furnitures"); //done icra
+//		map_names.push_back("office_e_furnitures"); //done icra
+//		map_names.push_back("office_f_furnitures"); //done icra
+//		map_names.push_back("office_g_furnitures");
+//		map_names.push_back("office_h_furnitures");
+//		map_names.push_back("office_i_furnitures");
 
 
 		// prepare image data for evaluation
@@ -585,7 +585,7 @@ public:
 
 			if(room_centers.size() == 0) //no room center is reachable for the given start position --> needs to be looked at separately
 			{
-				std::cout << "++++++++++no roomcenter reachable from given startposition++++++++++++" << std::endl;
+				std::cout << "++++++++++ no roomcenter reachable from given startposition ++++++++++++" << std::endl;
 				return false;
 			}
 
@@ -717,6 +717,8 @@ public:
 			std::ofstream file(log_filename.c_str(), std::ios::out);
 			if (file.is_open()==true)
 				file << output.str();
+			else
+				ROS_ERROR("Error on writing file '%s'", log_filename.c_str());
 			file.close();
 
 			// images: segmented_map, sequence_map
@@ -750,13 +752,15 @@ public:
 				cv::circle(colour_segmented_map, current_center, 2, CV_RGB(0,0,255), CV_FILLED);
 			}
 			//colour image in unique colour to show the segmentation
-			cv::imwrite(segmented_map_filename.c_str(), colour_segmented_map);
+			if (cv::imwrite(segmented_map_filename.c_str(), colour_segmented_map) == false)
+				ROS_ERROR("Error on writing file '%s'", segmented_map_filename.c_str());
 
 			std::string sequence_map_filename = lower_path + evaluation_data.map_name_ + "_sequence.png";
 			cv_bridge::CvImagePtr cv_ptr_seq;
 			cv_ptr_seq = cv_bridge::toCvCopy(result_seq->sequence_map, sensor_msgs::image_encodings::BGR8);
 			cv::Mat sequence_map = cv_ptr_seq->image;
-			cv::imwrite(sequence_map_filename.c_str(), sequence_map);
+			if (cv::imwrite(sequence_map_filename.c_str(), sequence_map) == false)
+				ROS_ERROR("Error on writing file '%s'", sequence_map_filename.c_str());
 		}
 
 		return true;
@@ -788,6 +792,7 @@ public:
 			goal_seg.return_format_in_meter = false;
 			goal_seg.return_format_in_pixel = true;
 			goal_seg.room_segmentation_algorithm = evaluation_configuration.room_segmentation_algorithm_;
+			goal_seg.robot_radius = evaluation_data.robot_radius_;
 			ac_seg.sendGoal(goal_seg);
 
 			//wait for the action to return
