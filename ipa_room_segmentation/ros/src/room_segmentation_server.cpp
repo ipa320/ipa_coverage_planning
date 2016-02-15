@@ -302,31 +302,103 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 //			cv::circle(segmented_map, cv::Point(room_centers_x_values[idx], room_centers_y_values[idx]), 2, cv::Scalar(200*256), CV_FILLED);
 //		}
 //	}
+	// use distance transform and mean shift to find good room centers that are reachable by the robot
+	// first check whether a robot radius shall be applied to obstacles in order to exclude room center points that are not reachable by the robot
+	cv::Mat segmented_map_copy = segmented_map;
+	cv::Mat connection_to_other_rooms = cv::Mat::zeros(segmented_map.rows, segmented_map.cols, CV_8UC1);	// stores for each pixel whether a path to another rooms exists for a robot of size robot_radius
+	if (goal->robot_radius > 0.0)
+	{
+		// consider robot radius for exclusion of non-reachable points
+		segmented_map_copy = segmented_map.clone();
+		cv::Mat map_8u, eroded_map;
+		segmented_map_copy.convertTo(map_8u, CV_8UC1, 1., 0.);
+		int number_of_erosions = (goal->robot_radius / goal->map_resolution);
+		cv::erode(map_8u, eroded_map, cv::Mat(), cv::Point(-1, -1), number_of_erosions);
+		for (int v=0; v<segmented_map_copy.rows; ++v)
+			for (int u=0; u<segmented_map_copy.cols; ++u)
+				if (eroded_map.at<uchar>(v,u) == 0)
+					segmented_map_copy.at<int>(v,u) = 0;
+
+		// compute connectivity to other rooms
+		bool stop = false;
+		while (stop == false)
+		{
+			stop = true;
+			for (int v=1; v<segmented_map_copy.rows-1; ++v)
+			{
+				for (int u=1; u<segmented_map_copy.cols-1; ++u)
+				{
+					// skip already identified cells
+					if (connection_to_other_rooms.at<uchar>(v,u) != 0)
+						continue;
+
+					// only consider cells labeled as a room
+					const int label = segmented_map_copy.at<int>(v,u);
+					if (label <= 0 || label >= 65280)
+						continue;
+
+					for (int dv=-1; dv<=1; ++dv)
+					{
+						for (int du=-1; du<=1; ++du)
+						{
+							if (dv==0 && du==0)
+								continue;
+							const int neighbor_label = segmented_map_copy.at<int>(v+dv,u+du);
+							if (neighbor_label>0 && neighbor_label<65280 && (neighbor_label!=label || (neighbor_label==label && connection_to_other_rooms.at<uchar>(v+dv,u+du)==255)))
+							{
+								// either the room cell has a direct border to a different room or the room cell has a neighbor from the same room label with a connecting path to another room
+								connection_to_other_rooms.at<uchar>(v,u) = 255;
+								stop = false;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 	MeanShift2D ms;
 	for (std::map<int, size_t>::iterator it = label_vector_index_codebook.begin(); it != label_vector_index_codebook.end(); ++it)
 	{
-		// compute distance transform for each room
-		const int label = it->first;
-		cv::Mat room = cv::Mat::zeros(segmented_map.rows, segmented_map.cols, CV_8UC1);
-		for (int v = 0; v < segmented_map.rows; ++v)
-			for (int u = 0; u < segmented_map.cols; ++u)
-				if (segmented_map.at<int>(v, u) == label)
-					room.at < uchar > (v, u) = 255;
-		cv::Mat distance_map; //variable for the distance-transformed map, type: CV_32FC1
-		cv::distanceTransform(room, distance_map, CV_DIST_L2, 5);
-		// find point set with largest distance to obstacles
-		double min_val = 0., max_val = 0.;
-		cv::minMaxLoc(distance_map, &min_val, &max_val);
-		std::vector < cv::Vec2d > room_cells;
-		for (int v = 0; v < distance_map.rows; ++v)
-			for (int u = 0; u < distance_map.cols; ++u)
-				if (distance_map.at<float>(v, u) > max_val * 0.95f)
-					room_cells.push_back(cv::Vec2d(u, v));
-		// use meanshift to find the modes in that set
-		cv::Vec2d room_center = ms.findRoomCenter(room, room_cells, map_resolution);
-		const int index = it->second;
-		room_centers_x_values[index] = room_center[0];
-		room_centers_y_values[index] = room_center[1];
+		int trial = 1; 	// use robot_radius to avoid room centers that are not accessible by a robot with a given radius
+		if (goal->robot_radius <= 0.)
+			trial = 2;
+
+		for (; trial <= 2; ++trial)
+		{
+			// compute distance transform for each room
+			const int label = it->first;
+			int number_room_pixels = 0;
+			cv::Mat room = cv::Mat::zeros(segmented_map_copy.rows, segmented_map_copy.cols, CV_8UC1);
+			for (int v = 0; v < segmented_map_copy.rows; ++v)
+				for (int u = 0; u < segmented_map_copy.cols; ++u)
+					if (segmented_map_copy.at<int>(v, u) == label && (trial==2 || connection_to_other_rooms.at<uchar>(v,u)==255))
+					{
+						room.at<uchar>(v, u) = 255;
+						++number_room_pixels;
+					}
+			if (number_room_pixels == 0)
+				continue;
+			cv::Mat distance_map; //variable for the distance-transformed map, type: CV_32FC1
+			cv::distanceTransform(room, distance_map, CV_DIST_L2, 5);
+			// find point set with largest distance to obstacles
+			double min_val = 0., max_val = 0.;
+			cv::minMaxLoc(distance_map, &min_val, &max_val);
+			std::vector<cv::Vec2d> room_cells;
+			for (int v = 0; v < distance_map.rows; ++v)
+				for (int u = 0; u < distance_map.cols; ++u)
+					if (distance_map.at<float>(v, u) > max_val * 0.95f)
+						room_cells.push_back(cv::Vec2d(u, v));
+			if (room_cells.size()==0)
+				continue;
+			// use meanshift to find the modes in that set
+			cv::Vec2d room_center = ms.findRoomCenter(room, room_cells, map_resolution);
+			const int index = it->second;
+			room_centers_x_values[index] = room_center[0];
+			room_centers_y_values[index] = room_center[1];
+
+			if (room_cells.size() > 0)
+				break;
+		}
 	}
 
 	cv::Mat indexed_map = segmented_map.clone();
