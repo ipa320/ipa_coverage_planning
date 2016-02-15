@@ -52,8 +52,9 @@
 //    }
 //};
 
-void EvaluationSegmentation::GT_Vector_calculation(const cv::Mat &bw_map,
-		std::vector<std::vector<cv::Point> > &gt) {
+
+void EvaluationSegmentation::groundTruthVectorCalculation(const cv::Mat &bw_map, std::vector<std::vector<cv::Point> > &gt)
+{
 	gt.clear();
 
 	cv::Mat label_image;
@@ -63,34 +64,158 @@ void EvaluationSegmentation::GT_Vector_calculation(const cv::Mat &bw_map,
 
 	for (int y = 0; y < label_image.rows; y++)
 	{
-		int *row = (int*) label_image.ptr(y);
 		for (int x = 0; x < label_image.cols; x++)
 		{
-			if (row[x] != 255)
+			if (bw_map.at<uchar>(y,x) != 255)
 				continue;
 
+			// fill each room area with a unique id
 			cv::Rect rect;
-			cv::floodFill(label_image, cv::Point(x, y), label_count, &rect, 0, 0, 8);
+			cv::floodFill(label_image, cv::Point(x,y), label_count, &rect, 0, 0, 8);
 
+			// collect all pixels that belong to this room
 			std::vector<cv::Point> blob;
-
-			for (int i = rect.y; i < (rect.y + rect.height); i++)
+			for (int j = rect.y; j < (rect.y + rect.height); j++)
 			{
-				int *row2 = (int*) label_image.ptr(i);
-				for (int j = rect.x; j < (rect.x + rect.width); j++)
+				int* row = (int*)label_image.ptr(j);
+				for (int i = rect.x; i < (rect.x + rect.width); i++)
 				{
-					if (row2[j] != label_count)
+					if (row[i] != label_count)
 						continue;
 
-					blob.push_back(cv::Point(j, i));
+					blob.push_back(cv::Point(i, j));
 				}
 			}
-
 			gt.push_back(blob);
 
 			label_count++;
 		}
 	}
+}
+
+void EvaluationSegmentation::computePrecisionRecall(const cv::Mat& gt_map, cv::Mat& gt_map_color, const cv::Mat& segmented_map,
+		double& precision_micro, double& precision_macro, double& recall_micro, double& recall_macro, bool compute_gt_map_color)
+{
+	// create vector of rooms that contain a vector of the room pixels from the ground truth map
+	std::vector< std::vector<cv::Point> > gt_points_vector;	// room points: gt[room id][pixel index]
+
+	if (compute_gt_map_color == true)
+	{
+		cv::Mat bw_map;
+		cv::threshold(gt_map, bw_map, 250, 255, cv::THRESH_BINARY);
+		//compute the ground truth matrix
+		groundTruthVectorCalculation(bw_map, gt_points_vector);
+
+		// generate colored ground truth map
+		gt_map_color = cv::Mat::zeros(gt_map.size(), CV_8UC3);
+		for(size_t i=0; i < gt_points_vector.size(); i++)
+		{
+			cv::Vec3b color(1 + rand()%255, 1 + rand()%255, 1 + rand()%255);
+			for(size_t j=0; j < gt_points_vector[i].size(); j++)
+				gt_map_color.at<cv::Vec3b>(gt_points_vector[i][j]) = color;
+		}
+	}
+	else
+	{
+		// get point sets for segmentation map
+		std::map<int, std::vector<cv::Point> > gt_points_map;		// maps a label key identifier to a vector of points belonging to that room label
+		const cv::Vec3b black(0,0,0);
+		for (int v=0; v<gt_map_color.rows; ++v)
+		{
+			for (int u=0; u<gt_map_color.cols; ++u)
+			{
+				const cv::Vec3b& color = gt_map_color.at<cv::Vec3b>(v,u);
+				if (color != black)
+				{
+					int key = color.val[0] + color.val[1]<<8 + color.val[2]<<16;
+					gt_points_map[key].push_back(cv::Point(u,v));
+				}
+			}
+		}
+		for (std::map<int, std::vector<cv::Point> >::iterator it=gt_points_map.begin(); it!=gt_points_map.end(); ++it)
+			if (it->second.size() > 100)
+				gt_points_vector.push_back(it->second);
+	}
+
+	// remove mini rooms from gt
+	for (std::vector< std::vector<cv::Point> >::iterator it=gt_points_vector.begin(); it!=gt_points_vector.end();)
+	{
+		if (it->size() <= 100)
+			gt_points_vector.erase(it);
+		else
+			it++;
+	}
+
+	// get point sets for segmentation map
+	std::map<int, std::vector<cv::Point> > seg_points_map;		// maps a label key identifier to a vector of points belonging to that room label
+	for (int v=0; v<segmented_map.rows; ++v)
+	{
+		for (int u=0; u<segmented_map.cols; ++u)
+		{
+			const int label = segmented_map.at<int>(v,u);
+			if (label != 0)
+				seg_points_map[label].push_back(cv::Point(u,v));
+		}
+	}
+	std::vector< std::vector<cv::Point> > seg_points_vector;
+	for (std::map<int, std::vector<cv::Point> >::iterator it=seg_points_map.begin(); it!=seg_points_map.end(); ++it)
+		if (it->second.size() > 100)
+			seg_points_vector.push_back(it->second);
+
+	// set up matrix of overlaps: rows=seg_points_vector , cols = gt_points_vector
+	cv::Mat overlap = cv::Mat::zeros(seg_points_vector.size(), gt_points_vector.size(), CV_64FC1);
+	for (size_t v=0; v<seg_points_vector.size(); ++v)
+	{
+		for (size_t u=0; u<gt_points_vector.size(); ++u)
+		{
+			int overlapping = 0;
+			for (size_t pv=0; pv<seg_points_vector[v].size(); ++pv)
+			{
+				if (std::find(gt_points_vector[u].begin(), gt_points_vector[u].end(), seg_points_vector[v][pv]) != gt_points_vector[u].end())
+					++overlapping;
+			}
+			overlap.at<double>(v,u) = overlapping;
+		}
+	}
+
+	// precision
+	precision_micro = 0.;	// average of individual precisions
+	precision_macro = 0.;	// pixel count of all overlap areas / pixel count of all found segment areas
+	double pdenominator_macro = 0.;
+	for (size_t v=0; v<seg_points_vector.size(); ++v)
+	{
+		double max_overlap = 0.;
+		for (size_t u=0; u<gt_points_vector.size(); ++u)
+		{
+			if (overlap.at<double>(v,u) > max_overlap)
+				max_overlap = overlap.at<double>(v,u);
+		}
+		precision_micro += max_overlap / (double)seg_points_vector[v].size();
+		precision_macro += max_overlap;
+		pdenominator_macro += (double)seg_points_vector[v].size();
+	}
+	precision_micro /= (double)seg_points_vector.size();
+	precision_macro /= pdenominator_macro;
+
+	// recall
+	recall_micro = 0.;	// average of individual recalls
+	recall_macro = 0.;	// pixel count of all overlap areas / pixel count of all gt segment areas
+	double rdenominator_macro = 0.;
+	for (size_t u=0; u<gt_points_vector.size(); ++u)
+	{
+		double max_overlap = 0.;
+		for (size_t v=0; v<seg_points_vector.size(); ++v)
+		{
+			if (overlap.at<double>(v,u) > max_overlap)
+				max_overlap = overlap.at<double>(v,u);
+		}
+		recall_micro += max_overlap / (double)gt_points_vector[u].size();
+		recall_macro += max_overlap;
+		rdenominator_macro += (double)gt_points_vector[u].size();
+	}
+	recall_micro /= (double)gt_points_vector.size();
+	recall_macro /= rdenominator_macro;
+	//std::cout << recall_micro << "\t" << precision_micro << "\t" << recall_macro << "\t" << precision_macro << std::endl;
 }
 
 //void EvaluationSegmentation::Segmentation_Vector_calculation(const cv::Mat &segmented_map, std::map<cv::Point2i, cv::Vec3b> &segmented_room_mapping)
@@ -149,6 +274,7 @@ void EvaluationSegmentation::GT_Vector_calculation(const cv::Mat &bw_map,
 //	}
 //}
 
+/*
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "evaluation_seg");
@@ -202,13 +328,13 @@ int main(int argc, char** argv)
 	map_names.push_back("office_h_furnitures");
 	map_names.push_back("office_i_furnitures");
 
-	const std::string segmented_map_path = ros::package::getPath("ipa_room_segmentation") + "/common/files/segmented_maps/";
+	const std::string segmented_map_path = "room_segmentation/"; //ros::package::getPath("ipa_room_segmentation") + "/common/files/segmented_maps/";
 
 	for (size_t image_index = 0; image_index<map_names.size(); ++image_index)
 	{
 		// load map
 		std::string map_name = map_names[image_index];
-		std::string seg_image_filename = segmented_map_path + map_name + ".png_segmented_semantic.png";
+		std::string seg_image_filename = segmented_map_path + map_name + "_segmented_4semantic.png";
 		std::size_t pos = map_name.find("_furnitures");
 		if (pos != std::string::npos)
 			map_name = map_name.substr(0, pos);
@@ -216,129 +342,23 @@ int main(int argc, char** argv)
 		//std::cout << gt_image_filename << "\n" << seg_image_filename << std::endl;
 		cv::Mat gt_map = cv::imread(gt_image_filename.c_str(),CV_8U);
 		cv::Mat segmented_map = cv::imread(seg_image_filename.c_str());
-
-		EvaluationSegmentation es;
-
-		cv::Mat bw_map;
-		cv::threshold(gt_map, bw_map, 250, 255, cv::THRESH_BINARY);
-		//compute the GT matrix
-		std::vector < std::vector<cv::Point> > gt_points_vector;
-		es.GT_Vector_calculation(bw_map, gt_points_vector);
-
-		// display
-		cv::Mat GT_matrix = cv::Mat::zeros(gt_map.size(), CV_8UC3);
-		for(size_t i=0; i < gt_points_vector.size(); i++)
-		{
-			unsigned char r = 255 * (rand()/(1.0 + RAND_MAX));
-			unsigned char g = 255 * (rand()/(1.0 + RAND_MAX));
-			unsigned char b = 255 * (rand()/(1.0 + RAND_MAX));
-
-			for(size_t j=0; j < gt_points_vector[i].size(); j++)
-			{
-				int x = gt_points_vector[i][j].x;
-				int y = gt_points_vector[i][j].y;
-
-				GT_matrix.at<cv::Vec3b>(y,x)[0] = b;
-				GT_matrix.at<cv::Vec3b>(y,x)[1] = g;
-				GT_matrix.at<cv::Vec3b>(y,x)[2] = r;
-			}
-		}
-
-		std::string gt_image_filename_color = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/" + map_name + "_gt_color_segmentation.png";
-		cv::imwrite(gt_image_filename_color.c_str(), GT_matrix);
-		cv::imshow("gt", GT_matrix);
-		cv::imshow("seg", segmented_map);
-
-		// remove mini rooms from gt
-		for (std::vector< std::vector<cv::Point> >::iterator it=gt_points_vector.begin(); it!=gt_points_vector.end();)
-		{
-			if (it->size() <= 100)
-				gt_points_vector.erase(it);
-			else
-				it++;
-		}
-
-		// get point sets for seg map
-		std::map<int, std::vector<cv::Point> > seg_points_map;
-		const cv::Vec3b black(0,0,0);
+		cv::Mat segmented_map_int = cv::Mat::zeros(segmented_map.rows, segmented_map.cols, CV_32SC1);
 		for (int v=0; v<segmented_map.rows; ++v)
 		{
 			for (int u=0; u<segmented_map.cols; ++u)
 			{
 				const cv::Vec3b& color = segmented_map.at<cv::Vec3b>(v,u);
-				if (color != black)
-				{
-					int key = color.val[0] + color.val[1]<<8 + color.val[2]<<16;
-					seg_points_map[key].push_back(cv::Point(u,v));
-				}
-			}
-		}
-		std::vector< std::vector<cv::Point> > seg_points_vector;
-		for (std::map<int, std::vector<cv::Point> >::iterator it=seg_points_map.begin(); it!=seg_points_map.end(); ++it)
-			if (it->second.size() > 100)
-				seg_points_vector.push_back(it->second);
-
-		// set up matrix of overlaps: rows=seg_points_vector , cols = gt_points_vector
-		cv::Mat overlap = cv::Mat::zeros(seg_points_vector.size(), gt_points_vector.size(), CV_64FC1);
-		for (size_t v=0; v<seg_points_vector.size(); ++v)
-		{
-			for (size_t u=0; u<gt_points_vector.size(); ++u)
-			{
-				int overlapping = 0;
-				for (size_t pv=0; pv<seg_points_vector[v].size(); ++pv)
-				{
-					if (std::find(gt_points_vector[u].begin(), gt_points_vector[u].end(), seg_points_vector[v][pv]) != gt_points_vector[u].end())
-						++overlapping;
-				}
-				overlap.at<double>(v,u) = overlapping;
+				segmented_map_int.at<int>(v,u) = color.val[0] + color.val[1]<<8 + color.val[2]<<16;
 			}
 		}
 
-		//std::cout << overlap << std::endl;
-
-		// precision
-		double precision = 0.;
-		double precision2 = 0.;
-		double pdenominator2 = 0.;
-		for (size_t v=0; v<seg_points_vector.size(); ++v)
-		{
-			double max_overlap = 0.;
-			for (size_t u=0; u<gt_points_vector.size(); ++u)
-			{
-				if (overlap.at<double>(v,u) > max_overlap)
-					max_overlap = overlap.at<double>(v,u);
-			}
-			precision += max_overlap / (double)seg_points_vector[v].size();
-			precision2 += max_overlap;
-			pdenominator2 += (double)seg_points_vector[v].size();
-		}
-		precision /= (double)seg_points_vector.size();
-		//std::cout << "precision=" << precision << std::endl;
-
-		// recall
-		double recall = 0.;
-		double recall2 = 0.;
-		double rdenominator2 = 0.;
-		for (size_t u=0; u<gt_points_vector.size(); ++u)
-		{
-			double max_overlap = 0.;
-			for (size_t v=0; v<seg_points_vector.size(); ++v)
-			{
-				if (overlap.at<double>(v,u) > max_overlap)
-					max_overlap = overlap.at<double>(v,u);
-			}
-			//std::cout << max_overlap << ", " << gt_points_vector[u].size() << std::endl;
-			recall += max_overlap / (double)gt_points_vector[u].size();
-			recall2 += max_overlap;
-			rdenominator2 += (double)gt_points_vector[u].size();
-		}
-		recall /= (double)gt_points_vector.size();
-		//std::cout << "recall=" << recall << std::endl;
-		std::cout << recall << "\t" << precision << "\t" << recall2/rdenominator2 << "\t" << precision2/pdenominator2 << std::endl;
-
-		char key_code = cv::waitKey(20);
-		if (key_code == 'q')
-			return 0;
+		double precision_micro, precision_macro, recall_micro, recall_macro;
+		cv::Mat gt_map_color;
+		EvaluationSegmentation es;
+		es.computePrecisionRecall(gt_map, gt_map_color, segmented_map, precision_micro, precision_macro, recall_micro, recall_macro, true);
+		std::cout << recall_micro << "\t" << precision_micro << "\t" << recall_macro << "\t" << precision_macro << std::endl;
+		std::string gt_image_filename_color = segmented_map_path + map_name + "_gt_color_segmentation.png"; //ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/" + map_name + "_gt_color_segmentation.png";
+		cv::imwrite(gt_image_filename_color.c_str(), gt_map_color);
 	}
 //
 //	cv::Mat gt_map = cv::imread(argv[1],CV_8U);
@@ -391,5 +411,5 @@ int main(int argc, char** argv)
 
 
 	return 0;
-	}
-
+}
+*/
