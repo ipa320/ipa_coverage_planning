@@ -470,7 +470,6 @@ int main(int argc, char **argv) {
 	map_names.push_back("office_h_furnitures");
 	map_names.push_back("office_i_furnitures"); //*
 
-	std::stringstream output;
 	const std::string segmented_map_path = "room_segmentation/"; //ros::package::getPath("ipa_room_segmentation") + "/common/files/segmented_maps/";
 	const std::string command = "mkdir -p " + segmented_map_path;
 	int return_value = system(command.c_str());
@@ -711,6 +710,7 @@ int main(int argc, char **argv) {
 		}
 
 		//write parameters into file
+		std::stringstream output;
 		output << "--------------Segmentierungsevaluierung----------------" << std::endl;
 		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << segmentation_names[i] << " & ";
