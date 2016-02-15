@@ -4,6 +4,9 @@
 #include <ros/package.h>
 
 #include <map>
+#include <vector>
+#include <set>
+
 
 //int pixel_number_calculation (cv::Mat matrix)
 //{
@@ -53,7 +56,7 @@
 //};
 
 
-void EvaluationSegmentation::groundTruthVectorCalculation(const cv::Mat &bw_map, std::vector<std::vector<cv::Point> > &gt)
+void EvaluationSegmentation::groundTruthVectorCalculation(const cv::Mat &bw_map, VectorOfPointSets& gt)
 {
 	gt.clear();
 
@@ -74,7 +77,7 @@ void EvaluationSegmentation::groundTruthVectorCalculation(const cv::Mat &bw_map,
 			cv::floodFill(label_image, cv::Point(x,y), label_count, &rect, 0, 0, 8);
 
 			// collect all pixels that belong to this room
-			std::vector<cv::Point> blob;
+			PointSet blob;
 			for (int j = rect.y; j < (rect.y + rect.height); j++)
 			{
 				int* row = (int*)label_image.ptr(j);
@@ -82,7 +85,7 @@ void EvaluationSegmentation::groundTruthVectorCalculation(const cv::Mat &bw_map,
 				{
 					if (row[i] != label_count)
 						continue;
-					blob.push_back(cv::Point(i,j));
+					blob.insert(cv::Point(i,j));
 				}
 			}
 			gt.push_back(blob);
@@ -95,8 +98,8 @@ void EvaluationSegmentation::groundTruthVectorCalculation(const cv::Mat &bw_map,
 void EvaluationSegmentation::computePrecisionRecall(const cv::Mat& gt_map, cv::Mat& gt_map_color, const cv::Mat& segmented_map,
 		double& precision_micro, double& precision_macro, double& recall_micro, double& recall_macro, bool compute_gt_map_color)
 {
-	// create vector of rooms that contain a vector of the room pixels from the ground truth map
-	std::vector< std::vector<cv::Point> > gt_points_vector;	// room points: gt[room id][pixel index]
+	// create vector of rooms that contain a set of the room pixels from the ground truth map
+	VectorOfPointSets gt_points_vector;	// room points: gt[room id][pixel index]
 	if (compute_gt_map_color == true)
 	{
 		cv::Mat bw_map;
@@ -109,14 +112,14 @@ void EvaluationSegmentation::computePrecisionRecall(const cv::Mat& gt_map, cv::M
 		for(size_t i=0; i < gt_points_vector.size(); i++)
 		{
 			cv::Vec3b color(1 + rand()%255, 1 + rand()%255, 1 + rand()%255);
-			for(size_t j=0; j < gt_points_vector[i].size(); j++)
-				gt_map_color.at<cv::Vec3b>(gt_points_vector[i][j]) = color;
+			for(PointSet::iterator it=gt_points_vector[i].begin(); it!=gt_points_vector[i].end(); it++)
+				gt_map_color.at<cv::Vec3b>(*it) = color;
 		}
 	}
 	else
 	{
 		// get point sets for segmentation map
-		std::map<int, std::vector<cv::Point> > gt_points_map;		// maps a label key identifier to a vector of points belonging to that room label
+		std::map<int, PointSet> gt_points_map;		// maps a label key identifier to a vector of points belonging to that room label
 		const cv::Vec3b black(0,0,0);
 		for (int v=0; v<gt_map_color.rows; ++v)
 		{
@@ -126,17 +129,17 @@ void EvaluationSegmentation::computePrecisionRecall(const cv::Mat& gt_map, cv::M
 				if (color != black)
 				{
 					int key = color.val[0] + color.val[1]<<8 + color.val[2]<<16;
-					gt_points_map[key].push_back(cv::Point(u,v));
+					gt_points_map[key].insert(cv::Point(u,v));
 				}
 			}
 		}
-		for (std::map<int, std::vector<cv::Point> >::iterator it=gt_points_map.begin(); it!=gt_points_map.end(); ++it)
+		for (std::map<int, PointSet>::iterator it=gt_points_map.begin(); it!=gt_points_map.end(); ++it)
 			if (it->second.size() > 100)
 				gt_points_vector.push_back(it->second);
 	}
 
 	// remove mini rooms from gt
-	for (std::vector< std::vector<cv::Point> >::iterator it=gt_points_vector.begin(); it!=gt_points_vector.end();)
+	for (VectorOfPointSets::iterator it=gt_points_vector.begin(); it!=gt_points_vector.end();)
 	{
 		if (it->size() <= 100)
 			gt_points_vector.erase(it);
@@ -145,18 +148,18 @@ void EvaluationSegmentation::computePrecisionRecall(const cv::Mat& gt_map, cv::M
 	}
 
 	// get point sets for segmentation map
-	std::map<int, std::vector<cv::Point> > seg_points_map;		// maps a label key identifier to a vector of points belonging to that room label
+	std::map<int, PointSet> seg_points_map;		// maps a label key identifier to a vector of points belonging to that room label
 	for (int v=0; v<segmented_map.rows; ++v)
 	{
 		for (int u=0; u<segmented_map.cols; ++u)
 		{
 			const int label = segmented_map.at<int>(v,u);
 			if (label != 0)
-				seg_points_map[label].push_back(cv::Point(u,v));
+				seg_points_map[label].insert(cv::Point(u,v));
 		}
 	}
-	std::vector< std::vector<cv::Point> > seg_points_vector;
-	for (std::map<int, std::vector<cv::Point> >::iterator it=seg_points_map.begin(); it!=seg_points_map.end(); ++it)
+	VectorOfPointSets seg_points_vector;
+	for (std::map<int, PointSet>::iterator it=seg_points_map.begin(); it!=seg_points_map.end(); ++it)
 		if (it->second.size() > 100)
 			seg_points_vector.push_back(it->second);
 
@@ -167,9 +170,9 @@ void EvaluationSegmentation::computePrecisionRecall(const cv::Mat& gt_map, cv::M
 		for (size_t u=0; u<gt_points_vector.size(); ++u)
 		{
 			int overlapping = 0;
-			for (size_t pv=0; pv<seg_points_vector[v].size(); ++pv)
+			for (PointSet::iterator it=seg_points_vector[v].begin(); it!=seg_points_vector[v].end(); it++)//       size_t pv=0; pv<seg_points_vector[v].size(); ++pv)
 			{
-				if (std::find(gt_points_vector[u].begin(), gt_points_vector[u].end(), seg_points_vector[v][pv]) != gt_points_vector[u].end())
+				if (gt_points_vector[u].find(*it) != gt_points_vector[u].end())//         std::find(gt_points_vector[u].begin(), gt_points_vector[u].end(), seg_points_vector[v][pv]) != gt_points_vector[u].end())
 					++overlapping;
 			}
 			overlap.at<double>(v,u) = overlapping;

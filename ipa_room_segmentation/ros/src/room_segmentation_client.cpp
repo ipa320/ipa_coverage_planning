@@ -24,14 +24,15 @@ int main(int argc, char **argv)
 //	map_names.push_back("freiburg_building79.png");
 //	map_names.push_back("intel_map.png");
 //	map_names.push_back("lab_a.png");
-	map_names.push_back("lab_b_scan.png");
+//	map_names.push_back("lab_b_scan.png");
 //	map_names.push_back("lab_c.png");
 //	map_names.push_back("lab_d.png");
 //	map_names.push_back("lab_e.png");
 //	map_names.push_back("lab_f_scan.png");
-	map_names.push_back("NLB.png");
-	map_names.push_back("lab_b_scan_furnitures.png");
-	map_names.push_back("office_e_furnitures.png");
+//	map_names.push_back("NLB.png");
+//	map_names.push_back("lab_b_scan_furnitures.png");
+//	map_names.push_back("office_e_furnitures.png");
+	map_names.push_back("office_i.png");
 
 	for (size_t image_index = 0; image_index<map_names.size(); ++image_index)
 	{
