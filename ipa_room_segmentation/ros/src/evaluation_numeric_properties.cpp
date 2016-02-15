@@ -522,6 +522,8 @@ int main(int argc, char **argv) {
 		//calculate parameters for each segmentation and save it
 		for (size_t segmentation_index = 0; segmentation_index < segmentation_names.size();++segmentation_index)
 		{
+			std::cout << "Evaluating image '" << map_name << "' with segmentation method " << segmentation_names[segmentation_index] << std::endl;
+
 			// do the segmentation
 			// ===================
 			sensor_msgs::Image labeling;
@@ -851,13 +853,12 @@ int main(int argc, char **argv) {
 			std::ofstream file(log_filename.c_str(), std::ios::out);
 			if (file.is_open() == true)
 			{
-				file << results[segmentation_index];
-//				for (int r=0; r<results[segmentation_index].rows; ++r)
-//				{
-//					for (int c=0; c<results[segmentation_index].cols; ++c)
-//						file << results[segmentation_index].at<double>(r,c) << "\t";
-//					file << std::endl;
-//				}
+				for (int r=0; r<results[segmentation_index].rows; ++r)
+				{
+					for (int c=0; c<results[segmentation_index].cols; ++c)
+						file << results[segmentation_index].at<double>(r,c) << "\t";
+					file << std::endl;
+				}
 			}
 			file.close();
 		}

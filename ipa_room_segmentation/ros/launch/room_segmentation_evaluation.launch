@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!--  -->
+  <node ns="room_segmentation" pkg="ipa_room_segmentation" type="evaluation" name="evaluation" output="screen"/>
+
+</launch>

@@ -66,7 +66,7 @@ void EvaluationSegmentation::groundTruthVectorCalculation(const cv::Mat &bw_map,
 	{
 		for (int x = 0; x < label_image.cols; x++)
 		{
-			if (bw_map.at<uchar>(y,x) != 255)
+			if (bw_map.at<uchar>(y,x) != 255 || label_image.at<int>(y,x)!=255)
 				continue;
 
 			// fill each room area with a unique id
@@ -82,8 +82,7 @@ void EvaluationSegmentation::groundTruthVectorCalculation(const cv::Mat &bw_map,
 				{
 					if (row[i] != label_count)
 						continue;
-
-					blob.push_back(cv::Point(i, j));
+					blob.push_back(cv::Point(i,j));
 				}
 			}
 			gt.push_back(blob);
@@ -98,7 +97,6 @@ void EvaluationSegmentation::computePrecisionRecall(const cv::Mat& gt_map, cv::M
 {
 	// create vector of rooms that contain a vector of the room pixels from the ground truth map
 	std::vector< std::vector<cv::Point> > gt_points_vector;	// room points: gt[room id][pixel index]
-
 	if (compute_gt_map_color == true)
 	{
 		cv::Mat bw_map;
