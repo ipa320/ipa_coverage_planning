@@ -118,11 +118,11 @@ int main()
 //	}
 
 
-	VoronoiRandomFieldSegmentation segmenter(true, true);
+	VoronoiRandomFieldSegmentation segmenter(false, false);
 
-	segmenter.segmentMap(map, 7, 50, 5, 7, true, "aa", "bb"); // 7, 50, 4, 5
+//	segmenter.segmentMap(map, 7, 50, 5, 7, true, conditional_weights_path, boost_file_path); // 7, 50, 4, 5
 
-//	segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
+	segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
 
 //	segmenter.testFunc(map);
 

@@ -64,7 +64,8 @@
 
 #include <iostream>
 #include <fstream>
-#include <list>
+#include <map>
+#include <set>
 #include <vector>
 
 #include <math.h>
@@ -81,6 +82,14 @@
 #include <ipa_room_segmentation/clique_class.h>
 
 #pragma once
+
+struct cv_Point_comp
+{
+	bool operator()(const cv::Point& lhs, const cv::Point& rhs) const
+	{
+		return ((lhs.y < rhs.y) || (lhs.y == rhs.y && lhs.x < rhs.x));
+	}
+};
 
 typedef dlib::matrix<double,0,1> column_vector; // typedef used for the dlib optimization
 
@@ -129,27 +138,29 @@ protected:
 
 	std::vector<double> trained_conditional_weights_; // The weights that are needed for the feature-induction in the conditional random field.
 
-	// Function to check if the given point is more far away from each point in the given vector than the min_distance.
-	bool pointMoreFarAway(const std::vector<cv::Point>& points, const cv::Point& point, const double min_distance);
+	// Function to check if the given point is more far away from each point in the given set than the min_distance.
+	bool pointMoreFarAway(const std::set<cv::Point, cv_Point_comp>& points, const cv::Point& point, const double min_distance);
 
 	// Function to draw the approximated voronoi graph into a given map. It doesn't draw lines of the graph that start or end
 	// in a black region. This is necessary because the voronoi graph gets approximated by diskretizing the maps contour and
 	// using these points as centers for the graph. It gets wrong lines, that are eliminated in this function. See the .cpp
 	// files for further information.
 	void drawVoronoi(cv::Mat &img, const std::vector<std::vector<cv::Point2f> >& facets_of_voronoi, const cv::Scalar voronoi_color,
-			const std::vector<cv::Point>& contour, const std::vector<std::vector<cv::Point> >& hole_contours);
+			const cv::Mat& eroded_map);
 
 	// Function to calculate the feature vector for a given clique, using the trained AdaBoost classifiers.
 	void getAdaBoostFeatureVector(std::vector<double>& feature_vector, Clique& clique,
 			std::vector<uint> given_labels, std::vector<unsigned int>& possible_labels);
 
 
-	void createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation, std::vector<cv::Point>& node_points); // Function that takes a map and draws a pruned voronoi
+	void createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation, std::set<cv::Point, cv_Point_comp>& node_points); // Function that takes a map and draws a pruned voronoi
 																	    									// graph in it.
-
-	void createConditionalField(const cv::Mat& voronoi_map, const std::vector<cv::Point>& node_points, 					// Function to create a conditional random field out of given points. It needs
-			std::vector<Clique>& conditional_random_field_cliques, const std::vector<cv::Point> voronoi_node_points,    // the voronoi-map extracted from the original map to find the neighbors for each point
-			const cv::Mat& original_map);																				// and the voronoi-node-points to add the right points as nodes.
+// Function to create a conditional random field out of given points. It needs
+// the voronoi-map extracted from the original map to find the neighbors for each point
+// and the voronoi-node-points to add the right points as nodes.
+	void createConditionalField(const cv::Mat& voronoi_map, const std::set<cv::Point, cv_Point_comp>& node_points,
+			std::vector<Clique>& conditional_random_field_cliques, const std::set<cv::Point, cv_Point_comp>& voronoi_node_points,
+			const cv::Mat& original_map);
 
 
 	void trainBoostClassifiers(const std::vector<cv::Mat>& training_maps,
@@ -159,7 +170,7 @@ protected:
 
 	// Function to find the weights used to calculate the clique potentials.
 	void findConditionalWeights(std::vector< std::vector<Clique> >& conditional_random_field_cliques,
-			std::vector<std::vector<cv::Point> >& random_field_node_points, const std::vector<cv::Mat>& training_maps,
+			std::vector<std::set<cv::Point, cv_Point_comp> >& random_field_node_points, const std::vector<cv::Mat>& training_maps,
 			const size_t number_of_training_maps, std::vector<uint>& possible_labels, const std::string weights_filepath);
 
 
@@ -178,7 +189,7 @@ public:
 	// Function to segment a given map into different regions.
 	void segmentMap(cv::Mat& original_map, const int epsilon_for_neighborhood,
 			const int max_iterations, unsigned int min_neighborhood_size, const double min_node_distance, bool show_nodes,
-			std::string boost_storage_path, std::string crf_storage_path);
+			std::string crf_storage_path, std::string boost_storage_path);
 
 	void testFunc(cv::Mat& original_map);
 

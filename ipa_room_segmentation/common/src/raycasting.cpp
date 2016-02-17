@@ -1,5 +1,6 @@
 #include <ipa_room_segmentation/raycasting.h>
 
+// TODO: Speedup!!
 std::vector<double> raycasting(const cv::Mat& map, const cv::Point& location)
 {
 //	cv::Mat test_map = map.clone();
