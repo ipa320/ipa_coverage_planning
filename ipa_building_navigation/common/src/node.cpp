@@ -29,7 +29,7 @@ int nodeAstar::getPriority() const
 
 void nodeAstar::updatePriority(const int& xDest, const int& yDest)
 {
-	priority_ = level_ + estimate(xDest, yDest) * 10; //A*
+	priority_ = level_ + estimate(xDest, yDest); // * 10; //A*
 }
 
 // give better priority to going strait instead of diagonally

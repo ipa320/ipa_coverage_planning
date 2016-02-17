@@ -6,12 +6,16 @@
 #include <opencv/cv.h>
 #include <ipa_building_navigation/A_star_pathplanner.h>
 
+#include <ipa_building_navigation/timer.h>
+
 class DistanceMatrix
 {
 public:
 	static void constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const std::vector<cv::Point>& points,
 			double downsampling_factor, double robot_radius, double map_resolution, AStarPlanner& path_planner)
 	{
+		Timer tim;
+
 		//create the distance matrix with the right size
 		distance_matrix.create((int)points.size(), (int)points.size(), CV_64F);
 
@@ -22,17 +26,15 @@ public:
 
 		for (int i = 0; i < points.size(); i++)
 		{
-			cv::Point current_center = downsampling_factor * points[i];
+			//cv::Point current_center = downsampling_factor * points[i];
 			for (int j = 0; j < points.size(); j++)
 			{
 				if (j != i)
 				{
 					if (j > i) //only compute upper right triangle of matrix, rest is symmetrically added
 					{
-						cv::Point neighbor = downsampling_factor * points[j];
-						double length = one_by_downsampling_factor * path_planner.planPath(downsampled_map, current_center, neighbor, 1., 0., map_resolution);
-						if(length > 9000) //an empty route has been generated, check if the not downsampled map gives a rout
-							length = path_planner.planPath(original_map, one_by_downsampling_factor * current_center, one_by_downsampling_factor * neighbor, 1., 0., map_resolution);
+						//cv::Point neighbor = downsampling_factor * points[j];
+						double length = path_planner.planPath(original_map, downsampled_map, points[i], points[j], downsampling_factor, 0., map_resolution);
 						distance_matrix.at<double>(i, j) = length;
 						distance_matrix.at<double>(j, i) = length; //symmetrical-Matrix --> saves half the computation time
 					}
@@ -43,5 +45,7 @@ public:
 				}
 			}
 		}
+
+		std::cout << "Distance matrix created in " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
 	}
 };

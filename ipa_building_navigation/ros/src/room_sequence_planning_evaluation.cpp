@@ -21,8 +21,14 @@
 #include <ipa_building_navigation/FindRoomSequenceWithCheckpointsAction.h>
 #include <ipa_building_navigation/A_star_pathplanner.h>
 
+#include <ipa_building_navigation/timer.h>
+
 #include <geometry_msgs/Pose.h>
 #include <sensor_msgs/image_encodings.h>
+
+#include <map>
+#include <vector>
+#include <set>
 
 
 struct EvaluationConfig
@@ -148,6 +154,38 @@ struct EvaluationData
 	}
 };
 
+struct StatisticsItem
+{
+	double robot_speed_without_trolley;	// in [m/s]
+	double robot_speed_with_trolley;	// in [m/s]
+	double time_for_trashbin_manipulation;	// in [s]
+	double time_for_trolley_manipulation;	// in [s]
+	int number_trash_bins;
+	int number_trolley_movements;
+	double path_length_robot;	// in [m]
+	double path_length_trolley;	// in [m]
+	double pathlength;	// in [m]
+	double cleaning_time;	// in [s]
+	double calculation_time_segmentation;	// in [s]
+	double calculation_time_sequencer;	// in [s]
+
+	StatisticsItem()
+	{
+		robot_speed_without_trolley=0.;	// in [m/s]
+		robot_speed_with_trolley=0.;	// in [m/s]
+		time_for_trashbin_manipulation=0.;	// in [s]
+		time_for_trolley_manipulation=0.;	// in [s]
+		number_trash_bins=0;
+		number_trolley_movements=0;
+		path_length_robot=0.;	// in [m]
+		path_length_trolley=0.;	// in [m]
+		pathlength=1e10;	// in [m]
+		cleaning_time=1e10;	// in [s]
+		calculation_time_segmentation=0.;	// in [s]
+		calculation_time_sequencer=0.;
+	}
+};
+
 class Evaluation
 {
 public:
@@ -196,18 +234,18 @@ public:
 //		map_names.push_back("lab_intel"); //done icra
 //		map_names.push_back("Freiburg101_scan"); //done icra
 //		map_names.push_back("lab_d_scan"); //done icra
-		map_names.push_back("lab_f_scan"); //done icra
+//		map_names.push_back("lab_f_scan"); //done icra
 //		map_names.push_back("lab_a_scan"); //done icra
-		map_names.push_back("NLB"); //done icra
+//		map_names.push_back("NLB"); //done icra
 //		map_names.push_back("office_a"); //done icra
 //		map_names.push_back("office_b"); //done icra
 //		map_names.push_back("office_c"); //done icra
-		map_names.push_back("office_d"); //done icra
-		map_names.push_back("office_e"); //done icra
-		map_names.push_back("office_f"); //done icra
+//		map_names.push_back("office_d"); //done icra
+//		map_names.push_back("office_e"); //done icra
+//		map_names.push_back("office_f"); //done icra
 //		map_names.push_back("office_g"); //done icra
 //		map_names.push_back("office_h"); //done icra
-		map_names.push_back("office_i"); //done icra
+//		map_names.push_back("office_i"); //done icra
 //		map_names.push_back("lab_ipa_furnitures"); //done icra
 //		map_names.push_back("lab_c_scan_furnitures"); //done icra
 //		map_names.push_back("Freiburg52_scan_furnitures"); //done icra
@@ -225,7 +263,7 @@ public:
 //		map_names.push_back("office_d_furnitures"); //done icra
 //		map_names.push_back("office_e_furnitures"); //done icra
 //		map_names.push_back("office_f_furnitures"); //done icra
-//		map_names.push_back("office_g_furnitures");
+		map_names.push_back("office_g_furnitures");
 //		map_names.push_back("office_h_furnitures");
 //		map_names.push_back("office_i_furnitures");
 
@@ -284,7 +322,7 @@ public:
 		}
 
 		// set configurations
-		std::vector< EvaluationConfig > evaluation_configurations;
+		std::vector<EvaluationConfig> evaluation_configurations;
 		setConfigurations(evaluation_configurations);
 
 		// do the evaluation
@@ -309,59 +347,148 @@ public:
 		failed_maps.close();
 
 		//read the saved results
-//		std::vector<std::vector<double> > map_pathlengths(evaluation_data_.size());
-//		std::vector<std::vector<double> > map_cleaning_times(evaluation_data_.size());
-//		std::vector<std::vector<double> > sequence_solver_times(evaluation_data_.size());
-//		for (size_t i=0; i<evaluation_configurations.size(); ++i)
-//		{
-//			readFromLocalFiles(evaluation_configurations[i], map_names, data_storage_path, map_pathlengths, map_cleaning_times, sequence_solver_times);
-//		}
-//		//write the calculated values to global saving files
+		std::map<std::string, std::vector<StatisticsItem> > results;	// maps from [map_name]->StatisticsItems[evaluation_configurations.size()]
+		readFromLocalFiles(evaluation_configurations, map_names, data_storage_path, results);
+
+		//write the calculated values to global saving files
+		writeGlobalStatistics(evaluation_configurations, map_names, data_storage_path, results);
 //		writeToGlobalFiles(map_names, data_storage_path, map_pathlengths, map_cleaning_times, sequence_solver_times);
 	}
 
 	//function to read the saved results out of the files
-	void readFromLocalFiles(const EvaluationConfig& evaluation_configuration, const std::vector<std::string>& map_names, const std::string& data_storage_path,
-			std::vector<std::vector<double> >& map_pathlengths, std::vector<std::vector<double> >& map_cleaning_times,
-			std::vector<std::vector<double> >& sequence_solver_times)
+	void readFromLocalFiles(const std::vector<EvaluationConfig>& evaluation_configurations, const std::vector<std::string>& map_names, const std::string& data_storage_path,
+			std::map<std::string, std::vector<StatisticsItem> >& results)
 	{
-		const std::string upper_folder_name = evaluation_configuration.generateUpperConfigurationFolderString() + "/";
-		const std::string path = data_storage_path + upper_folder_name;
-
-		const std::string lower_folder_name = evaluation_configuration.generateLowerConfigurationFolderString() + "/";
-		const std::string lower_path = path + lower_folder_name;
-
-
-		for(size_t map_index = 0; map_index < map_names.size(); ++map_index)
+		for (size_t i=0; i<evaluation_configurations.size(); ++i)
 		{
-			std::string log_filename = lower_path + map_names[map_index] + "_results.txt";
+			const std::string upper_folder_name = evaluation_configurations[i].generateUpperConfigurationFolderString() + "/";
+			const std::string path = data_storage_path + upper_folder_name;
+			const std::string lower_folder_name = evaluation_configurations[i].generateLowerConfigurationFolderString() + "/";
+			const std::string lower_path = path + lower_folder_name;
 
-			std::string line;
-			double value, i;
-			std::ifstream reading_file(log_filename.c_str());
-			if (reading_file.is_open())
+			for(size_t map_index = 0; map_index < map_names.size(); ++map_index)
 			{
-				while (getline(reading_file, line))
+				std::string log_filename = lower_path + map_names[map_index] + "_results.txt";
+
+				StatisticsItem stats;
+				std::ifstream reading_file(log_filename.c_str());
+				if (reading_file.is_open())
 				{
+					std::string line;
+					for (int k=0; k<8; ++k)
+						getline(reading_file, line);
+					getline(reading_file, line);
 					std::istringstream iss(line);
-					i = 1;
-					while (iss >> value)
+					iss >> stats.robot_speed_without_trolley;	// in [m/s]
+					iss >> stats.robot_speed_with_trolley;	// in [m/s]
+					iss >> stats.time_for_trashbin_manipulation;	// in [s]
+					iss >> stats.time_for_trolley_manipulation;	// in [s]
+					iss >> stats.number_trash_bins;
+					iss >> stats.number_trolley_movements;
+					iss >> stats.path_length_robot;	// in [m]
+					iss >> stats.path_length_trolley;	// in [m]
+					iss >> stats.pathlength;	// in [m]
+					iss >> stats.cleaning_time;	// in [s]
+					iss >> stats.calculation_time_segmentation;	// in [s]
+					iss >> stats.calculation_time_sequencer;	// in [s]
+					reading_file.close();
+				}
+				else
+				{
+					std::cout << "missing data: " << log_filename << std::endl;
+				}
+				results[map_names[map_index]].push_back(stats);
+			}
+		}
+	}
+
+	void writeGlobalStatistics(const std::vector<EvaluationConfig>& evaluation_configurations, const std::vector<std::string>& map_names, const std::string& data_storage_path,
+			std::map<std::string, std::vector<StatisticsItem> >& results)
+	{
+		//define the storage path for each planning method
+		const std::string path = data_storage_path + "global/";
+		const std::string upper_command = "mkdir -p " + path;
+		int return_value = system(upper_command.c_str());
+
+		// prepare files for different evaluation criteria
+		std::vector<std::string> filenames;
+		filenames.push_back("pathlength");
+		filenames.push_back("cleaning_time");
+		filenames.push_back("number_trash_bins");
+		filenames.push_back("number_trolley_movements");
+		filenames.push_back("calculation_time_segmentation");
+		filenames.push_back("calculation_time_sequencer");
+
+		for (std::vector<std::string>::iterator it_filename=filenames.begin(); it_filename!=filenames.end(); ++it_filename)
+		{
+			// collect column data
+			std::set<double> max_clique_lengths;
+			for (size_t i=0; i<evaluation_configurations.size(); ++i)
+				max_clique_lengths.insert(evaluation_configurations[i].max_clique_path_length_);
+
+			// prepare output matrix of strings
+			const int data_columns = (int)evaluation_configurations.size()/max_clique_lengths.size();
+			std::vector<std::vector<std::string> > output_matrix(1+data_columns); // [column index][row index] !
+			for (size_t i=0; i<output_matrix.size(); ++i)
+				output_matrix[i].resize(1+max_clique_lengths.size());
+
+			std::stringstream output_stream;
+			for (std::vector<std::string>::const_iterator it=map_names.begin(); it!=map_names.end(); it++)
+			{
+				// prepare first column of output
+				output_matrix[0][0] = *it;
+				int r=1;
+				for (std::set<double>::iterator mcl_it = max_clique_lengths.begin(); mcl_it != max_clique_lengths.end(); mcl_it++, r++)
+				{
+					std::stringstream ss;
+					ss << "mcl" << *mcl_it;
+					output_matrix[0][r] = ss.str();
+				}
+
+				// write remaining columns of output
+				for (int i=0; i<data_columns; ++i)
+				{
+					int base_index = i*max_clique_lengths.size();
+					std::stringstream ss;
+					ss << "seg" << evaluation_configurations[base_index].room_segmentation_algorithm_ << "tsp" << evaluation_configurations[base_index].tsp_solver_ << "plmth" << evaluation_configurations[base_index].sequence_planning_method_;
+					output_matrix[1+i][0] = ss.str();
+					for (size_t k=0; k<max_clique_lengths.size(); ++k)
 					{
-						if(i == 6) //save pathlength
-							map_pathlengths[map_index].push_back(value);
-						if(i == 7) //save cleaningtimes
-							map_cleaning_times[map_index].push_back(value);
-						if(i == 9) //save sequence time
-							sequence_solver_times[map_index].push_back(value);
-						++i;
+						std::stringstream sss;
+						if (it_filename->compare("pathlength") == 0)
+							sss << results[*it][base_index+k].pathlength;
+						else if (it_filename->compare("cleaning_time") == 0)
+							sss << results[*it][base_index+k].cleaning_time;
+						else if (it_filename->compare("number_trash_bins") == 0)
+							sss << results[*it][base_index+k].number_trash_bins;
+						else if (it_filename->compare("number_trolley_movements") == 0)
+							sss << results[*it][base_index+k].number_trolley_movements;
+						else if (it_filename->compare("calculation_time_segmentation") == 0)
+							sss << results[*it][base_index+k].calculation_time_segmentation;
+						else if (it_filename->compare("calculation_time_sequencer") == 0)
+							sss << results[*it][base_index+k].calculation_time_sequencer;
+						output_matrix[1+i][1+k] = sss.str();
 					}
 				}
-				reading_file.close();
+				// write output string
+				for (size_t row=0; row<output_matrix[0].size(); ++row)
+				{
+					for (size_t col=0; col<output_matrix.size(); ++col)
+						output_stream << output_matrix[col][row] << "\t";
+					output_stream << "\n";
+				}
+			}
+
+			// write output data to file
+			std::string filename = path + *it_filename + ".txt";
+			std::ofstream file(filename.c_str(), std::ofstream::out);
+			if (file.is_open())
+			{
+				file << output_stream.str();
 			}
 			else
-			{
-				std::cout << "missing data: " << log_filename << std::endl;
-			}
+				ROS_ERROR("Could not write to file '%s'.", filename.c_str());
+			file.close();
 		}
 	}
 
@@ -488,8 +615,7 @@ public:
 		}
 	}
 
-	bool evaluateAllConfigs(const std::vector<EvaluationConfig>& evaluation_configuration_vector, const EvaluationData& evaluation_data,
-			const std::string& data_storage_path)
+	bool evaluateAllConfigs(const std::vector<EvaluationConfig>& evaluation_configuration_vector, const EvaluationData& evaluation_data, const std::string& data_storage_path)
 	{
 		// go through each configuration for the given map
 		for(size_t config = 0; config < evaluation_configuration_vector.size(); ++config)
@@ -569,19 +695,26 @@ public:
 
 			//check for accessibility of the room centers from start position
 			cv::Mat downsampled_map;
+			Timer tim;
 			planner.downsampleMap(evaluation_data.floor_plan_, downsampled_map, evaluation_data.map_downsampling_factor_, evaluation_data.robot_radius_, evaluation_data.map_resolution_);
+			std::cout << "downsampling map: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
 			cv::Point robot_start_position((evaluation_data.robot_start_position_.position.x - evaluation_data.map_origin_.position.x)/evaluation_data.map_resolution_,
 											(evaluation_data.robot_start_position_.position.y - evaluation_data.map_origin_.position.y)/evaluation_data.map_resolution_);
 
 			// get the reachable room centers as cv::Point
+			tim.start();
 			std::cout << "Starting to check accessibility of rooms. Start position: " << robot_start_position << std::endl;
 			std::vector<cv::Point> room_centers;
 			for(size_t i = 0; i < result_seg->room_information_in_pixel.size(); ++i)
 			{
 				cv::Point current_center(result_seg->room_information_in_pixel[i].room_center.x, result_seg->room_information_in_pixel[i].room_center.y);
-				if(planner.planPath(downsampled_map, evaluation_data.map_downsampling_factor_*robot_start_position, evaluation_data.map_downsampling_factor_*current_center, 1., 0., evaluation_data.map_resolution_) < 9000)
+				double length = planner.planPath(evaluation_data.floor_plan_, downsampled_map, robot_start_position, current_center, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_);
+				if(length < 1e9)
 					room_centers.push_back(current_center);
+				else
+					std::cout << "room " << i << " not accessible, center: " << current_center << std::endl;
 			}
+			std::cout << "room centers computed: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
 
 			if(room_centers.size() == 0) //no room center is reachable for the given start position --> needs to be looked at separately
 			{
@@ -590,6 +723,8 @@ public:
 			}
 
 			// 2. solve sequence problem
+			std::cout << "Starting to solve sequence problem." << std::endl;
+			tim.start();
 			ipa_building_navigation::FindRoomSequenceWithCheckpointsResultConstPtr result_seq;
 			clock_gettime(CLOCK_MONOTONIC,  &t2); //set time stamp before the sequence planning
 			if (computeRoomSequence(evaluation_data, evaluation_configuration_vector[config], room_centers, result_seq, t2) == false)
@@ -597,6 +732,7 @@ public:
 				std::cout << "++++++++++ computeRoomSequence failed ++++++++++++" << std::endl;
 				return false;
 			}
+			std::cout << "sequence problem solved: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
 			clock_gettime(CLOCK_MONOTONIC,  &t3); //set time stamp after the sequence planning
 
 			// 3. assign trash bins to rooms of the respective segmentation
@@ -614,7 +750,6 @@ public:
 			// 4. do the movements
 			double path_length_robot = 0.;
 			double path_length_trolley = 0.;
-			double current_pathlength;
 //			const double max_clique_path_length_in_pixel = evaluation_configuration.max_clique_path_length_ / evaluation_data.map_resolution_;
 			cv::Point robot_position = robot_start_position;
 			cv::Point trolley_position((evaluation_data.robot_start_position_.position.x - evaluation_data.map_origin_.position.x)/evaluation_data.map_resolution_,
@@ -625,16 +760,10 @@ public:
 				std::cout << "cleaning new clique" << std::endl;
 				// move trolley
 				//		i) robot to trolley
-				current_pathlength = planner.planPath(downsampled_map, evaluation_data.map_downsampling_factor_*robot_position, evaluation_data.map_downsampling_factor_*trolley_position, 1., 0., evaluation_data.map_resolution_);
-				if(current_pathlength > 9000) //if no path can be found try with the not downsampled map
-					current_pathlength = evaluation_data.map_downsampling_factor_ * planner.planPath(evaluation_data.floor_plan_, robot_position, trolley_position, 1., 0., evaluation_data.map_resolution_);
-				path_length_robot += current_pathlength;
+				path_length_robot += planner.planPath(evaluation_data.floor_plan_, downsampled_map, robot_position, trolley_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_);
 				// 		ii) trolley to next trolley goal
 				cv::Point trolley_goal_position(result_seq->checkpoints[clique_index].checkpoint_position_in_pixel.x, result_seq->checkpoints[clique_index].checkpoint_position_in_pixel.y);
-				current_pathlength = planner.planPath(downsampled_map, evaluation_data.map_downsampling_factor_*trolley_position, evaluation_data.map_downsampling_factor_*trolley_goal_position, 1., 0., evaluation_data.map_resolution_);
-				if(current_pathlength > 9000)  //if no path can be found try with the not downsampled map
-					current_pathlength = evaluation_data.map_downsampling_factor_ * planner.planPath(evaluation_data.floor_plan_, trolley_position, trolley_goal_position, 1., 0., evaluation_data.map_resolution_);
-				path_length_trolley += current_pathlength;
+				path_length_trolley += planner.planPath(evaluation_data.floor_plan_, downsampled_map, trolley_position, trolley_goal_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_);
 				trolley_position = trolley_goal_position;
 				robot_position = trolley_goal_position;
 				std::cout << "moved trolley" << std::endl;
@@ -646,44 +775,29 @@ public:
 					const int room_index = result_seq->checkpoints[clique_index].room_indices[room];
 					cv::Point current_roomcenter = room_centers[room_index];
 					// drive to next room
-					current_pathlength = planner.planPath(downsampled_map, evaluation_data.map_downsampling_factor_*robot_position, evaluation_data.map_downsampling_factor_*current_roomcenter, 1., 0., evaluation_data.map_resolution_);
-					if(current_pathlength > 9000) //if no path can be found try with the not downsampled map
-						current_pathlength = evaluation_data.map_downsampling_factor_ * planner.planPath(evaluation_data.floor_plan_, robot_position, current_roomcenter, 1., 0., evaluation_data.map_resolution_);
-					path_length_robot += current_pathlength;
+					path_length_robot += planner.planPath(evaluation_data.floor_plan_, downsampled_map, robot_position, current_roomcenter, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_);
 					robot_position = current_roomcenter;
 					// clear all trash bins: go to trash bin, go back to trolley to empty trash and then drive back to trash bin
 					std::cout << "starting to clean the trash bins" << std::endl;
 					for (size_t t=0; t<room_trash_bins[room_index].size(); ++t)
 					{
 						// drive robot to trash bin
-						current_pathlength = planner.planPath(downsampled_map, evaluation_data.map_downsampling_factor_*robot_position, evaluation_data.map_downsampling_factor_*room_trash_bins[room_index][t], 1., 0., evaluation_data.map_resolution_);
-						if(current_pathlength > 9000) //if no path can be found try with the not downsampled map
-							current_pathlength = evaluation_data.map_downsampling_factor_ * planner.planPath(evaluation_data.floor_plan_, robot_position, room_trash_bins[room_index][t], 1., 0., evaluation_data.map_resolution_);
-						path_length_robot += current_pathlength;
+						path_length_robot += planner.planPath(evaluation_data.floor_plan_, downsampled_map, robot_position, room_trash_bins[room_index][t], evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_);
 						// drive trash bin to trolley and back
-						current_pathlength = planner.planPath(downsampled_map, evaluation_data.map_downsampling_factor_*room_trash_bins[room_index][t], evaluation_data.map_downsampling_factor_*trolley_position, 1., 0., evaluation_data.map_resolution_);
-						if(current_pathlength > 9000) //if no path can be found try with the not downsampled map
-							current_pathlength = evaluation_data.map_downsampling_factor_ * planner.planPath(evaluation_data.floor_plan_, room_trash_bins[room_index][t], trolley_position, 1., 0., evaluation_data.map_resolution_);
-						path_length_robot += 2. * current_pathlength;
+						path_length_robot += 2. * planner.planPath(evaluation_data.floor_plan_, downsampled_map, room_trash_bins[room_index][t], trolley_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_);
 						robot_position = room_trash_bins[room_index][t];
 					}
 				}
-				std::cout << "cleaned all rooms and trash bins" << std::endl;
+				std::cout << "cleaned all rooms and trash bins in current clique" << std::endl;
 			}
 			// finally go back to trolley
-			current_pathlength = planner.planPath(downsampled_map, evaluation_data.map_downsampling_factor_*robot_position, evaluation_data.map_downsampling_factor_*trolley_position, 1., 0., evaluation_data.map_resolution_);
-			if(current_pathlength > 9000) //if no path can be found try with the not downsampled map
-				current_pathlength = evaluation_data.map_downsampling_factor_ * planner.planPath(evaluation_data.floor_plan_, robot_position, trolley_position, 1., 0., evaluation_data.map_resolution_);
-			path_length_robot += current_pathlength;
+			path_length_robot += planner.planPath(evaluation_data.floor_plan_, downsampled_map, robot_position, trolley_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_);
 			// and back to start position
-			current_pathlength = planner.planPath(downsampled_map, evaluation_data.map_downsampling_factor_*trolley_position, evaluation_data.map_downsampling_factor_*robot_start_position, 1., 0., evaluation_data.map_resolution_);
-			if(current_pathlength > 9000) //if no path can be found try with the not downsampled map
-				current_pathlength = evaluation_data.map_downsampling_factor_ * planner.planPath(evaluation_data.floor_plan_, trolley_position, robot_start_position, 1., 0., evaluation_data.map_resolution_);
-			path_length_trolley += current_pathlength;
+			path_length_trolley += planner.planPath(evaluation_data.floor_plan_, downsampled_map, trolley_position, robot_start_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_);
 
 			// evaluation
-			double path_length_robot_in_meter = (path_length_robot / evaluation_data.map_downsampling_factor_) * evaluation_data.map_resolution_;
-			double path_length_trolley_in_meter = (path_length_trolley / evaluation_data.map_downsampling_factor_) * evaluation_data.map_resolution_;
+			double path_length_robot_in_meter = path_length_robot * evaluation_data.map_resolution_;
+			double path_length_trolley_in_meter = path_length_trolley * evaluation_data.map_resolution_;
 			double path_length_total_in_meter = path_length_robot_in_meter + path_length_trolley_in_meter;
 			double robot_speed_without_trolley = 0.3;		// [m/s]
 			double robot_speed_with_trolley = 0.2;			// [m/s]

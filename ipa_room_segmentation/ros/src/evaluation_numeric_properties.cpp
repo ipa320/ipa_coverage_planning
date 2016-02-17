@@ -11,6 +11,7 @@
 #include <sensor_msgs/image_encodings.h>
 
 #include <ipa_room_segmentation/timer.h>
+#include <ipa_room_segmentation/evaluation_segmentation.h>
 
 #include <iostream>
 #include <list>
@@ -19,12 +20,28 @@
 #include <fstream>
 #include <string>
 
+void calculate_mean_min_max(const std::vector<double>& values, double& mean, double& min_val, double& max_val)
+{
+	mean = 0.0;
+	max_val = 0.0;
+	min_val = 1e10;
+	for (size_t i = 0; i < values.size(); ++i)
+	{
+		mean += values[i];
+		if (values[i] > max_val)
+			max_val = values[i];
+		if (values[i] < min_val)
+			min_val = values[i];
+	}
+	mean = mean/(double)values.size();
+
+}
 
 double calculate_stddev(const std::vector<double>& values, const double mean)
 {
 	//calculate the standard deviation
 	double sigma = 0.;
-	for (size_t i=0; i<values.size(); i++)
+	for (size_t i=0; i<values.size(); ++i)
 		sigma += (values[i] - mean)*(values[i] - mean);
 	sigma = std::sqrt(sigma / (double)(values.size() - 1.));
 
@@ -372,13 +389,13 @@ double calc_errors_deviation(std::vector<std::vector<cv::Point> > rooms)
 
 int segmentationNameToNumber(const std::string name)
 {
-	if (name.compare("morphological") == 0)
+	if (name.compare("1morphological") == 0)
 		return 1;
-	else if (name.compare("distance") == 0)
+	else if (name.compare("2distance") == 0)
 		return 2;
-	else if (name.compare("voronoi") == 0)
+	else if (name.compare("3voronoi") == 0)
 		return 3;
-	else if (name.compare("semantic") == 0)
+	else if (name.compare("4semantic") == 0)
 		return 4;
 	return 1;
 }
@@ -394,10 +411,10 @@ int main(int argc, char **argv) {
 	double map_resolution = 0.0500;
 
 	std::vector<std::string> segmentation_names;
-//	segmentation_names.push_back("morphological");
-//	segmentation_names.push_back("distance");
-//	segmentation_names.push_back("voronoi");
-	segmentation_names.push_back("semantic");
+	segmentation_names.push_back("1morphological");
+	segmentation_names.push_back("2distance");
+	segmentation_names.push_back("3voronoi");
+	segmentation_names.push_back("4semantic");
 
 //	std::string map_name = "NLB";
 ////		"lab_ipa" //done
@@ -412,49 +429,48 @@ int main(int argc, char **argv) {
 ////		"lab_a_scan" //done
 ////		"NLB" //done
 	std::vector< std::string > map_names;
-//	map_names.push_back("lab_ipa.png");
-//	map_names.push_back("lab_c_scan.png");
-//	map_names.push_back("Freiburg52_scan.png"); //*
-//	map_names.push_back("Freiburg79_scan.png"); //*
-//	map_names.push_back("lab_b_scan.png");
-//	map_names.push_back("lab_intel.png");
-//	map_names.push_back("Freiburg101_scan.png");
-//	map_names.push_back("lab_d_scan.png");
-//	map_names.push_back("lab_f_scan.png");
-//	map_names.push_back("lab_a_scan.png");
-//	map_names.push_back("NLB.png");
-//	map_names.push_back("office_a.png");
-//	map_names.push_back("office_b.png");
-//	map_names.push_back("office_c.png"); //*
-//	map_names.push_back("office_d.png");
-//	map_names.push_back("office_e.png");
-//	map_names.push_back("office_f.png");
-//	map_names.push_back("office_g.png"); //*
-//	map_names.push_back("office_h.png");
-//	map_names.push_back("office_i.png"); //*
-	map_names.push_back("lab_ipa_furnitures.png");
-	map_names.push_back("lab_c_scan_furnitures.png");
-	map_names.push_back("Freiburg52_scan_furnitures.png");
-	map_names.push_back("Freiburg79_scan_furnitures.png");
-	map_names.push_back("lab_b_scan_furnitures.png");
-	map_names.push_back("lab_intel_furnitures.png");
-	map_names.push_back("Freiburg101_scan_furnitures.png"); // *
-	map_names.push_back("lab_d_scan_furnitures.png");
-	map_names.push_back("lab_f_scan_furnitures.png");
-	map_names.push_back("lab_a_scan_furnitures.png");
-	map_names.push_back("NLB_furnitures.png");
-	map_names.push_back("office_a_furnitures.png");
-	map_names.push_back("office_b_furnitures.png");
-	map_names.push_back("office_c_furnitures.png"); // *
-	map_names.push_back("office_d_furnitures.png");
-	map_names.push_back("office_e_furnitures.png");
-	map_names.push_back("office_f_furnitures.png"); // *
-	map_names.push_back("office_g_furnitures.png"); // *
-	map_names.push_back("office_h_furnitures.png");
-	map_names.push_back("office_i_furnitures.png"); //*
+	map_names.push_back("lab_ipa");
+	map_names.push_back("lab_c_scan");
+	map_names.push_back("Freiburg52_scan"); //*
+	map_names.push_back("Freiburg79_scan"); //*
+	map_names.push_back("lab_b_scan");
+	map_names.push_back("lab_intel");
+	map_names.push_back("Freiburg101_scan");
+	map_names.push_back("lab_d_scan");
+	map_names.push_back("lab_f_scan");
+	map_names.push_back("lab_a_scan");
+	map_names.push_back("NLB");
+	map_names.push_back("office_a");
+	map_names.push_back("office_b");
+	map_names.push_back("office_c"); //*
+	map_names.push_back("office_d");
+	map_names.push_back("office_e");
+	map_names.push_back("office_f");
+	map_names.push_back("office_g"); //*
+	map_names.push_back("office_h");
+	map_names.push_back("office_i"); //*
+	map_names.push_back("lab_ipa_furnitures");
+	map_names.push_back("lab_c_scan_furnitures");
+	map_names.push_back("Freiburg52_scan_furnitures");
+	map_names.push_back("Freiburg79_scan_furnitures");
+	map_names.push_back("lab_b_scan_furnitures");
+	map_names.push_back("lab_intel_furnitures");
+	map_names.push_back("Freiburg101_scan_furnitures"); // *
+	map_names.push_back("lab_d_scan_furnitures");
+	map_names.push_back("lab_f_scan_furnitures");
+	map_names.push_back("lab_a_scan_furnitures");
+	map_names.push_back("NLB_furnitures");
+	map_names.push_back("office_a_furnitures");
+	map_names.push_back("office_b_furnitures");
+	map_names.push_back("office_c_furnitures"); // *
+	map_names.push_back("office_d_furnitures");
+	map_names.push_back("office_e_furnitures");
+	map_names.push_back("office_f_furnitures"); // *
+	map_names.push_back("office_g_furnitures"); // *
+	map_names.push_back("office_h_furnitures");
+	map_names.push_back("office_i_furnitures"); //*
 
-	std::stringstream output;
-	const std::string segmented_map_path = ros::package::getPath("ipa_room_segmentation") + "/common/files/segmented_maps/";
+	const std::string segmented_map_path = "room_segmentation/"; //ros::package::getPath("ipa_room_segmentation") + "/common/files/segmented_maps/";
 	const std::string command = "mkdir -p " + segmented_map_path;
 	int return_value = system(command.c_str());
 
@@ -467,15 +483,15 @@ int main(int argc, char **argv) {
 	// - area/perimeter compactness (mean, min/max, std) [rows 10-13]
 	// - area/bounding box compactness (mean, min/max, std) [rows 14-17]
 	// - spherical/ellipsoid measure (mean, min/max, std) [rows 18-21]
+	// - fit with giving ground truth (average of recalls, average recall, average of precisions, average precision) [rows 22-25]
 	std::vector<cv::Mat> results(segmentation_names.size());
 	for (size_t i=0; i<segmentation_names.size(); ++i)
-		results[i] = cv::Mat::zeros(22, map_names.size(), CV_64FC1);
+		results[i] = cv::Mat::zeros(26, map_names.size(), CV_64FC1);
 
 	// loop through map files
 	for (size_t image_index = 0; image_index<map_names.size(); ++image_index)
 	{
 		//define vectors to save the parameters
-		std::vector<double> runtime(segmentation_names.size());
 		std::vector<int> segments_number_vector(segmentation_names.size());
 		std::vector<double> av_area_vector(segmentation_names.size()), max_area_vector(segmentation_names.size()), min_area_vector(segmentation_names.size()), dev_area_vector(segmentation_names.size());
 		std::vector<double> av_per_vector(segmentation_names.size()), max_per_vector(segmentation_names.size()), min_per_vector(segmentation_names.size()), dev_per_vector(segmentation_names.size());
@@ -486,7 +502,7 @@ int main(int argc, char **argv) {
 
 		//load map
 		std::string map_name = map_names[image_index];
-		std::string image_filename = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/" + map_name;
+		std::string image_filename = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/" + map_name + ".png";
 		std::cout << "map: " << image_filename << std::endl;
 		cv::Mat map = cv::imread(image_filename.c_str(), 0);
 		//make non-white pixels black
@@ -505,6 +521,10 @@ int main(int argc, char **argv) {
 		//calculate parameters for each segmentation and save it
 		for (size_t segmentation_index = 0; segmentation_index < segmentation_names.size();++segmentation_index)
 		{
+			std::cout << "Evaluating image '" << map_name << "' with segmentation method " << segmentation_names[segmentation_index] << std::endl;
+
+			// do the segmentation
+			// ===================
 			sensor_msgs::Image labeling;
 			cv_bridge::CvImage cv_image;
 		//	cv_image.header.stamp = ros::Time::now();
@@ -529,27 +549,26 @@ int main(int argc, char **argv) {
 			goal.return_format_in_meter = false;
 			goal.return_format_in_pixel = true;
 			goal.room_segmentation_algorithm = segmentationNameToNumber(segmentation_names[segmentation_index]);
+			goal.robot_radius = 0.3;
 			Timer tim;
 			ac.sendGoal(goal);
 
 			//wait for the action to return
 			bool finished_before_timeout = ac.waitForResult();
-
 			if (!finished_before_timeout)
 				continue;
 
-			runtime[segmentation_index] = tim.getElapsedTimeInSec();
-
+			double runtime = tim.getElapsedTimeInSec();
 			ROS_INFO("Finished successfully!");
+
+			// retrieve segmentation
 			ipa_room_segmentation::MapSegmentationResultConstPtr result = ac.getResult();
 			cv_bridge::CvImagePtr cv_ptr_seq = cv_bridge::toCvCopy(result->segmented_map, sensor_msgs::image_encodings::TYPE_32SC1);
 			cv::Mat segmented_map = cv_ptr_seq->image;
 
-			std::string image_filename = segmented_map_path + map_name + "_segmented_" + segmentation_names[segmentation_index] + ".png";
-
-			// images: segmented_map, sequence_map
-			cv::Mat color_segmented_map = segmented_map.clone();
-			color_segmented_map.convertTo(color_segmented_map, CV_8U);
+			// generate colored segmented_map
+			cv::Mat color_segmented_map;
+			segmented_map.convertTo(color_segmented_map, CV_8U);
 			cv::cvtColor(color_segmented_map, color_segmented_map, CV_GRAY2BGR);
 			for(size_t i = 1; i <= result->room_information_in_pixel.size(); ++i)
 			{
@@ -560,14 +579,79 @@ int main(int argc, char **argv) {
 						if(segmented_map.at<int>(v,u) == i)
 							color_segmented_map.at<cv::Vec3b>(v,u) = color;
 			}
+			std::string image_filename = segmented_map_path + map_name + "_segmented_" + segmentation_names[segmentation_index] + ".png";
 			cv::imwrite(image_filename, color_segmented_map);
 
-//			cv::Mat map = cv::imread(image_filename.c_str(), 0);
-//			cv::imshow("segmented map", color_segmented_map);
-//			cv::waitKey();
 
+			// evaluation: numeric properties
+			// ==============================
+			std::vector<double> areas;
+			std::vector<double> perimeters;
+			std::vector<double> area_perimeter_compactness;
+			std::vector<double> bb_area_compactness;
+			std::vector<double> pca_eigenvalue_ratio;
+			calculate_basic_measures(segmented_map, (int)result->room_information_in_pixel.size(), areas, perimeters, area_perimeter_compactness, bb_area_compactness, pca_eigenvalue_ratio);
 
-			// evaluation
+			// runtime
+			results[segmentation_index].at<double>(0, image_index) = runtime;
+
+			// number of segments
+			results[segmentation_index].at<double>(1, image_index) = segments_number_vector[segmentation_index] = areas.size();
+
+			// area
+			//std::vector<double> areas = calculate_areas_from_segmented_map(segmented_map, (int)result->room_information_in_pixel.size());
+			double average = 0.0;
+			double max_area = 0.0;
+			double min_area = 100000000;
+			calculate_mean_min_max(areas, average, min_area, max_area);
+			results[segmentation_index].at<double>(2, image_index) = av_area_vector[segmentation_index] = average;
+			results[segmentation_index].at<double>(3, image_index) = max_area_vector[segmentation_index] = max_area;
+			results[segmentation_index].at<double>(4, image_index) = min_area_vector[segmentation_index] = min_area;
+			results[segmentation_index].at<double>(5, image_index) = dev_area_vector[segmentation_index] = calculate_stddev(areas, average);
+
+			// perimeters
+			//std::vector<double> perimeters = calculate_perimeters(saved_contours);
+			average = 0.0;
+			double max_per = 0.0;
+			double min_per = 100000000;
+			calculate_mean_min_max(perimeters, average, min_per, max_per);
+			results[segmentation_index].at<double>(6, image_index) = av_per_vector[segmentation_index] = average;
+			results[segmentation_index].at<double>(7, image_index) = max_per_vector[segmentation_index] = max_per;
+			results[segmentation_index].at<double>(8, image_index) = min_per_vector[segmentation_index] = min_per;
+			results[segmentation_index].at<double>(9, image_index) = dev_per_vector[segmentation_index] = calculate_stddev(perimeters, average);
+
+			// area compactness
+			//std::vector<double> area_perimeter_compactness = calculate_compactness(saved_contours);
+			average = 0.0;
+			double max_compactness = 0;
+			double min_compactness = 100000000;
+			calculate_mean_min_max(area_perimeter_compactness, average, min_compactness, max_compactness);
+			results[segmentation_index].at<double>(10, image_index) = av_compactness_vector[segmentation_index] = average;
+			results[segmentation_index].at<double>(11, image_index) = max_compactness_vector[segmentation_index] = max_compactness;
+			results[segmentation_index].at<double>(12, image_index) = min_compactness_vector[segmentation_index] = min_compactness;
+			results[segmentation_index].at<double>(13, image_index) = dev_compactness_vector[segmentation_index] = calculate_stddev(area_perimeter_compactness, average);
+
+			// bounding box
+			//std::vector<double> bb_area_compactness = calculate_bounding_error(saved_contours);
+			average = 0.0;
+			double max_error = 0;
+			double min_error = 10000000;
+			calculate_mean_min_max(bb_area_compactness, average, min_error, max_error);
+			results[segmentation_index].at<double>(14, image_index) = av_bb_vector[segmentation_index] = average;
+			results[segmentation_index].at<double>(15, image_index) = max_bb_vector[segmentation_index] = max_error;
+			results[segmentation_index].at<double>(16, image_index) = min_bb_vector[segmentation_index] = min_error;
+			results[segmentation_index].at<double>(17, image_index) = dev_bb_vector[segmentation_index] = calculate_stddev(bb_area_compactness, average);
+
+			// quotient
+			//std::vector<double> pca_eigenvalue_ratio = calc_Ellipse_axis(saved_contours);
+			average = 0.0;
+			double max_quo = 0.0;
+			double min_quo = 100000000;
+			calculate_mean_min_max(pca_eigenvalue_ratio, average, min_quo, max_quo);
+			results[segmentation_index].at<double>(18, image_index) = av_quo_vector[segmentation_index] = average;
+			results[segmentation_index].at<double>(19, image_index) = max_quo_vector[segmentation_index] = max_quo;
+			results[segmentation_index].at<double>(20, image_index) = min_quo_vector[segmentation_index] = min_quo;
+			results[segmentation_index].at<double>(21, image_index) = dev_quo_vector[segmentation_index] = calculate_stddev(pca_eigenvalue_ratio, average);
 
 //			// retrieve room contours
 //			cv::Mat temporary_map = segmented_map.clone();
@@ -590,98 +674,7 @@ int main(int argc, char **argv) {
 //					}
 //				}
 //			}
-
-			std::vector<double> areas;
-			std::vector<double> perimeters;
-			std::vector<double> area_perimeter_compactness;
-			std::vector<double> bb_area_compactness;
-			std::vector<double> pca_eigenvalue_ratio;
-			calculate_basic_measures(segmented_map, (int)result->room_information_in_pixel.size(), areas, perimeters, area_perimeter_compactness, bb_area_compactness, pca_eigenvalue_ratio);
-
-			// runtime
-			results[segmentation_index].at<double>(0, image_index) = runtime[segmentation_index];
-
-			//number of segments
-			segments_number_vector[segmentation_index] = areas.size();
-			results[segmentation_index].at<double>(1, image_index) = areas.size();
-
-			//area
-			//std::vector<double> areas = calculate_areas_from_segmented_map(segmented_map, (int)result->room_information_in_pixel.size());
-			double average = 0.0;
-			double max_area = 0.0;
-			double min_area = 100000000;
-			for (size_t e = 0; e < areas.size(); e++)
-			{
-				average += areas[e];
-				if (areas[e] > max_area)
-					max_area = areas[e];
-				if (areas[e] < min_area)
-					min_area = areas[e];
-			}
-			average = average / (double)areas.size();
-			results[segmentation_index].at<double>(2, image_index) = av_area_vector[segmentation_index] = average;
-			results[segmentation_index].at<double>(3, image_index) = max_area_vector[segmentation_index] = max_area;
-			results[segmentation_index].at<double>(4, image_index) = min_area_vector[segmentation_index] = min_area;
-			results[segmentation_index].at<double>(5, image_index) = dev_area_vector[segmentation_index] = calculate_stddev(areas, average);
-
-			//perimeters
-			//std::vector<double> perimeters = calculate_perimeters(saved_contours);
-			average = 0.0;
-			double max_per = 0.0;
-			double min_per = 100000000;
-			for (size_t e = 0; e < perimeters.size(); e++)
-			{
-				average += perimeters[e];
-				if (perimeters[e] > max_per)
-					max_per = perimeters[e];
-				if (perimeters[e] < min_per)
-					min_per = perimeters[e];
-			}
-			average = average / (double)perimeters.size();
-			results[segmentation_index].at<double>(6, image_index) = av_per_vector[segmentation_index] = average;
-			results[segmentation_index].at<double>(7, image_index) = max_per_vector[segmentation_index] = max_per;
-			results[segmentation_index].at<double>(8, image_index) = min_per_vector[segmentation_index] = min_per;
-			results[segmentation_index].at<double>(9, image_index) = dev_per_vector[segmentation_index] = calculate_stddev(perimeters, average);
-
-			//area compactness
-			//std::vector<double> area_perimeter_compactness = calculate_compactness(saved_contours);
-			average = 0.0;
-			double max_compactness = 0;
-			double min_compactness = 100000000;
-			for (size_t cmp = 0; cmp < area_perimeter_compactness.size(); cmp++)
-			{
-				average += area_perimeter_compactness[cmp];
-				if (area_perimeter_compactness[cmp] > max_compactness)
-					max_compactness = area_perimeter_compactness[cmp];
-				if (area_perimeter_compactness[cmp] < min_compactness)
-					min_compactness = area_perimeter_compactness[cmp];
-			}
-			average = average / (double)area_perimeter_compactness.size();
-			results[segmentation_index].at<double>(10, image_index) = av_compactness_vector[segmentation_index] = average;
-			results[segmentation_index].at<double>(11, image_index) = max_compactness_vector[segmentation_index] = max_compactness;
-			results[segmentation_index].at<double>(12, image_index) = min_compactness_vector[segmentation_index] = min_compactness;
-			results[segmentation_index].at<double>(13, image_index) = dev_compactness_vector[segmentation_index] = calculate_stddev(area_perimeter_compactness, average);
-
-			//Bounding Box
-			//std::vector<double> bb_area_compactness = calculate_bounding_error(saved_contours);
-			average = 0.0;
-			double max_error = 0;
-			double min_error = 10000000;
-			for (size_t e = 0; e < bb_area_compactness.size(); e++)
-			{
-				average += bb_area_compactness[e];
-				if (bb_area_compactness[e] > max_error)
-					max_error = bb_area_compactness[e];
-				if (bb_area_compactness[e] < min_error)
-					min_error = bb_area_compactness[e];
-			}
-			average = average / (double)bb_area_compactness.size();
-			results[segmentation_index].at<double>(14, image_index) = av_bb_vector[segmentation_index] = average;
-			results[segmentation_index].at<double>(15, image_index) = max_bb_vector[segmentation_index] = max_error;
-			results[segmentation_index].at<double>(16, image_index) = min_bb_vector[segmentation_index] = min_error;
-			results[segmentation_index].at<double>(17, image_index) = dev_bb_vector[segmentation_index] = calculate_stddev(bb_area_compactness, average);
-
-//			//reachability
+//			// reachability
 //			if (check_reachability(saved_contours, segmented_map))
 //			{
 //				reachable[segmentation_index] = true;
@@ -691,27 +684,35 @@ int main(int argc, char **argv) {
 //				reachable[segmentation_index] = false;
 //			}
 
-			//Quotient
-			//std::vector<double> pca_eigenvalue_ratio = calc_Ellipse_axis(saved_contours);
-			average = 0.0;
-			double max_quo = 0.0;
-			double min_quo = 100000000;
-			for (size_t e = 0; e < pca_eigenvalue_ratio.size(); e++)
-			{
-				average += pca_eigenvalue_ratio[e];
-				if (pca_eigenvalue_ratio[e] > max_quo)
-					max_quo = pca_eigenvalue_ratio[e];
-				if (pca_eigenvalue_ratio[e] < min_quo)
-					min_quo = pca_eigenvalue_ratio[e];
-			}
-			average = average / (double)pca_eigenvalue_ratio.size();
-			results[segmentation_index].at<double>(18, image_index) = av_quo_vector[segmentation_index] = average;
-			results[segmentation_index].at<double>(19, image_index) = max_quo_vector[segmentation_index] = max_quo;
-			results[segmentation_index].at<double>(20, image_index) = min_quo_vector[segmentation_index] = min_quo;
-			results[segmentation_index].at<double>(21, image_index) = dev_quo_vector[segmentation_index] = calculate_stddev(pca_eigenvalue_ratio, average);
+			std::cout << "Basic measures computed." << std::endl;
+
+			// evaluation: against ground truth segmentation
+			// =============================================
+			// load ground truth segmentation (just borders painted in between of rooms/areas, not colored yet --> coloring will be done here)
+			std::string map_name_basic = map_name;
+			std::size_t pos = map_name.find("_furnitures");
+			if (pos != std::string::npos)
+				map_name_basic = map_name.substr(0, pos);
+			std::string gt_image_filename = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/" + map_name_basic + "_gt_segmentation.png";
+			std::cout << "Loading ground truth segmentation from: " << gt_image_filename << std::endl;
+			cv::Mat gt_map = cv::imread(gt_image_filename.c_str(),CV_8U);
+
+			// compute recall and precision, store colored gt segmentation
+			double precision_micro, precision_macro, recall_micro, recall_macro;
+			cv::Mat gt_map_color;
+			EvaluationSegmentation es;
+			es.computePrecisionRecall(gt_map, gt_map_color, segmented_map, precision_micro, precision_macro, recall_micro, recall_macro, true);
+			std::string gt_image_filename_color = segmented_map_path + map_name + "_gt_color_segmentation.png"; //ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/" + map_name + "_gt_color_segmentation.png";
+			cv::imwrite(gt_image_filename_color.c_str(), gt_map_color);
+
+			results[segmentation_index].at<double>(22, image_index) = recall_micro;
+			results[segmentation_index].at<double>(23, image_index) = recall_macro;
+			results[segmentation_index].at<double>(24, image_index) = precision_micro;
+			results[segmentation_index].at<double>(25, image_index) = precision_macro;
 		}
 
 		//write parameters into file
+		std::stringstream output;
 		output << "--------------Segmentierungsevaluierung----------------" << std::endl;
 		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << segmentation_names[i] << " & ";
@@ -815,11 +816,30 @@ int main(int argc, char **argv) {
 		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << dev_quo_vector[i] << " & ";
 		output << std::endl;
-		output << "****************************" << std::endl;
+		output << "**************************************" << std::endl;
 
 		output << "Anzahl Räume: ";
 		for(size_t i = 0; i < segmentation_names.size(); ++i)
 			output << segments_number_vector[i] << " & ";
+		output << std::endl;
+		output << "**************************************" << std::endl;
+
+		output << "Recall/Precision: " << std::endl;
+		output << "recall_micro: ";
+		for(size_t i = 0; i < results.size(); ++i)
+			output << results[i].at<double>(22, image_index) << " & ";
+		output << std::endl;
+		output << "recall_macro: ";
+		for(size_t i = 0; i < results.size(); ++i)
+			output << results[i].at<double>(23, image_index) << " & ";
+		output << std::endl;
+		output << "precision_micro: ";
+		for(size_t i = 0; i < results.size(); ++i)
+			output << results[i].at<double>(24, image_index) << " & ";
+		output << std::endl;
+		output << "precision_macro: ";
+		for(size_t i = 0; i < results.size(); ++i)
+			output << results[i].at<double>(25, image_index) << " & ";
 		output << std::endl;
 
 		std::string log_filename = segmented_map_path + map_name + "_evaluation.txt";

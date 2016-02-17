@@ -76,7 +76,7 @@ int Room::insertMemberPoints(const std::vector<cv::Point>& new_members, double m
 			member_points_.push_back(new_members[point]);
 		}
 	}
-	room_area_ += map_resolution * map_resolution * new_members.size();
+	room_area_ += map_resolution * map_resolution * new_members.size();		// todo: theoretically might count too much area if member_points_ and new_members are not disjunct
 	return 0;
 }
 

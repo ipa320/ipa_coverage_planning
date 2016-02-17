@@ -8,25 +8,26 @@
 #include <list>
 #include <string>
 #include <vector>
+#include <set>
 
 #include <ipa_room_segmentation/contains.h>
 
 //This is the class that represents a room. It has a ID-number, Points that belong to it and a list of neighbors.
 class Room
 {
-protected:
-	int id_number_;
-
-	std::vector<cv::Point> member_points_;
-
-	std::vector<int> neighbor_room_ids_;
-
-	std::map<int, int> neighbor_room_statistics_;		// maps from room labels of neighboring rooms to number of touching pixels of the respective neighboring room
-
-	double room_area_;
-
-	double room_perimeter_;
 public:
+
+	struct cv_Point_comp
+	{
+		bool operator()(const cv::Point& lhs, const cv::Point& rhs) const
+		{
+			return ((lhs.y < rhs.y) || (lhs.y == rhs.y && lhs.x < rhs.x));
+		}
+	};
+
+	typedef std::set<cv::Point,cv_Point_comp> PointSet;
+
+
 	Room(int id_of_room);
 
 	// merges the provided room into this room
@@ -69,6 +70,20 @@ public:
 	int setArea(double room_area);
 
 	int setPerimeter(double room_perimeter);
+
+
+protected:
+	int id_number_;
+
+	std::vector<cv::Point> member_points_;
+
+	std::vector<int> neighbor_room_ids_;
+
+	std::map<int, int> neighbor_room_statistics_;		// maps from room labels of neighboring rooms to number of touching pixels of the respective neighboring room
+
+	double room_area_;
+
+	double room_perimeter_;
 };
 
 

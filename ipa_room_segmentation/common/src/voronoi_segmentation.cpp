@@ -6,6 +6,16 @@
 #include <ipa_room_segmentation/timer.h>
 #include <set>
 
+
+
+struct cv_Point_comp
+{
+	bool operator()(const cv::Point& lhs, const cv::Point& rhs) const
+	{
+		return ((lhs.y < rhs.y) || (lhs.y == rhs.y && lhs.x < rhs.x));
+	}
+};
+
 VoronoiSegmentation::VoronoiSegmentation()
 {
 
@@ -188,6 +198,8 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 	//This function takes the segmented Map from the original Voronoi-segmentation-algorithm and merges rooms together,
 	//that are small enough and have only two or one neighbor.
 
+	Timer tim;
+
 	// 1. go trough every pixel and add points to the rooms with the same ID
 	for (int y = 0; y < map_to_merge_rooms.rows; y++)
 	{
@@ -207,6 +219,9 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 			}
 		}
 	}
+	std::cout << "merge1: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
+	tim.start();
+
 	// 2. add the neighbor IDs for every point
 	for (int current_room = 0; current_room < rooms.size(); current_room++)
 	{
@@ -236,6 +251,8 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 			}
 		}
 	}
+	std::cout << "merge2: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
+	tim.start();
 
 	// 3. merge criteria
 	// sort rooms ascending by area
@@ -264,6 +281,8 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 	}
 	if (display_map == true)
 		cv::imshow("a", map_to_merge_rooms);
+	std::cout << "merge3a: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
+	tim.start();
 	// b) small rooms
 	for (int current_room_index = 0; current_room_index < rooms.size(); )
 	{
@@ -291,6 +310,8 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 	}
 	if (display_map == true)
 		cv::imshow("b", map_to_merge_rooms);
+	std::cout << "merge3b: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
+	tim.start();
 	// c) merge a room with one neighbor that has max. 2 neighbors and sufficient wall ratio (connect parts inside a room)
 	for (int current_room_index = 0; current_room_index < rooms.size(); )
 	{
@@ -320,6 +341,8 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 	}
 	if (display_map == true)
 		cv::imshow("c", map_to_merge_rooms);
+	std::cout << "merge3c: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
+	tim.start();
 	// d) merge rooms that share a significant part of their perimeter
 	for (int current_room_index = 0; current_room_index < rooms.size(); )
 	{
@@ -359,6 +382,8 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 	}
 	if (display_map == true)
 		cv::imshow("d", map_to_merge_rooms);
+	std::cout << "merge3d: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
+	tim.start();
 	// e) largest room neighbor touches > 0.5 perimeter (happens often with furniture)
 	for (int current_room_index = 0; current_room_index < rooms.size(); )
 	{
@@ -382,7 +407,8 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 		else
 			current_room_index++;
 	}
-
+	std::cout << "merge3e: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
+	tim.start();
 
 
 //	//check every room if it should be merged with its neighbor that it shares the most boundary with
@@ -440,14 +466,6 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 //		}
 //	}
 }
-
-struct cv_Point_comp
-{
-	bool operator()(const cv::Point& lhs, const cv::Point& rhs) const
-	{
-		return ((lhs.x < rhs.x) || (lhs.x == rhs.x && lhs.y < rhs.y));
-	}
-};
 
 void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription,
 		double room_area_factor_lower_limit, double room_area_factor_upper_limit, int neighborhood_index, int max_iterations,
