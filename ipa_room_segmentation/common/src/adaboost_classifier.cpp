@@ -36,20 +36,20 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 	LaserScannerFeatures lsf;
 	for(size_t map = 0; map < room_training_maps.size(); ++map)
 	{
-		for (int y = 0; y < room_training_maps[map].cols; y++)
+		for (int y = 0; y < room_training_maps[map].rows; y++)
 		{
-			for (int x = 0; x < room_training_maps[map].rows; x++)
+			for (int x = 0; x < room_training_maps[map].cols; x++)
 			{
-				if (room_training_maps[map].at<unsigned char>(x, y) != 0)
+				if (room_training_maps[map].at<unsigned char>(y, x) != 0)
 				{
-					//check for label of each Pixel (if it belongs to doors the label is 1, otherwise it is -1)
-					if (room_training_maps[map].at<unsigned char>(x, y) > 250)
+					//check for label of each Pixel (if it belongs to rooms the label is 1, otherwise it is -1)
+					if (room_training_maps[map].at<unsigned char>(y, x) > 250)
 					{
-						labels_for_rooms.push_back(1.0);
+						labels_for_rooms.push_back(-1.0);
 					}
 					else
 					{
-						labels_for_rooms.push_back(-1.0);
+						labels_for_rooms.push_back(1.0);
 					}
 					//simulate the beams and features for every position and save it
 					raycasting_.raycasting(room_training_maps[map], cv::Point(x, y), temporary_beams);
@@ -72,20 +72,20 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 
 	for(size_t map = 0; map < hallway_training_maps.size(); ++map)
 	{
-		for (int y = 0; y < hallway_training_maps[map].cols; y++)
+		for (int y = 0; y < hallway_training_maps[map].rows; y++)
 		{
-			for (int x = 0; x < hallway_training_maps[map].rows; x++)
+			for (int x = 0; x < hallway_training_maps[map].cols; x++)
 			{
-				if (hallway_training_maps[map].at<unsigned char>(x, y) != 0)
+				if (hallway_training_maps[map].at<unsigned char>(y, x) != 0)
 				{
-					//check for label of each Pixel (if it belongs to doors the label is 1, otherwise it is -1)
-					if (hallway_training_maps[map].at<unsigned char>(x, y) > 250)
+					//check for label of each Pixel (if it belongs to hallways the label is 1, otherwise it is -1)
+					if (hallway_training_maps[map].at<unsigned char>(y, x) > 250)
 					{
-						labels_for_hallways.push_back(1.0);
+						labels_for_hallways.push_back(-1.0);
 					}
 					else
 					{
-						labels_for_hallways.push_back(-1.0);
+						labels_for_hallways.push_back(1.0);
 					}
 					//simulate the beams and features for every position and save it
 					raycasting_.raycasting(hallway_training_maps[map], cv::Point(x, y), temporary_beams);
