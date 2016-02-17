@@ -129,15 +129,16 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 		}
 	}
 
-	cv::FileStorage fs("room_segmentation/_features.yml", cv::FileStorage::WRITE);
-	if (fs.isOpened())
-	{
-		fs << "hallway_features_mat" << hallway_features_mat;
-		fs << "hallway_labels_mat" << hallway_labels_mat;
-		fs << "room_features_mat" << room_features_mat;
-		fs << "room_labels_mat" << room_labels_mat;
-	}
-	fs.release();
+//	// save feature data to file
+//	cv::FileStorage fs("room_segmentation/_features.yml", cv::FileStorage::WRITE);
+//	if (fs.isOpened())
+//	{
+//		fs << "hallway_features_mat" << hallway_features_mat;
+//		fs << "hallway_labels_mat" << hallway_labels_mat;
+//		fs << "room_features_mat" << room_features_mat;
+//		fs << "room_labels_mat" << room_labels_mat;
+//	}
+//	fs.release();
 
 	//*********hallway***************
 	// Train a boost classifier
@@ -193,7 +194,7 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 	//*************** II. Go trough each Point and label it as room or hallway.**************************
 	Timer tim;//, tim2;
 //	double ray_time = 0., feature_time = 0.;
-//#pragma omp parallel for
+#pragma omp parallel for
 	for (int y = 0; y < original_map_to_be_labeled.rows; y++)
 	{
 		LaserScannerFeatures lsf;

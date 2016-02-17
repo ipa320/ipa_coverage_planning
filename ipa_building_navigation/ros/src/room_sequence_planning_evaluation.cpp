@@ -692,6 +692,7 @@ public:
 				result_seg = result_seg_semant;
 			}
 			clock_gettime(CLOCK_MONOTONIC,  &t1); //set time stamp after the segmentation
+			std::cout << "Segmentation computed " << result_seg->room_information_in_pixel.size() << " rooms." << std::endl;
 
 			//check for accessibility of the room centers from start position
 			cv::Mat downsampled_map;
@@ -715,6 +716,7 @@ public:
 					std::cout << "room " << i << " not accessible, center: " << current_center << std::endl;
 			}
 			std::cout << "room centers computed: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
+			std::cout << "Number of accessible room centers: " << room_centers.size() << std::endl;
 
 			if(room_centers.size() == 0) //no room center is reachable for the given start position --> needs to be looked at separately
 			{
