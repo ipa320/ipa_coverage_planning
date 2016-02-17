@@ -5,6 +5,8 @@
 #include <ipa_room_segmentation/contains.h>
 #include <ipa_room_segmentation/raycasting.h>
 
+#include <ipa_room_segmentation/timer.h>
+
 AdaboostClassifier::AdaboostClassifier()
 {
 	//save the angles between the simulated beams, used in the following algorithm
@@ -155,7 +157,7 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 	//		and apply a watershed-algorithm on it. At last the saved room and hallway contours are drawn with a random
 	//		colour into the map that hasn't been used already.
 
-	cv::Mat original_Map_to_be_labeled = map_to_be_labeled.clone();
+	cv::Mat original_map_to_be_labeled = map_to_be_labeled.clone();
 	ROS_INFO("Starting to label the map.");
 	//***********************I. check if classifiers has already been trained*****************************
 	if (!trained_) //classifiers hasn't been trained before so they should be loaded
@@ -167,15 +169,17 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 		trained_ = true;
 		ROS_INFO("Loaded training results.");
 	}
+
 	//*************** II. Go trough each Point and label it as room or hallway.**************************
-	for (int x = 0; x < original_Map_to_be_labeled.rows; x++)
+	Timer tim;
+	for (int x = 0; x < original_map_to_be_labeled.rows; x++)
 	{
-		for (int y = 0; y < original_Map_to_be_labeled.cols; y++)
+		for (int y = 0; y < original_map_to_be_labeled.cols; y++)
 		{
-			if (original_Map_to_be_labeled.at<unsigned char>(x, y) == 255)
+			if (original_map_to_be_labeled.at<unsigned char>(x, y) == 255)
 			{
 				//TODO: x und y richtig machen
-				std::vector<double> temporary_beams = raycasting(original_Map_to_be_labeled, cv::Point(x, y));
+				std::vector<double> temporary_beams = raycasting(original_map_to_be_labeled, cv::Point(x, y));
 				std::vector<float> temporary_features;
 				cv::Mat featuresMat(1, get_feature_count(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
 				for (int f = 1; f <= get_feature_count(); f++)
@@ -195,28 +199,27 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 				double probability_for_hallway = hallway_certanity * (1.0 - probability_for_room);
 				if (probability_for_room > probability_for_hallway)
 				{
-					original_Map_to_be_labeled.at<unsigned char>(x, y) = 150; //label it as room
+					original_map_to_be_labeled.at<unsigned char>(x, y) = 150; //label it as room
 				}
 				else
 				{
-					original_Map_to_be_labeled.at<unsigned char>(x, y) = 100; //label it as hallway
+					original_map_to_be_labeled.at<unsigned char>(x, y) = 100; //label it as hallway
 				}
 			}
 		}
 	}
-	std::cout << "labeled all white Pixels" << std::endl;
+	std::cout << "labeled all white pixels: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
 	//******************** III. Apply a median filter over the image to smooth the results.***************************
-
-	cv::Mat temporary_map = original_Map_to_be_labeled.clone();
+	cv::Mat temporary_map = original_map_to_be_labeled.clone();
 	cv::medianBlur(temporary_map, temporary_map, 3);
 	std::cout << "blurred image" << std::endl;
 
-	//make regions black, that has been black before
-	for (int x = 0; x < original_Map_to_be_labeled.rows; x++)
+	//make regions black, that have been black before
+	for (int x = 0; x < original_map_to_be_labeled.rows; x++)
 	{
-		for (int y = 0; y < original_Map_to_be_labeled.cols; y++)
+		for (int y = 0; y < original_map_to_be_labeled.cols; y++)
 		{
-			if (original_Map_to_be_labeled.at<unsigned char>(x, y) == 0)
+			if (original_map_to_be_labeled.at<unsigned char>(x, y) == 0)
 			{
 				temporary_map.at<unsigned char>(x, y) = 0;
 			}
@@ -233,7 +236,6 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 	cv::Mat blured_image_for_thresholding = temporary_map.clone();
 
 	//*********** IV. Fill the large enough rooms with a random color and split the hallways into smaller regions*********
-
 	std::vector<std::vector<cv::Point> > contours, temporary_contours, saved_room_contours, saved_hallway_contours;
 	//hierarchy saves if the contours are hole-contours:
 	//hierarchy[{0,1,2,3}]={next contour (same level), previous contour (same level), child contour, parent contour}
@@ -257,7 +259,6 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 		}
 	}
 	//find the contours, which are labeled as a hallway
-
 	map_to_be_labeled.convertTo(segmented_map, CV_32SC1, 256, 0);		// rescale to 32 int, 255 --> 255*256 = 65280
 	temporary_map = blured_image_for_thresholding.clone();
 
@@ -371,7 +372,7 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 	std::cout << "finished small hallway contours" << std::endl;
 	//spread the coloured regions to regions, which were too small and aren't drawn into the map
 	wavefrontRegionGrowing(segmented_map);
-	//make sure previously black Pixels are still black
+	//make sure previously black pixels are still black
 	// todo: why is this necessary? it seems like this should not alter any data.
 	for (int v = 0; v < map_to_be_labeled.rows; ++v)
 	{

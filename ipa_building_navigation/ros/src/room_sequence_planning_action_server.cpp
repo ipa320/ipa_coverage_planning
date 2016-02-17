@@ -119,8 +119,11 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		if(goal->check_accessibility_of_rooms == true)
 		{
 			std::cout << "checking for accessibility of rooms" << std::endl;
-			if(a_star_path_planner.planPath(downsampled_map_for_accessability_checking, goal->map_downsampling_factor * robot_start_coordinate, goal->map_downsampling_factor * current_center, 1., 0., goal->map_resolution) < 9000)
+			double length = a_star_path_planner.planPath(floor_plan, downsampled_map_for_accessability_checking, robot_start_coordinate, current_center, goal->map_downsampling_factor, 0., goal->map_resolution);
+			if(length < 1e9)
 				room_centers.push_back(current_center);
+			else
+				std::cout << "room " << i << " not accessible, center: " << current_center << std::endl;
 		}
 		else
 		{
@@ -198,11 +201,11 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		//sample down map one time to reduce calculation time
 		cv::Mat downsampled_map;
 		a_star_path_planner.downsampleMap(floor_plan, downsampled_map, goal->map_downsampling_factor, goal->robot_radius, goal->map_resolution);
-		double one_by_downsampling_factor = 1 / goal->map_downsampling_factor;
+		const double one_by_downsampling_factor = 1 / goal->map_downsampling_factor;
 		for(size_t i=0; i<optimal_room_sequence.size(); ++i)
 		{
-			double distance_to_trolley = one_by_downsampling_factor * a_star_path_planner.planPath(downsampled_map, goal->map_downsampling_factor * trolley_positions.back(), goal->map_downsampling_factor * room_centers[optimal_room_sequence[i]], 1., 0, goal->map_resolution);
-			if( distance_to_trolley <= goal->max_clique_path_length/goal->map_resolution) //expand current clique by next roomcenter
+			double distance_to_trolley = a_star_path_planner.planPath(floor_plan, downsampled_map, trolley_positions.back(), room_centers[optimal_room_sequence[i]], goal->map_downsampling_factor, 0, goal->map_resolution);
+			if (distance_to_trolley <= goal->max_clique_path_length/goal->map_resolution) //expand current clique by next roomcenter
 			{
 				current_clique.push_back(optimal_room_sequence[i]);
 			}
@@ -281,6 +284,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		// 2. determine trolley position within each clique (same indexing as in cliques)
 		TrolleyPositionFinder trolley_position_finder;
 		trolley_positions = trolley_position_finder.findTrolleyPositions(floor_plan, cliques, room_centers, goal->map_downsampling_factor, goal->robot_radius, goal->map_resolution);
+		std::cout << "Trolley positions within each clique computed" << std::endl;
 
 		// 3. determine optimal sequence of trolley positions (solve TSP problem)
 		//		a) find nearest trolley location to current robot location
@@ -464,18 +468,18 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 size_t RoomSequencePlanningServer::getNearestLocation(const cv::Mat& floor_plan, const cv::Point start_coordinate, const std::vector<cv::Point>& positions,
 		const double map_downsampling_factor, const double robot_radius, const double map_resolution)
 {
-	const double one_by_downsampling_factor = 1./map_downsampling_factor;
+//	const double one_by_downsampling_factor = 1./map_downsampling_factor;
 	cv::Mat downsampled_map;
 	AStarPlanner a_star_path_planner;
 	a_star_path_planner.downsampleMap(floor_plan, downsampled_map, map_downsampling_factor, robot_radius, map_resolution);
 	//find nearest trolley position as start point for TSP
 	double min_dist = 1e10;
 	size_t nearest_position = 0;
-	const cv::Point start_point = map_downsampling_factor * start_coordinate;
+//	const cv::Point start_point = map_downsampling_factor * start_coordinate;
 	for (size_t i=0; i<positions.size(); ++i)
 	{
-		const cv::Point end_point = map_downsampling_factor * positions[i];
-		double dist = one_by_downsampling_factor * a_star_path_planner.planPath(downsampled_map, start_point, end_point, 1., 0., map_resolution);
+//		const cv::Point end_point = map_downsampling_factor * positions[i];
+		double dist = a_star_path_planner.planPath(floor_plan, downsampled_map, start_coordinate, positions[i], map_downsampling_factor, 0., map_resolution);
 		if (dist < min_dist)
 		{
 			min_dist = dist;
