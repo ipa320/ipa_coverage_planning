@@ -129,6 +129,8 @@ protected:
 
 	std::vector<double> trained_conditional_weights_; // The weights that are needed for the feature-induction in the conditional random field.
 
+	LaserScannerRaycasting raycasting_;
+
 	// Function to check if the given point is more far away from each point in the given vector than the min_distance.
 	bool pointMoreFarAway(const std::vector<cv::Point>& points, const cv::Point& point, const double min_distance);
 

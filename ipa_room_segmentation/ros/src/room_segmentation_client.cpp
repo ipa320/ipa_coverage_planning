@@ -18,21 +18,46 @@ int main(int argc, char **argv)
 	ros::init(argc, argv, "room_segmentation_client");
 
 	std::vector< std::string > map_names;
-//	map_names.push_back("lab_ipa.png");
-//	map_names.push_back("freiburg_building101.png");
-//	map_names.push_back("freiburg_building52.png");
-//	map_names.push_back("freiburg_building79.png");
-//	map_names.push_back("intel_map.png");
-//	map_names.push_back("lab_a.png");
-//	map_names.push_back("lab_b_scan.png");
-//	map_names.push_back("lab_c.png");
-//	map_names.push_back("lab_d.png");
-//	map_names.push_back("lab_e.png");
-//	map_names.push_back("lab_f_scan.png");
-//	map_names.push_back("NLB.png");
-//	map_names.push_back("lab_b_scan_furnitures.png");
-//	map_names.push_back("office_e_furnitures.png");
-	map_names.push_back("office_i.png");
+	map_names.push_back("lab_ipa");
+	map_names.push_back("lab_c_scan");
+	map_names.push_back("Freiburg52_scan");
+	map_names.push_back("Freiburg79_scan");
+	map_names.push_back("lab_b_scan");
+	map_names.push_back("lab_intel");
+	map_names.push_back("Freiburg101_scan");
+	map_names.push_back("lab_d_scan");
+	map_names.push_back("lab_f_scan");
+	map_names.push_back("lab_a_scan");
+	map_names.push_back("NLB");
+	map_names.push_back("office_a");
+	map_names.push_back("office_b");
+	map_names.push_back("office_c");
+	map_names.push_back("office_d");
+	map_names.push_back("office_e");
+	map_names.push_back("office_f");
+	map_names.push_back("office_g");
+	map_names.push_back("office_h");
+	map_names.push_back("office_i");
+	map_names.push_back("lab_ipa_furnitures");
+	map_names.push_back("lab_c_scan_furnitures");
+	map_names.push_back("Freiburg52_scan_furnitures");
+	map_names.push_back("Freiburg79_scan_furnitures");
+	map_names.push_back("lab_b_scan_furnitures");
+	map_names.push_back("lab_intel_furnitures");
+	map_names.push_back("Freiburg101_scan_furnitures");
+	map_names.push_back("lab_d_scan_furnitures");
+	map_names.push_back("lab_f_scan_furnitures");
+	map_names.push_back("lab_a_scan_furnitures");
+	map_names.push_back("NLB_furnitures");
+	map_names.push_back("office_a_furnitures");
+	map_names.push_back("office_b_furnitures");
+	map_names.push_back("office_c_furnitures");
+	map_names.push_back("office_d_furnitures");
+	map_names.push_back("office_e_furnitures");
+	map_names.push_back("office_f_furnitures");
+	map_names.push_back("office_g_furnitures");
+	map_names.push_back("office_h_furnitures");
+	map_names.push_back("office_i_furnitures");
 
 	for (size_t image_index = 0; image_index<map_names.size(); ++image_index)
 	{
@@ -76,8 +101,8 @@ int main(int argc, char **argv)
 		goal.map_resolution = 0.05;
 		goal.return_format_in_meter = false;
 		goal.return_format_in_pixel = true;
-		goal.room_segmentation_algorithm = 3;
-		goal.robot_radius = 0.4;
+		goal.room_segmentation_algorithm = 4;
+		goal.robot_radius = 0.3;
 		ac.sendGoal(goal);
 
 		//wait for the action to return

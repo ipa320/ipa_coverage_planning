@@ -392,7 +392,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 			{
 				// trolley positions + connections
 				const int ot = optimal_trolley_sequence[t];
-				std::cout << "starting to draw one clique. Position: " << trolley_positions[ot] << std::endl;
+				//std::cout << "starting to draw one clique. Position: " << trolley_positions[ot] << std::endl;
 				if (t>0)
 				{
 					cv::circle(display, trolley_positions[ot], 5, CV_RGB(0,0,255), CV_FILLED);
@@ -416,7 +416,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 						cv::line(display, room_cliques_as_points[ot][optimal_room_sequences[ot][r-1]], room_cliques_as_points[ot][optimal_room_sequences[ot][r]], CV_RGB(128,255,128), 1);
 					}
 				}
-				std::cout << "finished to draw one clique" << std::endl;
+				//std::cout << "finished to draw one clique" << std::endl;
 			}
 		}
 		// display

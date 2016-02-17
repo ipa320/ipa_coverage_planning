@@ -404,35 +404,21 @@ int segmentationNameToNumber(const std::string name)
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "evaluation");
 	ros::NodeHandle n;
-//	ros::Subscriber semantic_labeler = n.Subscribe("Laser_scanner", 1000, segmentation_algorithm);
 	ROS_INFO("Evaluation of the segmented maps. Calculates some Parameters describing the rooms.");
-//	ros::spin();
 
 	double map_resolution = 0.0500;
 
 	std::vector<std::string> segmentation_names;
-	segmentation_names.push_back("1morphological");
-	segmentation_names.push_back("2distance");
-	segmentation_names.push_back("3voronoi");
+//	segmentation_names.push_back("1morphological");
+//	segmentation_names.push_back("2distance");
+//	segmentation_names.push_back("3voronoi");
 	segmentation_names.push_back("4semantic");
 
-//	std::string map_name = "NLB";
-////		"lab_ipa" //done
-////		"lab_c_scan" //done
-////		"Freiburg52_scan" //done
-////		"Freiburg79_scan" //done
-////		"lab_b_scan" //done
-////		"lab_intel" //done
-////		"Freiburg101_scan" //done
-////		"lab_d_scan" //done
-////		"lab_f_scan" //done
-////		"lab_a_scan" //done
-////		"NLB" //done
 	std::vector< std::string > map_names;
 	map_names.push_back("lab_ipa");
 	map_names.push_back("lab_c_scan");
-	map_names.push_back("Freiburg52_scan"); //*
-	map_names.push_back("Freiburg79_scan"); //*
+	map_names.push_back("Freiburg52_scan");
+	map_names.push_back("Freiburg79_scan");
 	map_names.push_back("lab_b_scan");
 	map_names.push_back("lab_intel");
 	map_names.push_back("Freiburg101_scan");
@@ -442,33 +428,33 @@ int main(int argc, char **argv) {
 	map_names.push_back("NLB");
 	map_names.push_back("office_a");
 	map_names.push_back("office_b");
-	map_names.push_back("office_c"); //*
+	map_names.push_back("office_c");
 	map_names.push_back("office_d");
 	map_names.push_back("office_e");
 	map_names.push_back("office_f");
-	map_names.push_back("office_g"); //*
+	map_names.push_back("office_g");
 	map_names.push_back("office_h");
-	map_names.push_back("office_i"); //*
+	map_names.push_back("office_i");
 	map_names.push_back("lab_ipa_furnitures");
 	map_names.push_back("lab_c_scan_furnitures");
 	map_names.push_back("Freiburg52_scan_furnitures");
 	map_names.push_back("Freiburg79_scan_furnitures");
 	map_names.push_back("lab_b_scan_furnitures");
 	map_names.push_back("lab_intel_furnitures");
-	map_names.push_back("Freiburg101_scan_furnitures"); // *
+	map_names.push_back("Freiburg101_scan_furnitures");
 	map_names.push_back("lab_d_scan_furnitures");
 	map_names.push_back("lab_f_scan_furnitures");
 	map_names.push_back("lab_a_scan_furnitures");
 	map_names.push_back("NLB_furnitures");
 	map_names.push_back("office_a_furnitures");
 	map_names.push_back("office_b_furnitures");
-	map_names.push_back("office_c_furnitures"); // *
+	map_names.push_back("office_c_furnitures");
 	map_names.push_back("office_d_furnitures");
 	map_names.push_back("office_e_furnitures");
-	map_names.push_back("office_f_furnitures"); // *
-	map_names.push_back("office_g_furnitures"); // *
+	map_names.push_back("office_f_furnitures");
+	map_names.push_back("office_g_furnitures");
 	map_names.push_back("office_h_furnitures");
-	map_names.push_back("office_i_furnitures"); //*
+	map_names.push_back("office_i_furnitures");
 
 	const std::string segmented_map_path = "room_segmentation/"; //ros::package::getPath("ipa_room_segmentation") + "/common/files/segmented_maps/";
 	const std::string command = "mkdir -p " + segmented_map_path;
