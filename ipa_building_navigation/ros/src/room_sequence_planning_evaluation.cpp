@@ -228,46 +228,46 @@ public:
 //		map_names.push_back("lab_ipa_furnitures");
 
 		std::vector< std::string > map_names;
-		map_names.push_back("lab_ipa");
-		map_names.push_back("lab_c_scan");
-		map_names.push_back("Freiburg52_scan");
-		map_names.push_back("Freiburg79_scan");
-		map_names.push_back("lab_b_scan");
-		map_names.push_back("lab_intel");
-		map_names.push_back("Freiburg101_scan");
-		map_names.push_back("lab_d_scan");
-		map_names.push_back("lab_f_scan");
-		map_names.push_back("lab_a_scan");
-		map_names.push_back("NLB");
-		map_names.push_back("office_a");
-		map_names.push_back("office_b");
-		map_names.push_back("office_c");
-		map_names.push_back("office_d");
-		map_names.push_back("office_e");
-		map_names.push_back("office_f");
-		map_names.push_back("office_g");
-		map_names.push_back("office_h");
-		map_names.push_back("office_i");
-//		map_names.push_back("lab_ipa_furnitures");
-//		map_names.push_back("lab_c_scan_furnitures");
-//		map_names.push_back("Freiburg52_scan_furnitures");
-//		map_names.push_back("Freiburg79_scan_furnitures");
-//		map_names.push_back("lab_b_scan_furnitures");
-//		map_names.push_back("lab_intel_furnitures");
-//		map_names.push_back("Freiburg101_scan_furnitures");
-//		map_names.push_back("lab_d_scan_furnitures");
-//		map_names.push_back("lab_f_scan_furnitures");
-//		map_names.push_back("lab_a_scan_furnitures");
-//		map_names.push_back("NLB_furnitures");
-//		map_names.push_back("office_a_furnitures");
-//		map_names.push_back("office_b_furnitures");
-//		map_names.push_back("office_c_furnitures");
-//		map_names.push_back("office_d_furnitures");
-//		map_names.push_back("office_e_furnitures");
-//		map_names.push_back("office_f_furnitures");
-//		map_names.push_back("office_g_furnitures");
-//		map_names.push_back("office_h_furnitures");
-//		map_names.push_back("office_i_furnitures");
+//		map_names.push_back("lab_ipa");
+//		map_names.push_back("lab_c_scan");
+//		map_names.push_back("Freiburg52_scan");
+//		map_names.push_back("Freiburg79_scan");
+//		map_names.push_back("lab_b_scan");
+//		map_names.push_back("lab_intel");
+//		map_names.push_back("Freiburg101_scan");
+//		map_names.push_back("lab_d_scan");
+//		map_names.push_back("lab_f_scan");
+//		map_names.push_back("lab_a_scan");
+//		map_names.push_back("NLB");
+//		map_names.push_back("office_a");
+//		map_names.push_back("office_b");
+//		map_names.push_back("office_c");
+//		map_names.push_back("office_d");
+//		map_names.push_back("office_e");
+//		map_names.push_back("office_f");
+//		map_names.push_back("office_g");
+//		map_names.push_back("office_h");
+//		map_names.push_back("office_i");
+		map_names.push_back("lab_ipa_furnitures");
+		map_names.push_back("lab_c_scan_furnitures");
+		map_names.push_back("Freiburg52_scan_furnitures");
+		map_names.push_back("Freiburg79_scan_furnitures");
+		map_names.push_back("lab_b_scan_furnitures");
+		map_names.push_back("lab_intel_furnitures");
+		map_names.push_back("Freiburg101_scan_furnitures");
+		map_names.push_back("lab_d_scan_furnitures");
+		map_names.push_back("lab_f_scan_furnitures");
+		map_names.push_back("lab_a_scan_furnitures");
+		map_names.push_back("NLB_furnitures");
+		map_names.push_back("office_a_furnitures");
+		map_names.push_back("office_b_furnitures");
+		map_names.push_back("office_c_furnitures");
+		map_names.push_back("office_d_furnitures");
+		map_names.push_back("office_e_furnitures");
+		map_names.push_back("office_f_furnitures");
+		map_names.push_back("office_g_furnitures");
+		map_names.push_back("office_h_furnitures");
+		map_names.push_back("office_i_furnitures");
 
 
 		// prepare image data for evaluation
@@ -771,9 +771,10 @@ public:
 			cv::Point trolley_position((evaluation_data.robot_start_position_.position.x - evaluation_data.map_origin_.position.x)/evaluation_data.map_resolution_,
 					(evaluation_data.robot_start_position_.position.y - evaluation_data.map_origin_.position.y)/evaluation_data.map_resolution_);
 
+			std::stringstream screenoutput;
 			for (size_t clique_index = 0; clique_index<result_seq->checkpoints.size(); ++clique_index)
 			{
-				std::cout << "cleaning new clique" << std::endl;
+				std::cout << "cleaning new clique" << std::endl; screenoutput << "cleaning new clique" << std::endl;
 				// move trolley
 				//		i) robot to trolley
 				path_length_robot += planner.planPath(evaluation_data.floor_plan_, downsampled_map, robot_position, trolley_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_);
@@ -782,7 +783,7 @@ public:
 				path_length_trolley += planner.planPath(evaluation_data.floor_plan_, downsampled_map, trolley_position, trolley_goal_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_);
 				trolley_position = trolley_goal_position;
 				robot_position = trolley_goal_position;
-				std::cout << "moved trolley" << std::endl;
+				std::cout << "moved trolley to " << trolley_position << std::endl; screenoutput << "moved trolley to " << trolley_position << std::endl;
 
 				// move robot to rooms
 				for(size_t room = 0; room < result_seq->checkpoints[clique_index].room_indices.size(); ++room)
@@ -794,7 +795,7 @@ public:
 					path_length_robot += planner.planPath(evaluation_data.floor_plan_, downsampled_map, robot_position, current_roomcenter, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_);
 					robot_position = current_roomcenter;
 					// clear all trash bins: go to trash bin, go back to trolley to empty trash and then drive back to trash bin
-					std::cout << "starting to clean the trash bins" << std::endl;
+					std::cout << "arrived in room " << current_roomcenter << "\nstarting to clean the trash bins" << std::endl; screenoutput << "arrived in room " << current_roomcenter << "\nstarting to clean the trash bins" << std::endl;
 					ipa_building_navigation::FindRoomSequenceWithCheckpointsResultConstPtr result_trash_bin_seq;
 					std::vector<cv::Point> trash_bin_sequence_in_this_room;
 					if (room_trash_bins[room_index].size()>1 && computeTrashBinSequence(evaluation_data, evaluation_configuration_vector[config], room_trash_bins[room_index], robot_position, result_trash_bin_seq) == true)
@@ -816,11 +817,12 @@ public:
 						double trash_bin_dist2 = 2. * planner.planPath(evaluation_data.floor_plan_, downsampled_map, trash_bin_sequence_in_this_room[t], trolley_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_);
 						path_length_robot += trash_bin_dist2;
 						path_length_trash_bins += trash_bin_dist1 + trash_bin_dist2;
-						std::cout << "room: " << room_index << "\ttrash bin: " << t << "\ttraveling distance: " << (trash_bin_dist1 + trash_bin_dist2) * evaluation_data.map_resolution_ << "m" << std::endl;
+						std::cout << "room: " << room_index << "\ttrash bin: " << t << " at " << trash_bin_sequence_in_this_room[t] << "\ttraveling distance: " << (trash_bin_dist1 + trash_bin_dist2) * evaluation_data.map_resolution_ << " m" << std::endl;
+						screenoutput << "room: " << room_index << "\ttrash bin: " << t << " at " << trash_bin_sequence_in_this_room[t] << "\ttraveling distance: " << (trash_bin_dist1 + trash_bin_dist2) * evaluation_data.map_resolution_ << " m" << std::endl;
 						robot_position = trash_bin_sequence_in_this_room[t];
 					}
 				}
-				std::cout << "cleaned all rooms and trash bins in current clique" << std::endl;
+				std::cout << "cleaned all rooms and trash bins in current clique" << std::endl; screenoutput << "cleaned all rooms and trash bins in current clique";
 			}
 			// finally go back to trolley
 			path_length_robot += planner.planPath(evaluation_data.floor_plan_, downsampled_map, robot_position, trolley_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_);
@@ -832,7 +834,7 @@ public:
 			double path_length_trolley_in_meter = path_length_trolley * evaluation_data.map_resolution_;
 			double path_length_total_in_meter = path_length_robot_in_meter + path_length_trolley_in_meter;
 			double path_length_trash_bins_in_meter = path_length_trash_bins * evaluation_data.map_resolution_;
-			double robot_speed_without_trolley = 0.3;		// [m/s]
+			double robot_speed_without_trolley = 0.3;		// [m/s]			// todo:parameters
 			double robot_speed_with_trolley = 0.2;			// [m/s]
 			double time_for_trashbin_manipulation = 150;	// [s], without driving
 			double time_for_trolley_manipulation = 90;		// [s], without driving
@@ -859,6 +861,7 @@ public:
 					<< (result_seq->checkpoints.size()+1) << "\t" << path_length_robot_in_meter << "\t" << path_length_trolley_in_meter << "\t" << path_length_trash_bins_in_meter << "\t"
 					<< path_length_total_in_meter << "\t"
 					<< time << "\t" << segmentation_time << "\t" << sequence_time;
+			output << "\n\n\n" << screenoutput.str() << std::endl;
 
 			std::string log_filename = lower_path + evaluation_data.map_name_ + "_results.txt";
 			std::ofstream file(log_filename.c_str(), std::ios::out);
