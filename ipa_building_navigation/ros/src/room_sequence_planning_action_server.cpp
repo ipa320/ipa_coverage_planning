@@ -232,46 +232,44 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		}
 
 		if(goal->return_sequence_map == true)
+		{
+			cv::cvtColor(floor_plan, display, CV_GRAY2BGR);
+
+			for (size_t t=0; t<trolley_positions.size(); ++t)
+			{
+				// trolley positions + connections
+				if (t>0)
 				{
-					cv::cvtColor(floor_plan, display, CV_GRAY2BGR);
+					cv::circle(display, trolley_positions[t], 5, CV_RGB(0,0,255), CV_FILLED);
+					cv::line(display, trolley_positions[t], trolley_positions[t-1], CV_RGB(128,128,255), 1);
+				}
+				else
+				{
+					cv::circle(display, trolley_positions[t], 5, CV_RGB(255,0,0), CV_FILLED);
+				}
 
-					for (size_t t=0; t<trolley_positions.size(); ++t)
+				// room positions and connections
+				for (size_t r=0; r<cliques[t].size(); ++r)
+				{
+					cv::circle(display, room_cliques_as_points[t][r], 3, CV_RGB(0,255,0), CV_FILLED);
+					if (r==0)
+						cv::line(display, trolley_positions[t], room_cliques_as_points[t][r], CV_RGB(255,0,0), 1);
+					else
 					{
-						// trolley positions + connections
-						if (t>0)
-						{
-							cv::circle(display, trolley_positions[t], 5, CV_RGB(0,0,255), CV_FILLED);
-							cv::line(display, trolley_positions[t], trolley_positions[t-1], CV_RGB(128,128,255), 1);
-						}
-						else
-						{
-							cv::circle(display, trolley_positions[t], 5, CV_RGB(255,0,0), CV_FILLED);
-						}
-
-						// room positions and connections
-						for (size_t r=0; r<cliques[t].size(); ++r)
-						{
-							cv::circle(display, room_cliques_as_points[t][r], 3, CV_RGB(0,255,0), CV_FILLED);
-							if (r==0)
-								cv::line(display, trolley_positions[t], room_cliques_as_points[t][r], CV_RGB(255,0,0), 1);
-							else
-							{
-								if(r==cliques[t].size()-1)
-									cv::line(display, room_cliques_as_points[t][r], trolley_positions[t], CV_RGB(255,0,255), 1);
-								cv::line(display, room_cliques_as_points[t][r-1], room_cliques_as_points[t][r], CV_RGB(128,255,128), 1);
-							}
-						}
+						if(r==cliques[t].size()-1)
+							cv::line(display, room_cliques_as_points[t][r], trolley_positions[t], CV_RGB(255,0,255), 1);
+						cv::line(display, room_cliques_as_points[t][r-1], room_cliques_as_points[t][r], CV_RGB(128,255,128), 1);
 					}
 				}
-				// display
-				if (display_map_ == true && goal->return_sequence_map == true)
-				{
-					cv::imshow("sequence planning", display);
-					cv::waitKey();
-				}
-
+			}
+		}
+		// display
+		if (display_map_ == true && goal->return_sequence_map == true)
+		{
+			cv::imshow("sequence planning", display);
+			cv::waitKey();
+		}
 	}
-
 	else if(planning_method_ == 2) //calculate roomgroups and corresponding trolley positions
 	{
 		std::cout << "Maximal cliquedistance [m]: "<< goal->max_clique_path_length  << " Maximal cliquedistance [Pixel]: "<< goal->max_clique_path_length/goal->map_resolution << std::endl;

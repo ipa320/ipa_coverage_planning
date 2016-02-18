@@ -159,10 +159,10 @@ double LaserScannerFeatures::calc_feature2(const std::vector<double>& beams)
 	}
 	sum = sum / (double)(beams.size() - 1);
 	features_computed_[1] = true;
-		features_[1] = std::sqrt(sum);
+	features_[1] = std::sqrt(sum);
 
-		if (features_[1]!=features_[1])
-			std::cout << "   features_[1]="<<features_[1]<<std::endl;
+	if (features_[1]!=features_[1])
+		std::cout << "   features_[1]="<<features_[1]<<std::endl;
 
 	return features_[1];
 }

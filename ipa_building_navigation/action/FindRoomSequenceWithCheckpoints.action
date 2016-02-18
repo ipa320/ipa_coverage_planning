@@ -12,7 +12,7 @@ geometry_msgs/Pose robot_start_coordinate	# current robot location (used to dete
 int32 planning_method						# method that is used to plan the trolley positions
 												# 1: drag the trolley if it is too far away in next room
 												# 2: put rooms together in groups and calculate a corresponding trolley position
-bool return_sequence_map					# boolean to tell the server if the map with the sewuence drawn in should be returned
+bool return_sequence_map					# boolean to tell the server if the map with the sequence drawn in should be returned
 int32 tsp_solver							# int that shows which TSP solver should be used
 												# 1 = Nearest Neighbor
 												# 2 = Genetic solver
