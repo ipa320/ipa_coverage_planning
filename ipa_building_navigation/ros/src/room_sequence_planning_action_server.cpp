@@ -423,6 +423,20 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 			cv::imshow("sequence planning", display);
 			cv::waitKey();
 		}
+
+		// reorder cliques, trolley positions and rooms into optimal order
+		std::vector<std::vector<int> > new_cliques_order(cliques.size());
+		std::vector<cv::Point> new_trolley_positions(trolley_positions.size());
+		for (size_t i=0; i<optimal_trolley_sequence.size(); ++i)
+		{
+			const int oi = optimal_trolley_sequence[i];
+			new_trolley_positions[i] = trolley_positions[oi];
+			new_cliques_order[i].resize(optimal_room_sequences[oi].size());
+			for (size_t j=0; j<optimal_room_sequences[oi].size(); ++j)
+				new_cliques_order[i][j] = cliques[oi][optimal_room_sequences[oi][j]];
+		}
+		cliques = new_cliques_order;
+		trolley_positions = new_trolley_positions;
 	}
 	else
 	{
