@@ -44,6 +44,11 @@ void AStarPlanner::drawRoute(cv::Mat& map, const cv::Point start_point, const st
 			x2 = x1 + dx[j]*step_length;
 			y2 = y1 + dy[j]*step_length;
 			const double progress = 0.2 + 0.6*(double)i/(double)route.length();
+			if (map.at<cv::Vec3b>(y2,x2)==cv::Vec3b(0,0,0))
+			{
+				cv::imshow("map", map);
+				cv::waitKey();
+			}
 			cv::line(map, cv::Point(x1,y1), cv::Point(x2,y2), CV_RGB(0,progress*255,0), 1);
 			x1 = x2;
 			y1 = y2;

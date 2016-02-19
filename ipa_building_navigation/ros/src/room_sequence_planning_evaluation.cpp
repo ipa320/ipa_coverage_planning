@@ -293,7 +293,11 @@ public:
 			}
 
 			// read in trash bin locations
-			image_filename = test_map_path + map_names[image_index] + "_trashbins.png";
+			std::string map_name_basic = map_names[image_index];
+			std::size_t pos = map_names[image_index].find("_furnitures");
+			if (pos != std::string::npos)
+				map_name_basic = map_names[image_index].substr(0, pos);
+			image_filename = test_map_path + map_name_basic + "_trashbins.png";
 			cv::Mat temp = cv::imread(image_filename.c_str());
 			cv::Vec3b blue(255, 0, 0);
 			double map_resoultion_for_evaluation = 0.05;
@@ -314,8 +318,6 @@ public:
 				}
 			}
 			//give occupied memory free
-//			cv::imshow("given map", eroded_map);
-//			cv::waitKey();
 			temp.release();
 			eroded_map.release();
 
@@ -620,8 +622,10 @@ public:
 			{
 				for(int tsp_solver = 1; tsp_solver <= 3; ++tsp_solver)
 				{
-					for (double max_clique_path_length = 6.; max_clique_path_length <= 20.; max_clique_path_length += 2.0)
-						evaluation_configurations.push_back(EvaluationConfig(room_segmentation_algorithm, max_clique_path_length, sequence_planning_method, tsp_solver));
+					cv::Mat max_clique_lengths = (cv::Mat_<double>(1,11) << 6., 8., 10., 12., 14., 16., 18., 20., 25., 30., 50.);
+					//for (double max_clique_path_length = 20.; max_clique_path_length <= 20.; max_clique_path_length += 2.0)
+					for (int i=0; i<max_clique_lengths.cols; ++i)
+						evaluation_configurations.push_back(EvaluationConfig(room_segmentation_algorithm, max_clique_lengths.at<double>(0,i), sequence_planning_method, tsp_solver));
 				}
 			}
 		}
@@ -759,7 +763,7 @@ public:
 			for (size_t i=0; i<evaluation_data.trash_bin_locations_.size(); ++i)
 			{
 				int trash_bin_index = segmented_map.at<int>(evaluation_data.trash_bin_locations_[i]); //labeling started from 1 --> 0 is for obstacles
-				int room_index = 0;
+				int room_index = -1;
 				for (size_t r=0; r<room_centers.size(); ++r)
 				{
 					if (segmented_map.at<int>(room_centers[r]) == trash_bin_index)
@@ -768,8 +772,13 @@ public:
 						break;
 					}
 				}
-				room_trash_bins[room_index].push_back(evaluation_data.trash_bin_locations_[i]);
-				std::cout << "trash bin " << evaluation_data.trash_bin_locations_[i] << "   at room center[" << room_index << "] " << room_centers[room_index] << std::endl;
+				if (room_index != -1)
+				{
+					room_trash_bins[room_index].push_back(evaluation_data.trash_bin_locations_[i]);
+					std::cout << "trash bin " << evaluation_data.trash_bin_locations_[i] << "   at room center[" << room_index << "] " << room_centers[room_index] << std::endl;
+				}
+				else
+					std::cout << "########## trash bin " << evaluation_data.trash_bin_locations_[i] << " does not match any room." << std::endl;
 			}
 
 			// 4. do the movements

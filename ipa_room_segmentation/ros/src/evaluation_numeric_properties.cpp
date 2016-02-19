@@ -409,9 +409,9 @@ int main(int argc, char **argv) {
 	double map_resolution = 0.0500;
 
 	std::vector<std::string> segmentation_names;
-//	segmentation_names.push_back("1morphological");
-//	segmentation_names.push_back("2distance");
-//	segmentation_names.push_back("3voronoi");
+	segmentation_names.push_back("1morphological");
+	segmentation_names.push_back("2distance");
+	segmentation_names.push_back("3voronoi");
 	segmentation_names.push_back("4semantic");
 
 	std::vector< std::string > map_names;
