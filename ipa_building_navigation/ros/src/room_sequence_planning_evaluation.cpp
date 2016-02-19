@@ -228,8 +228,8 @@ public:
 //		map_names.push_back("lab_ipa_furnitures");
 
 		std::vector< std::string > map_names;
-		map_names.push_back("lab_ipa");
-		map_names.push_back("lab_c_scan");
+//		map_names.push_back("lab_ipa");
+//		map_names.push_back("lab_c_scan");
 		map_names.push_back("Freiburg52_scan");
 		map_names.push_back("Freiburg79_scan");
 		map_names.push_back("lab_b_scan");
@@ -971,7 +971,7 @@ public:
 			cv_image.toImageMsg(map_msg);
 			actionlib::SimpleActionClient<ipa_room_segmentation::MapSegmentationAction> ac_seg("/room_segmentation/room_segmentation_server", true);
 			ROS_INFO("Waiting for action server '/room_segmentation/room_segmentation_server' to start.");
-			ac_seg.waitForServer(); // wait for the action server to start, will wait for infinite time
+			ac_seg.waitForServer(ros::Duration(60)); // wait for the action server to start, will wait for infinite time
 
 			std::cout << "Action server started, sending goal_seg." << std::endl;
 			// send a goal to the action
@@ -1048,7 +1048,7 @@ public:
 		actionlib::SimpleActionClient<ipa_building_navigation::FindRoomSequenceWithCheckpointsAction> ac_seq("/room_sequence_planning/room_sequence_planning_server", true);
 //		ROS_INFO("Waiting for action server '/room_sequence_planning/room_sequence_planning_server' to start.");
 		// wait for the action server to start
-		ac_seq.waitForServer(); //will wait for infinite time
+		ac_seq.waitForServer(ros::Duration(60)); //will wait for infinite time
 
 		//put the vector<Point> format in the msg format
 		std::vector<ipa_room_segmentation::RoomInformation> roomcenters_for_sequence_planning(reachable_roomcenters.size());
@@ -1106,7 +1106,7 @@ public:
 			actionlib::SimpleActionClient<ipa_building_navigation::FindRoomSequenceWithCheckpointsAction> ac_seq("/room_sequence_planning/room_sequence_planning_server", true);
 			ROS_INFO("Waiting for action server '/room_sequence_planning/room_sequence_planning_server' to start.");
 			// wait for the action server to start
-			ac_seq.waitForServer(); //will wait for infinite time
+			ac_seq.waitForServer(ros::Duration(60)); //will wait for infinite time
 
 			//put the vector<Point> format in the msg format
 			std::vector<ipa_room_segmentation::RoomInformation> roomcenters_for_sequence_planning(reachable_roomcenters.size());
