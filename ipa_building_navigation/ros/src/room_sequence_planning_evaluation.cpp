@@ -248,26 +248,26 @@ public:
 		map_names.push_back("office_g");
 		map_names.push_back("office_h");
 		map_names.push_back("office_i");
-//		map_names.push_back("lab_ipa_furnitures");
-//		map_names.push_back("lab_c_scan_furnitures");
-//		map_names.push_back("Freiburg52_scan_furnitures");
-//		map_names.push_back("Freiburg79_scan_furnitures");
-//		map_names.push_back("lab_b_scan_furnitures");
-//		map_names.push_back("lab_intel_furnitures");
-//		map_names.push_back("Freiburg101_scan_furnitures");
-//		map_names.push_back("lab_d_scan_furnitures");
-//		map_names.push_back("lab_f_scan_furnitures");
-//		map_names.push_back("lab_a_scan_furnitures");
-//		map_names.push_back("NLB_furnitures");
-//		map_names.push_back("office_a_furnitures");
-//		map_names.push_back("office_b_furnitures");
-//		map_names.push_back("office_c_furnitures");
-//		map_names.push_back("office_d_furnitures");
-//		map_names.push_back("office_e_furnitures");
-//		map_names.push_back("office_f_furnitures");
-//		map_names.push_back("office_g_furnitures");
-//		map_names.push_back("office_h_furnitures");
-//		map_names.push_back("office_i_furnitures");
+		map_names.push_back("lab_ipa_furnitures");
+		map_names.push_back("lab_c_scan_furnitures");
+		map_names.push_back("Freiburg52_scan_furnitures");
+		map_names.push_back("Freiburg79_scan_furnitures");
+		map_names.push_back("lab_b_scan_furnitures");
+		map_names.push_back("lab_intel_furnitures");
+		map_names.push_back("Freiburg101_scan_furnitures");
+		map_names.push_back("lab_d_scan_furnitures");
+		map_names.push_back("lab_f_scan_furnitures");
+		map_names.push_back("lab_a_scan_furnitures");
+		map_names.push_back("NLB_furnitures");
+		map_names.push_back("office_a_furnitures");
+		map_names.push_back("office_b_furnitures");
+		map_names.push_back("office_c_furnitures");
+		map_names.push_back("office_d_furnitures");
+		map_names.push_back("office_e_furnitures");
+		map_names.push_back("office_f_furnitures");
+		map_names.push_back("office_g_furnitures");
+		map_names.push_back("office_h_furnitures");
+		map_names.push_back("office_i_furnitures");
 
 
 		// prepare image data for evaluation
@@ -456,7 +456,7 @@ public:
 				{
 					int base_index = i*max_clique_lengths.size();
 					std::stringstream ss;
-					ss << "seg" << evaluation_configurations[base_index].room_segmentation_algorithm_ << "tsp" << evaluation_configurations[base_index].tsp_solver_ << "plmth" << evaluation_configurations[base_index].sequence_planning_method_;
+					ss << "seg" << evaluation_configurations[base_index].room_segmentation_algorithm_ << "plmth" << evaluation_configurations[base_index].sequence_planning_method_ << "tsp" << evaluation_configurations[base_index].tsp_solver_;
 					output_matrix[1+i][0] = ss.str();
 					for (size_t k=0; k<max_clique_lengths.size(); ++k)
 					{
