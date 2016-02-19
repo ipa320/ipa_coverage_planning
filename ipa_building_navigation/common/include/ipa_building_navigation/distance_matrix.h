@@ -46,6 +46,6 @@ public:
 			}
 		}
 
-		std::cout << "Distance matrix created in " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
+		std::cout << "Distance matrix created in " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;// "\nDistance matrix:\n" << distance_matrix << std::endl;
 	}
 };
