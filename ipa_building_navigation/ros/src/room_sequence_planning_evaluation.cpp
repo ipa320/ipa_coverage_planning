@@ -794,6 +794,7 @@ public:
 					(evaluation_data.robot_start_position_.position.y - evaluation_data.map_origin_.position.y)/evaluation_data.map_resolution_);
 			cv::circle(draw_path_map, robot_position, 3, CV_RGB(0,255,0), -1);
 			cv::circle(draw_path_map, trolley_position, 5, CV_RGB(0,0,255), -1);
+			cv::circle(draw_path_map2, trolley_position, 5, CV_RGB(0,0,255), -1);
 
 			std::stringstream screenoutput;
 			for (size_t clique_index = 0; clique_index<result_seq->checkpoints.size(); ++clique_index)
@@ -809,6 +810,7 @@ public:
 				robot_position = trolley_goal_position;
 				cv::circle(draw_path_map, robot_position, 3, CV_RGB(0,255,0), -1);
 				cv::circle(draw_path_map, trolley_position, 5, CV_RGB(0,0,255), -1);
+				cv::circle(draw_path_map2, trolley_position, 5, CV_RGB(0,0,255), -1);
 				std::cout << "moved trolley to " << trolley_position << std::endl; screenoutput << "moved trolley to " << trolley_position << std::endl;
 
 				// move robot to rooms
@@ -841,6 +843,7 @@ public:
 						double trash_bin_dist1 = planner.planPath(evaluation_data.floor_plan_, downsampled_map, robot_position, trash_bin_sequence_in_this_room[t], evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_, 1, &draw_path_map);
 						path_length_robot += trash_bin_dist1;
 						cv::circle(draw_path_map, trash_bin_sequence_in_this_room[t], 2, CV_RGB(128,0,255), -1);
+						cv::circle(draw_path_map2, trash_bin_sequence_in_this_room[t], 2, CV_RGB(128,0,255), -1);
 						// drive trash bin to trolley and back
 						double trash_bin_dist2 = 2. * planner.planPath(evaluation_data.floor_plan_, downsampled_map, trash_bin_sequence_in_this_room[t], trolley_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_, 1, &draw_path_map2);
 						path_length_robot += trash_bin_dist2;
