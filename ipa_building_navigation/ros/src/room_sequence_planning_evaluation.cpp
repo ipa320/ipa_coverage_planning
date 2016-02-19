@@ -1131,7 +1131,7 @@ public:
 			ac_seq.sendGoal(goal_seq);
 
 			//wait for the action to return
-			bool finished_before_timeout = ac_seq.waitForResult(ros::Duration(600.0 + 100 * loopcounter));
+			bool finished_before_timeout = ac_seq.waitForResult(ros::Duration(2400.0 + 200 * loopcounter));
 			if (finished_before_timeout == false) //if it takes too long the server should be killed and restarted
 			{
 				std::cout << "action server took too long" << std::endl;
