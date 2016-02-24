@@ -73,6 +73,12 @@
 
 #include <dlib/optimization.h>
 
+#include <opengm/inference/messagepassing/messagepassing.hxx>
+#include<opengm/graphicalmodel/graphicalmodel.hxx>
+#include <opengm/graphicalmodel/space/discretespace.hxx>
+#include <opengm/functions/explicit_function.hxx>
+#include <opengm/operations/adder.hxx>
+
 #include <ctime>
 
 #include <ipa_room_segmentation/contains.h> // some useful functions defined for all segmentations

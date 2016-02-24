@@ -11,6 +11,7 @@ set(catkin_RUN_PACKAGES
 	geometry_msgs
 	cv_bridge
 	dlib_lib
+	opengm_lib
 )
 
 set(catkin_BUILD_PACKAGES
