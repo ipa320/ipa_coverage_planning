@@ -8,7 +8,7 @@
 
 int main()
 {
-	cv::Mat map = cv::imread("/home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/common/files/test_maps/office_e_furnitures.png", 0); // office_b.png  /home/rmb-fj/Pictures/map.png
+	cv::Mat map = cv::imread("/home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/common/files/test_maps/office_e.png", 0); // office_b.png  /home/rmb-fj/Pictures/map.png
 
 	for(unsigned int u = 0; u < map.rows; ++u)
 	{
@@ -120,9 +120,9 @@ int main()
 
 	VoronoiRandomFieldSegmentation segmenter(false, false);
 
-//	segmenter.segmentMap(map, 7, 50, 5, 7, true, conditional_weights_path, boost_file_path); // 7, 50, 4, 5
+	segmenter.segmentMap(map, 7, 50, 5, 7, true, conditional_weights_path, boost_file_path); // 7, 50, 4, 5
 
-	segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
+//	//segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
 
 //	segmenter.testFunc(map);
 

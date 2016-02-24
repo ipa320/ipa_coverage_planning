@@ -105,6 +105,7 @@ public:
 		// go trough each part of the function and calculate the log(.) and add it to the result
 		for(unsigned int function_part = 0; function_part < log_parameters.size(); ++function_part)
 		{
+			double splitting_of_exponent = 10; // because this function often produces exponents around 1000 the calculation of one exponential part needs to be splitted
 			long double log_numerator = 1., log_denominator = 0.; // numerator and denominator for each log
 			long double exp_exponent = 0; // helping variable to get each exponent for exp(.)
 			// get the log_numerator for each function part
@@ -112,8 +113,8 @@ public:
 			{
 				exp_exponent += log_parameters[function_part][numerator_factor] * weights(numerator_factor);
 			}
-			exp_exponent = exp_exponent / 10;
-			for(size_t split = 0; split < 10; ++split)
+			exp_exponent = exp_exponent / splitting_of_exponent;
+			for(size_t split = 0; split < splitting_of_exponent; ++split)
 				log_numerator = log_numerator * exp(exp_exponent);
 
 			if(exp_exponent > 250.0)
@@ -136,12 +137,12 @@ public:
 				{
 					exp_exponent += log_parameters[function_part][vector_position + relative_position] * weights(relative_position);
 				}
-				exp_exponent = exp_exponent / 10;
+				exp_exponent = exp_exponent / splitting_of_exponent;
 				// update the absolute vector position
 				vector_position += number_of_weights;
 				// update the denominator
 				long double denominator_part = 1.0;
-				for(size_t split = 0; split < 10; ++split)
+				for(size_t split = 0; split < splitting_of_exponent; ++split)
 					denominator_part *= exp(exp_exponent);
 
 				log_denominator += denominator_part;
@@ -282,7 +283,6 @@ void VoronoiRandomFieldSegmentation::createConditionalField(const cv::Mat& voron
 		std::vector<Clique>& conditional_random_field_cliques, const std::set<cv::Point, cv_Point_comp>& voronoi_node_points,
 		const cv::Mat& original_map)
 {
-	// TODO: Repair after speedup --> different result than before
 	// 1. Search for the n neighbors of the each point by going along the voronoi graph until a conditional-field-node gets
 	//	  found.
 	//
@@ -291,13 +291,14 @@ void VoronoiRandomFieldSegmentation::createConditionalField(const cv::Mat& voron
 	for(std::set<cv::Point, cv_Point_comp>::const_iterator current_point = node_points.begin(); current_point != node_points.end(); ++current_point)
 	{
 		// check how many neighbors need to be found --> 4 if the current node is a voronoi graph node, 2 else
+		// ( 4 because e.g. a node in the middle of a cross has four neighbors)
 		int number_of_neighbors = 2;
 		if(voronoi_node_points.find(*current_point) != voronoi_node_points.end())
 			number_of_neighbors = 4;
 
 		// vector to save the searched points
-		std::set<cv::Point, cv_Point_comp> searched_points;
-		searched_points.insert(*current_point);
+		std::vector<cv::Point> searched_points;
+		searched_points.push_back(*current_point);
 
 		// vector to save the found neighbors
 		std::set<cv::Point, cv_Point_comp> found_neighbors;
@@ -318,51 +319,45 @@ void VoronoiRandomFieldSegmentation::createConditionalField(const cv::Mat& voron
 //			std::cout << "starting new iteration. Points to find: " << number_of_neighbors - found_neighbors.size() << std::endl;
 
 			// create temporary-vector to save the new found nodes
-			std::set<cv::Point, cv_Point_comp> temporary_point_vector = searched_points;
+			std::vector<cv::Point> temporary_point_vector = searched_points;
 
-			// create temporary vector that stores new points that should get expanded
-			std::vector<cv::Point> temporary_expanding_points;
-
-			for(std::vector<cv::Point>::iterator searching_point = to_be_expanded_points.begin(); searching_point != to_be_expanded_points.end(); ++searching_point)
+			for(std::vector<cv::Point>::iterator searching_point = searched_points.begin(); searching_point != searched_points.end(); ++searching_point)
 			{
-//				bool random_field_node = false; // if the current node is a node of the conditional random field, don't go further in this direction
-//				if(found_neighbors.find(*searching_point) != found_neighbors.end())
-//					random_field_node = true;
+				bool random_field_node = false; // if the current node is a node of the conditional random field, don't go further in this direction
+				if(found_neighbors.find(*searching_point) != found_neighbors.end())
+					random_field_node = true;
 
-//				if(random_field_node == false)
-//				{
+				if(random_field_node == false)
+				{
 					// check around a 3x3 region for nodes of the voronoi graph
 					for(int du = -1; du <= 1; du++)
 					{
-						for(int dv = -1; dv <= 1; dv++)
+						for(int dv = -1; dv <= 1; dv++) // && abs(du) + abs(dv) != 0
 						{
-							// don't check de point itself
 							if(du == 0 && dv == 0)
 								continue;
 
 							cv::Point point_to_check = cv::Point(searching_point->x + dv, searching_point->y + du);
 							// voronoi node is drawn with a value of 127 in the map, don't check already checked points
 							if(voronoi_map.at<unsigned char>(point_to_check) == 127
-									&& searched_points.find(point_to_check) == searched_points.end())
+									&& contains(temporary_point_vector, point_to_check) == false)
 							{
 								// add found voronoi node to searched-points vector
-								searched_points.insert(point_to_check);
+								temporary_point_vector.push_back(point_to_check);
 
 								// Check if point is a conditional random field node. Check on size is to prevent addition of
 								// points that appear in the same step and would make the clique too large.
-								// If not add the found node to the next to be expanded nodes.
-								if(node_points.find(point_to_check) != node_points.end() && found_neighbors.size() < number_of_neighbors)
+								if(node_points.find(point_to_check) != node_points.end()
+										&& found_neighbors.size() < number_of_neighbors)
 									found_neighbors.insert(point_to_check);
-								else
-									temporary_expanding_points.push_back(point_to_check);
 							}
 						}
 					}
-//				}
+				}
 			}
 
-			// reassign the new found searching points
-			to_be_expanded_points = temporary_expanding_points;
+			// assign the temporary-vector as the new reached-points vector
+			searched_points = temporary_point_vector;
 
 //			cv::Mat path_map = node_map.clone();
 //			for(size_t i = 0; i < searched_point_vector.size(); ++i)
@@ -372,9 +367,9 @@ void VoronoiRandomFieldSegmentation::createConditionalField(const cv::Mat& voron
 //			cv::imshow("path map", path_map);
 //			cv::waitKey();
 
-//			std::cout << "finished one iteration. Size of found points: " << found_neighbors.size() << std::endl << std::endl;
-
 		}while(found_neighbors.size() < number_of_neighbors && previous_size_of_searched_nodes != searched_points.size());
+
+//		std::cout << "Found all neighbors. Size of found points: " << found_neighbors.size() << " Size of searched points: " << searched_points.size() << std::endl;
 
 		// 2. create a clique out of the current node and its found neighbors
 		//
@@ -391,13 +386,13 @@ void VoronoiRandomFieldSegmentation::createConditionalField(const cv::Mat& voron
 
 		for(size_t member = 0; member < clique_members.size(); ++member)
 		{
-			if(raycasts.find(clique_members[member]) == raycasts.end()) // point hasn't been simulated yet
-			{
+//			if(raycasts.find(clique_members[member]) == raycasts.end()) // point hasn't been simulated yet
+//			{
 				laser_beams[member] = raycasting(original_map, cv::Point(clique_members[member].y, clique_members[member].x));
-				raycasts[clique_members[member]] = laser_beams[member];
-			}
-			else
-				laser_beams[member] = raycasts[clique_members[member]];
+//				raycasts[clique_members[member]] = laser_beams[member];
+//			}
+//			else
+//				laser_beams[member] = raycasts[clique_members[member]];
 		}
 //		time += tim.getElapsedTimeInMilliSec();
 
@@ -643,8 +638,8 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 			for(int f = 1; f <= getFeatureCount(); ++f)
 			{
 				current_features[f-1] = getFeature(current_beams, angles_for_simulation_, current_clique_members, current_labels_for_points, possible_labels, current_point, f);
-//				if(current_features[f-1] > 10e6)
-//					std::cout << current_features[f-1] << " ";
+				if(current_features[f-1] > 10e6)
+					std::cout << current_features[f-1] << " feature: " << f;
 			}
 			features_for_points.push_back(current_features);
 //			std::cout << "f7: (" << current_features[6] << ") ";

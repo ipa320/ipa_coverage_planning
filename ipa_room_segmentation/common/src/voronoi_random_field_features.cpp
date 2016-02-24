@@ -139,10 +139,9 @@ double calcFeature2(const std::vector<double>& beams)
 {
 	double feature2_value;
 	double mean; //mean-value of the difference, calculated with calcFeature1
-	double sum; //helping variable
+	double sum = 0; //helping variable
 	//initialise
 	mean = calcFeature1(beams);
-	sum = 0;
 	//calculate deviation
 	for (int b = 0; b < beams.size(); b++)
 	{
@@ -174,7 +173,7 @@ double calcFeature3(const std::vector<double>& beams, double maxval)
 		}
 		differences_sum += abs(val1 - val2);
 	}
-	//get the difference betweeen the last and the first beam
+	//get the difference between the last and the first beam
 	val1 = maxval;
 	val2 = maxval;
 	if (beams[beams.size()] < maxval)
@@ -291,7 +290,7 @@ double calcFeature8(const std::vector<double>& beams, const std::vector<double>&
 	//Remark: angles are relatively to the robot
 	double length_1 = 10000000;
 	double length_2 = 10000000;
-	double angle_1, angle_2;
+	double angle_1 = angles[0], angle_2 = angles[1];
 	double x_1, y_1, x_2, y_2;
 	//get the two Points corresponding to minimal beamlength
 	for (int b = 0; b < beams.size(); b++)
