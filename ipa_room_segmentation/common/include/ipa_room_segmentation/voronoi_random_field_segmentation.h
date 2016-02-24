@@ -73,11 +73,14 @@
 
 #include <dlib/optimization.h>
 
-#include <opengm/inference/messagepassing/messagepassing.hxx>
-#include<opengm/graphicalmodel/graphicalmodel.hxx>
+// OpenGM-library headers
+#include <opengm/graphicalmodel/graphicalmodel.hxx>
 #include <opengm/graphicalmodel/space/discretespace.hxx>
 #include <opengm/functions/explicit_function.hxx>
-#include <opengm/operations/adder.hxx>
+#include <opengm/operations/multiplier.hxx>
+#include <opengm/graphicalmodel/space/simplediscretespace.hxx>
+#include <opengm/inference/messagepassing/messagepassing.hxx>
+#include <opengm/operations/maximizer.hxx>
 
 #include <ctime>
 
@@ -89,6 +92,8 @@
 
 #pragma once
 
+// Struct that compares two given points and returns if the y-coordinate of the first is smaller or if they are equal if the
+// x-coordinate of the first is smaller. This is used for sets to easily store cv::Point objects and search for specific objects.
 struct cv_Point_comp
 {
 	bool operator()(const cv::Point& lhs, const cv::Point& rhs) const
@@ -97,27 +102,51 @@ struct cv_Point_comp
 	}
 };
 
-typedef dlib::matrix<double,0,1> column_vector; // typedef used for the dlib optimization
+// Typedef used for the dlib optimization. This Type stores n times 1 elements in a matirx --> represents a column-vector.
+typedef dlib::matrix<double,0,1> column_vector;
 
+// Typedefs for the OpenGM library. This library is a template-library for discrete factor-graphs (https://en.wikipedia.org/wiki/Factor_graph)
+// and for operations on these, used in this algorithm to do loopy-belief-propagation for the conditional random field.
+//
+// Typedef for the Label-Space. This stores n variables that each can have m labels.
+typedef opengm::SimpleDiscreteSpace<size_t, size_t> LabelSpace;
+
+// Typedef for a factor-graph that stores doubles as results, multiplies the factors and has discrete labels for each variable.
+typedef opengm::GraphicalModel <double, opengm::Multiplier, opengm::ExplicitFunction<double>, opengm::SimpleDiscreteSpace<> > FactorGraph;
+
+// Typedef for the update rule of messages in a factor graph, when using message propagation.
+// Second Typedef is the Belief-Propagation used in this algorithm. It can be used on the defined FactorGraph, maximizes the defined
+// functions and uses the Update-Rule for the messages that maximize the overall Graph. MaxDistance is a metric used to measure
+// the distance of two messages in the graph.
+typedef opengm::BeliefPropagationUpdateRules <FactorGraph, opengm::Maximizer> UpdateRules;
+typedef opengm::MessagePassing<FactorGraph, opengm::Maximizer, UpdateRules, opengm::MaxDistance> LoopyBeliefPropagation;
+
+// Overload of the + operator for vectors:
+//		Given vectors a and b it returns a+b. If the vectors are not the same size a -1 vector gets returned to show an error.
 template <typename T>
 std::vector<T> operator+(const std::vector<T>& a, const std::vector<T>& b)
 {
 //    assert(a.size() == b.size());
 
-    if(a.empty())
+    if(a.empty()) // if a doesn't store any element it is the zero-vector, so return b
     	return b;
-    else if(b.empty())
+    else if(b.empty()) // if b doesn't store any element it is the zero-vector, so return a
     	return a;
+    else if(a.size() != b.size()) // if the vectors are not the same size return a vector with -1 as entries as failure
+    	return std::vector<T>(100, -1);
 
-    std::vector<T> result;
+    std::vector<T> result; // create temporary new vector
     result.reserve(a.size());
 
+    // add each element of the vectors and store them at the corresponding temporary vector position
     std::transform(a.begin(), a.end(), b.begin(),
                    std::back_inserter(result), std::plus<T>());
 
     return result;
 }
 
+// Overload of the += operator for vectors:
+//		Given vector a and b from arbitrary sizes this operator takes vector b and expands a by these elements.
 template <typename T>
 std::vector<T>& operator+=(std::vector<T>& a, const std::vector<T>& b)
 {

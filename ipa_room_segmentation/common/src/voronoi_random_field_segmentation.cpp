@@ -1482,6 +1482,40 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 		cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/neighbor_map.png", neighbor_map);
 	}
 
+	// ************* IV. Construct the Factor graph from the calculated random-Field *************
+	//
+	// The calculated CRF has to be a Factor graph to use the OpenGM libraries Belief-Propagation algorithm. A Factor graph is a
+	// graphical model that calculates a large function by calculating each part of the function for itself (https://en.wikipedia.org/wiki/Factor_graph).
+	// Meaning it is a function in the form f(x_0:i) = f(x_j:k) * f(x_l:m) *... . In this case each clique-potential is one part
+	// of the whole function and the overall function should be minimized later. To do this the Typedefs in the header gets used.
+	//
+	// 1. Create the Label-Space and a factor graph. A Label-Space consists of all variables and how many labels each variable
+	//	  can obtain.
+
+	LabelSpace space(conditional_field_nodes.size(), number_of_classes_);
+
+	FactorGraph factor_graph(space);
+
+	// 2. Create each function of the factor graph. Each Clique-potential is one part in the factor graph, so for each clique
+	// 	  a opengm-function-object gets calculated. The opengm::ExplicitFunction<double> template gets used, meaning for each
+	//	  possible configuration of the variable-labels the double-value of the function needs to be put in the object. So each
+	//	  object is like a lookup-table later on. The variables for a function are defined later, when the factors for the graph
+	//	  are defined.
+
+	for(std::vector<Clique>::iterator current_clique = conditional_random_field_cliques.begin(); current_clique != conditional_random_field_cliques.end(); ++current_clique)
+	{
+		// first get the number of members in this clique
+		size_t number_of_members = current_clique->getNumberOfMembers();
+
+		// define an array that has as many elements as the clique has members and assign the number of possible labels for each
+		const size_t variable_space[number_of_members];
+		std::fill_n(variable_space, number_of_members, number_of_classes_);
+
+		// define a explicit function-object from OpenGM containing the initial value -1.0 for each combination
+		opengm::ExplicitFunction<double> f(variable_space, variable_space + number_of_members, -1.0);
+
+	}
+
 }
 
 // Function to test several functions of this algorithm independent of other functions

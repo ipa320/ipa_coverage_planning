@@ -129,6 +129,10 @@ int main()
 
 //	segmenter.testFunc(map);
 
+//	size_t arr[] = {2};
+//
+//	std::cout << *arr << " " << *(arr+1) << std::endl;
+
 //	std::vector<std::vector<double> > params(2);
 //	params[0].push_back(5);
 //	params[0].push_back(10);
