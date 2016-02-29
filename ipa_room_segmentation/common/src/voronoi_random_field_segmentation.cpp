@@ -174,123 +174,123 @@ public:
 
 // Struct that is used as function for the factor graph in OpenGM. It does the same as getAdaBoostClassifiers, but it is better
 // to give OpenGM an object that computes all function-values than calculating them before and then saving them.
-struct adaBoostFunction
-{
-public:
-	// the number of classifiers that produce a single feature-value
-	size_t number_of_classifiers;
-
-	// OpenCV Boost objects that are used to calculate the AdaBoost weak-hypothesis
-	CvBoost room_boost, hallway_boost, doorway_boost;
-
-	// vector that stores the angles used for raycasting --> to compute features
-	std::vector<double> angles_for_simulation;
-
-	// vector that stores the weights of the conditional random field, which are used together with the features to get a
-	// clique potential
-	std::vector<double> trained_conditional_weights;
-
-	// vector that stores each label that is possible to assign to a node
-	std::vector<unsigned int> possible_labels;
-
-	// the clique this function calculates a value for
-	Clique clique;
-
-	// functions needed from OpenGM
-	// how many variables there are in this function (possible labels in this case)
-//	size_t dimension()const
-//	{
-//		return possible_labels.size();
-//	};
+//struct adaBoostFunction
+//{
+//public:
+//	// the number of classifiers that produce a single feature-value
+//	size_t number_of_classifiers;
 //
-//	size_t shape(const size_t i)const
-//	{
-//		return 2;
-//	};
+//	// OpenCV Boost objects that are used to calculate the AdaBoost weak-hypothesis
+//	CvBoost room_boost, hallway_boost, doorway_boost;
 //
-//	size_t size()const
+//	// vector that stores the angles used for raycasting --> to compute features
+//	std::vector<double> angles_for_simulation;
+//
+//	// vector that stores the weights of the conditional random field, which are used together with the features to get a
+//	// clique potential
+//	std::vector<double> trained_conditional_weights;
+//
+//	// vector that stores each label that is possible to assign to a node
+//	std::vector<unsigned int> possible_labels;
+//
+//	// the clique this function calculates a value for
+//	Clique clique;
+//
+//	// functions needed from OpenGM
+//	// how many variables there are in this function (possible labels in this case)
+////	size_t dimension()const
+////	{
+////		return possible_labels.size();
+////	};
+////
+////	size_t shape(const size_t i)const
+////	{
+////		return 2;
+////	};
+////
+////	size_t size()const
+////	{
+////		return 16;
+////	};
+//
+//	template<class Iterator>
+//	inline const double operator()(Iterator begin)
 //	{
-//		return 16;
+//		double value = 0;
+//
+//		// Get the points that belong to the clique and the stored simulated beams for each one.
+//		std::vector<cv::Point> clique_members = clique.getMemberPoints();
+//		std::vector< std::vector<double> > beams_for_points = clique.getBeams();
+//
+//		// vector that is used to sum the calculated features
+//		std::vector<double> temporary_feature_vector(number_of_classifiers, 0.0);
+//
+//		// For each member of this clique calculate the weak-hypothesis and add the resulting vectors in the end
+//		for(size_t point = 0; point < clique_members.size(); ++point)
+//		{
+//			// Check which classifier (room, hallway or doorway) needs to be used.
+//			unsigned int classifier;
+//			for(size_t label = 0; label < possible_labels.size(); ++label)
+//			{
+//				if(possible_labels[label] == begin[point])
+//				{
+//					classifier = label;
+//					break;
+//				}
+//			}
+//
+//	//		std::cout << "got label to use" << std::endl;
+//
+//			// get the features for the central point of the clique
+//			cv::Mat featuresMat(1, getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
+//			for (int f = 1; f <= getFeatureCount(); ++f)
+//			{
+//				//get the features for each room and put it in the featuresMat
+//				featuresMat.at<float>(0, f - 1) = (float) getFeature(beams_for_points[point], angles_for_simulation, clique_members, begin, possible_labels, clique_members[point], f);
+////				std::cout << "filled entry " << f << ": " << featuresMat.at<float>(0, f - 1) << std::endl;
+//			}
+//			// Calculate the weak hypothesis by using the wanted classifier.
+//			CvMat features = featuresMat;
+//			cv::Mat weaker (1, number_of_classifiers, CV_32F);
+//			CvMat weak_hypothesis = weaker;	// Wanted from OpenCV to get the weak hypothesis from the
+//												// separate weak classifiers.
+//			switch(classifier)
+//			{
+//			case 0:
+////				std::cout << "using rooms" << std::endl;
+//				room_boost.predict(&features, 0, &weak_hypothesis);
+//				break;
+//			case 1:
+////				std::cout << "using hallways" << std::endl;
+//				hallway_boost.predict(&features, 0, &weak_hypothesis);
+//				break;
+//			case 2:
+////			std::cout << "using doorways" << std::endl;
+//			doorway_boost.predict(&features, 0, &weak_hypothesis);
+//			break;
+//			}
+//
+////			std::cout << "predicted" << std::endl;
+//
+//			// Write the weak hypothesis in the feature vector.
+////			std::cout << "resaving weak responses " << std::endl;
+//			for(size_t f = 0; f < number_of_classifiers; ++f)
+//			{
+////				std::cout << "f: " << f;
+//				temporary_feature_vector[f] = temporary_feature_vector[f] + (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
+////				std::cout << ". assigned hypothesis" << std::endl;
+//			}
+//
+////			std::cout << "assigned weak hypothesis" << std::endl;
+//		}
+//
+//		// calculate the weighted sum of features and weights
+//		for(size_t weight = 0; weight < number_of_classifiers; ++weight)
+//			value += temporary_feature_vector[weight] * trained_conditional_weights[weight];
+//
+//		return value;
 //	};
-
-	template<class Iterator>
-	inline const double operator()(Iterator begin)
-	{
-		double value = 0;
-
-		// Get the points that belong to the clique and the stored simulated beams for each one.
-		std::vector<cv::Point> clique_members = clique.getMemberPoints();
-		std::vector< std::vector<double> > beams_for_points = clique.getBeams();
-
-		// vector that is used to sum the calculated features
-		std::vector<double> temporary_feature_vector(number_of_classifiers, 0.0);
-
-		// For each member of this clique calculate the weak-hypothesis and add the resulting vectors in the end
-		for(size_t point = 0; point < clique_members.size(); ++point)
-		{
-			// Check which classifier (room, hallway or doorway) needs to be used.
-			unsigned int classifier;
-			for(size_t label = 0; label < possible_labels.size(); ++label)
-			{
-				if(possible_labels[label] == begin[point])
-				{
-					classifier = label;
-					break;
-				}
-			}
-
-	//		std::cout << "got label to use" << std::endl;
-
-			// get the features for the central point of the clique
-			cv::Mat featuresMat(1, getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
-			for (int f = 1; f <= getFeatureCount(); ++f)
-			{
-				//get the features for each room and put it in the featuresMat
-				featuresMat.at<float>(0, f - 1) = (float) getFeature(beams_for_points[point], angles_for_simulation, clique_members, begin, possible_labels, clique_members[point], f);
-//				std::cout << "filled entry " << f << ": " << featuresMat.at<float>(0, f - 1) << std::endl;
-			}
-			// Calculate the weak hypothesis by using the wanted classifier.
-			CvMat features = featuresMat;
-			cv::Mat weaker (1, number_of_classifiers, CV_32F);
-			CvMat weak_hypothesis = weaker;	// Wanted from OpenCV to get the weak hypothesis from the
-												// separate weak classifiers.
-			switch(classifier)
-			{
-			case 0:
-//				std::cout << "using rooms" << std::endl;
-				room_boost.predict(&features, 0, &weak_hypothesis);
-				break;
-			case 1:
-//				std::cout << "using hallways" << std::endl;
-				hallway_boost.predict(&features, 0, &weak_hypothesis);
-				break;
-			case 2:
-//			std::cout << "using doorways" << std::endl;
-			doorway_boost.predict(&features, 0, &weak_hypothesis);
-			break;
-			}
-
-//			std::cout << "predicted" << std::endl;
-
-			// Write the weak hypothesis in the feature vector.
-//			std::cout << "resaving weak responses " << std::endl;
-			for(size_t f = 0; f < number_of_classifiers; ++f)
-			{
-//				std::cout << "f: " << f;
-				temporary_feature_vector[f] = temporary_feature_vector[f] + (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
-//				std::cout << ". assigned hypothesis" << std::endl;
-			}
-
-//			std::cout << "assigned weak hypothesis" << std::endl;
-		}
-
-		// calculate the weighted sum of features and weights
-		for(size_t weight = 0; weight < number_of_classifiers; ++weight)
-			value += temporary_feature_vector[weight] * trained_conditional_weights[weight];
-
-		return value;
-	};
-};
+//};
 
 // Constructor
 VoronoiRandomFieldSegmentation::VoronoiRandomFieldSegmentation(bool trained_boost, bool trained_conditional_field)
@@ -1732,17 +1732,6 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 		// vector to store the calculated clique potentials
 		std::vector<double> clique_potentials(current_possible_configurations.size());
 
-		adaBoostFunction func;
-
-		func.angles_for_simulation = angles_for_simulation_;
-		func.clique = *current_clique;
-		func.room_boost = room_boost_;
-		func.hallway_boost = hallway_boost_;
-		func.doorway_boost = doorway_boost_;
-		func.number_of_classifiers = number_of_classifiers_;
-		func.possible_labels = possible_labels;
-		func.trained_conditional_weights = trained_conditional_weights_;
-
 		// go trough each possible configuration and compute the function value for it
 		for(size_t configuration = 0; configuration < current_possible_configurations.size(); ++configuration)
 		{
@@ -1755,11 +1744,8 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 //			std::cout << std::endl;
 
 			// get current feature-vector and multiply it with the trained weights
-			std::cout << "getting real vector" << std::endl;
 			std::vector<double> current_features(number_of_classifiers_);
 			getAdaBoostFeatureVector(current_features, *current_clique, current_configuration, possible_labels);
-
-			std::cout << "got real vector" << std::endl;
 
 			double clique_potential = 0;
 			for(size_t weight = 0; weight < number_of_classifiers_; ++weight)
@@ -1768,13 +1754,9 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 			// save the found clique potential
 			clique_potentials[configuration] = clique_potential;
 
-			double test = func(current_configuration);
-
-			std::cout << "real: " << clique_potentials[configuration] << " class: " << test << std::endl;
-
 //			std::cout << "got one feature-vector" << std::endl;
 		}
-		std::cout << "one clique done" << std::endl;
+//		std::cout << "one clique done" << std::endl;
 
 		// assign the calculated clique potential at the right position in the function
 
