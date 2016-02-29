@@ -1755,6 +1755,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 			clique_potentials[configuration] = clique_potential;
 
 //			std::cout << "got one feature-vector" << std::endl;
+
 		}
 //		std::cout << "one clique done" << std::endl;
 
@@ -1775,56 +1776,73 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map)
 //	cv::imshow("voronoi", voronoi_map);
 //	cv::waitKey();
 
-	std::vector<std::vector<uint> > configs;
-	uint number_of_variables = 3;
-	uint number_of_labels = 3;
-	double myints[] = {1,1,1,1,2,2,2,2,3,3,3,3};
-	std::vector<uint> labels(number_of_labels);
-//	for(size_t i = 1; i <= number_of_labels; ++i)
-//		labels[i-1] = i;
-	labels[0] = 1;
-	labels[1] = 2;
-	labels[2] = 3;
-
-	Timer timer;
-
-	timer.start();
-	getPossibleConfigurations(configs, labels, number_of_variables);
-	std::cout << "Time needed: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
-//	std::vector<int> myvector(number_of_labels*number_of_variables);// (myints, myints+(number_of_labels * number_of_variables));
-//	std::cout << myvector.size() << std::endl;
-//	for(size_t variable = 0; variable < number_of_variables; ++variable)
-//		for(size_t label = 0; label < number_of_labels; ++label)
-//		{
-//			myvector[label + number_of_labels * variable] = (double) (label+1);
-//			std::cout << label+1 << std::endl;
-//		}
-//	std::sort (myvector.begin(),myvector.end());
+//	std::vector<std::vector<uint> > configs;
+//	uint number_of_variables = 3;
+//	uint number_of_labels = 3;
+//	double myints[] = {1,1,1,1,2,2,2,2,3,3,3,3};
+//	std::vector<uint> labels(number_of_labels);
+////	for(size_t i = 1; i <= number_of_labels; ++i)
+////		labels[i-1] = i;
+//	labels[0] = 1;
+//	labels[1] = 2;
+//	labels[2] = 3;
 //
-//	std::cout << "The 3! possible permutations with 3 elements:\n";
-//	do
+//	Timer timer;
+//
+//	timer.start();
+//	getPossibleConfigurations(configs, labels, number_of_variables);
+//	std::cout << "Time needed: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
+////	std::vector<int> myvector(number_of_labels*number_of_variables);// (myints, myints+(number_of_labels * number_of_variables));
+////	std::cout << myvector.size() << std::endl;
+////	for(size_t variable = 0; variable < number_of_variables; ++variable)
+////		for(size_t label = 0; label < number_of_labels; ++label)
+////		{
+////			myvector[label + number_of_labels * variable] = (double) (label+1);
+////			std::cout << label+1 << std::endl;
+////		}
+////	std::sort (myvector.begin(),myvector.end());
+////
+////	std::cout << "The 3! possible permutations with 3 elements:\n";
+////	do
+////	{
+////		std::vector<double> current_config(number_of_variables);
+////		for(size_t v = 0; v < number_of_variables; ++v)
+////			current_config[v] = myvector[v];
+//////		current_config[1] = myvector[1];
+//////		current_config[2] = myvector[2];
+//////		current_config[3] = myvector[3];
+////
+////		if(contains(configs, current_config) == false)
+////			configs.push_back(current_config);
+//////		std::cout << myints[0] << ' ' << myints[1] << ' ' << myints[2] << '\n';
+////	}while ( std::next_permutation(myvector.begin(),myvector.end()) );
+//
+//	std::cout << "possible configurations(" << configs.size() << "): " << std::endl;
+//	for(std::vector<std::vector<uint> >::iterator i = configs.begin(); i != configs.end(); ++i)
 //	{
-//		std::vector<double> current_config(number_of_variables);
-//		for(size_t v = 0; v < number_of_variables; ++v)
-//			current_config[v] = myvector[v];
-////		current_config[1] = myvector[1];
-////		current_config[2] = myvector[2];
-////		current_config[3] = myvector[3];
-//
-//		if(contains(configs, current_config) == false)
-//			configs.push_back(current_config);
-////		std::cout << myints[0] << ' ' << myints[1] << ' ' << myints[2] << '\n';
-//	}while ( std::next_permutation(myvector.begin(),myvector.end()) );
+//		for(size_t j = 0; j < i->size(); ++j)
+//		{
+//			std::cout << i->at(j) << " ";
+//		}
+//		std::cout << std::endl;
+//	}
 
-	std::cout << "possible configurations(" << configs.size() << "): " << std::endl;
-	for(std::vector<std::vector<uint> >::iterator i = configs.begin(); i != configs.end(); ++i)
-	{
-		for(size_t j = 0; j < i->size(); ++j)
-		{
-			std::cout << i->at(j) << " ";
-		}
-		std::cout << std::endl;
-	}
+	// define an array that has as many elements as the clique has members and assign the number of possible labels for each
+	size_t variable_space[2];
+	std::fill_n(variable_space, 2, number_of_classes_);
+
+	// define a explicit function-object from OpenGM containing the initial value -1.0 for each combination
+	opengm::ExplicitFunction<double> f(variable_space, variable_space + 2, -1.0);
+
+	std::vector<uint> r(2);
+	r[0] = 0;
+	r[1] = 0;
+
+	size_t t[2];
+
+	f(t) = 0.0;
+
+	std::cout << f(0,0) << std::endl;
 
 }
 
