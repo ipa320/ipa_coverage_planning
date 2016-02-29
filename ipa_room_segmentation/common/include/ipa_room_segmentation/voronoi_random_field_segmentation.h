@@ -67,6 +67,7 @@
 #include <map>
 #include <set>
 #include <vector>
+#include <algorithm>
 
 #include <math.h>
 #include <functional>
@@ -176,6 +177,11 @@ protected:
 	// Function to check if the given point is more far away from each point in the given set than the min_distance.
 	bool pointMoreFarAway(const std::set<cv::Point, cv_Point_comp>& points, const cv::Point& point, const double min_distance);
 
+	// Function to get all possible configurations for n variables that each can have m labels. E.g. with 2 variables and 3 possible
+	// labels for each variable there are 9 different configurations.
+	void getPossibleConfigurations(std::vector<std::vector<uint> >& possible_configurations, const std::vector<uint>& possible_labels,
+			const uint number_of_variables);
+
 	// Function to draw the approximated voronoi graph into a given map. It doesn't draw lines of the graph that start or end
 	// in a black region. This is necessary because the voronoi graph gets approximated by diskretizing the maps contour and
 	// using these points as centers for the graph. It gets wrong lines, that are eliminated in this function. See the .cpp
@@ -185,7 +191,7 @@ protected:
 
 	// Function to calculate the feature vector for a given clique, using the trained AdaBoost classifiers.
 	void getAdaBoostFeatureVector(std::vector<double>& feature_vector, Clique& clique,
-			std::vector<uint> given_labels, std::vector<unsigned int>& possible_labels);
+			std::vector<uint>& given_labels, std::vector<unsigned int>& possible_labels);
 
 
 	void createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation, std::set<cv::Point, cv_Point_comp>& node_points); // Function that takes a map and draws a pruned voronoi
@@ -223,7 +229,8 @@ public:
 
 	// Function to segment a given map into different regions.
 	void segmentMap(cv::Mat& original_map, const int epsilon_for_neighborhood,
-			const int max_iterations, unsigned int min_neighborhood_size, const double min_node_distance, bool show_nodes,
+			const int max_iterations, unsigned int min_neighborhood_size, std::vector<uint>& possible_labels,
+			const double min_node_distance, bool show_nodes,
 			std::string crf_storage_path, std::string boost_storage_path);
 
 	void testFunc(cv::Mat& original_map);

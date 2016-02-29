@@ -172,6 +172,126 @@ public:
 	}
 };
 
+// Struct that is used as function for the factor graph in OpenGM. It does the same as getAdaBoostClassifiers, but it is better
+// to give OpenGM an object that computes all function-values than calculating them before and then saving them.
+struct adaBoostFunction
+{
+public:
+	// the number of classifiers that produce a single feature-value
+	size_t number_of_classifiers;
+
+	// OpenCV Boost objects that are used to calculate the AdaBoost weak-hypothesis
+	CvBoost room_boost, hallway_boost, doorway_boost;
+
+	// vector that stores the angles used for raycasting --> to compute features
+	std::vector<double> angles_for_simulation;
+
+	// vector that stores the weights of the conditional random field, which are used together with the features to get a
+	// clique potential
+	std::vector<double> trained_conditional_weights;
+
+	// vector that stores each label that is possible to assign to a node
+	std::vector<unsigned int> possible_labels;
+
+	// the clique this function calculates a value for
+	Clique clique;
+
+	// functions needed from OpenGM
+	// how many variables there are in this function (possible labels in this case)
+//	size_t dimension()const
+//	{
+//		return possible_labels.size();
+//	};
+//
+//	size_t shape(const size_t i)const
+//	{
+//		return 2;
+//	};
+//
+//	size_t size()const
+//	{
+//		return 16;
+//	};
+
+	template<class Iterator>
+	inline const double operator()(Iterator begin)
+	{
+		double value = 0;
+
+		// Get the points that belong to the clique and the stored simulated beams for each one.
+		std::vector<cv::Point> clique_members = clique.getMemberPoints();
+		std::vector< std::vector<double> > beams_for_points = clique.getBeams();
+
+		// vector that is used to sum the calculated features
+		std::vector<double> temporary_feature_vector(number_of_classifiers, 0.0);
+
+		// For each member of this clique calculate the weak-hypothesis and add the resulting vectors in the end
+		for(size_t point = 0; point < clique_members.size(); ++point)
+		{
+			// Check which classifier (room, hallway or doorway) needs to be used.
+			unsigned int classifier;
+			for(size_t label = 0; label < possible_labels.size(); ++label)
+			{
+				if(possible_labels[label] == begin[point])
+				{
+					classifier = label;
+					break;
+				}
+			}
+
+	//		std::cout << "got label to use" << std::endl;
+
+			// get the features for the central point of the clique
+			cv::Mat featuresMat(1, getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
+			for (int f = 1; f <= getFeatureCount(); ++f)
+			{
+				//get the features for each room and put it in the featuresMat
+				featuresMat.at<float>(0, f - 1) = (float) getFeature(beams_for_points[point], angles_for_simulation, clique_members, begin, possible_labels, clique_members[point], f);
+//				std::cout << "filled entry " << f << ": " << featuresMat.at<float>(0, f - 1) << std::endl;
+			}
+			// Calculate the weak hypothesis by using the wanted classifier.
+			CvMat features = featuresMat;
+			cv::Mat weaker (1, number_of_classifiers, CV_32F);
+			CvMat weak_hypothesis = weaker;	// Wanted from OpenCV to get the weak hypothesis from the
+												// separate weak classifiers.
+			switch(classifier)
+			{
+			case 0:
+//				std::cout << "using rooms" << std::endl;
+				room_boost.predict(&features, 0, &weak_hypothesis);
+				break;
+			case 1:
+//				std::cout << "using hallways" << std::endl;
+				hallway_boost.predict(&features, 0, &weak_hypothesis);
+				break;
+			case 2:
+//			std::cout << "using doorways" << std::endl;
+			doorway_boost.predict(&features, 0, &weak_hypothesis);
+			break;
+			}
+
+//			std::cout << "predicted" << std::endl;
+
+			// Write the weak hypothesis in the feature vector.
+//			std::cout << "resaving weak responses " << std::endl;
+			for(size_t f = 0; f < number_of_classifiers; ++f)
+			{
+//				std::cout << "f: " << f;
+				temporary_feature_vector[f] = temporary_feature_vector[f] + (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
+//				std::cout << ". assigned hypothesis" << std::endl;
+			}
+
+//			std::cout << "assigned weak hypothesis" << std::endl;
+		}
+
+		// calculate the weighted sum of features and weights
+		for(size_t weight = 0; weight < number_of_classifiers; ++weight)
+			value += temporary_feature_vector[weight] * trained_conditional_weights[weight];
+
+		return value;
+	};
+};
+
 // Constructor
 VoronoiRandomFieldSegmentation::VoronoiRandomFieldSegmentation(bool trained_boost, bool trained_conditional_field)
 {
@@ -192,22 +312,64 @@ VoronoiRandomFieldSegmentation::VoronoiRandomFieldSegmentation(bool trained_boos
 	trained_conditional_field_ = trained_conditional_field;
 }
 
-// function to check if the given cv::Point is more far away from the cv::Points in the given set
+// This Function checks if the given cv::Point is more far away from all the cv::Points in the given set. If one point gets found
+// that this Point is nearer than the defined min_distance the function returns false to stop it immediately.
 bool VoronoiRandomFieldSegmentation::pointMoreFarAway(const std::set<cv::Point, cv_Point_comp>& points, const cv::Point& point, const double min_distance)
 {
-	bool far_away = true;
 	double square_distance = min_distance * min_distance;
 	for(std::set<cv::Point, cv_Point_comp>::const_iterator current_point = points.begin(); current_point != points.end(); ++current_point)
 	{
 		double dx = current_point->x - point.x;
 		double dy = current_point->y - point.y;
 		if( ((dx*dx + dy*dy)) <= square_distance)
-		{
-			far_away = false;
-			break;
-		}
+			return false;
 	}
-	return far_away;
+	return true;
+}
+
+// This function computes all possible configurations for n variables that each can have m labels, e.g. when there are 2 variabels
+// with 3 possible label for each there are 9 possible configurations. Important is that this function does compute multiple
+// configurations like (1,2) and (2,1).
+// This is done using the std::next_permutation function that computes the permutations of a given vector/array. To get all possible
+// configurations first a vector is created and filled that stores n*m elements, representing the label for each variable. Then
+// after the vector gets sorted all possible permutations are listed and the first n elements in this permutation are one configuration
+// and going to be saved, if it hasn't occurred yet.
+void VoronoiRandomFieldSegmentation::getPossibleConfigurations(std::vector<std::vector<uint> >& possible_configurations,
+		const std::vector<uint>& possible_labels, const uint number_of_variables)
+{
+	// check how many possible labels there are and create a vector with number_of_variables*number_of_labels length
+	uint number_of_labels = possible_labels.size();
+	std::vector<uint> label_vector(number_of_labels*number_of_variables);
+
+	// fill the created vector with the labels for each variable
+	for(size_t variable = 0; variable < number_of_variables; ++variable)
+		for(size_t label = 0; label < number_of_labels; ++label)
+			label_vector[label + number_of_labels * variable] = possible_labels[label];
+
+	// sort the vector (expected from std::next_permutation)
+	std::sort (label_vector.begin(),label_vector.end());
+
+	// set to save the found configurations --> to easily check if one configuration has already been found
+	std::set<std::vector<uint> > found_configurations;
+
+	// get all permutations and create one configuration out of each
+	do
+	{
+		// configuration-vector
+		std::vector<uint> current_config(number_of_variables);
+
+		// resave the first number_of_variables elements
+		for(size_t v = 0; v < number_of_variables; ++v)
+			current_config[v] = label_vector[v];
+
+		// check if the current_configuration has occurred yet, if not add it to the possible configurations
+		if(found_configurations.find(current_config) == found_configurations.end())
+		{
+			found_configurations.insert(current_config);
+			possible_configurations.push_back(current_config);
+		}
+
+	}while (std::next_permutation(label_vector.begin(),label_vector.end()));
 }
 
 //
@@ -725,7 +887,7 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 //		room, hallway, doorway
 //
 void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double>& feature_vector, Clique& clique,
-		std::vector<uint> given_labels, std::vector<unsigned int>& possible_labels)
+		std::vector<uint>& given_labels, std::vector<unsigned int>& possible_labels)
 {
 	// Get the points that belong to the clique and the stored simulated beams for each one.
 	std::vector<cv::Point> clique_members = clique.getMemberPoints();
@@ -748,36 +910,49 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 			}
 		}
 
+//		std::cout << "got label to use" << std::endl;
+
 		// get the features for the central point of the clique
 		cv::Mat featuresMat(1, getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
 		for (int f = 1; f <= getFeatureCount(); ++f)
 		{
 			//get the features for each room and put it in the featuresMat
 			featuresMat.at<float>(0, f - 1) = (float) getFeature(beams_for_points[point], angles_for_simulation_, clique_members, given_labels, possible_labels, clique_members[point], f);
+//			std::cout << "filled entry " << f << ": " << featuresMat.at<float>(0, f - 1) << std::endl;
 		}
 		// Calculate the weak hypothesis by using the wanted classifier.
 		CvMat features = featuresMat;
 		cv::Mat weaker (1, number_of_classifiers_, CV_32F);
 		CvMat weak_hypothesis = weaker;	// Wanted from OpenCV to get the weak hypothesis from the
-																			// separate weak classifiers.
+										// separate weak classifiers.
 		switch(classifier)
 		{
 		case 0:
+//			std::cout << "using rooms" << std::endl;
 			room_boost_.predict(&features, 0, &weak_hypothesis);
 			break;
 		case 1:
+//			std::cout << "using hallways" << std::endl;
 			hallway_boost_.predict(&features, 0, &weak_hypothesis);
 			break;
 		case 2:
+//			std::cout << "using doorways" << std::endl;
 			doorway_boost_.predict(&features, 0, &weak_hypothesis);
 			break;
 		}
 
+//		std::cout << "predicted" << std::endl;
+
 		// Write the weak hypothesis in the feature vector.
+//		std::cout << "resaving weak responses " << std::endl;
 		for(size_t f = 0; f < number_of_classifiers_; ++f)
 		{
+//			std::cout << "f: " << f;
 			temporary_feature_vector[f] = temporary_feature_vector[f] + (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
+//			std::cout << ". assigned hypothesis" << std::endl;
 		}
+
+//		std::cout << "assigned weak hypothesis" << std::endl;
 	}
 
 	// copy the summed vector to the given feature-vector
@@ -1247,7 +1422,7 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_o
 //		III.) It constructs the Conditional Random Field graph from the previously found points, by using the above defined function.
 //
 void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int epsilon_for_neighborhood,
-		const int max_iterations, unsigned int min_neighborhood_size,
+		const int max_iterations, unsigned int min_neighborhood_size, std::vector<uint>& possible_labels,
 		const double min_node_distance,  bool show_nodes, std::string crf_storage_path, std::string boost_storage_path)
 {
 	// save a copy of the original image
@@ -1260,9 +1435,9 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 		std::string filename_room = boost_storage_path + "voronoi_room_boost.xml";
 		room_boost_.load(filename_room.c_str());
 		std::string filename_hallway = boost_storage_path + "voronoi_hallway_boost.xml";
-		room_boost_.load(filename_hallway.c_str());
+		hallway_boost_.load(filename_hallway.c_str());
 		std::string filename_doorway = boost_storage_path + "voronoi_doorway_boost.xml";
-		room_boost_.load(filename_doorway.c_str());
+		doorway_boost_.load(filename_doorway.c_str());
 
 		// set the trained-Boolean true to only load parameters once
 		trained_boost_ = true;
@@ -1502,31 +1677,172 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	//	  object is like a lookup-table later on. The variables for a function are defined later, when the factors for the graph
 	//	  are defined.
 
+	// vector that stores the possible label configurations for a clique, meaning e.g. if one clique has three members with
+	// two possible labels for each, it stores a vector that stores the label-configurations {(0,0,0), (0,0,1), (0,1,0), ...}.
+	// It has a size of 4, because in this algorithm only cliques with 2-5 members are possible.
+	std::vector<std::vector<std::vector<uint> > > label_configurations(4);
+
+	// vector that stores the index for each possible label as element
+	// 		--> to get the order as index list, so it can be used to assign the value of functions
+	std::vector<uint> label_indexes(possible_labels.size());
+	for(uint index = 0; index < possible_labels.size(); ++index)
+		label_indexes[index] = index;
+
+	timer.start();
+
+	for(uint size = 2; size <= 5; ++size)
+	{
+		// vector that stores all possible configurations for one member-size
+		std::vector<std::vector<uint> > possible_configurations;
+
+		// use the above defined function to find all possible configurations for the possible labels and save them in the map
+		getPossibleConfigurations(possible_configurations, label_indexes, size);
+		label_configurations[size-2] = possible_configurations;
+	}
+
+	std::cout << "Created all possible label-configurations. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
+
+	timer.start();
 	for(std::vector<Clique>::iterator current_clique = conditional_random_field_cliques.begin(); current_clique != conditional_random_field_cliques.end(); ++current_clique)
 	{
-		// first get the number of members in this clique
+		// get the number of members in this clique and depending on this the possible label configurations defined above
 		size_t number_of_members = current_clique->getNumberOfMembers();
+		std::vector<std::vector<uint> > current_possible_configurations = label_configurations[number_of_members-2]; // -2 because this vector stores configurations for cliques with 2-5 members (others are not possible in this case).
+
+		// find the real labels and assign them into the current configuration so the feature-vector gets calculated correctly
+		for(size_t configuration = 0; configuration < current_possible_configurations.size(); ++configuration)
+			for(size_t variable = 0; variable < current_possible_configurations[configuration].size(); ++variable)
+				current_possible_configurations[configuration][variable] = possible_labels[current_possible_configurations[configuration][variable]];
+
+//		for(size_t i = 0; i < current_possible_configurations.size(); ++i)
+//		{
+//			for(size_t j = 0; j < current_possible_configurations[i].size(); ++j)
+//				std::cout << current_possible_configurations[i][j] << " ";
+//			std::cout << std::endl;
+//		}
+//		std::cout << "Members in this clique: " << number_of_members << ". Number of possible configurations for this clique: " << current_possible_configurations.size() << std::endl;
 
 		// define an array that has as many elements as the clique has members and assign the number of possible labels for each
-		const size_t variable_space[number_of_members];
+		size_t variable_space[number_of_members];
 		std::fill_n(variable_space, number_of_members, number_of_classes_);
 
 		// define a explicit function-object from OpenGM containing the initial value -1.0 for each combination
 		opengm::ExplicitFunction<double> f(variable_space, variable_space + number_of_members, -1.0);
 
+		// vector to store the calculated clique potentials
+		std::vector<double> clique_potentials(current_possible_configurations.size());
+
+		adaBoostFunction func;
+
+		func.angles_for_simulation = angles_for_simulation_;
+		func.clique = *current_clique;
+		func.room_boost = room_boost_;
+		func.hallway_boost = hallway_boost_;
+		func.doorway_boost = doorway_boost_;
+		func.number_of_classifiers = number_of_classifiers_;
+		func.possible_labels = possible_labels;
+		func.trained_conditional_weights = trained_conditional_weights_;
+
+		// go trough each possible configuration and compute the function value for it
+		for(size_t configuration = 0; configuration < current_possible_configurations.size(); ++configuration)
+		{
+//			std::cout << "current configuration: " << std::endl;
+
+			std::vector<uint> current_configuration = current_possible_configurations[configuration];
+
+//			for(size_t i = 0; i < current_configuration.size(); ++i)
+//				std::cout << current_configuration[i] << " ";
+//			std::cout << std::endl;
+
+			// get current feature-vector and multiply it with the trained weights
+			std::cout << "getting real vector" << std::endl;
+			std::vector<double> current_features(number_of_classifiers_);
+			getAdaBoostFeatureVector(current_features, *current_clique, current_configuration, possible_labels);
+
+			std::cout << "got real vector" << std::endl;
+
+			double clique_potential = 0;
+			for(size_t weight = 0; weight < number_of_classifiers_; ++weight)
+				clique_potential += trained_conditional_weights_[weight] * current_features[weight];
+
+			// save the found clique potential
+			clique_potentials[configuration] = clique_potential;
+
+			double test = func(current_configuration);
+
+			std::cout << "real: " << clique_potentials[configuration] << " class: " << test << std::endl;
+
+//			std::cout << "got one feature-vector" << std::endl;
+		}
+		std::cout << "one clique done" << std::endl;
+
+		// assign the calculated clique potential at the right position in the function
+
 	}
+	std::cout << "calculated all features for the cliques. Time: " << timer.getElapsedTimeInSec() << "s" << std::endl;
 
 }
 
 // Function to test several functions of this algorithm independent of other functions
 void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map)
 {
-	std::set<cv::Point, cv_Point_comp> node_points; //variable for node point extraction
-	cv::Mat voronoi_map = original_map.clone();
-	createPrunedVoronoiGraph(voronoi_map, node_points);
+//	std::set<cv::Point, cv_Point_comp> node_points; //variable for node point extraction
+//	cv::Mat voronoi_map = original_map.clone();
+//	createPrunedVoronoiGraph(voronoi_map, node_points);
+//
+//	cv::imshow("voronoi", voronoi_map);
+//	cv::waitKey();
 
-	cv::imshow("voronoi", voronoi_map);
-	cv::waitKey();
+	std::vector<std::vector<uint> > configs;
+	uint number_of_variables = 3;
+	uint number_of_labels = 3;
+	double myints[] = {1,1,1,1,2,2,2,2,3,3,3,3};
+	std::vector<uint> labels(number_of_labels);
+//	for(size_t i = 1; i <= number_of_labels; ++i)
+//		labels[i-1] = i;
+	labels[0] = 1;
+	labels[1] = 2;
+	labels[2] = 3;
+
+	Timer timer;
+
+	timer.start();
+	getPossibleConfigurations(configs, labels, number_of_variables);
+	std::cout << "Time needed: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
+//	std::vector<int> myvector(number_of_labels*number_of_variables);// (myints, myints+(number_of_labels * number_of_variables));
+//	std::cout << myvector.size() << std::endl;
+//	for(size_t variable = 0; variable < number_of_variables; ++variable)
+//		for(size_t label = 0; label < number_of_labels; ++label)
+//		{
+//			myvector[label + number_of_labels * variable] = (double) (label+1);
+//			std::cout << label+1 << std::endl;
+//		}
+//	std::sort (myvector.begin(),myvector.end());
+//
+//	std::cout << "The 3! possible permutations with 3 elements:\n";
+//	do
+//	{
+//		std::vector<double> current_config(number_of_variables);
+//		for(size_t v = 0; v < number_of_variables; ++v)
+//			current_config[v] = myvector[v];
+////		current_config[1] = myvector[1];
+////		current_config[2] = myvector[2];
+////		current_config[3] = myvector[3];
+//
+//		if(contains(configs, current_config) == false)
+//			configs.push_back(current_config);
+////		std::cout << myints[0] << ' ' << myints[1] << ' ' << myints[2] << '\n';
+//	}while ( std::next_permutation(myvector.begin(),myvector.end()) );
+
+	std::cout << "possible configurations(" << configs.size() << "): " << std::endl;
+	for(std::vector<std::vector<uint> >::iterator i = configs.begin(); i != configs.end(); ++i)
+	{
+		for(size_t j = 0; j < i->size(); ++j)
+		{
+			std::cout << i->at(j) << " ";
+		}
+		std::cout << std::endl;
+	}
 
 }
 

@@ -11,7 +11,7 @@
 int main()
 {
 	const std::string package_path = ros::package::getPath("ipa_room_segmentation");
-	cv::Mat map = cv::imread(package_path + "/common/files/test_maps/office_e.png", 0); // office_b.png  /home/rmb-fj/Pictures/map.png
+	cv::Mat map = cv::imread(package_path + "/common/files/test_maps/lab_ipa.png", 0); // office_b.png  /home/rmb-fj/Pictures/map.png
 
 	for(unsigned int u = 0; u < map.rows; ++u)
 	{
@@ -123,7 +123,7 @@ int main()
 
 	VoronoiRandomFieldSegmentation segmenter(false, false);
 
-	segmenter.segmentMap(map, 7, 50, 5, 7, true, conditional_weights_path, boost_file_path); // 7, 50, 4, 5
+	segmenter.segmentMap(map, 7, 50, 5, possible_labels, 7, true, conditional_weights_path, boost_file_path); // 7, 50, 4, 5
 
 //	//segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
 
