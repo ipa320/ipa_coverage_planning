@@ -123,7 +123,7 @@ int main()
 
 	VoronoiRandomFieldSegmentation segmenter(false, false);
 
-	segmenter.segmentMap(map, 7, 50, 5, possible_labels, 7, true, conditional_weights_path, boost_file_path, 2500); // 7, 50, 4, 5
+	segmenter.segmentMap(map, 7, 50, 5, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000); // 7, 50, 4, 5
 
 //	//segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
 

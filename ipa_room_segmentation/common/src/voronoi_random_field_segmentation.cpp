@@ -1840,8 +1840,12 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 //			double test_result = function(current_configuration);
 
 			double clique_potential = 0;
+//			std::cout << "features: " << std::endl;
 			for(size_t weight = 0; weight < number_of_classifiers_; ++weight)
+			{
 				clique_potential += trained_conditional_weights_[weight] * current_features[weight];
+//				std::cout << current_features[weight] << std::endl;
+			}
 
 //			if(clique_potential != test_result)
 //			{
@@ -1853,12 +1857,13 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 
 			// assign the calculated clique potential at the right position in the function --> !!Important: factors need the variables to be sorted
 			//																								 as increasing index
-			f(swap_configurations[configuration].begin()) = clique_potential;
+			f(swap_configurations[configuration].begin()) = std::exp(clique_potential);
+			std::cout << "potential: " << std::exp(clique_potential) << " ";
 
 //			std::cout << "got one feature-vector" << std::endl;
 
 		}
-//		std::cout << "one clique done" << std::endl;
+//		std::cout << std::endl << "one clique done" << std::endl;
 
 		// add the defined function to the model and catch the returned function-identifier to specify which variables
 		// this function needs
