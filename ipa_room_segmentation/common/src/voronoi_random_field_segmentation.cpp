@@ -296,13 +296,22 @@ public:
 //	};
 //};
 
-// Struct that is used to sort the CRF-nodes in a way s.t. OpenGM can use it properly when defining functions and factors.
-struct crfNode
+// Struct that is used to sort the label configurations in a way s.t. OpenGM can use it properly when defining functions and factors.
+struct labelWithIndex
 {
 public:
-	uint relative_index; // index of the node in one function
+	uint label; // current label of the configuration configuration
 	size_t absolute_index; // index of the node in the global CRF-node-saver
 };
+
+struct compLabelsByIndices
+{
+	bool operator()(labelWithIndex const &a, labelWithIndex const &b)
+	{
+		return a.absolute_index < b.absolute_index;
+	}
+};
+
 
 // Constructor
 VoronoiRandomFieldSegmentation::VoronoiRandomFieldSegmentation(bool trained_boost, bool trained_conditional_field)
@@ -382,6 +391,35 @@ void VoronoiRandomFieldSegmentation::getPossibleConfigurations(std::vector<std::
 		}
 
 	}while (std::next_permutation(label_vector.begin(),label_vector.end()));
+}
+
+//
+// This function is used to swap label-configurations in a order s.t. the nodes, which the labels are assigned to, are ordered
+// with increasing indices. The indices show the position in the global set that stores all nodes. This is necessary, because
+// OpenGM (The library used for inference in this graphical model) expects it this way. To do this the above defined structs
+// labelWithIndex and compLabelsByIndices and the function std::sort are used. This function then creates a vector that stores
+// the configurations as the struct labelWithIndex and applies a sort on all of it. Then it assignes the new found labels into
+// the original vector.
+//
+void VoronoiRandomFieldSegmentation::swapConfigsRegardingNodeIndices(std::vector<std::vector<uint> >& configurations,
+		size_t point_indices[])
+{
+	for(size_t configuration = 0; configuration < configurations.size(); ++configuration)
+	{
+		// go trough configuration and create labels with the corresponding index
+		std::vector<labelWithIndex> current_vector;
+		for(size_t current_node = 0; current_node < configurations[configuration].size(); ++current_node)
+		{
+			labelWithIndex current_label = {configurations[configuration][current_node], point_indices[current_node]};
+			current_vector.push_back(current_label);
+		}
+		// sort the current vector
+		std::sort(current_vector.begin(), current_vector.end(), compLabelsByIndices());
+
+		// reassign the vector-elements
+		for(size_t node = 0; node < configurations[configuration].size(); ++node)
+			configurations[configuration][node] = current_vector[node].label;
+	}
 }
 
 //
@@ -1437,7 +1475,8 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_o
 //
 void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int epsilon_for_neighborhood,
 		const int max_iterations, unsigned int min_neighborhood_size, std::vector<uint>& possible_labels,
-		const double min_node_distance,  bool show_nodes, std::string crf_storage_path, std::string boost_storage_path)
+		const double min_node_distance,  bool show_nodes, std::string crf_storage_path, std::string boost_storage_path,
+		const size_t max_inference_iterations)
 {
 	// save a copy of the original image
 	cv::Mat original_image = original_map.clone();
@@ -1685,7 +1724,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 
 	FactorGraph factor_graph(space);
 
-	// 2. Create each function of the factor graph. Each Clique-potential is one part in the factor graph, so for each clique
+	// 2. Create each part of the factor graph. Each Clique-potential is one part in the factor graph, so for each clique
 	// 	  a opengm-function-object gets calculated. The opengm::ExplicitFunction<double> template gets used, meaning for each
 	//	  possible configuration of the variable-labels the double-value of the function needs to be put in the object. So each
 	//	  object is like a lookup-table later on. The variables for a function are defined later, when the factors for the graph
@@ -1762,7 +1801,28 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 		// define a explicit function-object from OpenGM containing the initial value -1.0 for each combination
 		opengm::ExplicitFunction<double> f(variable_space, variable_space + number_of_members, -1.0);
 
-		// go trough each possible configuration and compute the function value for it
+		// go trough all points of the clique and find the index of it in the vector the nodes of the CRF are stored in
+		//  --> necessary to sort the nodes correctly
+		size_t indices[current_clique->getNumberOfMembers()]; // array the indices are stored in
+		std::vector<cv::Point> clique_points = current_clique->getMemberPoints();
+		for(size_t point = 0; point < clique_points.size(); ++point)
+		{
+			// get the iterator to the element and use the std::distance function to calculate the index of the point
+			std::set<cv::Point>::iterator iterator = conditional_field_nodes.find(clique_points[point]);
+
+			if(iterator != conditional_field_nodes.end()) // check if element was found --> should be
+				indices[point] = std::distance(conditional_field_nodes.begin(), iterator);
+			else
+				std::cout << "element not in set" << std::endl;
+		}
+
+		// get the possible configurations and swap them, respecting the indices, then sort the indices themself
+		std::vector<std::vector<uint> > swap_configurations = label_configurations[number_of_members-2]; // -2 because this vector stores configurations for cliques with 2-5 members (others are not possible in this case).
+		swapConfigsRegardingNodeIndices(swap_configurations, indices);
+		std::sort(indices, indices + current_clique->getNumberOfMembers());
+
+		// Go trough each possible configuration and compute the function value for it. Use the original configuration, because
+		// the nodes are stored in this way, but later the value is assigned in the position using the swaped configurations.
 		for(size_t configuration = 0; configuration < current_possible_configurations.size(); ++configuration)
 		{
 //			std::cout << "current configuration: " << std::endl;
@@ -1793,7 +1853,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 
 			// assign the calculated clique potential at the right position in the function --> !!Important: factors need the variables to be sorted
 			//																								 as increasing index
-			f(label_configurations[number_of_members-2][configuration].begin()) = clique_potential;
+			f(swap_configurations[configuration].begin()) = clique_potential;
 
 //			std::cout << "got one feature-vector" << std::endl;
 
@@ -1805,25 +1865,48 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 		FactorGraph::FunctionIdentifier identifier = factor_graph.addFunction(f);
 
 		// add the Factor to the graph, that represents which variables (and labels of each) are used for the above defined function
-		// go trough all points of the clique and find the index of it in the vector the nodes of the CRF are stored
-		size_t indices[current_clique->getNumberOfMembers()]; // array the indices are stored in
-		std::vector<cv::Point> clique_points = current_clique->getMemberPoints();
-		for(size_t point = 0; point < clique_points.size(); ++point)
-		{
-			// get the iterator to the element and use the std::distance function to calculate the index of the point
-			std::set<cv::Point>::iterator iterator = conditional_field_nodes.find(clique_points[point]);
-
-			if(iterator != conditional_field_nodes.end()) // check if element was found --> should be
-				indices[point] = std::distance(conditional_field_nodes.begin(), iterator);
-			else
-				std::cout << "element not in set" << std::endl;
-		}
-
-		// add factor
 		factor_graph.addFactor(identifier, indices, indices+current_clique->getNumberOfMembers());
 
 	}
 	std::cout << "calculated all features for the cliques. Time: " << timer.getElapsedTimeInSec() << "s" << std::endl;
+
+	// 3. Do Inference in the above created graphical model using OpengM. This function has three control parameters:
+	//		i. The maximum number of iterations done
+	//		ii. The convergence Bound, which is used to check if the messages haven't changed a lot after the last step.
+	//		iii. The damping-factor, which implies how many messages should be dumped, in this case 0.
+	const double convergence_bound = 1e-7;
+	const double damping_factor = 0.0;
+	LoopyBeliefPropagation::Parameter parameters(max_inference_iterations, convergence_bound, damping_factor);
+
+	// create LoopyBeliefPropagation object that does inference on the graphical model defined above
+	LoopyBeliefPropagation belief_propagation(factor_graph, parameters);
+
+	// do inference
+	timer.start();
+	belief_propagation.infer();
+	std::cout << "Done Inference. Time: " << timer.getElapsedTimeInSec() << "s" << std::endl;
+
+	// obtain the labels that get the max value of the defined function
+	std::vector<size_t> best_labels(conditional_field_nodes.size());
+	belief_propagation.arg(best_labels);
+
+	// print the solution
+	cv::Mat resulting_map = original_image.clone();
+//	for(size_t i = 0; i < best_labels.size(); ++i)
+//	{
+//		std::cout << best_labels[i] << " ";
+//		cv::circle(resulting_map, conditional_field_nodes, 5, cv::Scalar(possible_labels[best_labels[i]]), CV_FILLED);
+//	}
+	for(std::set<cv::Point, cv_Point_comp>::iterator i = conditional_field_nodes.begin(); i != conditional_field_nodes.end(); ++i)
+	{
+		size_t distance = std::distance(conditional_field_nodes.begin(), i);
+		std::cout << best_labels[distance] << " ";
+		cv::circle(resulting_map, *i, 5, cv::Scalar(possible_labels[distance]), CV_FILLED);
+	}
+	std::cout << std::endl;
+	cv::imshow("res", resulting_map);
+	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/result_map.png", resulting_map);
+	cv::waitKey();
 
 }
 
@@ -1838,21 +1921,21 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map)
 //	cv::imshow("voronoi", voronoi_map);
 //	cv::waitKey();
 
-//	std::vector<std::vector<uint> > configs;
-//	uint number_of_variables = 3;
-//	uint number_of_labels = 3;
-//	double myints[] = {1,1,1,1,2,2,2,2,3,3,3,3};
-//	std::vector<uint> labels(number_of_labels);
-////	for(size_t i = 1; i <= number_of_labels; ++i)
-////		labels[i-1] = i;
-//	labels[0] = 1;
-//	labels[1] = 2;
-//	labels[2] = 3;
-//
-//	Timer timer;
-//
-//	timer.start();
-//	getPossibleConfigurations(configs, labels, number_of_variables);
+	std::vector<std::vector<uint> > configs;
+	uint number_of_variables = 3;
+	uint number_of_labels = 3;
+	double myints[] = {1,1,1,1,2,2,2,2,3,3,3,3};
+	std::vector<uint> labels(number_of_labels);
+//	for(size_t i = 1; i <= number_of_labels; ++i)
+//		labels[i-1] = i;
+	labels[0] = 0;
+	labels[1] = 1;
+	labels[2] = 2;
+
+	Timer timer;
+
+	timer.start();
+	getPossibleConfigurations(configs, labels, number_of_variables);
 //	std::cout << "Time needed: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 ////	std::vector<int> myvector(number_of_labels*number_of_variables);// (myints, myints+(number_of_labels * number_of_variables));
 ////	std::cout << myvector.size() << std::endl;
@@ -1879,42 +1962,69 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map)
 //////		std::cout << myints[0] << ' ' << myints[1] << ' ' << myints[2] << '\n';
 ////	}while ( std::next_permutation(myvector.begin(),myvector.end()) );
 //
-//	std::cout << "possible configurations(" << configs.size() << "): " << std::endl;
-//	for(std::vector<std::vector<uint> >::iterator i = configs.begin(); i != configs.end(); ++i)
-//	{
-//		for(size_t j = 0; j < i->size(); ++j)
-//		{
-//			std::cout << i->at(j) << " ";
-//		}
-//		std::cout << std::endl;
-//	}
 
-	// define an array that has as many elements as the clique has members and assign the number of possible labels for each
-	size_t variable_space[2];
-	std::fill_n(variable_space, 2, number_of_classes_);
+	size_t node_indices[3] = {3,5,4};
 
-	std::cout << "filled" << std::endl;
-	// define a explicit function-object from OpenGM containing the initial value -1.0 for each combination
-	opengm::ExplicitFunction<double> f(variable_space, variable_space + 2, -1.0);
+//	std::vector<std::vector<labelWithIndex> > swaped_configs;
 
-	std::vector<uint> r(2);
-	r[0] = 0;
-	r[1] = 0;
+	std::cout << "possible configurations(" << configs.size() << "): " << std::endl;
+	for(size_t i = 0; i < configs.size(); ++i)
+	{
+//		std::vector<labelWithIndex> current_vector;
+		for(size_t j = 0; j < configs[i].size(); ++j)
+		{
+//			labelWithIndex current_label = {configs[i][j], node_indices[j]};
+//			current_vector.push_back(current_label);
+			std::cout << configs[i][j] << " ";
+		}
+		// sort the current vector and add it to the configurations
+//		std::sort(current_vector.begin(), current_vector.end(), compLabelsByIndices());
+//		swaped_configs.push_back(current_vector);
+		std::cout << std::endl;
+	}
 
-	std::cout << "vector created" << std::endl;
+	timer.start();
+	swapConfigsRegardingNodeIndices(configs, node_indices);
+	std::cout << "swaped configs. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 
-	uint t[2];
-	uint* a = &r[0];
-//	std::fill_n(t, 2, 0);
+	for(size_t i = 0; i < configs.size(); ++i)
+	{
+		for(size_t j = 0; j < configs[i].size(); ++j)
+		{
+			std::cout << configs[i][j] << " ";
+		}
+		std::cout << std::endl;
+	}
 
-	f(r.begin()) = 3.0;
 
-	r[0] = 1;
-	a = &r[0];
+	// swap the configurations to get the change with rising indices for the nodes
 
-	f(a) = 1.0;
-
-	std::cout << f(0,0) << " " << f(1,0) << std::endl;
+//	// define an array that has as many elements as the clique has members and assign the number of possible labels for each
+//	size_t variable_space[2];
+//	std::fill_n(variable_space, 2, number_of_classes_);
+//
+//	std::cout << "filled" << std::endl;
+//	// define a explicit function-object from OpenGM containing the initial value -1.0 for each combination
+//	opengm::ExplicitFunction<double> f(variable_space, variable_space + 2, -1.0);
+//
+//	std::vector<uint> r(2);
+//	r[0] = 0;
+//	r[1] = 0;
+//
+//	std::cout << "vector created" << std::endl;
+//
+//	uint t[2];
+//	uint* a = &r[0];
+////	std::fill_n(t, 2, 0);
+//
+//	f(r.begin()) = 3.0;
+//
+//	r[0] = 1;
+//	a = &r[0];
+//
+//	f(a) = 1.0;
+//
+//	std::cout << f(0,0) << " " << f(1,0) << std::endl;
 
 }
 

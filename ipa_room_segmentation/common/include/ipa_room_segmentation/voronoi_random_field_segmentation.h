@@ -182,6 +182,10 @@ protected:
 	void getPossibleConfigurations(std::vector<std::vector<uint> >& possible_configurations, const std::vector<uint>& possible_labels,
 			const uint number_of_variables);
 
+	// Function that swaps the label-configurations of CRF-nodes in a way s.t. the nodes are sorted in increasing order. Needed
+	// to use OpenGM for inference later.
+	void swapConfigsRegardingNodeIndices(std::vector<std::vector<uint> >& configurations, size_t point_indices[]);
+
 	// Function to draw the approximated voronoi graph into a given map. It doesn't draw lines of the graph that start or end
 	// in a black region. This is necessary because the voronoi graph gets approximated by diskretizing the maps contour and
 	// using these points as centers for the graph. It gets wrong lines, that are eliminated in this function. See the .cpp
@@ -231,7 +235,7 @@ public:
 	void segmentMap(cv::Mat& original_map, const int epsilon_for_neighborhood,
 			const int max_iterations, unsigned int min_neighborhood_size, std::vector<uint>& possible_labels,
 			const double min_node_distance, bool show_nodes,
-			std::string crf_storage_path, std::string boost_storage_path);
+			std::string crf_storage_path, std::string boost_storage_path, const size_t max_inference_iterations);
 
 	void testFunc(cv::Mat& original_map);
 
