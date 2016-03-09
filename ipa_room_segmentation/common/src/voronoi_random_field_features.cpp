@@ -128,7 +128,7 @@ double calcFeature1(const std::vector<double>& beams)
 	{
 		differences_sum += abs(beams[b] - beams[b + 1]);
 	}
-	//get the difference betweeen the last and the first beam
+	//get the difference between the last and the first beam
 	differences_sum += abs(beams[beams.size() - 1] - beams[0]);
 	//calculate the average difference and return it
 	return (differences_sum / beams.size());
@@ -140,7 +140,7 @@ double calcFeature2(const std::vector<double>& beams)
 	double feature2_value;
 	double mean; //mean-value of the difference, calculated with calcFeature1
 	double sum = 0; //helping variable
-	//initialise
+	//initialize
 	mean = calcFeature1(beams);
 	//calculate deviation
 	for (int b = 0; b < beams.size(); b++)

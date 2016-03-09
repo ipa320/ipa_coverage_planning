@@ -195,6 +195,8 @@ public:
 //
 //	// the clique this function calculates a value for
 //	Clique clique;
+////	std::vector<cv::Point> clique_members;
+////	std::vector< std::vector<double> > beams_for_points;
 //
 //	// functions needed from OpenGM
 //	// how many variables there are in this function (possible labels in this case)
@@ -214,7 +216,7 @@ public:
 ////	};
 //
 //	template<class Iterator>
-//	inline const double operator()(Iterator begin)
+//	inline const double operator()(Iterator input)
 //	{
 //		double value = 0;
 //
@@ -232,7 +234,7 @@ public:
 //			unsigned int classifier;
 //			for(size_t label = 0; label < possible_labels.size(); ++label)
 //			{
-//				if(possible_labels[label] == begin[point])
+//				if(possible_labels[label] == input[point])
 //				{
 //					classifier = label;
 //					break;
@@ -246,14 +248,16 @@ public:
 //			for (int f = 1; f <= getFeatureCount(); ++f)
 //			{
 //				//get the features for each room and put it in the featuresMat
-//				featuresMat.at<float>(0, f - 1) = (float) getFeature(beams_for_points[point], angles_for_simulation, clique_members, begin, possible_labels, clique_members[point], f);
-////				std::cout << "filled entry " << f << ": " << featuresMat.at<float>(0, f - 1) << std::endl;
+//				featuresMat.at<float>(0, f - 1) = (float) getFeature(beams_for_points[point], angles_for_simulation, clique_members, input, possible_labels, clique_members[point], f);
+////				if(std::count(input.begin(), input.end(), 77) == clique_members.size())
+////					std::cout << "filled entry " << f << ": " << featuresMat.at<float>(0, f - 1) << std::endl;
 //			}
 //			// Calculate the weak hypothesis by using the wanted classifier.
 //			CvMat features = featuresMat;
 //			cv::Mat weaker (1, number_of_classifiers, CV_32F);
 //			CvMat weak_hypothesis = weaker;	// Wanted from OpenCV to get the weak hypothesis from the
 //												// separate weak classifiers.
+//
 //			switch(classifier)
 //			{
 //			case 0:
@@ -265,9 +269,9 @@ public:
 //				hallway_boost.predict(&features, 0, &weak_hypothesis);
 //				break;
 //			case 2:
-////			std::cout << "using doorways" << std::endl;
-//			doorway_boost.predict(&features, 0, &weak_hypothesis);
-//			break;
+////				std::cout << "using doorways" << std::endl;
+//				doorway_boost.predict(&features, 0, &weak_hypothesis);
+//				break;
 //			}
 //
 ////			std::cout << "predicted" << std::endl;
@@ -291,6 +295,14 @@ public:
 //		return value;
 //	};
 //};
+
+// Struct that is used to sort the CRF-nodes in a way s.t. OpenGM can use it properly when defining functions and factors.
+struct crfNode
+{
+public:
+	uint relative_index; // index of the node in one function
+	size_t absolute_index; // index of the node in the global CRF-node-saver
+};
 
 // Constructor
 VoronoiRandomFieldSegmentation::VoronoiRandomFieldSegmentation(bool trained_boost, bool trained_conditional_field)
@@ -918,13 +930,15 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 		{
 			//get the features for each room and put it in the featuresMat
 			featuresMat.at<float>(0, f - 1) = (float) getFeature(beams_for_points[point], angles_for_simulation_, clique_members, given_labels, possible_labels, clique_members[point], f);
-//			std::cout << "filled entry " << f << ": " << featuresMat.at<float>(0, f - 1) << std::endl;
+//			if(std::count(given_labels.begin(), given_labels.end(), 77) == clique_members.size())
+//				std::cout << "filled entry " << f << ": " << featuresMat.at<float>(0, f - 1) << std::endl;
 		}
 		// Calculate the weak hypothesis by using the wanted classifier.
 		CvMat features = featuresMat;
 		cv::Mat weaker (1, number_of_classifiers_, CV_32F);
 		CvMat weak_hypothesis = weaker;	// Wanted from OpenCV to get the weak hypothesis from the
 										// separate weak classifiers.
+
 		switch(classifier)
 		{
 		case 0:
@@ -1429,14 +1443,14 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	cv::Mat original_image = original_map.clone();
 
 	// if the training results haven't been loaded or trained before load them
+	std::string filename_room = boost_storage_path + "voronoi_room_boost.xml";
+	std::string filename_hallway = boost_storage_path + "voronoi_hallway_boost.xml";
+	std::string filename_doorway = boost_storage_path + "voronoi_doorway_boost.xml";
 	if(trained_boost_ == false)
 	{
 		// load the AdaBoost-classifiers
-		std::string filename_room = boost_storage_path + "voronoi_room_boost.xml";
 		room_boost_.load(filename_room.c_str());
-		std::string filename_hallway = boost_storage_path + "voronoi_hallway_boost.xml";
 		hallway_boost_.load(filename_hallway.c_str());
-		std::string filename_doorway = boost_storage_path + "voronoi_doorway_boost.xml";
 		doorway_boost_.load(filename_doorway.c_str());
 
 		// set the trained-Boolean true to only load parameters once
@@ -1675,7 +1689,9 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	// 	  a opengm-function-object gets calculated. The opengm::ExplicitFunction<double> template gets used, meaning for each
 	//	  possible configuration of the variable-labels the double-value of the function needs to be put in the object. So each
 	//	  object is like a lookup-table later on. The variables for a function are defined later, when the factors for the graph
-	//	  are defined.
+	//	  are defined. The factor stores the indices of the CRF-nodes as they are stored in the set containing all nodes. Because
+	//	  of this the indices need to be sorted by size, meaning e.g. 1 needs to be before 4. So the functions also need to be
+	//	  sorted by this, to ensure that the values of it are assigned to the right variable-combination.
 
 	// vector that stores the possible label configurations for a clique, meaning e.g. if one clique has three members with
 	// two possible labels for each, it stores a vector that stores the label-configurations {(0,0,0), (0,0,1), (0,1,0), ...}.
@@ -1684,9 +1700,9 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 
 	// vector that stores the index for each possible label as element
 	// 		--> to get the order as index list, so it can be used to assign the value of functions
-	std::vector<uint> label_indexes(possible_labels.size());
+	std::vector<uint> label_indices(possible_labels.size());
 	for(uint index = 0; index < possible_labels.size(); ++index)
-		label_indexes[index] = index;
+		label_indices[index] = index;
 
 	timer.start();
 
@@ -1696,15 +1712,32 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 		std::vector<std::vector<uint> > possible_configurations;
 
 		// use the above defined function to find all possible configurations for the possible labels and save them in the map
-		getPossibleConfigurations(possible_configurations, label_indexes, size);
+		getPossibleConfigurations(possible_configurations, label_indices, size);
 		label_configurations[size-2] = possible_configurations;
 	}
 
 	std::cout << "Created all possible label-configurations. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 
 	timer.start();
+
+	// Go trough each clique and define the function and factor for it.
 	for(std::vector<Clique>::iterator current_clique = conditional_random_field_cliques.begin(); current_clique != conditional_random_field_cliques.end(); ++current_clique)
 	{
+//		// create function object for this clique, load CvBoost separately and don't use = or else the Boosters would get deleted
+//		// after this struct gets destroyed.
+//		adaBoostFunction function;
+//
+//		function.angles_for_simulation = angles_for_simulation_;
+////		function.clique_members = current_clique->getMemberPoints();
+////		function.beams_for_points = current_clique->getBeams();
+//		function.clique = *current_clique;
+//		function.room_boost.load(filename_room.c_str());
+//		function.hallway_boost .load(filename_hallway.c_str());
+//		function.doorway_boost.load(filename_doorway.c_str());
+//		function.number_of_classifiers = number_of_classifiers_;
+//		function.possible_labels = possible_labels;
+//		function.trained_conditional_weights = trained_conditional_weights_;
+
 		// get the number of members in this clique and depending on this the possible label configurations defined above
 		size_t number_of_members = current_clique->getNumberOfMembers();
 		std::vector<std::vector<uint> > current_possible_configurations = label_configurations[number_of_members-2]; // -2 because this vector stores configurations for cliques with 2-5 members (others are not possible in this case).
@@ -1729,9 +1762,6 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 		// define a explicit function-object from OpenGM containing the initial value -1.0 for each combination
 		opengm::ExplicitFunction<double> f(variable_space, variable_space + number_of_members, -1.0);
 
-		// vector to store the calculated clique potentials
-		std::vector<double> clique_potentials(current_possible_configurations.size());
-
 		// go trough each possible configuration and compute the function value for it
 		for(size_t configuration = 0; configuration < current_possible_configurations.size(); ++configuration)
 		{
@@ -1747,19 +1777,50 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 			std::vector<double> current_features(number_of_classifiers_);
 			getAdaBoostFeatureVector(current_features, *current_clique, current_configuration, possible_labels);
 
+//			double test_result = function(current_configuration);
+
 			double clique_potential = 0;
 			for(size_t weight = 0; weight < number_of_classifiers_; ++weight)
 				clique_potential += trained_conditional_weights_[weight] * current_features[weight];
 
-			// save the found clique potential
-			clique_potentials[configuration] = clique_potential;
+//			if(clique_potential != test_result)
+//			{
+//				std::cout << "config: ";
+//				for(size_t i = 0; i < current_configuration.size(); ++i)
+//					std::cout << current_configuration[i] << " ";
+//				std::cout << std::endl << "Real: "  << clique_potential << " Func: " << test_result<< std::endl;
+//			}
+
+			// assign the calculated clique potential at the right position in the function --> !!Important: factors need the variables to be sorted
+			//																								 as increasing index
+			f(label_configurations[number_of_members-2][configuration].begin()) = clique_potential;
 
 //			std::cout << "got one feature-vector" << std::endl;
 
 		}
 //		std::cout << "one clique done" << std::endl;
 
-		// assign the calculated clique potential at the right position in the function
+		// add the defined function to the model and catch the returned function-identifier to specify which variables
+		// this function needs
+		FactorGraph::FunctionIdentifier identifier = factor_graph.addFunction(f);
+
+		// add the Factor to the graph, that represents which variables (and labels of each) are used for the above defined function
+		// go trough all points of the clique and find the index of it in the vector the nodes of the CRF are stored
+		size_t indices[current_clique->getNumberOfMembers()]; // array the indices are stored in
+		std::vector<cv::Point> clique_points = current_clique->getMemberPoints();
+		for(size_t point = 0; point < clique_points.size(); ++point)
+		{
+			// get the iterator to the element and use the std::distance function to calculate the index of the point
+			std::set<cv::Point>::iterator iterator = conditional_field_nodes.find(clique_points[point]);
+
+			if(iterator != conditional_field_nodes.end()) // check if element was found --> should be
+				indices[point] = std::distance(conditional_field_nodes.begin(), iterator);
+			else
+				std::cout << "element not in set" << std::endl;
+		}
+
+		// add factor
+		factor_graph.addFactor(identifier, indices, indices+current_clique->getNumberOfMembers());
 
 	}
 	std::cout << "calculated all features for the cliques. Time: " << timer.getElapsedTimeInSec() << "s" << std::endl;
@@ -1769,6 +1830,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 // Function to test several functions of this algorithm independent of other functions
 void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map)
 {
+	std::cout << "testfunc" << std::endl;
 //	std::set<cv::Point, cv_Point_comp> node_points; //variable for node point extraction
 //	cv::Mat voronoi_map = original_map.clone();
 //	createPrunedVoronoiGraph(voronoi_map, node_points);
@@ -1831,6 +1893,7 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map)
 	size_t variable_space[2];
 	std::fill_n(variable_space, 2, number_of_classes_);
 
+	std::cout << "filled" << std::endl;
 	// define a explicit function-object from OpenGM containing the initial value -1.0 for each combination
 	opengm::ExplicitFunction<double> f(variable_space, variable_space + 2, -1.0);
 
@@ -1838,11 +1901,20 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map)
 	r[0] = 0;
 	r[1] = 0;
 
-	size_t t[2];
+	std::cout << "vector created" << std::endl;
 
-	f(t) = 0.0;
+	uint t[2];
+	uint* a = &r[0];
+//	std::fill_n(t, 2, 0);
 
-	std::cout << f(0,0) << std::endl;
+	f(r.begin()) = 3.0;
+
+	r[0] = 1;
+	a = &r[0];
+
+	f(a) = 1.0;
+
+	std::cout << f(0,0) << " " << f(1,0) << std::endl;
 
 }
 

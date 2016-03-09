@@ -191,7 +191,7 @@ protected:
 
 	// Function to calculate the feature vector for a given clique, using the trained AdaBoost classifiers.
 	void getAdaBoostFeatureVector(std::vector<double>& feature_vector, Clique& clique,
-			std::vector<uint>& given_labels, std::vector<unsigned int>& possible_labels);
+			 std::vector<uint>& given_labels, std::vector<unsigned int>& possible_labels);
 
 
 	void createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation, std::set<cv::Point, cv_Point_comp>& node_points); // Function that takes a map and draws a pruned voronoi
