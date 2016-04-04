@@ -237,6 +237,6 @@ public:
 			const double min_node_distance, bool show_nodes,
 			std::string crf_storage_path, std::string boost_storage_path, const size_t max_inference_iterations);
 
-	void testFunc(cv::Mat& original_map);
+	void testFunc(cv::Mat& original_map, std::vector<uint>& possible_labels, std::string crf_storage_path, std::string boost_storage_path);
 
 };

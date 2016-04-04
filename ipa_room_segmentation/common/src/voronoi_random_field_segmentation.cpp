@@ -1858,7 +1858,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 			// assign the calculated clique potential at the right position in the function --> !!Important: factors need the variables to be sorted
 			//																								 as increasing index
 			f(swap_configurations[configuration].begin()) = std::exp(clique_potential);
-			std::cout << "potential: " << std::exp(clique_potential) << " ";
+//			std::cout << "potential: " << std::exp(clique_potential) << " ";
 
 //			std::cout << "got one feature-vector" << std::endl;
 
@@ -1916,9 +1916,47 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 }
 
 // Function to test several functions of this algorithm independent of other functions
-void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map)
+void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector<uint>& possible_labels, std::string crf_storage_path, std::string boost_storage_path)
 {
 	std::cout << "testfunc" << std::endl;
+
+	// if the training results haven't been loaded or trained before load them
+	std::string filename_room = boost_storage_path + "voronoi_room_boost.xml";
+	std::string filename_hallway = boost_storage_path + "voronoi_hallway_boost.xml";
+	std::string filename_doorway = boost_storage_path + "voronoi_doorway_boost.xml";
+	if(trained_boost_ == false)
+	{
+		// load the AdaBoost-classifiers
+		room_boost_.load(filename_room.c_str());
+		hallway_boost_.load(filename_hallway.c_str());
+		doorway_boost_.load(filename_doorway.c_str());
+
+		// set the trained-Boolean true to only load parameters once
+		trained_boost_ = true;
+	}
+
+	if(trained_conditional_field_ == false)
+	{
+		// load the weights out of the file
+		std::ifstream input_file(crf_storage_path.c_str());
+		std::string line;
+		double value;
+		if (input_file.is_open())
+		{
+			while (getline(input_file, line))
+			{
+				std::istringstream iss(line);
+				while (iss >> value)
+				{
+					trained_conditional_weights_.push_back(value);
+				}
+			}
+			input_file.close();
+		}
+
+		// set the trained-Boolean to true so the weights only get read in once
+		trained_conditional_field_ = true;
+	}
 //	std::set<cv::Point, cv_Point_comp> node_points; //variable for node point extraction
 //	cv::Mat voronoi_map = original_map.clone();
 //	createPrunedVoronoiGraph(voronoi_map, node_points);
@@ -1926,21 +1964,21 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map)
 //	cv::imshow("voronoi", voronoi_map);
 //	cv::waitKey();
 
-	std::vector<std::vector<uint> > configs;
-	uint number_of_variables = 3;
-	uint number_of_labels = 3;
-	double myints[] = {1,1,1,1,2,2,2,2,3,3,3,3};
-	std::vector<uint> labels(number_of_labels);
-//	for(size_t i = 1; i <= number_of_labels; ++i)
-//		labels[i-1] = i;
-	labels[0] = 0;
-	labels[1] = 1;
-	labels[2] = 2;
-
-	Timer timer;
-
-	timer.start();
-	getPossibleConfigurations(configs, labels, number_of_variables);
+//	std::vector<std::vector<uint> > configs;
+//	uint number_of_variables = 3;
+//	uint number_of_labels = 3;
+//	double myints[] = {1,1,1,1,2,2,2,2,3,3,3,3};
+//	std::vector<uint> labels(number_of_labels);
+////	for(size_t i = 1; i <= number_of_labels; ++i)
+////		labels[i-1] = i;
+//	labels[0] = 0;
+//	labels[1] = 1;
+//	labels[2] = 2;
+//
+//	Timer timer;
+//
+//	timer.start();
+//	getPossibleConfigurations(configs, labels, number_of_variables);
 //	std::cout << "Time needed: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 ////	std::vector<int> myvector(number_of_labels*number_of_variables);// (myints, myints+(number_of_labels * number_of_variables));
 ////	std::cout << myvector.size() << std::endl;
@@ -1968,38 +2006,38 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map)
 ////	}while ( std::next_permutation(myvector.begin(),myvector.end()) );
 //
 
-	size_t node_indices[3] = {3,5,4};
-
-//	std::vector<std::vector<labelWithIndex> > swaped_configs;
-
-	std::cout << "possible configurations(" << configs.size() << "): " << std::endl;
-	for(size_t i = 0; i < configs.size(); ++i)
-	{
-//		std::vector<labelWithIndex> current_vector;
-		for(size_t j = 0; j < configs[i].size(); ++j)
-		{
-//			labelWithIndex current_label = {configs[i][j], node_indices[j]};
-//			current_vector.push_back(current_label);
-			std::cout << configs[i][j] << " ";
-		}
-		// sort the current vector and add it to the configurations
-//		std::sort(current_vector.begin(), current_vector.end(), compLabelsByIndices());
-//		swaped_configs.push_back(current_vector);
-		std::cout << std::endl;
-	}
-
-	timer.start();
-	swapConfigsRegardingNodeIndices(configs, node_indices);
-	std::cout << "swaped configs. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
-
-	for(size_t i = 0; i < configs.size(); ++i)
-	{
-		for(size_t j = 0; j < configs[i].size(); ++j)
-		{
-			std::cout << configs[i][j] << " ";
-		}
-		std::cout << std::endl;
-	}
+//	size_t node_indices[3] = {3,5,4};
+//
+////	std::vector<std::vector<labelWithIndex> > swaped_configs;
+//
+//	std::cout << "possible configurations(" << configs.size() << "): " << std::endl;
+//	for(size_t i = 0; i < configs.size(); ++i)
+//	{
+////		std::vector<labelWithIndex> current_vector;
+//		for(size_t j = 0; j < configs[i].size(); ++j)
+//		{
+////			labelWithIndex current_label = {configs[i][j], node_indices[j]};
+////			current_vector.push_back(current_label);
+//			std::cout << configs[i][j] << " ";
+//		}
+//		// sort the current vector and add it to the configurations
+////		std::sort(current_vector.begin(), current_vector.end(), compLabelsByIndices());
+////		swaped_configs.push_back(current_vector);
+//		std::cout << std::endl;
+//	}
+//
+//	timer.start();
+//	swapConfigsRegardingNodeIndices(configs, node_indices);
+//	std::cout << "swaped configs. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
+//
+//	for(size_t i = 0; i < configs.size(); ++i)
+//	{
+//		for(size_t j = 0; j < configs[i].size(); ++j)
+//		{
+//			std::cout << configs[i][j] << " ";
+//		}
+//		std::cout << std::endl;
+//	}
 
 
 	// swap the configurations to get the change with rising indices for the nodes
@@ -2030,6 +2068,160 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map)
 //	f(a) = 1.0;
 //
 //	std::cout << f(0,0) << " " << f(1,0) << std::endl;
+
+//	cv::circle(original_map, cv::Point(217,189), 2, cv::Scalar(127), CV_FILLED);
+//	cv::imshow("test", original_map);
+//	cv::waitKey();
+
+	std::vector<cv::Point> clique1_vec;
+	clique1_vec.push_back(cv::Point(180,184));
+	clique1_vec.push_back(cv::Point(193,189));
+
+	std::vector<cv::Point> clique2_vec;
+	clique2_vec.push_back(cv::Point(193,189));
+	clique2_vec.push_back(cv::Point(217,189));
+
+	Clique clique1(clique1_vec);
+	Clique clique2(clique2_vec);
+
+	// 3. Simulate the laser-beams at each found member and store them.
+	std::vector< std::vector<double> > laser_beams(clique1_vec.size());
+
+	for(size_t member = 0; member < clique1_vec.size(); ++member)
+	{
+		laser_beams[member] = raycasting(original_map, cv::Point(clique1_vec[member].y, clique1_vec[member].x));
+	}
+	clique1.setBeamsForMembers(laser_beams);
+
+	for(size_t member = 0; member < clique2_vec.size(); ++member)
+	{
+		laser_beams[member] = raycasting(original_map, cv::Point(clique2_vec[member].y, clique2_vec[member].x));
+	}
+	clique2.setBeamsForMembers(laser_beams);
+
+	LabelSpace space(3, 3);
+
+	FactorGraph factor_graph(space);
+
+	// define an array that has as many elements as the clique has members and assign the number of possible labels for each
+	size_t variable_space[2];
+	std::fill_n(variable_space, 2, 3);
+
+	// vector that stores all possible configurations for one member-size
+	std::vector<std::vector<uint> > possible_configurations;
+
+	std::vector<uint> label_indices(3);
+	for(uint index = 0; index < 3; ++index)
+		label_indices[index] = index;
+
+	// use the above defined function to find all possible configurations for the possible labels and save them in the map
+	getPossibleConfigurations(possible_configurations, label_indices, 2);
+
+	std::vector<std::vector<uint> > current_possible_configurations = possible_configurations;
+
+	// find the real labels and assign them into the current configuration so the feature-vector gets calculated correctly
+	for(size_t configuration = 0; configuration < current_possible_configurations.size(); ++configuration)
+		for(size_t variable = 0; variable < current_possible_configurations[configuration].size(); ++variable)
+			current_possible_configurations[configuration][variable] = possible_labels[current_possible_configurations[configuration][variable]];
+
+
+	// define a explicit function-object from OpenGM containing the initial value -1.0 for each combination
+	opengm::ExplicitFunction<double> f1(variable_space, variable_space + 2, -1.0);
+
+	std::cout << "f1: " << std::endl;
+
+	size_t indices1[2] = {1, 0};
+
+	std::vector<std::vector<uint> > swap_configurations = possible_configurations; // -2 because this vector stores configurations for cliques with 2-5 members (others are not possible in this case).
+	swapConfigsRegardingNodeIndices(swap_configurations, indices1);
+	std::sort(indices1, indices1 + 2);
+
+	std::cout << "Sorted indices: " << indices1[0] << " " << indices1[1] << std::endl;
+
+	for(size_t configuration = 0; configuration < current_possible_configurations.size(); ++configuration)
+	{
+		std::vector<uint> current_configuration = current_possible_configurations[configuration];
+
+		// get current feature-vector and multiply it with the trained weights
+		std::vector<double> current_features(number_of_classifiers_);
+		getAdaBoostFeatureVector(current_features, clique1, current_configuration, possible_labels);
+
+		double clique_potential = 0;
+		for(size_t weight = 0; weight < number_of_classifiers_; ++weight)
+		{
+			clique_potential += trained_conditional_weights_[weight] * current_features[weight];
+		}
+
+		// assign the calculated clique potential at the right position in the function --> !!Important: factors need the variables to be sorted
+		//																								 as increasing index
+		f1(swap_configurations[configuration].begin()) = clique_potential;
+
+		for(size_t i = 0; i < possible_configurations[configuration].size(); ++i)
+			std::cout << possible_configurations[configuration][i] << " ";
+		std::cout << ": " << f1(possible_configurations[configuration].begin()) << " ";
+	}
+
+	std::cout << std::endl << f1(3,3) << std::endl;
+
+	FactorGraph::FunctionIdentifier identifier1 = factor_graph.addFunction(f1);
+
+	// add the Factor to the graph, that represents which variables (and labels of each) are used for the above defined function
+	factor_graph.addFactor(identifier1, indices1, indices1+2);
+
+	// define a explicit function-object from OpenGM containing the initial value -1.0 for each combination
+	opengm::ExplicitFunction<double> f2(variable_space, variable_space + 2, -1.0);
+
+	std::cout << std::endl << "f2: " << std::endl;
+
+	for(size_t configuration = 0; configuration < current_possible_configurations.size(); ++configuration)
+	{
+		std::vector<uint> current_configuration = current_possible_configurations[configuration];
+
+		// get current feature-vector and multiply it with the trained weights
+		std::vector<double> current_features(number_of_classifiers_);
+		getAdaBoostFeatureVector(current_features, clique2, current_configuration, possible_labels);
+
+		double clique_potential = 0;
+		for(size_t weight = 0; weight < number_of_classifiers_; ++weight)
+		{
+			clique_potential += trained_conditional_weights_[weight] * current_features[weight];
+		}
+
+		// assign the calculated clique potential at the right position in the function --> !!Important: factors need the variables to be sorted
+		//																								 as increasing index
+		f2(possible_configurations[configuration].begin()) = std::exp(clique_potential);
+
+		for(size_t i = 0; i < possible_configurations[configuration].size(); ++i)
+			std::cout << possible_configurations[configuration][i] << " ";
+		std::cout << ": " << clique_potential << " ";
+	}
+
+	std::cout << std::endl;
+
+	FactorGraph::FunctionIdentifier identifier2 = factor_graph.addFunction(f2);
+
+	// add the Factor to the graph, that represents which variables (and labels of each) are used for the above defined function
+	size_t indices2[2] = {1,2};
+	factor_graph.addFactor(identifier2, indices2, indices2+2);
+
+	const double convergence_bound = 1e-7;
+	const double damping_factor = 0.0;
+	LoopyBeliefPropagation::Parameter parameters(300, convergence_bound, damping_factor);
+
+	// create LoopyBeliefPropagation object that does inference on the graphical model defined above
+	LoopyBeliefPropagation belief_propagation(factor_graph, parameters);
+
+	// do inference
+	belief_propagation.infer();
+
+	// obtain the labels that get the max value of the defined function
+	std::vector<size_t> best_labels(3);
+	belief_propagation.arg(best_labels);
+
+	for(size_t i = 0; i < 3; ++i)
+		std::cout << best_labels[i] << " ";
+
+	std::cout << std::endl;
 
 }
 
