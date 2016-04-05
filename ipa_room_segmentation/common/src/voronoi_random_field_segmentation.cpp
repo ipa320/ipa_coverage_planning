@@ -2075,11 +2075,13 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 
 	std::vector<cv::Point> clique1_vec;
 	clique1_vec.push_back(cv::Point(193,189));
+	clique1_vec.push_back(cv::Point(173,177));
 	clique1_vec.push_back(cv::Point(180,184));
 
 	std::vector<cv::Point> clique2_vec;
 	clique2_vec.push_back(cv::Point(193,189));
 	clique2_vec.push_back(cv::Point(217,189));
+	clique2_vec.push_back(cv::Point(219,171));
 
 	Clique clique1(clique1_vec);
 	Clique clique2(clique2_vec);
@@ -2099,13 +2101,13 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 	}
 	clique2.setBeamsForMembers(laser_beams);
 
-	LabelSpace space(3, 3);
+	LabelSpace space(5, 3);
 
 	FactorGraph factor_graph(space);
 
 	// define an array that has as many elements as the clique has members and assign the number of possible labels for each
-	size_t variable_space[2];
-	std::fill_n(variable_space, 2, 3);
+	size_t variable_space1[3];
+	std::fill_n(variable_space1, 3, 3);
 
 	// vector that stores all possible configurations for one member-size
 	std::vector<std::vector<uint> > possible_configurations;
@@ -2115,7 +2117,7 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 		label_indices[index] = index;
 
 	// use the above defined function to find all possible configurations for the possible labels and save them in the map
-	getPossibleConfigurations(possible_configurations, label_indices, 2);
+	getPossibleConfigurations(possible_configurations, label_indices, 3);
 
 	std::vector<std::vector<uint> > current_possible_configurations = possible_configurations;
 
@@ -2126,17 +2128,17 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 
 
 	// define a explicit function-object from OpenGM containing the initial value -1.0 for each combination
-	opengm::ExplicitFunction<double> f1(variable_space, variable_space + 2, -1.0);
+	opengm::ExplicitFunction<double> f1(variable_space1, variable_space1 + 3, -1.0);
 
 	std::cout << "f1: " << std::endl;
 
-	size_t indices1[2] = {1, 0};
+	size_t indices1[3] = {2, 0, 1};
 
 	std::vector<std::vector<uint> > swap_configurations = possible_configurations; // -2 because this vector stores configurations for cliques with 2-5 members (others are not possible in this case).
 	swapConfigsRegardingNodeIndices(swap_configurations, indices1);
-	std::sort(indices1, indices1 + 2);
+	std::sort(indices1, indices1 + 3);
 
-	std::cout << "Sorted indices: " << indices1[0] << " " << indices1[1] << std::endl;
+	std::cout << "Sorted indices: " << indices1[0] << " " << indices1[1] << " " << indices1[2] << std::endl;
 
 	for(size_t configuration = 0; configuration < current_possible_configurations.size(); ++configuration)
 	{
@@ -2156,9 +2158,9 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 		//																								 as increasing index
 		f1(swap_configurations[configuration].begin()) = clique_potential;
 
-		for(size_t i = 0; i < possible_configurations[configuration].size(); ++i)
-			std::cout << possible_configurations[configuration][i] << " ";
-		std::cout << ": " << f1(possible_configurations[configuration].begin()) << " ";
+		for(size_t i = 0; i < swap_configurations[configuration].size(); ++i)
+			std::cout << swap_configurations[configuration][i] << " ";
+		std::cout << ": " << f1(swap_configurations[configuration].begin()) << " ";
 	}
 
 	std::cout << std::endl << f1(3,3) << std::endl;
@@ -2166,10 +2168,27 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 	FactorGraph::FunctionIdentifier identifier1 = factor_graph.addFunction(f1);
 
 	// add the Factor to the graph, that represents which variables (and labels of each) are used for the above defined function
-	factor_graph.addFactor(identifier1, indices1, indices1+2);
+	factor_graph.addFactor(identifier1, indices1, indices1+3);
 
 	// define a explicit function-object from OpenGM containing the initial value -1.0 for each combination
-	opengm::ExplicitFunction<double> f2(variable_space, variable_space + 2, -1.0);
+	size_t variable_space2[3];
+	std::fill_n(variable_space2, 3, 3);
+
+	opengm::ExplicitFunction<double> f2(variable_space2, variable_space2 + 3, -1.0);
+
+	// use the above defined function to find all possible configurations for the possible labels and save them in the map
+//	possible_configurations.clear();
+//	current_possible_configurations.clear();
+//
+//	getPossibleConfigurations(possible_configurations, label_indices, 2);
+//
+//	current_possible_configurations = possible_configurations;
+//
+//	// find the real labels and assign them into the current configuration so the feature-vector gets calculated correctly
+//	for(size_t configuration = 0; configuration < current_possible_configurations.size(); ++configuration)
+//		for(size_t variable = 0; variable < current_possible_configurations[configuration].size(); ++variable)
+//			current_possible_configurations[configuration][variable] = possible_labels[current_possible_configurations[configuration][variable]];
+
 
 	std::cout << std::endl << "f2: " << std::endl;
 
@@ -2201,7 +2220,7 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 	FactorGraph::FunctionIdentifier identifier2 = factor_graph.addFunction(f2);
 
 	// add the Factor to the graph, that represents which variables (and labels of each) are used for the above defined function
-	size_t indices2[2] = {1,2};
+	size_t indices2[3] = {2, 3, 4};
 	factor_graph.addFactor(identifier2, indices2, indices2+2);
 
 	const double convergence_bound = 1e-7;
@@ -2218,7 +2237,7 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 	std::vector<size_t> best_labels(3);
 	belief_propagation.arg(best_labels);
 
-	for(size_t i = 0; i < 3; ++i)
+	for(size_t i = 0; i < 5; ++i)
 		std::cout << best_labels[i] << " ";
 
 	std::cout << std::endl;
