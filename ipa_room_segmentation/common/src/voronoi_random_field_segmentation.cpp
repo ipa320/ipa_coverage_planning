@@ -2074,8 +2074,8 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 //	cv::waitKey();
 
 	std::vector<cv::Point> clique1_vec;
-	clique1_vec.push_back(cv::Point(180,184));
 	clique1_vec.push_back(cv::Point(193,189));
+	clique1_vec.push_back(cv::Point(180,184));
 
 	std::vector<cv::Point> clique2_vec;
 	clique2_vec.push_back(cv::Point(193,189));
