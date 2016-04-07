@@ -506,7 +506,7 @@ void VoronoiRandomFieldSegmentation::createConditionalField(const cv::Mat& voron
 		// ( 4 because e.g. a node in the middle of a cross has four neighbors)
 		int number_of_neighbors = 2;
 		if(voronoi_node_points.find(*current_point) != voronoi_node_points.end())
-			number_of_neighbors = 4;
+			number_of_neighbors = 3;
 
 		// vector to save the searched points
 		std::vector<cv::Point> searched_points;
@@ -1685,6 +1685,21 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 
 	std::cout << "Created field. Time: " << timer.getElapsedTimeInMilliSec() << "ms. Number of cliques: " << conditional_random_field_cliques.size() << std::endl;
 
+	Clique first = conditional_random_field_cliques.at(220);
+	Clique second = conditional_random_field_cliques.at(30);
+
+	std::vector<cv::Point> points = first.getMemberPoints();
+	std::cout << "First clique: " << std::endl;
+	for(size_t i = 0; i < points.size(); ++i)
+		std::cout << points[i] << " " ;
+	std::cout << std::endl;
+
+	points = second.getMemberPoints();
+	std::cout << "Second clique: " << std::endl;
+	for(size_t i = 0; i < points.size(); ++i)
+		std::cout << points[i] << " " ;
+	std::cout << std::endl;
+
 	// show the found cliques if wanted
 	if(show_nodes == true)
 	{
@@ -1957,6 +1972,9 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 		// set the trained-Boolean to true so the weights only get read in once
 		trained_conditional_field_ = true;
 	}
+
+	std::cout << "loaded files" << std::endl;
+
 //	std::set<cv::Point, cv_Point_comp> node_points; //variable for node point extraction
 //	cv::Mat voronoi_map = original_map.clone();
 //	createPrunedVoronoiGraph(voronoi_map, node_points);
@@ -2074,20 +2092,30 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 //	cv::waitKey();
 
 	std::vector<cv::Point> clique1_vec;
-	clique1_vec.push_back(cv::Point(193,189));
-	clique1_vec.push_back(cv::Point(173,177));
-	clique1_vec.push_back(cv::Point(180,184));
+//	clique1_vec.push_back(cv::Point(186,188));
+//	clique1_vec.push_back(cv::Point(180,184));
+//	clique1_vec.push_back(cv::Point(193,189));
+//	[170, 456] [160, 457] [184, 458]
+	clique1_vec.push_back(cv::Point(170, 456));
+	clique1_vec.push_back(cv::Point(160, 457));
+	clique1_vec.push_back(cv::Point(184, 458));
 
 	std::vector<cv::Point> clique2_vec;
-	clique2_vec.push_back(cv::Point(193,189));
-	clique2_vec.push_back(cv::Point(217,189));
-	clique2_vec.push_back(cv::Point(219,171));
+//	clique2_vec.push_back(cv::Point(193,189));
+//	clique2_vec.push_back(cv::Point(217,189));
+//	clique2_vec.push_back(cv::Point(219,171));
+//	clique2_vec.push_back(cv::Point(217,199));
+//	[358, 461] [377, 460] [338, 461] [368, 462]
+	clique2_vec.push_back(cv::Point(358, 461));
+	clique2_vec.push_back(cv::Point(377, 460));
+	clique2_vec.push_back(cv::Point(338, 461));
+	clique2_vec.push_back(cv::Point(368, 462));
 
 	Clique clique1(clique1_vec);
 	Clique clique2(clique2_vec);
 
 	// 3. Simulate the laser-beams at each found member and store them.
-	std::vector< std::vector<double> > laser_beams(clique1_vec.size());
+	std::vector< std::vector<double> > laser_beams(10);
 
 	for(size_t member = 0; member < clique1_vec.size(); ++member)
 	{
@@ -2101,7 +2129,7 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 	}
 	clique2.setBeamsForMembers(laser_beams);
 
-	LabelSpace space(5, 3);
+	LabelSpace space(6, 3);
 
 	FactorGraph factor_graph(space);
 
@@ -2163,7 +2191,7 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 		std::cout << ": " << f1(swap_configurations[configuration].begin()) << " ";
 	}
 
-	std::cout << std::endl << f1(3,3) << std::endl;
+//	std::cout << std::endl << f1(3,3) << std::endl;
 
 	FactorGraph::FunctionIdentifier identifier1 = factor_graph.addFunction(f1);
 
@@ -2171,26 +2199,29 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 	factor_graph.addFactor(identifier1, indices1, indices1+3);
 
 	// define a explicit function-object from OpenGM containing the initial value -1.0 for each combination
-	size_t variable_space2[3];
-	std::fill_n(variable_space2, 3, 3);
+	size_t variable_space2[4];
+	std::fill_n(variable_space2, 4, 3);
 
-	opengm::ExplicitFunction<double> f2(variable_space2, variable_space2 + 3, -1.0);
+	opengm::ExplicitFunction<double> f2(variable_space2, variable_space2 + 4, -1.0);
 
 	// use the above defined function to find all possible configurations for the possible labels and save them in the map
-//	possible_configurations.clear();
-//	current_possible_configurations.clear();
-//
-//	getPossibleConfigurations(possible_configurations, label_indices, 2);
-//
-//	current_possible_configurations = possible_configurations;
-//
-//	// find the real labels and assign them into the current configuration so the feature-vector gets calculated correctly
-//	for(size_t configuration = 0; configuration < current_possible_configurations.size(); ++configuration)
-//		for(size_t variable = 0; variable < current_possible_configurations[configuration].size(); ++variable)
-//			current_possible_configurations[configuration][variable] = possible_labels[current_possible_configurations[configuration][variable]];
+	possible_configurations.clear();
+	current_possible_configurations.clear();
+
+	getPossibleConfigurations(possible_configurations, label_indices, 4);
+
+	current_possible_configurations = possible_configurations;
+
+	// find the real labels and assign them into the current configuration so the feature-vector gets calculated correctly
+	for(size_t configuration = 0; configuration < current_possible_configurations.size(); ++configuration)
+		for(size_t variable = 0; variable < current_possible_configurations[configuration].size(); ++variable)
+			current_possible_configurations[configuration][variable] = possible_labels[current_possible_configurations[configuration][variable]];
 
 
 	std::cout << std::endl << "f2: " << std::endl;
+
+	std::string output = boost_storage_path + "features2.txt";
+	std::ofstream output_file(output.c_str());
 
 	for(size_t configuration = 0; configuration < current_possible_configurations.size(); ++configuration)
 	{
@@ -2211,17 +2242,25 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 		f2(possible_configurations[configuration].begin()) = std::exp(clique_potential);
 
 		for(size_t i = 0; i < possible_configurations[configuration].size(); ++i)
+		{
 			std::cout << possible_configurations[configuration][i] << " ";
+			output_file << possible_configurations[configuration][i] << " ";
+		}
 		std::cout << ": " << clique_potential << " ";
+		output_file << ": " << clique_potential << " ";
 	}
 
+	output_file.close();
 	std::cout << std::endl;
+
 
 	FactorGraph::FunctionIdentifier identifier2 = factor_graph.addFunction(f2);
 
 	// add the Factor to the graph, that represents which variables (and labels of each) are used for the above defined function
-	size_t indices2[3] = {2, 3, 4};
-	factor_graph.addFactor(identifier2, indices2, indices2+2);
+	size_t indices2[4] = {2, 3, 4, 5};
+	factor_graph.addFactor(identifier2, indices2, indices2+4);
+
+	std::cout << "infering" << std::endl;
 
 	const double convergence_bound = 1e-7;
 	const double damping_factor = 0.0;
@@ -2233,11 +2272,13 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 	// do inference
 	belief_propagation.infer();
 
+	std::cout << "done infering" << std::endl;
+
 	// obtain the labels that get the max value of the defined function
-	std::vector<size_t> best_labels(3);
+	std::vector<size_t> best_labels(6);
 	belief_propagation.arg(best_labels);
 
-	for(size_t i = 0; i < 5; ++i)
+	for(size_t i = 0; i < 6; ++i)
 		std::cout << best_labels[i] << " ";
 
 	std::cout << std::endl;
