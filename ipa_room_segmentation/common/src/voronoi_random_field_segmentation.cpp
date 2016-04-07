@@ -1686,7 +1686,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	std::cout << "Created field. Time: " << timer.getElapsedTimeInMilliSec() << "ms. Number of cliques: " << conditional_random_field_cliques.size() << std::endl;
 
 	Clique first = conditional_random_field_cliques.at(220);
-	Clique second = conditional_random_field_cliques.at(30);
+	Clique second = conditional_random_field_cliques.at(225);
 
 	std::vector<cv::Point> points = first.getMemberPoints();
 	std::cout << "First clique: " << std::endl;
@@ -1872,7 +1872,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 
 			// assign the calculated clique potential at the right position in the function --> !!Important: factors need the variables to be sorted
 			//																								 as increasing index
-			f(swap_configurations[configuration].begin()) = std::exp(clique_potential);
+			f(swap_configurations[configuration].begin()) = clique_potential;//std::exp(clique_potential);
 //			std::cout << "potential: " << std::exp(clique_potential) << " ";
 
 //			std::cout << "got one feature-vector" << std::endl;
@@ -1907,7 +1907,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	std::cout << "Done Inference. Time: " << timer.getElapsedTimeInSec() << "s" << std::endl;
 
 	// obtain the labels that get the max value of the defined function
-	std::vector<size_t> best_labels(conditional_field_nodes.size());
+	std::vector<FactorGraph::LabelType> best_labels(conditional_field_nodes.size());
 	belief_propagation.arg(best_labels);
 
 	// print the solution
@@ -1921,9 +1921,9 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	{
 		size_t distance = std::distance(conditional_field_nodes.begin(), i);
 		std::cout << best_labels[distance] << " ";
-		cv::circle(resulting_map, *i, 5, cv::Scalar(possible_labels[distance]), CV_FILLED);
+		cv::circle(resulting_map, *i, 5, cv::Scalar(possible_labels[best_labels[distance]]), CV_FILLED);
 	}
-	std::cout << std::endl;
+	std::cout << std::endl << "complete Potential: " << belief_propagation.value() << std::endl;
 	cv::imshow("res", resulting_map);
 	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/result_map.png", resulting_map);
 	cv::waitKey();
@@ -2105,11 +2105,11 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 //	clique2_vec.push_back(cv::Point(217,189));
 //	clique2_vec.push_back(cv::Point(219,171));
 //	clique2_vec.push_back(cv::Point(217,199));
-//	[358, 461] [377, 460] [338, 461] [368, 462]
-	clique2_vec.push_back(cv::Point(358, 461));
-	clique2_vec.push_back(cv::Point(377, 460));
-	clique2_vec.push_back(cv::Point(338, 461));
-	clique2_vec.push_back(cv::Point(368, 462));
+//	[148, 457] [129, 447] [160, 457] [138, 461]
+	clique2_vec.push_back(cv::Point(160, 457));
+	clique2_vec.push_back(cv::Point(148, 457));
+	clique2_vec.push_back(cv::Point(129, 447));
+	clique2_vec.push_back(cv::Point(138, 461));
 
 	Clique clique1(clique1_vec);
 	Clique clique2(clique2_vec);
@@ -2160,7 +2160,7 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 
 	std::cout << "f1: " << std::endl;
 
-	size_t indices1[3] = {2, 0, 1};
+	size_t indices1[3] = {0, 2, 1};
 
 	std::vector<std::vector<uint> > swap_configurations = possible_configurations; // -2 because this vector stores configurations for cliques with 2-5 members (others are not possible in this case).
 	swapConfigsRegardingNodeIndices(swap_configurations, indices1);
@@ -2184,7 +2184,7 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 
 		// assign the calculated clique potential at the right position in the function --> !!Important: factors need the variables to be sorted
 		//																								 as increasing index
-		f1(swap_configurations[configuration].begin()) = clique_potential;
+		f1(swap_configurations[configuration].begin()) = std::exp(clique_potential);
 
 		for(size_t i = 0; i < swap_configurations[configuration].size(); ++i)
 			std::cout << swap_configurations[configuration][i] << " ";
@@ -2246,8 +2246,8 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 			std::cout << possible_configurations[configuration][i] << " ";
 			output_file << possible_configurations[configuration][i] << " ";
 		}
-		std::cout << ": " << clique_potential << " ";
-		output_file << ": " << clique_potential << " ";
+		std::cout << ": " << std::exp(clique_potential) << " ";
+		output_file << ": " << std::exp(clique_potential) << " ";
 	}
 
 	output_file.close();
@@ -2275,7 +2275,7 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 	std::cout << "done infering" << std::endl;
 
 	// obtain the labels that get the max value of the defined function
-	std::vector<size_t> best_labels(6);
+	std::vector<FactorGraph::LabelType> best_labels(6);
 	belief_propagation.arg(best_labels);
 
 	for(size_t i = 0; i < 6; ++i)

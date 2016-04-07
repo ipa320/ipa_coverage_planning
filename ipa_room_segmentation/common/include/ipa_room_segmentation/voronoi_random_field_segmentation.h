@@ -112,8 +112,8 @@ typedef dlib::matrix<double,0,1> column_vector;
 // Typedef for the Label-Space. This stores n variables that each can have m labels.
 typedef opengm::SimpleDiscreteSpace<size_t, size_t> LabelSpace;
 
-// Typedef for a factor-graph that stores doubles as results, multiplies the factors and has discrete labels for each variable.
-typedef opengm::GraphicalModel <double, opengm::Multiplier, opengm::ExplicitFunction<double>, opengm::SimpleDiscreteSpace<> > FactorGraph;
+// Typedef for a factor-graph that stores doubles as results, adds the factors and has discrete labels for each variable.
+typedef opengm::GraphicalModel <double, opengm::Adder, opengm::ExplicitFunction<double>, LabelSpace > FactorGraph;
 
 // Typedef for the update rule of messages in a factor graph, when using message propagation.
 // Second Typedef is the Belief-Propagation used in this algorithm. It can be used on the defined FactorGraph, maximizes the defined
