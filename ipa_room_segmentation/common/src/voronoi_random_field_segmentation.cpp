@@ -105,7 +105,7 @@ public:
 		// go trough each part of the function and calculate the log(.) and add it to the result
 		for(unsigned int function_part = 0; function_part < log_parameters.size(); ++function_part)
 		{
-			double splitting_of_exponent = 10; // because this function often produces exponents around 1000 the calculation of one exponential part needs to be splitted
+			double splitting_of_exponent = 20; // because this function often produces exponents around 1000 the calculation of one exponential part needs to be splitted
 			long double log_numerator = 1., log_denominator = 0.; // numerator and denominator for each log
 			long double exp_exponent = 0; // helping variable to get each exponent for exp(.)
 			// get the log_numerator for each function part
@@ -1684,21 +1684,6 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	createConditionalField(voronoi_map, conditional_field_nodes, conditional_random_field_cliques, node_points, original_image);
 
 	std::cout << "Created field. Time: " << timer.getElapsedTimeInMilliSec() << "ms. Number of cliques: " << conditional_random_field_cliques.size() << std::endl;
-
-	Clique first = conditional_random_field_cliques.at(220);
-	Clique second = conditional_random_field_cliques.at(225);
-
-	std::vector<cv::Point> points = first.getMemberPoints();
-	std::cout << "First clique: " << std::endl;
-	for(size_t i = 0; i < points.size(); ++i)
-		std::cout << points[i] << " " ;
-	std::cout << std::endl;
-
-	points = second.getMemberPoints();
-	std::cout << "Second clique: " << std::endl;
-	for(size_t i = 0; i < points.size(); ++i)
-		std::cout << points[i] << " " ;
-	std::cout << std::endl;
 
 	// show the found cliques if wanted
 	if(show_nodes == true)
