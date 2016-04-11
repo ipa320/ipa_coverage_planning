@@ -121,7 +121,7 @@ int main()
 //	}
 
 	double map_resolution = 0.05;
-	double room_lower_limit_voronoi_ = 0.1;	//1.53;
+	double room_lower_limit_voronoi_ = 1.53;	//1.53;
 	double room_upper_limit_voronoi_ = 1000000.;	//120.0;
 
 	VoronoiRandomFieldSegmentation segmenter(false, false);

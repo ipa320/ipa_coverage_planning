@@ -1723,13 +1723,12 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 		}
 	}
 
-	cv::imshow("pre-res", original_map);
-
 	// color remaining white space
 	wavefrontRegionGrowing(original_map);
 
 	std::cout << "filled map with unique colors. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 
+	cv::imshow("best labels", resulting_map);
 	cv::imshow("res", original_map);
 //	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/result_map.png", resulting_map);
 //	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/filled_map.png", map_copy);
