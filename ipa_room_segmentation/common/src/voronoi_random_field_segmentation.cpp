@@ -966,7 +966,7 @@ void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_v
 
 	const cv::Scalar voronoi_color(127); //define the voronoi-drawing colour
 
-	std::vector < std::vector<cv::Point2f> > voronoi_facets; //variables to find the facets and centers of the voronoi-cells
+	std::vector < std::vector<cv::Point2f> > voronoi_facets; // variables to find the facets and centers of the voronoi-cells
 	std::vector < cv::Point2f > voronoi_centers;
 
 	subdiv.getVoronoiFacetList(std::vector<int>(), voronoi_facets, voronoi_centers);
@@ -1538,18 +1538,164 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	// ************* V. Search for different regions of same color and make them a individual segment *************
 	//
 	// 1. Connect the found doorway points to the two nearest black pixels (base points) of them to create intersections
-
-	cv::Mat map_copy = original_image.clone();
+	cv::Mat map_copy;
+	cv::Mat eroded_map;
+	cv::Point anchor(-1, -1);
+	cv::erode(original_image, eroded_map, cv::Mat(), anchor, 2);
+	map_copy = eroded_map.clone();
 
 	// find the layout of the map and discretize it to get possible base points
 	std::vector < std::vector<cv::Point> > map_contours;
 	std::vector < cv::Vec4i > hierarchy;
 	cv::findContours(map_copy, map_contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
 
-//	resulting_map.convertTo(resulting_map, CV_32SC1, 256, 0);
-//	wavefrontRegionGrowing(resulting_map);
-	cv::imshow("res", resulting_map);
-	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/result_map.png", resulting_map);
+	timer.start();
+
+	// reassign the map because findContours destroys it and erode it to close small errors
+	map_copy = eroded_map.clone();
+
+	for(std::set<cv::Point, cv_Point_comp>::iterator node = conditional_field_nodes.begin(); node != conditional_field_nodes.end(); ++node)
+	{
+		// find index of point
+		size_t distance = std::distance(conditional_field_nodes.begin(), node);
+
+		// check if the point is labeled as a doorway
+//		if(best_labels[distance] == 2)
+//		{
+			// set inital points and values for the basis points so the distance comparison can be done
+			cv::Point basis_point_1 = map_contours[0][0];
+			cv::Point basis_point_2 = map_contours[0][1];
+			// inital values of the first vector from the current critical point to the contour points and for the distance of it
+			double vector_x_1 = node->x - map_contours[0][0].x;
+			double vector_y_1 = node->y - map_contours[0][0].y;
+			double distance_basis_square_1 = vector_x_1*vector_x_1 + vector_y_1*vector_y_1;
+			// inital values of the second vector from the current critical point to the contour points and for the distance of it
+			double vector_x_2 = node->x - map_contours[0][1].x;
+			double vector_y_2 = node->y - map_contours[0][1].y;
+			double distance_basis_square_2 = vector_x_2*vector_x_2 + vector_y_2*vector_y_2;
+
+			// find first basis point
+			int basis_vector_1_x, basis_vector_2_x, basis_vector_1_y, basis_vector_2_y;
+			for (int c = 0; c < map_contours.size(); c++)
+			{
+				for (int p = 0; p < map_contours[c].size(); p++)
+				{
+					// calculate the Euclidian distance from the critical Point to the Point on the contour
+					const double vector_x = map_contours[c][p].x - node->x;
+					const double vector_y = map_contours[c][p].y - node->y;
+					const double current_distance = vector_x*vector_x + vector_y*vector_y;
+					// compare the distance to the saved distances if it is smaller
+					if (current_distance < distance_basis_square_1)
+					{
+						distance_basis_square_1 = current_distance;
+						basis_point_1 = map_contours[c][p];
+						basis_vector_1_x = vector_x;
+						basis_vector_1_y = vector_y;
+					}
+				}
+			}
+			// find second basisPpoint
+			for (int c = 0; c < map_contours.size(); c++)
+			{
+				for (int p = 0; p < map_contours[c].size(); p++)
+				{
+					// calculate the Euclidian distance from the critical point to the point on the contour
+					const double vector_x = map_contours[c][p].x - node->x;
+					const double vector_y = map_contours[c][p].y - node->y;
+					const double current_distance = vector_x*vector_x + vector_y*vector_y;
+					// calculate the distance between the current contour point and the first basis point to make sure they
+					// are not too close to each other
+					const double vector_x_basis = basis_point_1.x - map_contours[c][p].x;
+					const double vector_y_basis = basis_point_1.y - map_contours[c][p].y;
+					const double basis_distance = vector_x_basis*vector_x_basis + vector_y_basis*vector_y_basis;
+					if (current_distance > distance_basis_square_1 && current_distance < distance_basis_square_2 &&
+						basis_distance > (double) distance_map.at<unsigned char>(*node)*distance_map.at<unsigned char>(*node))
+					{
+						distance_basis_square_2 = current_distance;
+						basis_point_2 = map_contours[c][p];
+						basis_vector_2_x = vector_x;
+						basis_vector_2_y = vector_y;
+					}
+				}
+			}
+
+		if(best_labels[distance] == 2)
+		{
+			// draw a line from the node to the two basis points
+			cv::line(map_copy, *node, basis_point_1, 0, 3);
+			cv::line(map_copy, *node, basis_point_2, 0, 3);
+		}
+		else
+		{
+			// draw a line from the node to the two basis points
+			cv::line(map_copy, *node, basis_point_1, possible_labels[best_labels[distance]], 2);
+			cv::line(map_copy, *node, basis_point_2, possible_labels[best_labels[distance]], 2);
+		}
+//		else
+//		{
+//			cv::circle(map_copy, *node, 3, cv::Scalar(possible_labels[best_labels[distance]]), CV_FILLED);
+//		}
+	}
+
+	std::cout << "drawn all segments. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
+
+//	cv::Rect rect(0, 0, original_image.cols, original_image.rows); // objects needed from openCV
+//	cv::Subdiv2D subdiv(rect);
+//
+//	// insert all nodes as voronoi centers
+//	for(std::set<cv::Point, cv_Point_comp>::iterator node = conditional_field_nodes.begin(); node != conditional_field_nodes.end(); ++node)
+//		subdiv.insert(*node);
+//
+//	// calculate the voronoi-graph
+//	std::vector < std::vector<cv::Point2f> > voronoi_facets; // variables to find the facets and centers of the voronoi-cells
+//	std::vector < cv::Point2f > voronoi_centers;
+//
+//	subdiv.getVoronoiFacetList(std::vector<int>(), voronoi_facets, voronoi_centers);
+//
+//	// draw the voronoi cells with the color of the corresponding node in a map
+//	for(size_t cell = 0; cell < voronoi_facets.size(); ++cell)
+//	{
+//		// reassign the points in a std::vector<cv::Point>, because OpenCv expects this
+//		std::vector<cv::Point> current_facet;
+//		for(size_t point = 0; point < voronoi_facets[cell].size(); ++point)
+//			current_facet.push_back(voronoi_facets[cell][point]);
+//
+//		// draw the current cell
+//		cv::fillConvexPoly(map_copy, current_facet, cv::Scalar(possible_labels[best_labels[cell]]), voronoi_facets.size()+1, 0);
+//	}
+//
+
+	// make the drawn map black where the original map is black
+//	for(unsigned int u = 0; u < original_image.rows; ++u)
+//	{
+//		for(unsigned int v = 0; v < original_image.cols; ++v)
+//		{
+//			if(original_image.at<unsigned char>(u,v) == 0)
+//			{
+//				map_copy.at<unsigned char>(u,v) = 0;
+//			}
+//		}
+//	}
+
+	map_copy.convertTo(map_copy, CV_32SC1, 256, 0);
+	wavefrontRegionGrowing(map_copy);
+//	map_copy.convertTo(map_copy, CV_8SC1, 1, 0);
+
+	// make everything black except the found segments
+//	for(unsigned int u = 0; u < map_copy.rows; ++u)
+//	{
+//		for(unsigned int v = 0; v < map_copy.cols; ++v)
+//		{
+//			if(map_copy.at<int>(u, v) != 0 && map_copy.at<int>(u, v) < 255*256 && original_image.at<unsigned char>(u, v) != 0)
+//				map_copy.at<int>(u, v) = 255*256;
+//			else
+//				map_copy.at<int>(u, v) = 0;
+//		}
+//	}
+
+	cv::imshow("res", map_copy);
+//	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/result_map.png", resulting_map);
+//	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/filled_map.png", map_copy);
 	cv::waitKey();
 }
 
