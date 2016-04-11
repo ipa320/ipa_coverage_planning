@@ -837,7 +837,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 			double room_area = map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(contours[current_contour]);
 			if (room_area >= room_area_factor_lower_limit && room_area <= room_area_factor_upper_limit)
 			{
-				//2. Draw the region with a random colour into the map if it is large/small enough
+				//2. Draw the region with a random color into the map if it is large/small enough
 				bool drawn = false;
 				int loop_counter = 0; //counter if the loop gets into a endless loop
 				do

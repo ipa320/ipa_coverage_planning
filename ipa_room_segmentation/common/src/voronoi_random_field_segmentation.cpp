@@ -1127,7 +1127,8 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_o
 void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int epsilon_for_neighborhood,
 		const int max_iterations, unsigned int min_neighborhood_size, std::vector<uint>& possible_labels,
 		const double min_node_distance,  bool show_nodes, std::string crf_storage_path, std::string boost_storage_path,
-		const size_t max_inference_iterations)
+		const size_t max_inference_iterations, double map_resolution_from_subscription, double room_area_factor_lower_limit,
+		double room_area_factor_upper_limit)
 {
 	// save a copy of the original image
 	cv::Mat original_image = original_map.clone();
@@ -1530,14 +1531,16 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	for(std::set<cv::Point, cv_Point_comp>::iterator i = conditional_field_nodes.begin(); i != conditional_field_nodes.end(); ++i)
 	{
 		size_t distance = std::distance(conditional_field_nodes.begin(), i);
-		std::cout << best_labels[distance] << " ";
+//		std::cout << best_labels[distance] << " ";
 		cv::circle(resulting_map, *i, 3, cv::Scalar(possible_labels[best_labels[distance]]), CV_FILLED);
 	}
-	std::cout << std::endl << "complete Potential: " << belief_propagation.value() << std::endl;
+//	std::cout << std::endl;
+	std::cout << "complete Potential: " << belief_propagation.value() << std::endl;
 
 	// ************* V. Search for different regions of same color and make them a individual segment *************
 	//
-	// 1. Connect the found doorway points to the two nearest black pixels (base points) of them to create intersections
+	// 1. Connect the found nodes to the two nearest black pixels (base points) of them. Connect the nodes that are labeled
+	//    as doorway with black lines to create intersections.
 	cv::Mat map_copy;
 	cv::Mat eroded_map;
 	cv::Point anchor(-1, -1);
@@ -1554,71 +1557,70 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	// reassign the map because findContours destroys it and erode it to close small errors
 	map_copy = eroded_map.clone();
 
+	// go trough all nodes
 	for(std::set<cv::Point, cv_Point_comp>::iterator node = conditional_field_nodes.begin(); node != conditional_field_nodes.end(); ++node)
 	{
 		// find index of point
 		size_t distance = std::distance(conditional_field_nodes.begin(), node);
 
-		// check if the point is labeled as a doorway
-//		if(best_labels[distance] == 2)
-//		{
-			// set inital points and values for the basis points so the distance comparison can be done
-			cv::Point basis_point_1 = map_contours[0][0];
-			cv::Point basis_point_2 = map_contours[0][1];
-			// inital values of the first vector from the current critical point to the contour points and for the distance of it
-			double vector_x_1 = node->x - map_contours[0][0].x;
-			double vector_y_1 = node->y - map_contours[0][0].y;
-			double distance_basis_square_1 = vector_x_1*vector_x_1 + vector_y_1*vector_y_1;
-			// inital values of the second vector from the current critical point to the contour points and for the distance of it
-			double vector_x_2 = node->x - map_contours[0][1].x;
-			double vector_y_2 = node->y - map_contours[0][1].y;
-			double distance_basis_square_2 = vector_x_2*vector_x_2 + vector_y_2*vector_y_2;
+		// set inital points and values for the basis points so the distance comparison can be done
+		cv::Point basis_point_1 = map_contours[0][0];
+		cv::Point basis_point_2 = map_contours[0][1];
+		// inital values of the first vector from the current critical point to the contour points and for the distance of it
+		double vector_x_1 = node->x - map_contours[0][0].x;
+		double vector_y_1 = node->y - map_contours[0][0].y;
+		double distance_basis_square_1 = vector_x_1*vector_x_1 + vector_y_1*vector_y_1;
+		// inital values of the second vector from the current critical point to the contour points and for the distance of it
+		double vector_x_2 = node->x - map_contours[0][1].x;
+		double vector_y_2 = node->y - map_contours[0][1].y;
+		double distance_basis_square_2 = vector_x_2*vector_x_2 + vector_y_2*vector_y_2;
 
-			// find first basis point
-			int basis_vector_1_x, basis_vector_2_x, basis_vector_1_y, basis_vector_2_y;
-			for (int c = 0; c < map_contours.size(); c++)
+		// find first basis point
+		int basis_vector_1_x, basis_vector_2_x, basis_vector_1_y, basis_vector_2_y;
+		for (int c = 0; c < map_contours.size(); c++)
+		{
+			for (int p = 0; p < map_contours[c].size(); p++)
 			{
-				for (int p = 0; p < map_contours[c].size(); p++)
+				// calculate the Euclidian distance from the critical Point to the Point on the contour
+				const double vector_x = map_contours[c][p].x - node->x;
+				const double vector_y = map_contours[c][p].y - node->y;
+				const double current_distance = vector_x*vector_x + vector_y*vector_y;
+				// compare the distance to the saved distances if it is smaller
+				if (current_distance < distance_basis_square_1)
 				{
-					// calculate the Euclidian distance from the critical Point to the Point on the contour
-					const double vector_x = map_contours[c][p].x - node->x;
-					const double vector_y = map_contours[c][p].y - node->y;
-					const double current_distance = vector_x*vector_x + vector_y*vector_y;
-					// compare the distance to the saved distances if it is smaller
-					if (current_distance < distance_basis_square_1)
-					{
-						distance_basis_square_1 = current_distance;
-						basis_point_1 = map_contours[c][p];
-						basis_vector_1_x = vector_x;
-						basis_vector_1_y = vector_y;
-					}
+					distance_basis_square_1 = current_distance;
+					basis_point_1 = map_contours[c][p];
+					basis_vector_1_x = vector_x;
+					basis_vector_1_y = vector_y;
 				}
 			}
-			// find second basisPpoint
-			for (int c = 0; c < map_contours.size(); c++)
+		}
+		// find second basisPpoint
+		for (int c = 0; c < map_contours.size(); c++)
+		{
+			for (int p = 0; p < map_contours[c].size(); p++)
 			{
-				for (int p = 0; p < map_contours[c].size(); p++)
+				// calculate the Euclidian distance from the critical point to the point on the contour
+				const double vector_x = map_contours[c][p].x - node->x;
+				const double vector_y = map_contours[c][p].y - node->y;
+				const double current_distance = vector_x*vector_x + vector_y*vector_y;
+				// calculate the distance between the current contour point and the first basis point to make sure they
+				// are not too close to each other
+				const double vector_x_basis = basis_point_1.x - map_contours[c][p].x;
+				const double vector_y_basis = basis_point_1.y - map_contours[c][p].y;
+				const double basis_distance = vector_x_basis*vector_x_basis + vector_y_basis*vector_y_basis;
+				if (current_distance > distance_basis_square_1 && current_distance < distance_basis_square_2 &&
+					basis_distance > (double) distance_map.at<unsigned char>(*node)*distance_map.at<unsigned char>(*node))
 				{
-					// calculate the Euclidian distance from the critical point to the point on the contour
-					const double vector_x = map_contours[c][p].x - node->x;
-					const double vector_y = map_contours[c][p].y - node->y;
-					const double current_distance = vector_x*vector_x + vector_y*vector_y;
-					// calculate the distance between the current contour point and the first basis point to make sure they
-					// are not too close to each other
-					const double vector_x_basis = basis_point_1.x - map_contours[c][p].x;
-					const double vector_y_basis = basis_point_1.y - map_contours[c][p].y;
-					const double basis_distance = vector_x_basis*vector_x_basis + vector_y_basis*vector_y_basis;
-					if (current_distance > distance_basis_square_1 && current_distance < distance_basis_square_2 &&
-						basis_distance > (double) distance_map.at<unsigned char>(*node)*distance_map.at<unsigned char>(*node))
-					{
-						distance_basis_square_2 = current_distance;
-						basis_point_2 = map_contours[c][p];
-						basis_vector_2_x = vector_x;
-						basis_vector_2_y = vector_y;
-					}
+					distance_basis_square_2 = current_distance;
+					basis_point_2 = map_contours[c][p];
+					basis_vector_2_x = vector_x;
+					basis_vector_2_y = vector_y;
 				}
 			}
+		}
 
+		// if the node is labeled as doorway draw the base-lines black --> as intersection
 		if(best_labels[distance] == 2)
 		{
 			// draw a line from the node to the two basis points
@@ -1631,69 +1633,104 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 			cv::line(map_copy, *node, basis_point_1, possible_labels[best_labels[distance]], 2);
 			cv::line(map_copy, *node, basis_point_2, possible_labels[best_labels[distance]], 2);
 		}
-//		else
-//		{
-//			cv::circle(map_copy, *node, 3, cv::Scalar(possible_labels[best_labels[distance]]), CV_FILLED);
-//		}
 	}
 
 	std::cout << "drawn all segments. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 
-//	cv::Rect rect(0, 0, original_image.cols, original_image.rows); // objects needed from openCV
-//	cv::Subdiv2D subdiv(rect);
-//
-//	// insert all nodes as voronoi centers
-//	for(std::set<cv::Point, cv_Point_comp>::iterator node = conditional_field_nodes.begin(); node != conditional_field_nodes.end(); ++node)
-//		subdiv.insert(*node);
-//
-//	// calculate the voronoi-graph
-//	std::vector < std::vector<cv::Point2f> > voronoi_facets; // variables to find the facets and centers of the voronoi-cells
-//	std::vector < cv::Point2f > voronoi_centers;
-//
-//	subdiv.getVoronoiFacetList(std::vector<int>(), voronoi_facets, voronoi_centers);
-//
-//	// draw the voronoi cells with the color of the corresponding node in a map
-//	for(size_t cell = 0; cell < voronoi_facets.size(); ++cell)
-//	{
-//		// reassign the points in a std::vector<cv::Point>, because OpenCv expects this
-//		std::vector<cv::Point> current_facet;
-//		for(size_t point = 0; point < voronoi_facets[cell].size(); ++point)
-//			current_facet.push_back(voronoi_facets[cell][point]);
-//
-//		// draw the current cell
-//		cv::fillConvexPoly(map_copy, current_facet, cv::Scalar(possible_labels[best_labels[cell]]), voronoi_facets.size()+1, 0);
-//	}
-//
-
-	// make the drawn map black where the original map is black
-//	for(unsigned int u = 0; u < original_image.rows; ++u)
-//	{
-//		for(unsigned int v = 0; v < original_image.cols; ++v)
-//		{
-//			if(original_image.at<unsigned char>(u,v) == 0)
-//			{
-//				map_copy.at<unsigned char>(u,v) = 0;
-//			}
-//		}
-//	}
-
+	// 2. Apply a wavefront algorithm to the map copy to fill all segments with the labels that are given to the crf-nodes.
 	map_copy.convertTo(map_copy, CV_32SC1, 256, 0);
 	wavefrontRegionGrowing(map_copy);
-//	map_copy.convertTo(map_copy, CV_8SC1, 1, 0);
 
-	// make everything black except the found segments
-//	for(unsigned int u = 0; u < map_copy.rows; ++u)
-//	{
-//		for(unsigned int v = 0; v < map_copy.cols; ++v)
-//		{
-//			if(map_copy.at<int>(u, v) != 0 && map_copy.at<int>(u, v) < 255*256 && original_image.at<unsigned char>(u, v) != 0)
-//				map_copy.at<int>(u, v) = 255*256;
-//			else
-//				map_copy.at<int>(u, v) = 0;
-//		}
-//	}
+	// 3. Make everything black except the found segments od rooms/hallways, that become totally white. This is done because
+	//	  it makes possible to find the contours of the segments and draw them into the original map with a random color.
+	//	  Only rooms or hallways stay at one step to ensure that borders from hallways to rooms are recognized.
 
-	cv::imshow("res", map_copy);
+	std::vector < std::vector<cv::Point> > segment_contours; // variable to save found contours
+
+	timer.start();
+
+	for(int color = 0; color <= 1; ++color)
+	{
+		// clear previously used variables for contour extraction
+		map_contours.clear();
+		hierarchy.clear();
+
+		// get the color that should get white
+		int current_color = possible_labels[color] * 256;
+
+		// create a map_copy
+		cv::Mat temporary_map = cv::Mat(map_copy.rows, map_copy.cols, original_image.type());
+
+		// make regions black and white
+		for(unsigned int u = 0; u < map_copy.rows; ++u)
+		{
+			for(unsigned int v = 0; v < map_copy.cols; ++v)
+			{
+				// check if color is found and pixel hasn't been drawn accidentally in a color
+				if(map_copy.at<int>(u, v) == current_color && original_image.at<unsigned char>(u, v) != 0)
+					temporary_map.at<unsigned char>(u, v) = 255;
+				else
+					temporary_map.at<unsigned char>(u, v) = 0;
+			}
+		}
+//		cv::imshow("current", temporary_map);
+//		cv::waitKey();
+
+		// find the contours of the rooms/hallways
+		cv::findContours(temporary_map, map_contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
+
+
+		// save the contours that are not holes (check with hierarchy --> [{0,1,2,3}]={next contour (same level), previous contour (same level), child contour, parent contour})
+		//  --> save everything with hierarchy[3] == -1
+		for(size_t contour = 0; contour < map_contours.size(); ++contour)
+			if(hierarchy[contour][3] == -1)
+				segment_contours.push_back(map_contours[contour]);
+	}
+
+	std::cout << "found segments: " << segment_contours.size() << ". Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
+
+	// 4. Draw the found contours with a unique color and apply a wavefront-region-growing algorithm to get rid of remaining
+	//	  white spaces.
+	timer.start();
+
+	original_map.convertTo(original_map, CV_32SC1, 256, 0); // convert input image to CV_32SC1 (needed for wavefront and to have enoguh possible rooms)
+
+	std::vector < cv::Scalar > already_used_colors; //saving-vector to save the already used coloures
+
+	for (int current_contour = 0; current_contour < segment_contours.size(); current_contour++)
+	{
+		// calculate area for the contour and check if it is large enough to be a seperate segment
+		double room_area = map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(segment_contours[current_contour]);
+		if (room_area >= room_area_factor_lower_limit && room_area <= room_area_factor_upper_limit)
+		{
+			// Draw the region with a random colour into the map if it is large/small enough
+			bool drawn = false;
+			int loop_counter = 0; //counter if the loop gets into a endless loop
+			do
+			{
+				loop_counter++;
+				int random_number = rand() % 52224 + 13056;
+				cv::Scalar fill_color(random_number);
+
+				//check if colour has already been used
+				if (!contains(already_used_colors, fill_color) || loop_counter > 1000)
+				{
+					cv::drawContours(original_map, segment_contours, current_contour, fill_color, CV_FILLED);
+					already_used_colors.push_back(fill_color);
+					drawn = true;
+				}
+			} while (!drawn);
+		}
+	}
+
+	cv::imshow("pre-res", original_map);
+
+	// color remaining white space
+	wavefrontRegionGrowing(original_map);
+
+	std::cout << "filled map with unique colors. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
+
+	cv::imshow("res", original_map);
 //	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/result_map.png", resulting_map);
 //	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/filled_map.png", map_copy);
 	cv::waitKey();
