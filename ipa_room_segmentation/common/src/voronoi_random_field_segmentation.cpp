@@ -1104,7 +1104,7 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_o
 //			 node) and drawing lines in the wanted color to both. Then a wavefront-region-growing is applied on the map-copy to
 //			 fill the segments with one color, generating several rooms and hallways. In the last step the contours of the rooms
 //			 and hallways are searched and drawn in the given map with a unique color into the map, if they are not too small or big.
-double VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int epsilon_for_neighborhood,
+double VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv::Mat& segmented_map, const int epsilon_for_neighborhood,
 		const int max_iterations, unsigned int min_neighborhood_size, std::vector<uint>& possible_labels,
 		const double min_node_distance,  bool show_results, std::string crf_storage_path, std::string boost_storage_path,
 		const size_t max_inference_iterations, double map_resolution_from_subscription, double room_area_factor_lower_limit,
@@ -1649,7 +1649,7 @@ double VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const i
 	// 4. Draw the found contours with a unique color and apply a wavefront-region-growing algorithm to get rid of remaining
 	//	  white spaces.
 	timer.start();
-	original_map.convertTo(original_map, CV_32SC1, 256, 0); // convert input image to CV_32SC1 (needed for wavefront and to have enoguh possible rooms)
+	original_map.convertTo(segmented_map, CV_32SC1, 256, 0); // convert input image to CV_32SC1 (needed for wavefront and to have enoguh possible rooms)
 
 	std::vector < cv::Scalar > already_used_colors; //saving-vector to save the already used coloures
 
@@ -1671,7 +1671,7 @@ double VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const i
 				//check if color has already been used
 				if (!contains(already_used_colors, fill_color) || loop_counter > 1000)
 				{
-					cv::drawContours(original_map, segment_contours, current_contour, fill_color, CV_FILLED);
+					cv::drawContours(segmented_map, segment_contours, current_contour, fill_color, CV_FILLED);
 					already_used_colors.push_back(fill_color);
 					drawn = true;
 				}
@@ -1680,7 +1680,7 @@ double VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const i
 	}
 
 	// color remaining white space
-	wavefrontRegionGrowing(original_map);
+	wavefrontRegionGrowing(segmented_map);
 
 	std::cout << "filled map with unique colors. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 

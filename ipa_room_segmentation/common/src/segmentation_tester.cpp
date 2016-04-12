@@ -155,9 +155,9 @@ int main()
 
 		for(size_t i = 0; i < 4; ++i)
 		{
-			cv::Mat map = maps[i];
+			cv::Mat map = maps[i].clone();
 
-			current_potential += segmenter.segmentMap(map, 7, 50, 5, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_); // 7, 50, 4, 5
+			current_potential += segmenter.segmentMap(map, map, 7, 50, 5, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_); // 7, 50, 4, 5
 		}
 
 		std::cout << std::endl << "********** current_potential: " << current_potential << std::endl;
