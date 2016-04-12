@@ -197,17 +197,18 @@ protected:
 	void getAdaBoostFeatureVector(std::vector<double>& feature_vector, Clique& clique,
 			 std::vector<uint>& given_labels, std::vector<unsigned int>& possible_labels);
 
+	// Function that takes a map and draws a pruned voronoi graph in it.
+	void createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation, std::set<cv::Point, cv_Point_comp>& node_points);
 
-	void createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation, std::set<cv::Point, cv_Point_comp>& node_points); // Function that takes a map and draws a pruned voronoi
-																	    									// graph in it.
-// Function to create a conditional random field out of given points. It needs
-// the voronoi-map extracted from the original map to find the neighbors for each point
-// and the voronoi-node-points to add the right points as nodes.
+	// Function to create a conditional random field out of given points. It needs
+	// the voronoi-map extracted from the original map to find the neighbors for each point
+	// and the voronoi-node-points to add the right points as nodes.
 	void createConditionalField(const cv::Mat& voronoi_map, const std::set<cv::Point, cv_Point_comp>& node_points,
 			std::vector<Clique>& conditional_random_field_cliques, const std::set<cv::Point, cv_Point_comp>& voronoi_node_points,
 			const cv::Mat& original_map);
 
-
+	// Function that takes all given training maps and calculates the AdaBoost-Classifiers for them to best label a
+	// room, hallway and doorway.
 	void trainBoostClassifiers(const std::vector<cv::Mat>& training_maps,
 			std::vector< std::vector<Clique> >& cliques_of_training_maps, const std::vector<uint> possible_labels,
 			const std::string& classifier_storage_path); // Function to train the AdaBoost classifiers, used for feature induction of the conditional
@@ -220,24 +221,36 @@ protected:
 
 
 public:
+	// Constructor
+	VoronoiRandomFieldSegmentation(bool trained_boost = true, bool trained_conditional_field = true);
 
-	VoronoiRandomFieldSegmentation(bool trained_boost = true, bool trained_conditional_field = true); // constructor
-
+	// This function is used to train the algorithm. The above defined functions separately train the AdaBoost-classifiers and
+	// the conditional random field. By calling this function the training is done in the right order, because the AdaBoost-classifiers
+	// need to be trained to calculate features for the conditional random field.
 	void trainAlgorithms(const std::vector<cv::Mat>& training_maps, const std::vector<cv::Mat>& voronoi_maps,
 			const std::vector<cv::Mat>& voronoi_node_maps, std::vector<cv::Mat>& original_maps,
 			std::vector<unsigned int>& possible_labels, const std::string weights_filepath, const std::string boost_filepath);
 
+	// This function is called to find minimal values of a defined log-likelihood-function using the library Dlib.
+	// This log-likelihood-function is made over all training data to get a likelihood-estimation linear in the weights.
+	// By minimizing this function the best weights are chosen, what is done here. See voronoi_random_field_segmentation.cpp at
+	// the beginning for detailed information.
+	// !!!!Important: The more training maps you have, the more factors appear in the log-likelihood over all maps. Be sure not to
+	//				  use too much training-maps, because then the log-likelihood-function easily produces values that are out of the
+	//				  double range, which Dlib can't handle.
 	column_vector findMinValue(unsigned int number_of_weights, double sigma,
 			const std::vector<std::vector<double> >& likelihood_parameters, const std::vector<double>& starting_weights); // Function to find the minimal value of a function. Used to find the optimal weights for
 								  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  // the conditional random field.
 
-	// Function to segment a given map into different regions.
-	void segmentMap(cv::Mat& original_map, const int epsilon_for_neighborhood,
+	// Function to segment a given map into different regions. It uses the above trained AdaBoost-classifiers and conditional-random-field.
+	// Also it uses OpenGM to do a inference in the created crf, so it uses the above defined typedefs.
+	double segmentMap(cv::Mat& original_map, const int epsilon_for_neighborhood,
 			const int max_iterations, unsigned int min_neighborhood_size, std::vector<uint>& possible_labels,
 			const double min_node_distance, bool show_nodes,
 			std::string crf_storage_path, std::string boost_storage_path, const size_t max_inference_iterations,
 			 double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit);
 
-	void testFunc(cv::Mat& original_map, std::vector<uint>& possible_labels, std::string crf_storage_path, std::string boost_storage_path);
+	// Function used to test several features separately. Not relevant.
+	void testFunc(std::string crf_storage_path, std::string boost_storage_path);
 
 };

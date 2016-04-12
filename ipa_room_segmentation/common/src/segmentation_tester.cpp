@@ -10,39 +10,54 @@
 
 int main()
 {
-	const std::string package_path = ros::package::getPath("ipa_room_segmentation");
-	cv::Mat map = cv::imread(package_path + "/common/files/test_maps/lab_ipa.png", 0); // office_b.png  /home/rmb-fj/Pictures/map.png
+	std::string package_path = ros::package::getPath("ipa_room_segmentation");
+	std::string map_path = package_path + "/common/files/test_maps/";
 
-	for(unsigned int u = 0; u < map.rows; ++u)
+	std::vector<std::string> map_names;
+	map_names.push_back("lab_ipa.png");
+	map_names.push_back("Freiburg79_scan.png");
+	map_names.push_back("lab_intel.png");
+	map_names.push_back("office_b_furnitures.png");
+
+	std::vector<cv::Mat> maps(4);
+
+	for(size_t i = 0; i < 4; ++i)
 	{
-		for(unsigned int v = 0; v < map.cols; ++v)
+		cv::Mat map = cv::imread(map_path + map_names[i], 0);
+
+		for(unsigned int u = 0; u < map.rows; ++u)
 		{
-			if(map.at<unsigned char>(u,v) < 250)
+			for(unsigned int v = 0; v < map.cols; ++v)
 			{
-				map.at<unsigned char>(u,v) = 0;
-			}
-			else
-			{
-				map.at<unsigned char>(u,v) = 255;
+				if(map.at<unsigned char>(u,v) < 250)
+				{
+					map.at<unsigned char>(u,v) = 0;
+				}
+				else
+				{
+					map.at<unsigned char>(u,v) = 255;
+				}
 			}
 		}
+
+//		cv::imshow("test", map);
+//		cv::waitKey();
+
+		maps[i] = map.clone();
 	}
-
-	long double exponent = 200;
-	long double res = exp(exponent);
-	std::cout << res << std::endl;
-
-//	uchar t = 127;
-//	uint g = 127;
 
 	std::vector<uint> possible_labels(3); // vector that stores the possible labels that are drawn in the training maps. Order: room - hallway - doorway
 	possible_labels[0] = 77;
 	possible_labels[1] = 115;
 	possible_labels[2] = 179;
 
-	// string that stores the path to the saving files
+	// strings that stores the path to the saving files
 	std::string conditional_weights_path = package_path + "/common/files/training_results/conditional_field_weights.txt";
 	std::string boost_file_path = package_path + "/common/files/training_results/";
+
+	// optimal result saving path
+	std::string conditional_weights_optimal_path = package_path + "/common/files/optimal_vrf_res/conditional_field_weights.txt";
+	std::string boost_file_optimal_path = package_path + "/common/files/optimal_vrf_res/";
 
 	// load the training maps
 	cv::Mat training_map;
@@ -126,31 +141,33 @@ int main()
 
 	VoronoiRandomFieldSegmentation segmenter(false, false);
 
-//	segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
-//
-	segmenter.segmentMap(map, 7, 50, 5, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_); // 7, 50, 4, 5
+	// Do several training steps and segment different maps to find the best training-result. This is done by checking the complete
+	// crf-potentials.
 
-//	segmenter.testFunc(map, possible_labels, conditional_weights_path, boost_file_path);
+	double best_potential = 0;
 
-//	size_t arr[] = {2};
-//
-//	std::cout << *arr << " " << *(arr+1) << std::endl;
+	for(size_t training = 1; training <= 5; ++training)
+	{
+		if(training != 1)
+			segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
 
-//	std::vector<std::vector<double> > params(2);
-//	params[0].push_back(5);
-//	params[0].push_back(10);
-//	params[0].push_back(2);
-//	params[0].push_back(7);
-//	params[1].push_back(5);
-//	params[1].push_back(8);
-//	params[1].push_back(4);
-//	params[1].push_back(1);
-//
-//	std::vector<double> starting(2, 0.0);
-//
-//	column_vector r = segmenter.findMinValue(2, 3.0, params, starting);
-//
-//	std::cout << r << std::endl;
+		double current_potential = 0;
+
+		for(size_t i = 0; i < 4; ++i)
+		{
+			cv::Mat map = maps[i];
+
+			current_potential += segmenter.segmentMap(map, 7, 50, 5, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_); // 7, 50, 4, 5
+		}
+
+		std::cout << std::endl << "********** current_potential: " << current_potential << std::endl;
+
+		if(current_potential > best_potential)
+		{
+			best_potential = current_potential;
+			segmenter.testFunc(conditional_weights_optimal_path, boost_file_optimal_path);
+		}
+	}
 
 	return 0;
 }

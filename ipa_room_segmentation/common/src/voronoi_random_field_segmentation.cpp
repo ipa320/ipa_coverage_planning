@@ -93,12 +93,14 @@ public:
 	// the sigma used for the gaussian shrinking function
 	double sigma;
 
+	// initializing constructor
 	pseudoLikelihoodOptimization()
 	{
 		number_of_weights = 0;
 		sigma = 1.;
 	}
 
+	// overload of the () operator, which is needed from Dlib
 	double operator()(const column_vector& weights) const
 	{
 		double result = 0;
@@ -117,13 +119,14 @@ public:
 			for(size_t split = 0; split < splitting_of_exponent; ++split)
 				log_numerator = log_numerator * exp(exp_exponent);
 
-			if(exp_exponent > 250.0)
-			{
-				std::cout << "exp exponent: " << exp_exponent << " numerator: " << log_numerator<<  std::endl;
+			// used for debugging, when parts of the function become too large for double
+//			if(exp_exponent > 250.0)
+//			{
+//				std::cout << "exp exponent: " << exp_exponent << " numerator: " << log_numerator<<  std::endl;
 //				for(int i = 0; i < number_of_weights; ++i)
 //					std::cout << weights(i) << " ";
 //				std::cout << std::endl;
-			}
+//			}
 
 			// add the numerator to the denominator, because it has to appear here
 			log_denominator += log_numerator;
@@ -166,7 +169,8 @@ public:
 	}
 };
 
-// Struct that is used to sort the label configurations in a way s.t. OpenGM can use it properly when defining functions and factors.
+// Structs that are used to sort the label configurations in a way s.t. OpenGM can use it properly when defining functions
+// and factors.
 struct labelWithIndex
 {
 public:
@@ -270,7 +274,6 @@ void VoronoiRandomFieldSegmentation::getPossibleConfigurations(std::vector<std::
 // labelWithIndex and compLabelsByIndices and the function std::sort are used. This function then creates a vector that stores
 // the configurations as the struct labelWithIndex and applies a sort on all of it. Then it assignes the new found labels into
 // the original vector.
-//
 void VoronoiRandomFieldSegmentation::swapConfigsRegardingNodeIndices(std::vector<std::vector<uint> >& configurations,
 		size_t point_indices[])
 {
@@ -298,14 +301,10 @@ void VoronoiRandomFieldSegmentation::swapConfigsRegardingNodeIndices(std::vector
 // This function draws the Voronoi-diagram into a given map. It needs the facets as vector of Points, the contour of the
 // map and the contours of the holes. It checks if the endpoints of the facets are both inside the map-contour and not
 // inside a hole-contour and doesn't draw the lines that are not.
-//
-void VoronoiRandomFieldSegmentation::drawVoronoi(cv::Mat &img, const std::vector<std::vector<cv::Point2f> >& facets_of_voronoi, const cv::Scalar voronoi_color,
-		//const std::vector<cv::Point>& contour, const std::vector<std::vector<cv::Point> >& hole_contours)
-		const cv::Mat& eroded_map)
+void VoronoiRandomFieldSegmentation::drawVoronoi(cv::Mat &img, const std::vector<std::vector<cv::Point2f> >& facets_of_voronoi,
+		const cv::Scalar voronoi_color, const cv::Mat& eroded_map)
 {
-	//This function draws the Voronoi-diagram into a given map. It needs the facets as vector of Points, the contour of the
-	//map and the contours of the holes. It checks if the endpoints of the facets are both inside the map-contour and not
-	//inside a hole-contour and doesn't draw the lines that are not.
+	// go trough each facet of the calculated voronoi-graph and check if it should be drawn.
 	for (std::vector<std::vector<cv::Point2f> >::const_iterator current_contour = facets_of_voronoi.begin(); current_contour != facets_of_voronoi.end(); ++current_contour)
 	{
 		// saving-variable for the last Point that has been looked at
@@ -348,23 +347,22 @@ void VoronoiRandomFieldSegmentation::drawVoronoi(cv::Mat &img, const std::vector
 //  	   voronoi-graph-points. The second case occurs, when the current node is a dead end and has only one neighbor.
 //		2. The found neighbors are defined as a new clique with the current looked at point.
 //		3. For each found clique simulate the laserbeams at this point by using the defined raycasting-function. This step is done
-//		   because the beams only need to be computed once for each clique and doing this at this point saves time later.
+//		   because the beams only need to be computed once for each clique and doing this at this point saves much time later.
 void VoronoiRandomFieldSegmentation::createConditionalField(const cv::Mat& voronoi_map, const std::set<cv::Point, cv_Point_comp>& node_points,
 		std::vector<Clique>& conditional_random_field_cliques, const std::set<cv::Point, cv_Point_comp>& voronoi_node_points,
 		const cv::Mat& original_map)
 {
 	// 1. Search for the n neighbors of the each point by going along the voronoi graph until a conditional-field-node gets
 	//	  found.
-	//
-	std::map<cv::Point, std::vector<double>, cv_Point_comp > raycasts; // map that stores a simulated raycast for given OpenCV Points --> some points would get raycasted several times, this saves computation-time
-//	double time = 0; // double to compute the total time needed to raycast all points
+	std::map<cv::Point, std::vector<double>, cv_Point_comp > raycasts; // map that stores the simulated rays for given OpenCV Points --> some points would get raycasted several times, this saves computation-time
+
 	for(std::set<cv::Point, cv_Point_comp>::const_iterator current_point = node_points.begin(); current_point != node_points.end(); ++current_point)
 	{
 		// check how many neighbors need to be found --> 4 if the current node is a voronoi graph node, 2 else
 		// ( 4 because e.g. a node in the middle of a cross has four neighbors)
 		int number_of_neighbors = 2;
 		if(voronoi_node_points.find(*current_point) != voronoi_node_points.end())
-			number_of_neighbors = 3;
+			number_of_neighbors = 4;
 
 		// vector to save the searched points
 		std::vector<cv::Point> searched_points;
@@ -376,21 +374,17 @@ void VoronoiRandomFieldSegmentation::createConditionalField(const cv::Mat& voron
 		// integer to check if new voronoi nodes could be found
 		unsigned int previous_size_of_searched_nodes;
 
-		// vector that stores the points that should get expanded next
-		std::vector<cv::Point> to_be_expanded_points;
-		to_be_expanded_points.push_back(*current_point);
-
 		// go along the Voronoi Graph starting from the current node and find the nearest conditional random field nodes
 		do
 		{
 			// save the size of the searched-points vector
 			previous_size_of_searched_nodes = searched_points.size();
 
-//			std::cout << "starting new iteration. Points to find: " << number_of_neighbors - found_neighbors.size() << std::endl;
-
 			// create temporary-vector to save the new found nodes
 			std::vector<cv::Point> temporary_point_vector = searched_points;
 
+			// check each visited point for neighbors that are voronoi nodes
+			// remark: I check every point again, because it produces better results than when only new points get expanded.
 			for(std::vector<cv::Point>::iterator searching_point = searched_points.begin(); searching_point != searched_points.end(); ++searching_point)
 			{
 				bool random_field_node = false; // if the current node is a node of the conditional random field, don't go further in this direction
@@ -404,10 +398,13 @@ void VoronoiRandomFieldSegmentation::createConditionalField(const cv::Mat& voron
 					{
 						for(int dv = -1; dv <= 1; dv++) // && abs(du) + abs(dv) != 0
 						{
+							// don't check point itself
 							if(du == 0 && dv == 0)
 								continue;
 
+							// get point that needs to be expanded
 							cv::Point point_to_check = cv::Point(searching_point->x + dv, searching_point->y + du);
+
 							// voronoi node is drawn with a value of 127 in the map, don't check already checked points
 							if(voronoi_map.at<unsigned char>(point_to_check) == 127
 									&& contains(temporary_point_vector, point_to_check) == false)
@@ -431,46 +428,31 @@ void VoronoiRandomFieldSegmentation::createConditionalField(const cv::Mat& voron
 
 		}while(found_neighbors.size() < number_of_neighbors && previous_size_of_searched_nodes != searched_points.size());
 
-//		std::cout << "Found all neighbors. Size of found points: " << found_neighbors.size() << " Size of searched points: " << searched_points.size() << std::endl;
-
 		// 2. create a clique out of the current node and its found neighbors
-		//
 		conditional_random_field_cliques.push_back(Clique(*current_point));
 		std::vector<cv::Point> neighbor_vector(found_neighbors.begin(), found_neighbors.end()); // convert set to a vector to easily insert the new members
 		conditional_random_field_cliques.back().insertMember(neighbor_vector);
 
-		// 3. Simulate the laser-beams at each found member and store them.
+		// 3. Simulate the laser-beams at each found member and store them. This step saves a lot of computation time later.
 		std::vector<cv::Point> clique_members = conditional_random_field_cliques.back().getMemberPoints();
 		std::vector< std::vector<double> > laser_beams(clique_members.size());
 
-//		std::cout << "starting to simulate beams" << std::endl;
-//		Timer tim;
-
 		for(size_t member = 0; member < clique_members.size(); ++member)
 		{
-//			if(raycasts.find(clique_members[member]) == raycasts.end()) // point hasn't been simulated yet
-//			{
-				laser_beams[member] = raycasting(original_map, cv::Point(clique_members[member].y, clique_members[member].x));
-//				raycasts[clique_members[member]] = laser_beams[member];
-//			}
-//			else
-//				laser_beams[member] = raycasts[clique_members[member]];
+			laser_beams[member] = raycasting(original_map, cv::Point(clique_members[member].y, clique_members[member].x));
 		}
-//		time += tim.getElapsedTimeInMilliSec();
-
-//		std::cout << "finished to simulate. Time: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl << std::endl;
 
 		conditional_random_field_cliques.back().setBeamsForMembers(laser_beams);
 	}
-//	std::cout << "Raycasting-time: " << time << "ms" << std::endl;
 }
 
 //**************************Training-Algorithm for the AdaBoost-classifiers*****************************
 // This Function trains the AdaBoost-classifiers from OpenCV. It takes the given training maps and finds the Points
 // that are labeled as the specified classes and calculates the features defined in
-// ipa_room_segmentation/voronoi_random_field_features.h.
-// These vectors are put in a format that OpenCV expects for the classifiers and then they are trained.
 //
+// ipa_room_segmentation/voronoi_random_field_features.h
+//
+// These vectors are put in a format that OpenCV expects for the classifiers and then they are trained.
 void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv::Mat>& training_maps,
 		std::vector< std::vector<Clique> >& cliques_of_training_maps, std::vector<uint> possible_labels,
 		const std::string& classifier_storage_path)
@@ -500,21 +482,10 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 			for(size_t point = 0; point < current_clique_members.size(); ++point)
 			{
 				current_labels_for_points[point] = current_map.at<uchar>(current_clique_members[point]);
-//				if(current_labels_for_points[point] != possible_labels[0] && current_labels_for_points[point] != possible_labels[1] && current_labels_for_points[point] != possible_labels[2])
-//					std::cout << current_labels_for_points[point] << std::endl;
 			}
 
 			// get the stored laser-beams for the central point
 			std::vector<double> current_beams = current_clique->getBeams()[0];
-
-//			cv::Mat testmap = current_map.clone();
-//			double pi_to_rad = PI / 180;
-//			for(size_t i = 0; i < current_beams.size(); ++i)
-//			{
-//				cv::Point current_beampoint (current_clique_members[0].x + sin(angles_for_simulation_[i]*pi_to_rad)*current_beams[i], current_clique_members[0].y + cos(angles_for_simulation_[i]*pi_to_rad)*current_beams[i]);
-//				cv::line(testmap, current_clique_members[0], current_beampoint, cv::Scalar(50), 1);
-//			}
-//			cv::circle(testmap, current_clique_members[0], 3, cv::Scalar(50), CV_FILLED);
 
 			// get the feature for the current point and store it in the global vector
 			std::vector<float> current_features(getFeatureCount());
@@ -526,11 +497,6 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 					std::cout << current_features[f-1] << " feature: " << f;
 			}
 			features_for_points.push_back(current_features);
-//			std::cout << "f7: (" << current_features[6] << ") ";
-//			std::cout << std::endl;
-
-//			cv::imshow("tester", testmap);
-//			cv::waitKey();
 
 			// get the labels-vector for each class
 			//		--> OpenCV expects the labels: +1 if it belongs to the class, -1 if it doesn't
@@ -558,9 +524,7 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 		for (int f = 0; f < getFeatureCount(); f++)
 		{
 			features_Mat.at<float>(i, f) = (float) features_for_points[i][f];
-//			std::cout << (float) features_for_points[i][f] << " ";
 		}
-//		std::cout << std::endl;
 	}
 	// Train a boost classifier
 	room_boost_.train(features_Mat, CV_ROW_SAMPLE, room_labels_Mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
@@ -607,7 +571,6 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 // conditional random field. The possible_labels vector stores the possible labels a point in the training map can have in
 // the order:
 //		room, hallway, doorway
-//
 void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double>& feature_vector, Clique& clique,
 		std::vector<uint>& given_labels, std::vector<unsigned int>& possible_labels)
 {
@@ -615,7 +578,7 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 	std::vector<cv::Point> clique_members = clique.getMemberPoints();
 	std::vector< std::vector<double> > beams_for_points = clique.getBeams();
 
-	// vector that is used to sum the calculated features
+	// vector that is used to sum up the calculated features
 	std::vector<double> temporary_feature_vector(feature_vector.size(), 0.0);
 
 	// For each member of this clique calculate the weak-hypothesis and add the resulting vectors in the end
@@ -632,51 +595,41 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 			}
 		}
 
-//		std::cout << "got label to use" << std::endl;
-
 		// get the features for the central point of the clique
 		cv::Mat featuresMat(1, getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
 		for (int f = 1; f <= getFeatureCount(); ++f)
 		{
 			//get the features for each room and put it in the featuresMat
 			featuresMat.at<float>(0, f - 1) = (float) getFeature(beams_for_points[point], angles_for_simulation_, clique_members, given_labels, possible_labels, clique_members[point], f);
-//			if(std::count(given_labels.begin(), given_labels.end(), 77) == clique_members.size())
-//				std::cout << "filled entry " << f << ": " << featuresMat.at<float>(0, f - 1) << std::endl;
 		}
+
 		// Calculate the weak hypothesis by using the wanted classifier.
 		CvMat features = featuresMat;
 		cv::Mat weaker (1, number_of_classifiers_, CV_32F);
 		CvMat weak_hypothesis = weaker;	// Wanted from OpenCV to get the weak hypothesis from the
 										// separate weak classifiers.
 
+		// For each point the classifier depends on the given label. If the point is labeled as a room the room-boost should be
+		// used and so on.
 		switch(classifier)
 		{
 		case 0:
-//			std::cout << "using rooms" << std::endl;
 			room_boost_.predict(&features, 0, &weak_hypothesis);
 			break;
 		case 1:
-//			std::cout << "using hallways" << std::endl;
 			hallway_boost_.predict(&features, 0, &weak_hypothesis);
 			break;
 		case 2:
-//			std::cout << "using doorways" << std::endl;
 			doorway_boost_.predict(&features, 0, &weak_hypothesis);
 			break;
 		}
 
-//		std::cout << "predicted" << std::endl;
 
 		// Write the weak hypothesis in the feature vector.
-//		std::cout << "resaving weak responses " << std::endl;
 		for(size_t f = 0; f < number_of_classifiers_; ++f)
 		{
-//			std::cout << "f: " << f;
 			temporary_feature_vector[f] = temporary_feature_vector[f] + (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
-//			std::cout << ". assigned hypothesis" << std::endl;
 		}
-
-//		std::cout << "assigned weak hypothesis" << std::endl;
 	}
 
 	// copy the summed vector to the given feature-vector
@@ -808,12 +761,14 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 	column_vector weight_results;
 	weight_results = findMinValue(number_of_classifiers_, 9.0, all_point_feature_vectors, mean_weights);
 
+	// clear the already found weights, if trained more than one time
+	trained_conditional_weights_.clear();
+
 	// save the found weights to a std::vector<double>
 	for(size_t weight = 0; weight < number_of_classifiers_; ++weight)
 		trained_conditional_weights_.push_back(weight_results(0, weight));
 
 	// save the weights to a file
-	// /home/rmb-fj/git/care-o-bot-indigo/src/autopnp/ipa_room_segmentation/common/files/training_results/conditional_field_weights.txt
 	std::ofstream output_file(weights_filepath.c_str(), std::ios::out);
 	if (output_file.is_open()==true)
 		output_file << weight_results;
@@ -831,7 +786,19 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 //		I. Go trough each given training map and find the drawn points, that represent the nodes for the conditional random
 //		   field. Also it finds the voronoi-nodes that are drawn in a different color than the other nodes. These points are
 //		   used in the second step of this function to create the cliques in the conditional random field.
-
+//		II. For each given training map the found nodes are used to create conditional random fields. The whole algorithm is
+//			based on this and to train the algorithm a crf for each training map is needed. This step produces cliques, that
+//			all have a clique-potential, depending on features and the crf-weights, that will get maximized later.
+//		III. In the next step the AdaBoost-classifiers are trained. This is done by giving the above defined function
+//			 trainBoostClassifiers() the given training maps. This function searches for points labeled as room/hallway/doorway
+//			 and adds them as demonstration-data for AdaBoost-classifiers.
+//		IV. In the last step the weights for the conditional-random-field are found. As said above the clique-potentials are
+//			depending on these weights and so they are chosen to maximize the potentials over all training maps. Because this
+//			would be really hard to do directly, a log-likelihood estimation is applied.
+// !!!!Important: The more training maps you have, the more factors appear in the log-likelihood over all maps. Be sure not to
+//				  use too much training-maps, because then the log-likelihood-function easily produces values that are out of the
+//				  double range, which Dlib can't handle. So it is important for this algorithm to have good training data, insted
+//				  of many.
 void VoronoiRandomFieldSegmentation::trainAlgorithms(const std::vector<cv::Mat>& training_maps,
 		const std::vector<cv::Mat>& voronoi_maps, const std::vector<cv::Mat>& voronoi_node_maps, std::vector<cv::Mat>& original_maps,
 		std::vector<unsigned int>& possible_labels, const std::string weights_filepath, const std::string boost_filepath)
@@ -868,9 +835,6 @@ void VoronoiRandomFieldSegmentation::trainAlgorithms(const std::vector<cv::Mat>&
 		voronoi_node_points.push_back(current_voronoi_nodes);
 	}
 
-//	std::cout << "found random field nodes: " << random_field_node_points[5].size() << std::endl;
-
-
 	// ********** II. Create the conditional random fields. *****************
 	std::cout << "Creating the conditional-random-field-cliques." << std::endl;
 
@@ -884,7 +848,6 @@ void VoronoiRandomFieldSegmentation::trainAlgorithms(const std::vector<cv::Mat>&
 		// save the found cliques
 		conditional_random_field_cliques.push_back(current_cliques);
 	}
-
 
 	// ********** III. Train the AdaBoost-classifiers. *****************
 	trainBoostClassifiers(training_maps, conditional_random_field_cliques, possible_labels, boost_filepath);
@@ -908,17 +871,12 @@ void VoronoiRandomFieldSegmentation::trainAlgorithms(const std::vector<cv::Mat>&
 //	   neighbors. This deletes errors from the approximate generation of the graph that hasn't been eliminated from
 //	   the drawVoronoi function. the resulting graph is the pruned generalized voronoi graph.
 //	5. It returns the map that has the pruned generalized voronoi-graph drawn in.
-//
 void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation,
 		std::set<cv::Point, cv_Point_comp>& node_points)
 {
 	cv::Mat map_to_draw_voronoi_in = map_for_voronoi_generation.clone(); //variable to save the given map for drawing in the voronoi-diagram
 
 	cv::Mat temporary_map_to_calculate_voronoi = map_for_voronoi_generation.clone(); //variable to save the given map in the createVoronoiGraph-function
-
-	//apply a closing-operator on the map so bad parts are neglected
-//	cv::erode(temporary_map_to_calculate_voronoi, temporary_map_to_calculate_voronoi, cv::Mat());
-//	cv::dilate(temporary_map_to_calculate_voronoi, temporary_map_to_calculate_voronoi, cv::Mat());
 
 	//********************1. Get OpenCV delaunay-traingulation******************************
 
@@ -961,17 +919,20 @@ void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_v
 
 	//erode the map and get the largest contour of it so that points near the boundary are not drawn later (see drawVoronoi)
 	cv::erode(temporary_map_to_calculate_voronoi, eroded_map, cv::Mat(), anchor, 2);
-	//********************3. Get facets and draw voronoi-Graph******************************
-	//get the Voronoi regions from the delaunay-subdivision graph
 
+	//********************3. Get facets and draw voronoi-Graph******************************
+
+	//get the Voronoi regions from the delaunay-subdivision graph
 	const cv::Scalar voronoi_color(127); //define the voronoi-drawing colour
 
 	std::vector < std::vector<cv::Point2f> > voronoi_facets; // variables to find the facets and centers of the voronoi-cells
 	std::vector < cv::Point2f > voronoi_centers;
 
 	subdiv.getVoronoiFacetList(std::vector<int>(), voronoi_facets, voronoi_centers);
+
 	//draw the voronoi-regions into the map
 	drawVoronoi(map_to_draw_voronoi_in, voronoi_facets, voronoi_color, eroded_map);
+
 	//make pixels black, which were black before and were colored by the voronoi-regions
 	for (int v = 0; v < map_to_draw_voronoi_in.rows; v++)
 	{
@@ -983,6 +944,7 @@ void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_v
 			}
 		}
 	}
+
 	//********************4. Reduce the graph until its nodes******************************
 
 	//1.extract the node-points that have at least three neighbors on the voronoi diagram
@@ -1062,11 +1024,14 @@ void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_v
 
 	// Return the calculated map with the pruned voronoi graph drawn in.
 	map_for_voronoi_generation = map_to_draw_voronoi_in;
-
-	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/pruned_voronoi.png", map_to_draw_voronoi_in);
-
 }
 
+// This function is called to find minimal values of a defined log-likelihood-function using the library Dlib.
+// This log-likelihood-function is made over all training data to get a likelihood-estimation linear in the weights.
+// By minimizing this function the best weights are chosen, what is done here. See beginning of this file for detailed information.
+// !!!!Important: The more training maps you have, the more factors appear in the log-likelihood over all maps. Be sure not to
+//				  use too much training-maps, because then the log-likelihood-function easily produces values that are out of the
+//				  double range, which Dlib can't handle.
 column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_of_weights, double sigma,
 		const std::vector<std::vector<double> >& likelihood_parameters, const std::vector<double>& starting_weights)
 {
@@ -1101,8 +1066,8 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_o
 //
 // This function segments the given original_map into different regions by using the voronoi random field method from
 // Stephen Friedman and Dieter Fox ( http://www.cs.washington.edu/robotics/projects/semantic-mapping/abstracts/vrf-place-labeling-ijcai-07.abstract.html ).
-// This algorithm has two parts, the training step and the actual segmentation. In the segmentation step following actions
-// are made:
+// This algorithm has two parts, the training step and the actual segmentation. The training should be finished, see above for details.
+// In the segmentation step following actions are made:
 //		I.) From the given map that should be labeled (original_map) a pruned generalized Voronoi diagram is extracted ( https://www.sthu.org/research/voronoidiagrams/ ).
 //			This is done using the method from Karimipour and Ghandehari ( A Stable Voronoi-based Algorithm for Medial Axis Extraction through Labeling Sample Points )
 //			that samples the building contour to get centerpoints to compute the voronoi graph. This approximated graph has
@@ -1123,10 +1088,18 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_o
 //				   is too near at the black pixels. Also the new node has to be more far away than a defined  min. distance to
 //				   each already found node s.t. two nodes are not too close to each other, or else the  crf would be created wrong.
 //		III.) It constructs the Conditional Random Field graph from the previously found points, by using the above defined function.
-//
-void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int epsilon_for_neighborhood,
+//		IV.) It creates a factor graph out of the defined crf. This is necessary, because OpenGM, the library used for inference,
+//			 needs it this way. To do so the algorithm goes trough each found clique and computes the clique-potential of it
+//			 for all possible label-configuration. The results of this are saved in an opengm::function so OpenGM can use it.
+//		V.) After the factor graph has been build, an inference algorithm is applied to find the labels that maximize the complete
+//		 	value of the graph, meaning the potential of the crf. To do this not the Product of the factors are maximized, but the
+//			sum of the exponents. The potentials are given by exp(w^T * f) and the graph-potential is the product of these, so
+//			it is possible to just maximize the sum of all exponents. This is convenient, because the factors will scale very high
+//			and would go out of the double range.
+//		VI.) At the last step the algorithm takes the above found best labels
+double VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int epsilon_for_neighborhood,
 		const int max_iterations, unsigned int min_neighborhood_size, std::vector<uint>& possible_labels,
-		const double min_node_distance,  bool show_nodes, std::string crf_storage_path, std::string boost_storage_path,
+		const double min_node_distance,  bool show_results, std::string crf_storage_path, std::string boost_storage_path,
 		const size_t max_inference_iterations, double map_resolution_from_subscription, double room_area_factor_lower_limit,
 		double room_area_factor_upper_limit)
 {
@@ -1150,6 +1123,9 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 
 	if(trained_conditional_field_ == false)
 	{
+		// clear weights that might be standing from before
+		trained_conditional_weights_.clear();
+
 		// load the weights out of the file
 		std::ifstream input_file(crf_storage_path.c_str());
 		std::string line;
@@ -1169,10 +1145,6 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 
 		// set the trained-Boolean to true so the weights only get read in once
 		trained_conditional_field_ = true;
-
-//		std::cout << "read in weights-vector: " << std::endl;
-//		for(size_t i = 0; i < trained_conditional_weights_.size(); ++i)
-//			std::cout << trained_conditional_weights_[i] << std::endl;
 	}
 
 	// ************* I. Create the pruned generalized Voronoi graph *************
@@ -1200,13 +1172,12 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	cv::Mat voronoi_map_for_node_extraction = voronoi_map.clone();
 
 	timer.start();
-	// 2. add the voronoi graph node points to the conditional random field nodes if they are not too close to each other
+	// 2. Add the Voronoi graph node points to the conditional random field nodes if they are not too close to each other.
 	for(std::set<cv::Point, cv_Point_comp>::iterator node = node_points.begin(); node != node_points.end(); ++node)
 	{
 		if(pointMoreFarAway(conditional_field_nodes, *node, min_node_distance) == true)
 			conditional_field_nodes.insert(*node);
 	}
-//	std::cout << "round time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 
 	// 3. Find the other node points. They are the points most far away from the black points in the defined epsilon neighborhood.
 	for (int v = 0; v < voronoi_map_for_node_extraction.rows; v++)
@@ -1241,16 +1212,9 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 
 								// check the neighboring points
 								// (if it already is in the neighborhood it doesn't need to be checked again)
-//								const cv::Point& current_neighbor_point = neighbor_points[current_neighbor_point_index];
 								const int nu = current_neighbor_point->x + column_counter;
 								const int nv = current_neighbor_point->y + row_counter;
-//								if(u > 250 && v > 250)
-//								{
-//									cv::Mat tester = original_map.clone();
-//									cv::circle(tester, cv::Point(nu, nv), 2, cv::Scalar(100), CV_FILLED);
-//									cv::imshow("tester", tester);
-//									cv::waitKey();
-//								}
+
 								if (neighbor_points.find(cv::Point(nu, nv)) == neighbor_points.end() &&
 										nv >= 0 && nu >= 0 &&
 										nv < voronoi_map_for_node_extraction.rows && nu < voronoi_map_for_node_extraction.cols &&
@@ -1262,13 +1226,16 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 							}
 						}
 					}
+
 					// go trough every found point after all neighborhood points have been checked and add them to it
 					for (std::set<cv::Point, cv_Point_comp>::iterator temporary_point = temporary_points.begin(); temporary_point != temporary_points.end(); ++temporary_point)
 					{
 						neighbor_points.insert(*temporary_point);
+
 						// make the found points white in the voronoi-map (already looked at)
 						voronoi_map_for_node_extraction.at<unsigned char>(*temporary_point) = 255;
 					}
+
 					// make the current point white --> doesn't need to be looked at anymore
 					voronoi_map_for_node_extraction.at<unsigned char>(v, u) = 255;
 
@@ -1306,7 +1273,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 
 	// show the node points if wanted
 	cv::Mat node_map = original_map.clone();
-	if(show_nodes == true)
+	if(show_results == true)
 	{
 		cv::cvtColor(node_map, node_map, CV_GRAY2BGR);
 		for(std::set<cv::Point, cv_Point_comp>::iterator node = conditional_field_nodes.begin(); node != conditional_field_nodes.end(); ++node)
@@ -1316,7 +1283,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 
 //		cv::imshow("nodes of the conditional random field", node_map);
 //		cv::waitKey();
-		cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/node_map.png", node_map);
+//		cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/node_map.png", node_map);
 	}
 
 	// ************* III. Construct the Conditional Random Field from the found nodes *************
@@ -1325,7 +1292,6 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	// If enough neighbors are found or no new voronoi-nodes were found in the last step, the algorithm stops. If no new
 	// Voronoi-nodes got found, the current node is a dead end and has only one neighbor.
 	// This is done using the above defined function createConditionalField, so see this function for further information.
-	//
 	cv::Mat neighbor_map = node_map.clone(); // map to show the resulting cliques if wanted
 
 	std::vector<Clique> conditional_random_field_cliques; // vector to save the found cliques of the conditional random field
@@ -1338,7 +1304,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	std::cout << "Created field. Time: " << timer.getElapsedTimeInMilliSec() << "ms. Number of cliques: " << conditional_random_field_cliques.size() << std::endl;
 
 	// show the found cliques if wanted
-	if(show_nodes == true)
+	if(show_results == true)
 	{
 		for(size_t i = 0; i < conditional_random_field_cliques.size(); ++i)
 		{
@@ -1368,10 +1334,9 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	// graphical model that calculates a large function by calculating each part of the function for itself (https://en.wikipedia.org/wiki/Factor_graph).
 	// Meaning it is a function in the form f(x_0:i) = f(x_j:k) * f(x_l:m) *... . In this case each clique-potential is one part
 	// of the whole function and the overall function should be minimized later. To do this the Typedefs in the header gets used.
-	//
+
 	// 1. Create the Label-Space and a factor graph. A Label-Space consists of all variables and how many labels each variable
 	//	  can obtain.
-
 	LabelSpace space(conditional_field_nodes.size(), number_of_classes_);
 
 	FactorGraph factor_graph(space);
@@ -1416,17 +1381,13 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	{
 		// get the number of members in this clique and depending on this the possible label configurations defined above
 		size_t number_of_members = current_clique->getNumberOfMembers();
-//		std::cout << "clique members: " << number_of_members << std::endl;
-		std::vector<std::vector<uint> > current_possible_configurations = label_configurations[number_of_members-1]; // -1 because this vector stores configurations for cliques with 1-5 members (others are not possible in this case).
 
-//		std::cout << "got configuration" << std::endl;
+		std::vector<std::vector<uint> > current_possible_configurations = label_configurations[number_of_members-1]; // -1 because this vector stores configurations for cliques with 1-5 members (others are not possible in this case).
 
 		// find the real labels and assign them into the current configuration so the feature-vector gets calculated correctly
 		for(size_t configuration = 0; configuration < current_possible_configurations.size(); ++configuration)
 			for(size_t variable = 0; variable < current_possible_configurations[configuration].size(); ++variable)
 				current_possible_configurations[configuration][variable] = possible_labels[current_possible_configurations[configuration][variable]];
-
-//		std::cout << "reassigned configuration. Size: " << current_possible_configurations.size() << std::endl;
 
 		// define an array that has as many elements as the clique has members and assign the number of possible labels for each
 		size_t variable_space[number_of_members];
@@ -1459,37 +1420,22 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 		// the nodes are stored in this way, but later the value is assigned in the position using the swaped configurations.
 		for(size_t configuration = 0; configuration < current_possible_configurations.size(); ++configuration)
 		{
-//			std::cout << "current configuration: " << std::endl;
-
 			std::vector<uint> current_configuration = current_possible_configurations[configuration];
-
-//			for(size_t i = 0; i < current_configuration.size(); ++i)
-//				std::cout << current_configuration[i] << " ";
-//			std::cout << std::endl;
 
 			// get current feature-vector and multiply it with the trained weights
 			std::vector<double> current_features(number_of_classifiers_);
 			getAdaBoostFeatureVector(current_features, *current_clique, current_configuration, possible_labels);
 
-//			double test_result = function(current_configuration);
-
 			double clique_potential = 0;
-//			std::cout << "features: " << std::endl;
 			for(size_t weight = 0; weight < number_of_classifiers_; ++weight)
 			{
 				clique_potential += trained_conditional_weights_[weight] * current_features[weight];
-//				std::cout << current_features[weight] << std::endl;
 			}
 
 			// assign the calculated clique potential at the right position in the function --> !!Important: factors need the variables to be sorted
 			//																								 as increasing index
 			f(swap_configurations[configuration].begin()) = clique_potential;//std::exp(clique_potential);
-//			std::cout << "potential: " << std::exp(clique_potential) << " ";
-
-//			std::cout << "got one feature-vector" << std::endl;
-
 		}
-//		std::cout << std::endl << "one clique done" << std::endl;
 
 		// add the defined function to the model and catch the returned function-identifier to specify which variables
 		// this function needs
@@ -1501,7 +1447,9 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	}
 	std::cout << "calculated all features for the cliques. Time: " << timer.getElapsedTimeInSec() << "s" << std::endl;
 
-	// 3. Do Inference in the above created graphical model using OpengM. This function has three control parameters:
+	// ************* V. Do inference in the defined factor-graph to find best labels. *************
+	//
+	// Do Inference in the above created graphical model using OpengM. This function has three control parameters:
 	//		i. The maximum number of iterations done
 	//		ii. The convergence Bound, which is used to check if the messages haven't changed a lot after the last step.
 	//		iii. The damping-factor, which implies how many messages should be dumped, in this case 0.
@@ -1515,34 +1463,37 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	// do inference
 	timer.start();
 	belief_propagation.infer();
-	std::cout << "Done Inference. Time: " << timer.getElapsedTimeInSec() << "s" << std::endl;
+	std::cout << "Done Inference. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 
 	// obtain the labels that get the max value of the defined function
 	std::vector<FactorGraph::LabelType> best_labels(conditional_field_nodes.size());
 	belief_propagation.arg(best_labels);
 
-	// print the solution
-	cv::Mat resulting_map = original_image.clone();
-//	for(size_t i = 0; i < best_labels.size(); ++i)
-//	{
-//		std::cout << best_labels[i] << " ";
-//		cv::circle(resulting_map, conditional_field_nodes, 5, cv::Scalar(possible_labels[best_labels[i]]), CV_FILLED);
-//	}
-	for(std::set<cv::Point, cv_Point_comp>::iterator i = conditional_field_nodes.begin(); i != conditional_field_nodes.end(); ++i)
+	// print the solution if wanted
+	if(show_results == true)
 	{
-		size_t distance = std::distance(conditional_field_nodes.begin(), i);
-//		std::cout << best_labels[distance] << " ";
-		cv::circle(resulting_map, *i, 3, cv::Scalar(possible_labels[best_labels[distance]]), CV_FILLED);
+		cv::Mat resulting_map = original_image.clone();
+
+		for(std::set<cv::Point, cv_Point_comp>::iterator i = conditional_field_nodes.begin(); i != conditional_field_nodes.end(); ++i)
+		{
+			size_t distance = std::distance(conditional_field_nodes.begin(), i);
+			cv::circle(resulting_map, *i, 3, cv::Scalar(possible_labels[best_labels[distance]]), CV_FILLED);
+		}
 	}
-//	std::cout << std::endl;
 	std::cout << "complete Potential: " << belief_propagation.value() << std::endl;
 
-	// ************* V. Search for different regions of same color and make them a individual segment *************
+	// for optimization purpose
+	return belief_propagation.value();
+
+	// ************* VI. Search for different regions of same color and make them a individual segment *************
 	//
 	// 1. Connect the found nodes to the two nearest black pixels (base points) of them. Connect the nodes that are labeled
-	//    as doorway with black lines to create intersections.
-	cv::Mat map_copy;
-	cv::Mat eroded_map;
+	//    as doorway with black lines to create intersections. This is done because it gives good results, when finding
+	//	  segments labeled only as one class, because later on this map with the base-lines a wavefront-region-growing is
+	//	  applied.
+
+	// erode the map to close small gaps and remove errors --> also done when producing the voronoi-graph.
+	cv::Mat map_copy, eroded_map;
 	cv::Point anchor(-1, -1);
 	cv::erode(original_image, eroded_map, cv::Mat(), anchor, 2);
 	map_copy = eroded_map.clone();
@@ -1557,7 +1508,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	// reassign the map because findContours destroys it and erode it to close small errors
 	map_copy = eroded_map.clone();
 
-	// go trough all nodes
+	// go trough all crf-nodes
 	for(std::set<cv::Point, cv_Point_comp>::iterator node = conditional_field_nodes.begin(); node != conditional_field_nodes.end(); ++node)
 	{
 		// find index of point
@@ -1566,11 +1517,13 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 		// set inital points and values for the basis points so the distance comparison can be done
 		cv::Point basis_point_1 = map_contours[0][0];
 		cv::Point basis_point_2 = map_contours[0][1];
-		// inital values of the first vector from the current critical point to the contour points and for the distance of it
+
+		// inital values of the first vector from the current critical point to the contour points and for the squared distance of it
 		double vector_x_1 = node->x - map_contours[0][0].x;
 		double vector_y_1 = node->y - map_contours[0][0].y;
 		double distance_basis_square_1 = vector_x_1*vector_x_1 + vector_y_1*vector_y_1;
-		// inital values of the second vector from the current critical point to the contour points and for the distance of it
+
+		// inital values of the second vector from the current critical point to the contour points and for the squared distance of it
 		double vector_x_2 = node->x - map_contours[0][1].x;
 		double vector_y_2 = node->y - map_contours[0][1].y;
 		double distance_basis_square_2 = vector_x_2*vector_x_2 + vector_y_2*vector_y_2;
@@ -1581,10 +1534,11 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 		{
 			for (int p = 0; p < map_contours[c].size(); p++)
 			{
-				// calculate the Euclidian distance from the critical Point to the Point on the contour
+				// calculate the squared Euclidian distance from the critical Point to the Point on the contour
 				const double vector_x = map_contours[c][p].x - node->x;
 				const double vector_y = map_contours[c][p].y - node->y;
 				const double current_distance = vector_x*vector_x + vector_y*vector_y;
+
 				// compare the distance to the saved distances if it is smaller
 				if (current_distance < distance_basis_square_1)
 				{
@@ -1600,10 +1554,11 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 		{
 			for (int p = 0; p < map_contours[c].size(); p++)
 			{
-				// calculate the Euclidian distance from the critical point to the point on the contour
+				// calculate the squared Euclidian distance from the critical point to the point on the contour
 				const double vector_x = map_contours[c][p].x - node->x;
 				const double vector_y = map_contours[c][p].y - node->y;
 				const double current_distance = vector_x*vector_x + vector_y*vector_y;
+
 				// calculate the distance between the current contour point and the first basis point to make sure they
 				// are not too close to each other
 				const double vector_x_basis = basis_point_1.x - map_contours[c][p].x;
@@ -1641,21 +1596,19 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	map_copy.convertTo(map_copy, CV_32SC1, 256, 0);
 	wavefrontRegionGrowing(map_copy);
 
-	// 3. Make everything black except the found segments od rooms/hallways, that become totally white. This is done because
+	// 3. Make everything black except the found segments of rooms/hallways, that become totally white. This is done because
 	//	  it makes possible to find the contours of the segments and draw them into the original map with a random color.
 	//	  Only rooms or hallways stay at one step to ensure that borders from hallways to rooms are recognized.
-
 	std::vector < std::vector<cv::Point> > segment_contours; // variable to save found contours
 
 	timer.start();
-
 	for(int color = 0; color <= 1; ++color)
 	{
 		// clear previously used variables for contour extraction
 		map_contours.clear();
 		hierarchy.clear();
 
-		// get the color that should get white
+		// get the color that should get white --> label given as 8bit color, but it has changed to a 32bit color
 		int current_color = possible_labels[color] * 256;
 
 		// create a map_copy
@@ -1673,9 +1626,6 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 					temporary_map.at<unsigned char>(u, v) = 0;
 			}
 		}
-//		cv::imshow("current", temporary_map);
-//		cv::waitKey();
-
 		// find the contours of the rooms/hallways
 		cv::findContours(temporary_map, map_contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
 
@@ -1692,18 +1642,17 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 	// 4. Draw the found contours with a unique color and apply a wavefront-region-growing algorithm to get rid of remaining
 	//	  white spaces.
 	timer.start();
-
 	original_map.convertTo(original_map, CV_32SC1, 256, 0); // convert input image to CV_32SC1 (needed for wavefront and to have enoguh possible rooms)
 
 	std::vector < cv::Scalar > already_used_colors; //saving-vector to save the already used coloures
 
 	for (int current_contour = 0; current_contour < segment_contours.size(); current_contour++)
 	{
-		// calculate area for the contour and check if it is large enough to be a seperate segment
+		// calculate area for the contour and check if it is large enough to be a separate segment
 		double room_area = map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(segment_contours[current_contour]);
 		if (room_area >= room_area_factor_lower_limit && room_area <= room_area_factor_upper_limit)
 		{
-			// Draw the region with a random colour into the map if it is large/small enough
+			// Draw the region with a random color into the map if it is large/small enough
 			bool drawn = false;
 			int loop_counter = 0; //counter if the loop gets into a endless loop
 			do
@@ -1712,7 +1661,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 				int random_number = rand() % 52224 + 13056;
 				cv::Scalar fill_color(random_number);
 
-				//check if colour has already been used
+				//check if color has already been used
 				if (!contains(already_used_colors, fill_color) || loop_counter > 1000)
 				{
 					cv::drawContours(original_map, segment_contours, current_contour, fill_color, CV_FILLED);
@@ -1728,15 +1677,15 @@ void VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int
 
 	std::cout << "filled map with unique colors. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 
-	cv::imshow("best labels", resulting_map);
-	cv::imshow("res", original_map);
+//	cv::imshow("best labels", resulting_map);
+//	cv::imshow("res", original_map);
 //	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/result_map.png", resulting_map);
 //	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/filled_map.png", map_copy);
-	cv::waitKey();
+//	cv::waitKey();
 }
 
 // Function to test several functions of this algorithm independent of other functions
-void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector<uint>& possible_labels, std::string crf_storage_path, std::string boost_storage_path)
+void VoronoiRandomFieldSegmentation::testFunc(std::string crf_storage_path, std::string boost_storage_path)
 {
 	std::cout << "testfunc" << std::endl;
 
@@ -1744,361 +1693,56 @@ void VoronoiRandomFieldSegmentation::testFunc(cv::Mat& original_map, std::vector
 	std::string filename_room = boost_storage_path + "voronoi_room_boost.xml";
 	std::string filename_hallway = boost_storage_path + "voronoi_hallway_boost.xml";
 	std::string filename_doorway = boost_storage_path + "voronoi_doorway_boost.xml";
-	if(trained_boost_ == false)
-	{
-		// load the AdaBoost-classifiers
-		room_boost_.load(filename_room.c_str());
-		hallway_boost_.load(filename_hallway.c_str());
-		doorway_boost_.load(filename_doorway.c_str());
 
-		// set the trained-Boolean true to only load parameters once
-		trained_boost_ = true;
-	}
+	room_boost_.save(filename_room.c_str(), "boost");
+	hallway_boost_.save(filename_hallway.c_str(), "boost");
+	doorway_boost_.save(filename_doorway.c_str(), "boost");
 
-	if(trained_conditional_field_ == false)
+	std::ofstream output_file(crf_storage_path.c_str(), std::ios::out);
+	if (output_file.is_open()==true)
 	{
-		// load the weights out of the file
-		std::ifstream input_file(crf_storage_path.c_str());
-		std::string line;
-		double value;
-		if (input_file.is_open())
+		for(size_t weight = 0; weight < trained_conditional_weights_.size(); ++ weight)
 		{
-			while (getline(input_file, line))
-			{
-				std::istringstream iss(line);
-				while (iss >> value)
-				{
-					trained_conditional_weights_.push_back(value);
-				}
-			}
-			input_file.close();
+			output_file << trained_conditional_weights_[weight] << std::endl;
 		}
-
-		// set the trained-Boolean to true so the weights only get read in once
-		trained_conditional_field_ = true;
 	}
-
-	std::cout << "loaded files" << std::endl;
-
-	std::vector<std::vector<uint> > config;
-	getPossibleConfigurations(config, possible_labels, 1);
-
-	for(size_t i = 0; i < config.size(); ++i)
-	{
-		for(size_t j = 0; j < config[i].size(); ++j)
-		{
-			std::cout << config[i][j] << " ";
-		}
-		std::cout << std::endl;
-	}
-
-//	std::set<cv::Point, cv_Point_comp> node_points; //variable for node point extraction
-//	cv::Mat voronoi_map = original_map.clone();
-//	createPrunedVoronoiGraph(voronoi_map, node_points);
-//
-//	cv::imshow("voronoi", voronoi_map);
-//	cv::waitKey();
-
-//	std::vector<std::vector<uint> > configs;
-//	uint number_of_variables = 3;
-//	uint number_of_labels = 3;
-//	double myints[] = {1,1,1,1,2,2,2,2,3,3,3,3};
-//	std::vector<uint> labels(number_of_labels);
-////	for(size_t i = 1; i <= number_of_labels; ++i)
-////		labels[i-1] = i;
-//	labels[0] = 0;
-//	labels[1] = 1;
-//	labels[2] = 2;
-//
-//	Timer timer;
-//
-//	timer.start();
-//	getPossibleConfigurations(configs, labels, number_of_variables);
-//	std::cout << "Time needed: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
-////	std::vector<int> myvector(number_of_labels*number_of_variables);// (myints, myints+(number_of_labels * number_of_variables));
-////	std::cout << myvector.size() << std::endl;
-////	for(size_t variable = 0; variable < number_of_variables; ++variable)
-////		for(size_t label = 0; label < number_of_labels; ++label)
-////		{
-////			myvector[label + number_of_labels * variable] = (double) (label+1);
-////			std::cout << label+1 << std::endl;
-////		}
-////	std::sort (myvector.begin(),myvector.end());
-////
-////	std::cout << "The 3! possible permutations with 3 elements:\n";
-////	do
-////	{
-////		std::vector<double> current_config(number_of_variables);
-////		for(size_t v = 0; v < number_of_variables; ++v)
-////			current_config[v] = myvector[v];
-//////		current_config[1] = myvector[1];
-//////		current_config[2] = myvector[2];
-//////		current_config[3] = myvector[3];
-////
-////		if(contains(configs, current_config) == false)
-////			configs.push_back(current_config);
-//////		std::cout << myints[0] << ' ' << myints[1] << ' ' << myints[2] << '\n';
-////	}while ( std::next_permutation(myvector.begin(),myvector.end()) );
-//
-
-//	size_t node_indices[3] = {3,5,4};
-//
-////	std::vector<std::vector<labelWithIndex> > swaped_configs;
-//
-//	std::cout << "possible configurations(" << configs.size() << "): " << std::endl;
-//	for(size_t i = 0; i < configs.size(); ++i)
-//	{
-////		std::vector<labelWithIndex> current_vector;
-//		for(size_t j = 0; j < configs[i].size(); ++j)
-//		{
-////			labelWithIndex current_label = {configs[i][j], node_indices[j]};
-////			current_vector.push_back(current_label);
-//			std::cout << configs[i][j] << " ";
-//		}
-//		// sort the current vector and add it to the configurations
-////		std::sort(current_vector.begin(), current_vector.end(), compLabelsByIndices());
-////		swaped_configs.push_back(current_vector);
-//		std::cout << std::endl;
-//	}
-//
-//	timer.start();
-//	swapConfigsRegardingNodeIndices(configs, node_indices);
-//	std::cout << "swaped configs. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
-//
-//	for(size_t i = 0; i < configs.size(); ++i)
-//	{
-//		for(size_t j = 0; j < configs[i].size(); ++j)
-//		{
-//			std::cout << configs[i][j] << " ";
-//		}
-//		std::cout << std::endl;
-//	}
-
-
-	// swap the configurations to get the change with rising indices for the nodes
-
-//	// define an array that has as many elements as the clique has members and assign the number of possible labels for each
-//	size_t variable_space[2];
-//	std::fill_n(variable_space, 2, number_of_classes_);
-//
-//	std::cout << "filled" << std::endl;
-//	// define a explicit function-object from OpenGM containing the initial value -1.0 for each combination
-//	opengm::ExplicitFunction<double> f(variable_space, variable_space + 2, -1.0);
-//
-//	std::vector<uint> r(2);
-//	r[0] = 0;
-//	r[1] = 0;
-//
-//	std::cout << "vector created" << std::endl;
-//
-//	uint t[2];
-//	uint* a = &r[0];
-////	std::fill_n(t, 2, 0);
-//
-//	f(r.begin()) = 3.0;
-//
-//	r[0] = 1;
-//	a = &r[0];
-//
-//	f(a) = 1.0;
-//
-//	std::cout << f(0,0) << " " << f(1,0) << std::endl;
-
-//	cv::circle(original_map, cv::Point(217,189), 2, cv::Scalar(127), CV_FILLED);
-//	cv::imshow("test", original_map);
-//	cv::waitKey();
-
-	std::vector<cv::Point> clique1_vec;
-//	clique1_vec.push_back(cv::Point(186,188));
-//	clique1_vec.push_back(cv::Point(180,184));
-//	clique1_vec.push_back(cv::Point(193,189));
-//	[170, 456] [160, 457] [184, 458]
-	clique1_vec.push_back(cv::Point(170, 456));
-	clique1_vec.push_back(cv::Point(160, 457));
-	clique1_vec.push_back(cv::Point(184, 458));
-
-	std::vector<cv::Point> clique2_vec;
-//	clique2_vec.push_back(cv::Point(193,189));
-//	clique2_vec.push_back(cv::Point(217,189));
-//	clique2_vec.push_back(cv::Point(219,171));
-//	clique2_vec.push_back(cv::Point(217,199));
-//	[148, 457] [129, 447] [160, 457] [138, 461]
-	clique2_vec.push_back(cv::Point(160, 457));
-	clique2_vec.push_back(cv::Point(148, 457));
-	clique2_vec.push_back(cv::Point(129, 447));
-	clique2_vec.push_back(cv::Point(138, 461));
-
-	Clique clique1(clique1_vec);
-	Clique clique2(clique2_vec);
-
-	// 3. Simulate the laser-beams at each found member and store them.
-	std::vector< std::vector<double> > laser_beams(10);
-
-	for(size_t member = 0; member < clique1_vec.size(); ++member)
-	{
-		laser_beams[member] = raycasting(original_map, cv::Point(clique1_vec[member].y, clique1_vec[member].x));
-	}
-	clique1.setBeamsForMembers(laser_beams);
-
-	for(size_t member = 0; member < clique2_vec.size(); ++member)
-	{
-		laser_beams[member] = raycasting(original_map, cv::Point(clique2_vec[member].y, clique2_vec[member].x));
-	}
-	clique2.setBeamsForMembers(laser_beams);
-
-	LabelSpace space(6, 3);
-
-	FactorGraph factor_graph(space);
-
-	// define an array that has as many elements as the clique has members and assign the number of possible labels for each
-	size_t variable_space1[3];
-	std::fill_n(variable_space1, 3, 3);
-
-	// vector that stores all possible configurations for one member-size
-	std::vector<std::vector<uint> > possible_configurations;
-
-	std::vector<uint> label_indices(3);
-	for(uint index = 0; index < 3; ++index)
-		label_indices[index] = index;
-
-	// use the above defined function to find all possible configurations for the possible labels and save them in the map
-	getPossibleConfigurations(possible_configurations, label_indices, 3);
-
-	std::vector<std::vector<uint> > current_possible_configurations = possible_configurations;
-
-	// find the real labels and assign them into the current configuration so the feature-vector gets calculated correctly
-	for(size_t configuration = 0; configuration < current_possible_configurations.size(); ++configuration)
-		for(size_t variable = 0; variable < current_possible_configurations[configuration].size(); ++variable)
-			current_possible_configurations[configuration][variable] = possible_labels[current_possible_configurations[configuration][variable]];
-
-
-	// define a explicit function-object from OpenGM containing the initial value -1.0 for each combination
-	opengm::ExplicitFunction<double> f1(variable_space1, variable_space1 + 3, -1.0);
-
-	std::cout << "f1: " << std::endl;
-
-	size_t indices1[3] = {0, 2, 1};
-
-	std::vector<std::vector<uint> > swap_configurations = possible_configurations; // -2 because this vector stores configurations for cliques with 2-5 members (others are not possible in this case).
-	swapConfigsRegardingNodeIndices(swap_configurations, indices1);
-	std::sort(indices1, indices1 + 3);
-
-	std::cout << "Sorted indices: " << indices1[0] << " " << indices1[1] << " " << indices1[2] << std::endl;
-
-	for(size_t configuration = 0; configuration < current_possible_configurations.size(); ++configuration)
-	{
-		std::vector<uint> current_configuration = current_possible_configurations[configuration];
-
-		// get current feature-vector and multiply it with the trained weights
-		std::vector<double> current_features(number_of_classifiers_);
-		getAdaBoostFeatureVector(current_features, clique1, current_configuration, possible_labels);
-
-		double clique_potential = 0;
-		for(size_t weight = 0; weight < number_of_classifiers_; ++weight)
-		{
-			clique_potential += trained_conditional_weights_[weight] * current_features[weight];
-		}
-
-		// assign the calculated clique potential at the right position in the function --> !!Important: factors need the variables to be sorted
-		//																								 as increasing index
-		f1(swap_configurations[configuration].begin()) = std::exp(clique_potential);
-
-		for(size_t i = 0; i < swap_configurations[configuration].size(); ++i)
-			std::cout << swap_configurations[configuration][i] << " ";
-		std::cout << ": " << f1(swap_configurations[configuration].begin()) << " ";
-	}
-
-//	std::cout << std::endl << f1(3,3) << std::endl;
-
-	FactorGraph::FunctionIdentifier identifier1 = factor_graph.addFunction(f1);
-
-	// add the Factor to the graph, that represents which variables (and labels of each) are used for the above defined function
-	factor_graph.addFactor(identifier1, indices1, indices1+3);
-
-	// define a explicit function-object from OpenGM containing the initial value -1.0 for each combination
-	size_t variable_space2[4];
-	std::fill_n(variable_space2, 4, 3);
-
-	opengm::ExplicitFunction<double> f2(variable_space2, variable_space2 + 4, -1.0);
-
-	// use the above defined function to find all possible configurations for the possible labels and save them in the map
-	possible_configurations.clear();
-	current_possible_configurations.clear();
-
-	getPossibleConfigurations(possible_configurations, label_indices, 4);
-
-	current_possible_configurations = possible_configurations;
-
-	// find the real labels and assign them into the current configuration so the feature-vector gets calculated correctly
-	for(size_t configuration = 0; configuration < current_possible_configurations.size(); ++configuration)
-		for(size_t variable = 0; variable < current_possible_configurations[configuration].size(); ++variable)
-			current_possible_configurations[configuration][variable] = possible_labels[current_possible_configurations[configuration][variable]];
-
-
-	std::cout << std::endl << "f2: " << std::endl;
-
-	std::string output = boost_storage_path + "features2.txt";
-	std::ofstream output_file(output.c_str());
-
-	for(size_t configuration = 0; configuration < current_possible_configurations.size(); ++configuration)
-	{
-		std::vector<uint> current_configuration = current_possible_configurations[configuration];
-
-		// get current feature-vector and multiply it with the trained weights
-		std::vector<double> current_features(number_of_classifiers_);
-		getAdaBoostFeatureVector(current_features, clique2, current_configuration, possible_labels);
-
-		double clique_potential = 0;
-		for(size_t weight = 0; weight < number_of_classifiers_; ++weight)
-		{
-			clique_potential += trained_conditional_weights_[weight] * current_features[weight];
-		}
-
-		// assign the calculated clique potential at the right position in the function --> !!Important: factors need the variables to be sorted
-		//																								 as increasing index
-		f2(possible_configurations[configuration].begin()) = std::exp(clique_potential);
-
-		for(size_t i = 0; i < possible_configurations[configuration].size(); ++i)
-		{
-			std::cout << possible_configurations[configuration][i] << " ";
-			output_file << possible_configurations[configuration][i] << " ";
-		}
-		std::cout << ": " << std::exp(clique_potential) << " ";
-		output_file << ": " << std::exp(clique_potential) << " ";
-	}
-
 	output_file.close();
-	std::cout << std::endl;
 
 
-	FactorGraph::FunctionIdentifier identifier2 = factor_graph.addFunction(f2);
+//	if(trained_boost_ == false)
+//	{
+//		// load the AdaBoost-classifiers
+//		room_boost_.load(filename_room.c_str());
+//		hallway_boost_.load(filename_hallway.c_str());
+//		doorway_boost_.load(filename_doorway.c_str());
+//
+//		// set the trained-Boolean true to only load parameters once
+//		trained_boost_ = true;
+//	}
+//
+//	if(trained_conditional_field_ == false)
+//	{
+//		// load the weights out of the file
+//		std::ifstream input_file(crf_storage_path.c_str());
+//		std::string line;
+//		double value;
+//		if (input_file.is_open())
+//		{
+//			while (getline(input_file, line))
+//			{
+//				std::istringstream iss(line);
+//				while (iss >> value)
+//				{
+//					trained_conditional_weights_.push_back(value);
+//				}
+//			}
+//			input_file.close();
+//		}
+//
+//		// set the trained-Boolean to true so the weights only get read in once
+//		trained_conditional_field_ = true;
+//	}
 
-	// add the Factor to the graph, that represents which variables (and labels of each) are used for the above defined function
-	size_t indices2[4] = {2, 3, 4, 5};
-	factor_graph.addFactor(identifier2, indices2, indices2+4);
-
-	std::cout << "infering" << std::endl;
-
-	const double convergence_bound = 1e-7;
-	const double damping_factor = 0.0;
-	LoopyBeliefPropagation::Parameter parameters(300, convergence_bound, damping_factor);
-
-	// create LoopyBeliefPropagation object that does inference on the graphical model defined above
-	LoopyBeliefPropagation belief_propagation(factor_graph, parameters);
-
-	// do inference
-	belief_propagation.infer();
-
-	std::cout << "done infering" << std::endl;
-
-	// obtain the labels that get the max value of the defined function
-	std::vector<FactorGraph::LabelType> best_labels(6);
-	belief_propagation.arg(best_labels);
-
-	for(size_t i = 0; i < 6; ++i)
-		std::cout << best_labels[i] << " ";
-
-	std::cout << std::endl;
-
+	std::cout << "saved files" << std::endl;
 }
 
