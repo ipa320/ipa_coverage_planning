@@ -1096,7 +1096,14 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_o
 //			sum of the exponents. The potentials are given by exp(w^T * f) and the graph-potential is the product of these, so
 //			it is possible to just maximize the sum of all exponents. This is convenient, because the factors will scale very high
 //			and would go out of the double range.
-//		VI.) At the last step the algorithm takes the above found best labels
+//		VI.) At the last step the algorithm takes the above found best labels and draws it into a copy of the original map. The
+//			 rooms and hallways are drawn with the color of this class and doorways are drawn black. This is done because it
+//			 produces intersections between different segments, most likely between rooms and hallways. These intersections are
+//			 wanted because they create separate segments for each room/hallway and don't put several together as one big. The
+//			 drawing into the map copy is done by finding base points for each crf-node (two black pixels that are closest to this
+//			 node) and drawing lines in the wanted color to both. Then a wavefront-region-growing is applied on the map-copy to
+//			 fill the segments with one color, generating several rooms and hallways. In the last step the contours of the rooms
+//			 and hallways are searched and drawn in the given map with a unique color into the map, if they are not too small or big.
 double VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const int epsilon_for_neighborhood,
 		const int max_iterations, unsigned int min_neighborhood_size, std::vector<uint>& possible_labels,
 		const double min_node_distance,  bool show_results, std::string crf_storage_path, std::string boost_storage_path,
@@ -1325,7 +1332,7 @@ double VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const i
 //			cv::imshow("neighbors", neighbor_map);
 //			cv::waitKey();
 		}
-		cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/neighbor_map.png", neighbor_map);
+//		cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/neighbor_map.png", neighbor_map);
 	}
 
 	// ************* IV. Construct the Factor graph from the calculated random-Field *************
@@ -1685,6 +1692,11 @@ double VoronoiRandomFieldSegmentation::segmentMap(cv::Mat& original_map, const i
 }
 
 // Function to test several functions of this algorithm independent of other functions
+// this current implementation is used for optimizing the trained algorithm. The idea behind this is: I train the algorithm
+// with the same training-maps several times and calculate the crf-graph-potential for several maps and add them together. If
+// then the current sum is better than a saved best sum, the trained parameters are saved, what is done with this function.
+// It is good to do this, because OpenCV uses a Decision-Tree for the AdaBoost classifiers, which is depending on probabilites
+// and so every training done creates different results.
 void VoronoiRandomFieldSegmentation::testFunc(std::string crf_storage_path, std::string boost_storage_path)
 {
 	std::cout << "testfunc" << std::endl;
