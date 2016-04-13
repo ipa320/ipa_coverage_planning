@@ -1490,7 +1490,7 @@ double VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, c
 	std::cout << "complete Potential: " << belief_propagation.value() << std::endl;
 
 	// for optimization purpose
-	return belief_propagation.value();
+//	return belief_propagation.value();
 
 	// ************* VI. Search for different regions of same color and make them a individual segment *************
 	//
@@ -1684,11 +1684,11 @@ double VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, c
 
 	std::cout << "filled map with unique colors. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 
-//	cv::imshow("best labels", resulting_map);
-//	cv::imshow("res", original_map);
+	cv::imshow("best labels", segmented_map);
+//	cv::imshow("res", resulting_map);
 //	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/result_map.png", resulting_map);
 //	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/filled_map.png", map_copy);
-//	cv::waitKey();
+	cv::waitKey();
 }
 
 // Function to test several functions of this algorithm independent of other functions

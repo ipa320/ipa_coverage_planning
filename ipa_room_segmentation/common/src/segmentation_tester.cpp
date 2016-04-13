@@ -18,10 +18,12 @@ int main()
 	map_names.push_back("Freiburg79_scan.png");
 	map_names.push_back("lab_intel.png");
 	map_names.push_back("office_b_furnitures.png");
+	map_names.push_back("lab_c_scan_furnitures.png");
+	map_names.push_back("lab_f_scan.png");
 
-	std::vector<cv::Mat> maps(4);
+	std::vector<cv::Mat> maps(6);
 
-	for(size_t i = 0; i < 4; ++i)
+	for(size_t i = 0; i < 6; ++i)
 	{
 		cv::Mat map = cv::imread(map_path + map_names[i], 0);
 
@@ -141,33 +143,35 @@ int main()
 
 	VoronoiRandomFieldSegmentation segmenter(false, false);
 
-	// Do several training steps and segment different maps to find the best training-result. This is done by checking the complete
-	// crf-potentials.
-
-	double best_potential = 0;
-
-	for(size_t training = 1; training <= 5; ++training)
-	{
-		if(training != 1)
-			segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
-
-		double current_potential = 0;
-
-		for(size_t i = 0; i < 4; ++i)
-		{
-			cv::Mat map = maps[i].clone();
-
-			current_potential += segmenter.segmentMap(map, map, 7, 50, 5, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_); // 7, 50, 4, 5
-		}
-
-		std::cout << std::endl << "********** current_potential: " << current_potential << std::endl;
-
-		if(current_potential > best_potential)
-		{
-			best_potential = current_potential;
-			segmenter.testFunc(conditional_weights_optimal_path, boost_file_optimal_path);
-		}
-	}
+	segmenter.segmentMap(maps[0], maps[0], 7, 50, 5, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_);
+//
+//	// Do several training steps and segment different maps to find the best training-result. This is done by checking the complete
+//	// crf-potentials.
+//
+//	double best_potential = 0;
+//
+//	for(size_t training = 1; training <= 10; ++training)
+//	{
+//		if(training != 1)
+//			segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
+//
+//		double current_potential = 0;
+//
+//		for(size_t i = 0; i < 6; ++i)
+//		{
+//			cv::Mat map = maps[i].clone();
+//
+//			current_potential += segmenter.segmentMap(map, map, 7, 50, 5, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_); // 7, 50, 4, 5
+//		}
+//
+//		std::cout << std::endl << "********** Step: " << training << ". current_potential: " << current_potential << std::endl;
+//
+//		if(current_potential > best_potential)
+//		{
+//			best_potential = current_potential;
+//			segmenter.testFunc(conditional_weights_optimal_path, boost_file_optimal_path);
+//		}
+//	}
 
 	return 0;
 }
