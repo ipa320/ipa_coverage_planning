@@ -18,13 +18,13 @@ int main(int argc, char **argv)
 	ros::init(argc, argv, "room_segmentation_client");
 
 	std::vector< std::string > map_names;
-	map_names.push_back("lab_ipa.png");
-	map_names.push_back("Freiburg52_scan.png");
-	map_names.push_back("Freiburg79_scan.png");
+//	map_names.push_back("lab_ipa.png");
+//	map_names.push_back("Freiburg52_scan.png");
+//	map_names.push_back("Freiburg79_scan.png");
 //	map_names.push_back("Freiburg101_scan.png");
 //	map_names.push_back("intel_map.png");
 	map_names.push_back("lab_a.png");
-//	map_names.push_back("lab_b_scan.png");
+	map_names.push_back("lab_b_scan.png");
 //	map_names.push_back("lab_c.png");
 //	map_names.push_back("lab_d.png");
 //	map_names.push_back("lab_e.png");
@@ -47,6 +47,11 @@ int main(int argc, char **argv)
 				if (map.at<unsigned char>(y, x) < 250)
 				{
 					map.at<unsigned char>(y, x) = 0;
+				}
+				//else make it white
+				else
+				{
+					map.at<unsigned char>(y, x) = 255;
 				}
 			}
 		}

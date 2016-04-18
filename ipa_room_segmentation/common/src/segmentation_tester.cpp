@@ -16,7 +16,7 @@ int main()
 	std::vector<std::string> map_names;
 	map_names.push_back("lab_ipa.png");
 	map_names.push_back("Freiburg79_scan.png");
-	map_names.push_back("lab_intel.png");
+	map_names.push_back("Freiburg52_scan.png");
 	map_names.push_back("office_b_furnitures.png");
 	map_names.push_back("lab_c_scan_furnitures.png");
 	map_names.push_back("lab_f_scan.png");
@@ -143,7 +143,9 @@ int main()
 
 	VoronoiRandomFieldSegmentation segmenter(false, false);
 
-	segmenter.segmentMap(maps[0], maps[0], 7, 50, 5, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_);
+	segmenter.segmentMap(maps[2], maps[2], 7, 50, 5, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_);
+	cv::imshow("res", maps[2]);
+	cv::waitKey();
 //
 //	// Do several training steps and segment different maps to find the best training-result. This is done by checking the complete
 //	// crf-potentials.
