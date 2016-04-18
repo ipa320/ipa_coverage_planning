@@ -1104,10 +1104,10 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_o
 //			 node) and drawing lines in the wanted color to both. Then a wavefront-region-growing is applied on the map-copy to
 //			 fill the segments with one color, generating several rooms and hallways. In the last step the contours of the rooms
 //			 and hallways are searched and drawn in the given map with a unique color into the map, if they are not too small or big.
-double VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv::Mat& segmented_map, const int epsilon_for_neighborhood,
-		const int max_iterations, unsigned int min_neighborhood_size, std::vector<uint>& possible_labels,
+void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv::Mat& segmented_map, const int epsilon_for_neighborhood,
+		const int max_iterations, const int min_neighborhood_size, std::vector<uint>& possible_labels,
 		const double min_node_distance,  bool show_results, std::string crf_storage_path, std::string boost_storage_path,
-		const size_t max_inference_iterations, double map_resolution_from_subscription, double room_area_factor_lower_limit,
+		const int max_inference_iterations, double map_resolution_from_subscription, double room_area_factor_lower_limit,
 		double room_area_factor_upper_limit)
 {
 	// save a copy of the original image
@@ -1684,11 +1684,11 @@ double VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, c
 
 	std::cout << "filled map with unique colors. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 
-	cv::imshow("best labels", segmented_map);
+//	cv::imshow("best labels", segmented_map);
 //	cv::imshow("res", resulting_map);
 //	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/result_map.png", resulting_map);
 //	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/filled_map.png", map_copy);
-	cv::waitKey();
+//	cv::waitKey();
 }
 
 // Function to test several functions of this algorithm independent of other functions

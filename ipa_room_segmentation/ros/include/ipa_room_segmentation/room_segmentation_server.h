@@ -83,6 +83,8 @@
 
 #include <ipa_room_segmentation/adaboost_classifier.h>
 
+#include <ipa_room_segmentation/voronoi_random_field_segmentation.h>
+
 class RoomSegmentationServer
 {
 protected:
@@ -104,9 +106,9 @@ protected:
 	int voronoi_neighborhood_index_; //Variable for the Voronoi method that specifies the neighborhood that is looked at for critical Point extraction
 	int voronoi_random_field_epsilon_for_neighborhood_; //Variable that specifies the neighborhood for the vrf-segmentation.
 	int max_iterations_; //number of iterations for search of neighborhood in voronoi method and vrf method
-	unsigned int min_neighborhood_size_; //Variable that stores the minimum size of a neighborhood, used for the vrf method.
+	int min_neighborhood_size_; //Variable that stores the minimum size of a neighborhood, used for the vrf method.
 	double min_voronoi_random_field_node_distance_; //Variable that shows how near two nodes of the conditional random field can be in the vrf method. [pixel]
-	size_t max_voronoi_random_field_inference_iterations_; //Variable that shows how many iterations should max. be done when infering in the conditional random field.
+	int max_voronoi_random_field_inference_iterations_; //Variable that shows how many iterations should max. be done when infering in the conditional random field.
 	double min_critical_point_distance_factor_; //Variable that sets the minimal distance between two critical Points before one gets eliminated
 	double max_area_for_merging_; //Variable that shows the maximal area of a room that should be merged with its surrounding rooms
 	bool display_segmented_map_;	// displays the segmented map upon service call

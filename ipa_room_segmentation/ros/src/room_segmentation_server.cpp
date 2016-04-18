@@ -130,26 +130,26 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 	}
 	if (room_segmentation_algorithm_ == 5) //set voronoi random field parameters
 	{
-//		 			voronoi_random_field_epsilon_for_neighborhood_ = 7;
-//					min_neighborhood_size_ = 5;
-//					min_voronoi_random_field_node_distance_ = 7; // [pixel]
-//					max_voronoi_random_field_inference_iterations_ = 9000;
 		node_handle_.param("room_upper_limit_voronoi_random", room_upper_limit_voronoi_random_, 10000.0);
 		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_voronoi_random_ << std::endl;
+
 		node_handle_.param("room_lower_limit_voronoi_random", room_lower_limit_voronoi_random_, 1.53);
 		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_voronoi_random_ << std::endl;
 
 		node_handle_.param("voronoi_random_field_epsilon_for_neighborhood", voronoi_random_field_epsilon_for_neighborhood_, 7);
 		std::cout << "room_segmentation/voronoi_random_field_epsilon_for_neighborhood = " << voronoi_random_field_epsilon_for_neighborhood_ << std::endl;
 
-//		node_handle_.param("min_neighborhood_size", min_neighborhood_size_, 5);
-//		std::cout << "room_segmentation/min_neighborhood_size = " << min_neighborhood_size_ << std::endl;
+		node_handle_.param("min_neighborhood_size", min_neighborhood_size_, 5);
+		std::cout << "room_segmentation/min_neighborhood_size = " << min_neighborhood_size_ << std::endl;
+
+		node_handle_.param("max_iterations", max_iterations_, 150);
+		std::cout << "room_segmentation/max_iterations = " << max_iterations_ << std::endl;
 
 		node_handle_.param("min_voronoi_random_field_node_distance", min_voronoi_random_field_node_distance_, 7.0);
 		std::cout << "room_segmentation/min_voronoi_random_field_node_distance = " << min_voronoi_random_field_node_distance_ << std::endl;
 
-//		node_handle_.param("max_voronoi_random_field_inference_iterations", max_voronoi_random_field_inference_iterations_, 9000);
-//		std::cout << "room_segmentation/max_voronoi_random_field_inference_iterations = " << max_voronoi_random_field_inference_iterations_ << std::endl;
+		node_handle_.param("max_voronoi_random_field_inference_iterations", max_voronoi_random_field_inference_iterations_, 9000);
+		std::cout << "room_segmentation/max_voronoi_random_field_inference_iterations = " << max_voronoi_random_field_inference_iterations_ << std::endl;
 	}
 
 	node_handle_.param("display_segmented_map", display_segmented_map_, false);
@@ -273,7 +273,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	}
 	else if (room_segmentation_algorithm_ == 5)
 	{
-//		VoronoiRandomFieldSegmentation vrf_segmentation(false, false); //voronoi random field segmentation method
+		VoronoiRandomFieldSegmentation vrf_segmentation(false, false); //voronoi random field segmentation method
 		const std::string package_path = ros::package::getPath("ipa_room_segmentation");
 		std::string conditional_weights_path = package_path + "/common/files/training_results/conditional_field_weights.txt";
 		std::string boost_file_path = package_path + "/common/files/training_results/";
@@ -342,12 +342,12 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/office_e_voronoi_nodes.png", 0);
 			original_maps.push_back(training_map);
 			//train the algorithm
-//			vrf_segmentation.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
+			vrf_segmentation.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
 		}
-//		vrf_segmentation.segmentMap(original_img, segmented_map, voronoi_random_field_epsilon_for_neighborhood_, max_iterations_,
-//				min_neighborhood_size_, possible_labels, min_voronoi_random_field_node_distance_,
-//				display_segmented_map_, conditional_weights_path, boost_file_path, max_voronoi_random_field_inference_iterations_,
-//				map_resolution, room_lower_limit_voronoi_random_, room_upper_limit_voronoi_random_);
+		vrf_segmentation.segmentMap(original_img, segmented_map, voronoi_random_field_epsilon_for_neighborhood_, max_iterations_,
+				min_neighborhood_size_, possible_labels, min_voronoi_random_field_node_distance_,
+				display_segmented_map_, conditional_weights_path, boost_file_path, max_voronoi_random_field_inference_iterations_,
+				map_resolution, room_lower_limit_voronoi_random_, room_upper_limit_voronoi_random_);
 	}
 	else
 	{

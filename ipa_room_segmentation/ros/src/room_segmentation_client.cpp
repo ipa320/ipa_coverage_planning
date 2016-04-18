@@ -18,12 +18,12 @@ int main(int argc, char **argv)
 	ros::init(argc, argv, "room_segmentation_client");
 
 	std::vector< std::string > map_names;
-//	map_names.push_back("lab_ipa.png");
-//	map_names.push_back("freiburg_building101.png");
-//	map_names.push_back("freiburg_building52.png");
-//	map_names.push_back("freiburg_building79.png");
+	map_names.push_back("lab_ipa.png");
+	map_names.push_back("Freiburg52_scan.png");
+	map_names.push_back("Freiburg79_scan.png");
+//	map_names.push_back("Freiburg101_scan.png");
 //	map_names.push_back("intel_map.png");
-//	map_names.push_back("lab_a.png");
+	map_names.push_back("lab_a.png");
 //	map_names.push_back("lab_b_scan.png");
 //	map_names.push_back("lab_c.png");
 //	map_names.push_back("lab_d.png");
@@ -32,7 +32,7 @@ int main(int argc, char **argv)
 //	map_names.push_back("NLB.png");
 //	map_names.push_back("lab_b_scan_furnitures.png");
 //	map_names.push_back("office_e_furnitures.png");
-	map_names.push_back("office_i.png");
+//	map_names.push_back("office_i.png");
 
 	for (size_t image_index = 0; image_index<map_names.size(); ++image_index)
 	{
@@ -44,7 +44,7 @@ int main(int argc, char **argv)
 			for (int x = 0; x < map.cols; x++)
 			{
 				//find not reachable regions and make them black
-				if (map.at<unsigned char>(y, x) != 255)
+				if (map.at<unsigned char>(y, x) < 250)
 				{
 					map.at<unsigned char>(y, x) = 0;
 				}
@@ -76,7 +76,7 @@ int main(int argc, char **argv)
 		goal.map_resolution = 0.05;
 		goal.return_format_in_meter = false;
 		goal.return_format_in_pixel = true;
-		goal.room_segmentation_algorithm = 3;
+		goal.room_segmentation_algorithm = 5;
 		goal.robot_radius = 0.4;
 		ac.sendGoal(goal);
 
@@ -122,6 +122,7 @@ int main(int argc, char **argv)
 			}
 
 			cv::imshow("segementation", colour_segmented_map);
+			cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/test_res/resulting_map.png", colour_segmented_map);
 			cv::waitKey();
 		}
 	}

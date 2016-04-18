@@ -244,10 +244,10 @@ public:
 
 	// Function to segment a given map into different regions. It uses the above trained AdaBoost-classifiers and conditional-random-field.
 	// Also it uses OpenGM to do a inference in the created crf, so it uses the above defined typedefs.
-	double segmentMap(const cv::Mat& original_map, cv::Mat& segmented_map, const int epsilon_for_neighborhood,
-			const int max_iterations, unsigned int min_neighborhood_size, std::vector<uint>& possible_labels,
+	void segmentMap(const cv::Mat& original_map, cv::Mat& segmented_map, const int epsilon_for_neighborhood,
+			const int max_iterations, const int min_neighborhood_size, std::vector<uint>& possible_labels,
 			const double min_node_distance, bool show_results,
-			std::string crf_storage_path, std::string boost_storage_path, const size_t max_inference_iterations,
+			std::string crf_storage_path, std::string boost_storage_path, const int max_inference_iterations,
 			 double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit);
 
 	// Function used to test several features separately. Not relevant.
