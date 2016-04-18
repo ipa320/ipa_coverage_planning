@@ -17,22 +17,49 @@ int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "room_segmentation_client");
 
+	std::string folder_path = "/home/rmb-fj/Pictures/voronoi_random_fields/evaluation_results/";
+
 	std::vector< std::string > map_names;
-//	map_names.push_back("lab_ipa.png");
-//	map_names.push_back("Freiburg52_scan.png");
-//	map_names.push_back("Freiburg79_scan.png");
-//	map_names.push_back("Freiburg101_scan.png");
-//	map_names.push_back("intel_map.png");
-	map_names.push_back("lab_a.png");
-	map_names.push_back("lab_b_scan.png");
-//	map_names.push_back("lab_c.png");
-//	map_names.push_back("lab_d.png");
-//	map_names.push_back("lab_e.png");
-//	map_names.push_back("lab_f_scan.png");
-//	map_names.push_back("NLB.png");
-//	map_names.push_back("lab_b_scan_furnitures.png");
-//	map_names.push_back("office_e_furnitures.png");
-//	map_names.push_back("office_i.png");
+		map_names.push_back("lab_ipa.png");
+		map_names.push_back("lab_c_scan.png");
+		map_names.push_back("Freiburg52_scan.png");
+		map_names.push_back("Freiburg79_scan.png");
+		map_names.push_back("lab_b_scan.png");
+		map_names.push_back("lab_intel.png");
+		map_names.push_back("Freiburg101_scan.png");
+		map_names.push_back("lab_d_scan.png");
+		map_names.push_back("lab_f_scan.png");
+		map_names.push_back("lab_a_scan.png");
+		map_names.push_back("NLB.png");
+		map_names.push_back("office_a.png");
+		map_names.push_back("office_b.png");
+		map_names.push_back("office_c.png");
+		map_names.push_back("office_d.png");
+		map_names.push_back("office_e.png");
+		map_names.push_back("office_f.png");
+		map_names.push_back("office_g.png");
+		map_names.push_back("office_h.png");
+		map_names.push_back("office_i.png");
+		map_names.push_back("lab_ipa_furnitures.png");
+		map_names.push_back("lab_c_scan_furnitures.png");
+		map_names.push_back("Freiburg52_scan_furnitures.png");
+		map_names.push_back("Freiburg79_scan_furnitures.png");
+		map_names.push_back("lab_b_scan_furnitures.png");
+		map_names.push_back("lab_intel_furnitures.png");
+		map_names.push_back("Freiburg101_scan_furnitures.png");
+		map_names.push_back("lab_d_scan_furnitures.png");
+		map_names.push_back("lab_f_scan_furnitures.png");
+		map_names.push_back("lab_a_scan_furnitures.png");
+		map_names.push_back("NLB_furnitures.png");
+		map_names.push_back("office_a_furnitures.png");
+		map_names.push_back("office_b_furnitures.png");
+		map_names.push_back("office_c_furnitures.png");
+		map_names.push_back("office_d_furnitures.png");
+		map_names.push_back("office_e_furnitures.png");
+		map_names.push_back("office_f_furnitures.png");
+		map_names.push_back("office_g_furnitures.png");
+		map_names.push_back("office_h_furnitures.png");
+		map_names.push_back("office_i_furnitures.png");
 
 	for (size_t image_index = 0; image_index<map_names.size(); ++image_index)
 	{
@@ -55,8 +82,8 @@ int main(int argc, char **argv)
 				}
 			}
 		}
-		cv::imshow("map", map);
-		cv::waitKey();
+//		cv::imshow("map", map);
+//		cv::waitKey();
 		sensor_msgs::Image labeling;
 
 		cv_bridge::CvImage cv_image;
@@ -126,9 +153,10 @@ int main(int argc, char **argv)
 				cv::circle(colour_segmented_map, current_center, 2, CV_RGB(0,0,255), CV_FILLED);
 			}
 
-			cv::imshow("segementation", colour_segmented_map);
-			cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/test_res/resulting_map.png", colour_segmented_map);
-			cv::waitKey();
+//			cv::imshow("segementation", colour_segmented_map);
+			std::string map_name = folder_path + map_names[image_index];
+			cv::imwrite(map_name.c_str(), colour_segmented_map);
+//			cv::waitKey();
 		}
 	}
 

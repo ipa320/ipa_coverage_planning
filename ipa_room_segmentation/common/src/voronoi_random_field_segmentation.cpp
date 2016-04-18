@@ -1682,12 +1682,16 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 	// color remaining white space
 	wavefrontRegionGrowing(segmented_map);
 
+	// make black what has been black before (drawContours draws filled areas and might overwrite black holes)
+	for(unsigned int u = 0; u < segmented_map.rows; ++u)
+		for(unsigned int v = 0; v < segmented_map.cols; ++v)
+			if(original_image.at<unsigned char>(u, v) == 0)
+				segmented_map.at<int>(u, v) = 0;
+
 	std::cout << "filled map with unique colors. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 
 //	cv::imshow("best labels", segmented_map);
 //	cv::imshow("res", resulting_map);
-//	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/result_map.png", resulting_map);
-//	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/filled_map.png", map_copy);
 //	cv::waitKey();
 }
 
