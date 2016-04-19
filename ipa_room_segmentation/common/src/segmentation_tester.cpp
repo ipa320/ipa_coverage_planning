@@ -143,7 +143,7 @@ int main()
 
 	VoronoiRandomFieldSegmentation segmenter(false, false);
 
-	segmenter.segmentMap(maps[2], maps[2], 7, 50, 5, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_);
+	segmenter.segmentMap(maps[2], maps[2], 7, 50, 5, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_, 12.5);
 	cv::imshow("res", maps[2]);
 	cv::waitKey();
 //

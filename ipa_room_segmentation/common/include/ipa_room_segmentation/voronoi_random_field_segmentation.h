@@ -90,6 +90,7 @@
 #include <ipa_room_segmentation/raycasting.h>
 #include <ipa_room_segmentation/wavefront_region_growing.h>
 #include <ipa_room_segmentation/clique_class.h>
+#include <ipa_room_segmentation/room_class.h>
 
 #pragma once
 
@@ -177,6 +178,17 @@ protected:
 	// Function to check if the given point is more far away from each point in the given set than the min_distance.
 	bool pointMoreFarAway(const std::set<cv::Point, cv_Point_comp>& points, const cv::Point& point, const double min_distance);
 
+	// Function to get the ID of a room, when given an index in the storing vector.
+	bool determineRoomIndexFromRoomID(const std::vector<Room>& rooms, const int room_id, size_t& room_index);
+
+	// Function to merge two rooms together on the given already segmented map.
+	void mergeRoomPair(std::vector<Room>& rooms, const int target_index, const int room_to_merge_index,
+			cv::Mat& segmented_map, const double map_resolution);
+
+	// Function that goes trough each given room and checks if it should be merged together wit another bigger room, if it
+	// is too small.
+	void mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Room>& rooms, double map_resolution_from_subscription, double max_area_for_merging, bool display_map);
+
 	// Function to get all possible configurations for n variables that each can have m labels. E.g. with 2 variables and 3 possible
 	// labels for each variable there are 9 different configurations.
 	void getPossibleConfigurations(std::vector<std::vector<uint> >& possible_configurations, const std::vector<uint>& possible_labels,
@@ -248,7 +260,8 @@ public:
 			const int max_iterations, const int min_neighborhood_size, std::vector<uint>& possible_labels,
 			const double min_node_distance, bool show_results,
 			std::string crf_storage_path, std::string boost_storage_path, const int max_inference_iterations,
-			 double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit);
+			 double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit,
+			 double max_area_for_merging);
 
 	// Function used to test several features separately. Not relevant.
 	void testFunc(std::string crf_storage_path, std::string boost_storage_path);

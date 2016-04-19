@@ -36,7 +36,7 @@ room_upper_limit_voronoi_random: 1000000.0
 voronoi_neighborhood_index: 280 #larger value sets a larger neighborhood for searching critical points --> int
 max_iterations: 50 #sets the maximal number of iterations to search for a neighborhood, also used for the vrf segmentation --> int
 min_critical_point_distance_factor: 1.6 #minimal distance factor between two critical points before one of it gets eliminated --> double
-max_area_for_merging: 12.5 #maximal area [m²] of a room that should be merged with its surrounding rooms
+max_area_for_merging: 12.5 #maximal area [m²] of a room that should be merged with its surrounding rooms, also used for the voronoi random field segmentation
 
 #parameters for the voronoi random field segmentation that specify the size of the neighborhood generated on the Voronoi graph, the minimal
 #size this neighborhood can have, how far base nodes for each node on the graph need to be apart and how many iterations the inference 

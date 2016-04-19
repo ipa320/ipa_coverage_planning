@@ -140,7 +140,7 @@ add_dependencies(evaluation
 	${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 ### test algorithm for implementing new segmentation algorithms
-add_executable(segmentation_tester common/src/segmentation_tester.cpp common/src/voronoi_random_field_segmentation.cpp common/src/contains.cpp common/src/voronoi_random_field_features.cpp common/src/raycasting.cpp common/src/wavefront_region_growing.cpp common/src/clique_class.cpp)
+add_executable(segmentation_tester common/src/segmentation_tester.cpp common/src/voronoi_random_field_segmentation.cpp common/src/contains.cpp common/src/voronoi_random_field_features.cpp common/src/raycasting.cpp common/src/wavefront_region_growing.cpp common/src/clique_class.cpp common/src/room_class.cpp)
 target_link_libraries(segmentation_tester ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 add_dependencies(segmentation_tester ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 

@@ -118,7 +118,7 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 		std::cout << "room_segmentation/max_iterations = " << max_iterations_ << std::endl;
 		node_handle_.param("min_critical_point_distance_factor", min_critical_point_distance_factor_, 27.0);
 		std::cout << "room_segmentation/min_critical_point_distance_factor = " << min_critical_point_distance_factor_ << std::endl;
-		node_handle_.param("max_area_for_merging", max_area_for_merging_, 20.0);
+		node_handle_.param("max_area_for_merging", max_area_for_merging_, 12.5);
 		std::cout << "room_segmentation/max_area_for_merging = " << max_area_for_merging_ << std::endl;
 	}
 	if (room_segmentation_algorithm_ == 4) //set semantic parameters
@@ -150,6 +150,9 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 
 		node_handle_.param("max_voronoi_random_field_inference_iterations", max_voronoi_random_field_inference_iterations_, 9000);
 		std::cout << "room_segmentation/max_voronoi_random_field_inference_iterations = " << max_voronoi_random_field_inference_iterations_ << std::endl;
+
+		node_handle_.param("max_area_for_merging", max_area_for_merging_, 12.5);
+		std::cout << "room_segmentation/max_area_for_merging = " << max_area_for_merging_ << std::endl;
 	}
 
 	node_handle_.param("display_segmented_map", display_segmented_map_, false);
@@ -213,6 +216,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 			min_neighborhood_size_ = 5;
 			min_voronoi_random_field_node_distance_ = 7; // [pixel]
 			max_voronoi_random_field_inference_iterations_ = 9000;
+			max_area_for_merging_ = 12.5;
 			ROS_INFO("You have chosen the voronoi random field segmentation.");
 		}
 	}
@@ -347,7 +351,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 		vrf_segmentation.segmentMap(original_img, segmented_map, voronoi_random_field_epsilon_for_neighborhood_, max_iterations_,
 				min_neighborhood_size_, possible_labels, min_voronoi_random_field_node_distance_,
 				display_segmented_map_, conditional_weights_path, boost_file_path, max_voronoi_random_field_inference_iterations_,
-				map_resolution, room_lower_limit_voronoi_random_, room_upper_limit_voronoi_random_);
+				map_resolution, room_lower_limit_voronoi_random_, room_upper_limit_voronoi_random_, max_area_for_merging_);
 	}
 	else
 	{
