@@ -1033,6 +1033,32 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 	// define the mean-weights for the gaussian shrinking function
 	std::vector<double> mean_weights(number_of_classifiers_, 0);
 
+//	cv::Mat featuresMat(1, getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
+//	for (int f = 1; f <= getFeatureCount(); ++f)
+//		featuresMat.at<float>(0, f - 1) = (float) 1;
+//
+//	// Calculate the weak hypothesis by using the wanted classifier. The weak hypothesis is given by h_i(x) = w_i * f_i(x)
+//	CvMat features = featuresMat;
+//	cv::Mat weaker (1, number_of_classifiers_, CV_32F);
+//	CvMat weak_hypothesis = weaker;	// Wanted from OpenCV to get the weak hypothesis from the
+//									// separate weak classifiers.
+//
+//	// Get weights for room, hallway and doorway classifier.
+//	room_boost_.predict(&features, 0, &weak_hypothesis);
+//
+//	for(size_t f = 0; f < number_of_classifiers_; ++f)
+//		mean_weights[f] += (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
+//
+//	hallway_boost_.predict(&features, 0, &weak_hypothesis);
+//
+//	for(size_t f = 0; f < number_of_classifiers_; ++f)
+//		mean_weights[f] *= (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
+//
+//	doorway_boost_.predict(&features, 0, &weak_hypothesis);
+//
+//	for(size_t f = 0; f < number_of_classifiers_; ++f)
+//		mean_weights[f] *= (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
+
 	// find the best weights --> minimize the defined function for the pseudo-likelihood
 	std::cout << "finding weights using Dlib" << std::endl;
 	column_vector weight_results;
@@ -1763,6 +1789,9 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 			size_t distance = std::distance(conditional_field_nodes.begin(), i);
 			cv::circle(resulting_map, *i, 3, cv::Scalar(possible_labels[best_labels[distance]]), CV_FILLED);
 		}
+
+		cv::imshow("node-map", resulting_map);
+//		cv::waitKey();
 	}
 	std::cout << "complete Potential: " << belief_propagation.value() << std::endl;
 
@@ -1798,16 +1827,16 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 		// find index of point
 		size_t distance = std::distance(conditional_field_nodes.begin(), node);
 
-		// set inital points and values for the basis points so the distance comparison can be done
+		// set initial points and values for the basis points so the distance comparison can be done
 		cv::Point basis_point_1 = map_contours[0][0];
 		cv::Point basis_point_2 = map_contours[0][1];
 
-		// inital values of the first vector from the current critical point to the contour points and for the squared distance of it
+		// initial values of the first vector from the current critical point to the contour points and for the squared distance of it
 		double vector_x_1 = node->x - map_contours[0][0].x;
 		double vector_y_1 = node->y - map_contours[0][0].y;
 		double distance_basis_square_1 = vector_x_1*vector_x_1 + vector_y_1*vector_y_1;
 
-		// inital values of the second vector from the current critical point to the contour points and for the squared distance of it
+		// initial values of the second vector from the current critical point to the contour points and for the squared distance of it
 		double vector_x_2 = node->x - map_contours[0][1].x;
 		double vector_y_2 = node->y - map_contours[0][1].y;
 		double distance_basis_square_2 = vector_x_2*vector_x_2 + vector_y_2*vector_y_2;
@@ -1863,8 +1892,8 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 		if(best_labels[distance] == 2)
 		{
 			// draw a line from the node to the two basis points
-			cv::line(map_copy, *node, basis_point_1, 0, 3);
-			cv::line(map_copy, *node, basis_point_2, 0, 3);
+			cv::line(map_copy, *node, basis_point_1, 0, 2);
+			cv::line(map_copy, *node, basis_point_2, 0, 2);
 		}
 		else
 		{
@@ -1872,6 +1901,12 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 			cv::line(map_copy, *node, basis_point_1, possible_labels[best_labels[distance]], 2);
 			cv::line(map_copy, *node, basis_point_2, possible_labels[best_labels[distance]], 2);
 		}
+	}
+
+	if(show_results == true)
+	{
+		cv::imshow("intersected map", map_copy);
+//		cv::waitKey();
 	}
 
 	std::cout << "drawn all segments. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
@@ -1979,9 +2014,9 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 	//	  create very small segments in the last step, tha don't make very much sense.
 	timer.start();
 
-	mergeRooms(segmented_map, rooms, map_resolution_from_subscription, max_area_for_merging, show_results);
+	mergeRooms(segmented_map, rooms, map_resolution_from_subscription, max_area_for_merging, false);
 
-	std::cout << "merged room together. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
+	std::cout << "merged rooms together. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 
 	if(show_results == true)
 	{
@@ -2004,56 +2039,86 @@ void VoronoiRandomFieldSegmentation::testFunc(std::string crf_storage_path, std:
 	std::string filename_room = boost_storage_path + "voronoi_room_boost.xml";
 	std::string filename_hallway = boost_storage_path + "voronoi_hallway_boost.xml";
 	std::string filename_doorway = boost_storage_path + "voronoi_doorway_boost.xml";
-
-	room_boost_.save(filename_room.c_str(), "boost");
-	hallway_boost_.save(filename_hallway.c_str(), "boost");
-	doorway_boost_.save(filename_doorway.c_str(), "boost");
-
-	std::ofstream output_file(crf_storage_path.c_str(), std::ios::out);
-	if (output_file.is_open()==true)
-	{
-		for(size_t weight = 0; weight < trained_conditional_weights_.size(); ++ weight)
-		{
-			output_file << trained_conditional_weights_[weight] << std::endl;
-		}
-	}
-	output_file.close();
-
-
-//	if(trained_boost_ == false)
-//	{
-//		// load the AdaBoost-classifiers
-//		room_boost_.load(filename_room.c_str());
-//		hallway_boost_.load(filename_hallway.c_str());
-//		doorway_boost_.load(filename_doorway.c_str());
 //
-//		// set the trained-Boolean true to only load parameters once
-//		trained_boost_ = true;
-//	}
+//	room_boost_.save(filename_room.c_str(), "boost");
+//	hallway_boost_.save(filename_hallway.c_str(), "boost");
+//	doorway_boost_.save(filename_doorway.c_str(), "boost");
 //
-//	if(trained_conditional_field_ == false)
+//	std::ofstream output_file(crf_storage_path.c_str(), std::ios::out);
+//	if (output_file.is_open()==true)
 //	{
-//		// load the weights out of the file
-//		std::ifstream input_file(crf_storage_path.c_str());
-//		std::string line;
-//		double value;
-//		if (input_file.is_open())
+//		for(size_t weight = 0; weight < trained_conditional_weights_.size(); ++ weight)
 //		{
-//			while (getline(input_file, line))
-//			{
-//				std::istringstream iss(line);
-//				while (iss >> value)
-//				{
-//					trained_conditional_weights_.push_back(value);
-//				}
-//			}
-//			input_file.close();
+//			output_file << trained_conditional_weights_[weight] << std::endl;
 //		}
-//
-//		// set the trained-Boolean to true so the weights only get read in once
-//		trained_conditional_field_ = true;
 //	}
+//	output_file.close();
 
-	std::cout << "saved files" << std::endl;
+
+	if(trained_boost_ == false)
+	{
+		// load the AdaBoost-classifiers
+		room_boost_.load(filename_room.c_str());
+		hallway_boost_.load(filename_hallway.c_str());
+		doorway_boost_.load(filename_doorway.c_str());
+
+		// set the trained-Boolean true to only load parameters once
+		trained_boost_ = true;
+	}
+
+	if(trained_conditional_field_ == false)
+	{
+		// load the weights out of the file
+		std::ifstream input_file(crf_storage_path.c_str());
+		std::string line;
+		double value;
+		if (input_file.is_open())
+		{
+			while (getline(input_file, line))
+			{
+				std::istringstream iss(line);
+				while (iss >> value)
+				{
+					trained_conditional_weights_.push_back(value);
+				}
+			}
+			input_file.close();
+		}
+
+		// set the trained-Boolean to true so the weights only get read in once
+		trained_conditional_field_ = true;
+	}
+
+	std::cout << "reading weights: " << std::endl;
+
+	cv::Mat featuresMat(1, getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
+	for (int f = 1; f <= getFeatureCount(); ++f)
+	{
+		//get the features for each room and put it in the featuresMat
+		featuresMat.at<float>(0, f - 1) = (float) 1;
+	}
+
+	// Calculate the weak hypothesis by using the wanted classifier.
+	CvMat features = featuresMat;
+	cv::Mat weaker (1, number_of_classifiers_, CV_32F);
+	CvMat weak_hypothesis = weaker;	// Wanted from OpenCV to get the weak hypothesis from the
+									// separate weak classifiers.
+
+	// For each point the classifier depends on the given label. If the point is labeled as a room the room-boost should be
+	// used and so on.
+	room_boost_.predict(&features, 0, &weak_hypothesis);
+
+	for(size_t f = 0; f < number_of_classifiers_; ++f)
+	{
+		std::cout << (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f) << std::endl;
+	}
+
+//	std::cout << "cols: " << weights.cols << " rows: " << weights.rows << std::endl;
+
+//	for(size_t i = 0; i < weights->cols; ++i)
+//		for(size_t j = 0; j < weights->rows; ++j)
+//			std::cout << (double) CV_MAT_ELEM(*weights, float, i, j) << std::endl;
+
+	std::cout << "loaded files" << std::endl;
 }
 

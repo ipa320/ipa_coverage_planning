@@ -5,7 +5,7 @@
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
 
-#include <ros/package.h> // TODO: put everything in the segmentation_server
+#include <ros/package.h>
 
 
 int main()
@@ -15,10 +15,10 @@ int main()
 
 	std::vector<std::string> map_names;
 	map_names.push_back("lab_ipa.png");
-	map_names.push_back("Freiburg79_scan.png");
 	map_names.push_back("Freiburg52_scan.png");
-	map_names.push_back("office_b_furnitures.png");
-	map_names.push_back("lab_c_scan_furnitures.png");
+	map_names.push_back("Freiburg79_scan.png");
+	map_names.push_back("lab_b_scan.png");
+	map_names.push_back("intel_fox.png");
 	map_names.push_back("lab_f_scan.png");
 
 	std::vector<cv::Mat> maps(6);
@@ -31,7 +31,7 @@ int main()
 		{
 			for(unsigned int v = 0; v < map.cols; ++v)
 			{
-				if(map.at<unsigned char>(u,v) < 250)
+				if(map.at<unsigned char>(u,v) < 240)
 				{
 					map.at<unsigned char>(u,v) = 0;
 				}
@@ -143,9 +143,16 @@ int main()
 
 	VoronoiRandomFieldSegmentation segmenter(false, false);
 
-	segmenter.segmentMap(maps[2], maps[2], 7, 50, 5, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_, 12.5);
-	cv::imshow("res", maps[2]);
-	cv::waitKey();
+	segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
+
+	for(size_t i = 0; i <= 3; ++i)
+	{
+		segmenter.segmentMap(maps[i], maps[i], 7, 50, 5, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_, 12.5);
+//		cv::imshow("res", maps[i]);
+//		cv::waitKey();
+	}
+
+//	segmenter.testFunc(conditional_weights_path, boost_file_path);
 //
 //	// Do several training steps and segment different maps to find the best training-result. This is done by checking the complete
 //	// crf-potentials.
