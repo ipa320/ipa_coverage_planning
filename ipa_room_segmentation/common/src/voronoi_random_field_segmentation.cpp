@@ -1466,7 +1466,6 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 	std::cout << "creating voronoi graph" << std::endl;
 	Timer timer; // variable to measure computation-time
 	createPrunedVoronoiGraph(voronoi_map, node_points);
-	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/voronoi_map.png", voronoi_map);
 	std::cout << "created graph. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 
 	// ************* II. Extract the nodes used for the conditional random field *************
@@ -1587,14 +1586,14 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 	if(show_results == true)
 	{
 		cv::cvtColor(node_map, node_map, CV_GRAY2BGR);
-		for(std::set<cv::Point, cv_Point_comp>::iterator node = node_points.begin(); node != node_points.end(); ++node)
+		for(std::set<cv::Point, cv_Point_comp>::iterator node = conditional_field_nodes.begin(); node != conditional_field_nodes.end(); ++node)
 		{
 			cv::circle(node_map, *node, 0, cv::Scalar(250,0,0), CV_FILLED);
 		}
 
-//		cv::imshow("nodes of the conditional random field", node_map);
+		cv::imshow("nodes of the conditional random field", node_map);
 //		cv::waitKey();
-		cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/node_map.png", node_map);
+//		cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/node_map.png", node_map);
 	}
 
 	// ************* III. Construct the Conditional Random Field from the found nodes *************
