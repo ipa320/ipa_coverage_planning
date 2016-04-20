@@ -18,7 +18,7 @@ int main()
 	map_names.push_back("Freiburg52_scan.png");
 	map_names.push_back("Freiburg79_scan.png");
 	map_names.push_back("lab_b_scan.png");
-	map_names.push_back("intel_fox.png");
+	map_names.push_back("office_h.png");
 	map_names.push_back("lab_f_scan.png");
 
 	std::vector<cv::Mat> maps(6);
@@ -74,8 +74,8 @@ int main()
 	training_maps.push_back(training_map);
 	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_lab_ipa.png", 0);
 	training_maps.push_back(training_map);
-//	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_NLB_furniture.png", 0);
-//	training_maps.push_back(training_map);
+	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_NLB_furniture.png", 0);
+	training_maps.push_back(training_map);
 	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_office_e.png", 0);
 	training_maps.push_back(training_map);
 	// load the voronoi maps
@@ -90,8 +90,8 @@ int main()
 	voronoi_maps.push_back(training_map);
 	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/lab_ipa_voronoi.png", 0);
 	voronoi_maps.push_back(training_map);
-//	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/NLB_voronoi.png", 0);
-//	voronoi_maps.push_back(training_map);
+	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/NLB_voronoi.png", 0);
+	voronoi_maps.push_back(training_map);
 	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/office_e_voronoi.png", 0);
 	voronoi_maps.push_back(training_map);
 	// load the voronoi-nodes maps
@@ -106,25 +106,25 @@ int main()
 	voronoi_node_maps.push_back(training_map);
 	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/lab_ipa_voronoi_nodes.png", 0);
 	voronoi_node_maps.push_back(training_map);
-//	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/NLB_voronoi_nodes.png", 0);
-//	voronoi_node_maps.push_back(training_map);
+	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/NLB_voronoi_nodes.png", 0);
+	voronoi_node_maps.push_back(training_map);
 	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/office_e_voronoi_nodes.png", 0);
 	voronoi_node_maps.push_back(training_map);
 	// load the original maps
 	std::vector<cv::Mat> original_maps;
-	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/Fr52_voronoi_nodes.png", 0);
+	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/Fr52_original.png", 0);
 	original_maps.push_back(training_map);
-	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/Fr101_voronoi_nodes.png", 0);
+	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/Fr101_original.png", 0);
 	original_maps.push_back(training_map);
-	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_intel_voronoi_nodes.png", 0);
+	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_intel_original.png", 0);
 	original_maps.push_back(training_map);
-	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_d_furnitures_voronoi_nodes.png", 0);
+	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_d_furnitures_original.png", 0);
 	original_maps.push_back(training_map);
-	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_ipa_voronoi_nodes.png", 0);
+	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_ipa_original.png", 0);
 	original_maps.push_back(training_map);
-//	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/NLB_voronoi_nodes.png", 0);
-//	original_maps.push_back(training_map);
-	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/office_e_voronoi_nodes.png", 0);
+	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/NLB_original.png", 0);
+	original_maps.push_back(training_map);
+	training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/office_e_original.png", 0);
 	original_maps.push_back(training_map);
 
 	std::cout << training_maps.size() << " " << voronoi_maps.size() << " " << voronoi_node_maps.size() << " " << original_maps.size() << std::endl;
@@ -145,7 +145,7 @@ int main()
 
 	segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
 
-	for(size_t i = 0; i <= 3; ++i)
+	for(size_t i = 0; i <= 4; ++i)
 	{
 		segmenter.segmentMap(maps[i], maps[i], 7, 50, 5, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_, 12.5);
 //		cv::imshow("res", maps[i]);
