@@ -12,6 +12,8 @@
 #include <ctime>
 #include <stdlib.h>
 
+#include <ipa_room_segmentation/features.h>
+#include <ipa_room_segmentation/raycasting.h>
 
 class AdaboostClassifier
 {
@@ -24,6 +26,8 @@ protected:
 	CvBoostParams params_; // Parameters for the classifiers
 
 	CvBoost hallway_boost_, room_boost_; // the AdaBoost-classifiers for rooms and hallways
+
+	LaserScannerRaycasting raycasting_;
 
 public:
 

@@ -716,7 +716,7 @@ void VoronoiRandomFieldSegmentation::createConditionalField(const cv::Mat& voron
 
 		for(size_t member = 0; member < clique_members.size(); ++member)
 		{
-			laser_beams[member] = raycasting(original_map, cv::Point(clique_members[member].y, clique_members[member].x));
+			raycasting_.raycasting(original_map, cv::Point(clique_members[member].x, clique_members[member].y), laser_beams[member]);
 		}
 
 		conditional_random_field_cliques.back().setBeamsForMembers(laser_beams);

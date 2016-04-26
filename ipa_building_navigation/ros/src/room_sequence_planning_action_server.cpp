@@ -232,46 +232,44 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		}
 
 		if(goal->return_sequence_map == true)
+		{
+			cv::cvtColor(floor_plan, display, CV_GRAY2BGR);
+
+			for (size_t t=0; t<trolley_positions.size(); ++t)
+			{
+				// trolley positions + connections
+				if (t>0)
 				{
-					cv::cvtColor(floor_plan, display, CV_GRAY2BGR);
+					cv::circle(display, trolley_positions[t], 5, CV_RGB(0,0,255), CV_FILLED);
+					cv::line(display, trolley_positions[t], trolley_positions[t-1], CV_RGB(128,128,255), 1);
+				}
+				else
+				{
+					cv::circle(display, trolley_positions[t], 5, CV_RGB(255,0,0), CV_FILLED);
+				}
 
-					for (size_t t=0; t<trolley_positions.size(); ++t)
+				// room positions and connections
+				for (size_t r=0; r<cliques[t].size(); ++r)
+				{
+					cv::circle(display, room_cliques_as_points[t][r], 3, CV_RGB(0,255,0), CV_FILLED);
+					if (r==0)
+						cv::line(display, trolley_positions[t], room_cliques_as_points[t][r], CV_RGB(255,0,0), 1);
+					else
 					{
-						// trolley positions + connections
-						if (t>0)
-						{
-							cv::circle(display, trolley_positions[t], 5, CV_RGB(0,0,255), CV_FILLED);
-							cv::line(display, trolley_positions[t], trolley_positions[t-1], CV_RGB(128,128,255), 1);
-						}
-						else
-						{
-							cv::circle(display, trolley_positions[t], 5, CV_RGB(255,0,0), CV_FILLED);
-						}
-
-						// room positions and connections
-						for (size_t r=0; r<cliques[t].size(); ++r)
-						{
-							cv::circle(display, room_cliques_as_points[t][r], 3, CV_RGB(0,255,0), CV_FILLED);
-							if (r==0)
-								cv::line(display, trolley_positions[t], room_cliques_as_points[t][r], CV_RGB(255,0,0), 1);
-							else
-							{
-								if(r==cliques[t].size()-1)
-									cv::line(display, room_cliques_as_points[t][r], trolley_positions[t], CV_RGB(255,0,255), 1);
-								cv::line(display, room_cliques_as_points[t][r-1], room_cliques_as_points[t][r], CV_RGB(128,255,128), 1);
-							}
-						}
+						if(r==cliques[t].size()-1)
+							cv::line(display, room_cliques_as_points[t][r], trolley_positions[t], CV_RGB(255,0,255), 1);
+						cv::line(display, room_cliques_as_points[t][r-1], room_cliques_as_points[t][r], CV_RGB(128,255,128), 1);
 					}
 				}
-				// display
-				if (display_map_ == true && goal->return_sequence_map == true)
-				{
-					cv::imshow("sequence planning", display);
-					cv::waitKey();
-				}
-
+			}
+		}
+		// display
+		if (display_map_ == true && goal->return_sequence_map == true)
+		{
+			cv::imshow("sequence planning", display);
+			cv::waitKey();
+		}
 	}
-
 	else if(planning_method_ == 2) //calculate roomgroups and corresponding trolley positions
 	{
 		std::cout << "Maximal cliquedistance [m]: "<< goal->max_clique_path_length  << " Maximal cliquedistance [Pixel]: "<< goal->max_clique_path_length/goal->map_resolution << std::endl;
@@ -392,7 +390,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 			{
 				// trolley positions + connections
 				const int ot = optimal_trolley_sequence[t];
-				std::cout << "starting to draw one clique. Position: " << trolley_positions[ot] << std::endl;
+				//std::cout << "starting to draw one clique. Position: " << trolley_positions[ot] << std::endl;
 				if (t>0)
 				{
 					cv::circle(display, trolley_positions[ot], 5, CV_RGB(0,0,255), CV_FILLED);
@@ -416,7 +414,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 						cv::line(display, room_cliques_as_points[ot][optimal_room_sequences[ot][r-1]], room_cliques_as_points[ot][optimal_room_sequences[ot][r]], CV_RGB(128,255,128), 1);
 					}
 				}
-				std::cout << "finished to draw one clique" << std::endl;
+				//std::cout << "finished to draw one clique" << std::endl;
 			}
 		}
 		// display
@@ -425,6 +423,20 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 			cv::imshow("sequence planning", display);
 			cv::waitKey();
 		}
+
+		// reorder cliques, trolley positions and rooms into optimal order
+		std::vector<std::vector<int> > new_cliques_order(cliques.size());
+		std::vector<cv::Point> new_trolley_positions(trolley_positions.size());
+		for (size_t i=0; i<optimal_trolley_sequence.size(); ++i)
+		{
+			const int oi = optimal_trolley_sequence[i];
+			new_trolley_positions[i] = trolley_positions[oi];
+			new_cliques_order[i].resize(optimal_room_sequences[oi].size());
+			for (size_t j=0; j<optimal_room_sequences[oi].size(); ++j)
+				new_cliques_order[i][j] = cliques[oi][optimal_room_sequences[oi][j]];
+		}
+		cliques = new_cliques_order;
+		trolley_positions = new_trolley_positions;
 	}
 	else
 	{
