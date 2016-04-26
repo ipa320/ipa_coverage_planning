@@ -397,6 +397,8 @@ int segmentationNameToNumber(const std::string name)
 		return 3;
 	else if (name.compare("4semantic") == 0)
 		return 4;
+	else if (name.compare("5vrf") == 0)
+		return 5;
 	return 1;
 }
 
@@ -411,10 +413,11 @@ int main(int argc, char **argv) {
 	double map_resolution = 0.0500;
 
 	std::vector<std::string> segmentation_names;
-	segmentation_names.push_back("1morphological");
-	segmentation_names.push_back("2distance");
-	segmentation_names.push_back("3voronoi");
-	segmentation_names.push_back("4semantic");
+//	segmentation_names.push_back("1morphological");
+//	segmentation_names.push_back("2distance");
+//	segmentation_names.push_back("3voronoi");
+//	segmentation_names.push_back("4semantic");
+	segmentation_names.push_back("5vrf");
 
 //	std::string map_name = "NLB";
 ////		"lab_ipa" //done

@@ -1898,8 +1898,8 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 		else
 		{
 			// draw a line from the node to the two basis points
-			cv::line(map_copy, *node, basis_point_1, possible_labels[best_labels[distance]], 2);
-			cv::line(map_copy, *node, basis_point_2, possible_labels[best_labels[distance]], 2);
+			cv::line(map_copy, *node, basis_point_1, possible_labels[best_labels[distance]], 1);
+			cv::line(map_copy, *node, basis_point_2, possible_labels[best_labels[distance]], 1);
 		}
 	}
 
