@@ -738,10 +738,11 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 
 	// vectors that store the given labels and features for each point (order: room-hallway-doorway)
 	std::vector< std::vector<float> > labels_for_classes(number_of_classes_);
-	std::vector< std::vector<float> > features_for_points;
+	std::vector< std::vector<double> > features_for_points;
 
 	// go trough each found clique and take the first point of the clique as current point
 	//	--> each possible point is only once the first (central) point of a clique
+	voronoiRandomFieldFeatures vrf_feature_computer;
 	for(size_t map = 0; map < training_maps.size(); ++map)
 	{
 		cv::Mat current_map = training_maps[map];
@@ -765,14 +766,9 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 			std::vector<double> current_beams = current_clique->getBeams()[0];
 
 			// get the feature for the current point and store it in the global vector
-			std::vector<float> current_features(getFeatureCount());
+			std::vector<double> current_features;
 
-			for(int f = 1; f <= getFeatureCount(); ++f)
-			{
-				current_features[f-1] = getFeature(current_beams, angles_for_simulation_, current_clique_members, current_labels_for_points, possible_labels, current_point, f);
-				if(current_features[f-1] > 10e6)
-					std::cout << current_features[f-1] << " feature: " << f;
-			}
+			vrf_feature_computer.getFeatures(current_beams, angles_for_simulation_, current_clique_members, current_labels_for_points, possible_labels, current_point, current_features);
 			features_for_points.push_back(current_features);
 
 			// get the labels-vector for each class
@@ -794,14 +790,16 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 	//*************room***************
 	//save the found labels and features in Matrices
 	cv::Mat room_labels_Mat(labels_for_classes[0].size(), 1, CV_32FC1);
-	cv::Mat features_Mat(features_for_points.size(), getFeatureCount(), CV_32FC1);
+	cv::Mat features_Mat(features_for_points.size(), vrf_feature_computer.getFeatureCount(), CV_32FC1);
 	for (int i = 0; i < labels_for_classes[0].size(); i++)
 	{
 		room_labels_Mat.at<float>(i, 0) = labels_for_classes[0][i];
-		for (int f = 0; f < getFeatureCount(); f++)
+		for (int f = 0; f < vrf_feature_computer.getFeatureCount(); f++)
 		{
+//			std::cout << "f" << f << ": " << (float) features_for_points[i][f] << std::endl;
 			features_Mat.at<float>(i, f) = (float) features_for_points[i][f];
 		}
+//		std::cout << std::endl;
 	}
 	// Train a boost classifier
 	room_boost_.train(features_Mat, CV_ROW_SAMPLE, room_labels_Mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
@@ -873,12 +871,18 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 		}
 
 		// get the features for the central point of the clique
-		cv::Mat featuresMat(1, getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
-		for (int f = 1; f <= getFeatureCount(); ++f)
+		voronoiRandomFieldFeatures vrf_feature_computer;
+		cv::Mat featuresMat(1, vrf_feature_computer.getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
+		std::vector<double> current_features;
+		vrf_feature_computer.getFeatures(beams_for_points[point], angles_for_simulation_, clique_members, given_labels, possible_labels, clique_members[point], current_features);
+
+		for (int f = 1; f <= vrf_feature_computer.getFeatureCount(); ++f)
 		{
 			//get the features for each room and put it in the featuresMat
-			featuresMat.at<float>(0, f - 1) = (float) getFeature(beams_for_points[point], angles_for_simulation_, clique_members, given_labels, possible_labels, clique_members[point], f);
+//			std::cout << "f" << f << ": " << (float) current_features[f-1] << std::endl;
+			featuresMat.at<float>(0, f - 1) = (float) current_features[f-1];
 		}
+//		std::cout << std::endl;
 
 		// Calculate the weak hypothesis by using the wanted classifier.
 		CvMat features = featuresMat;
@@ -1033,8 +1037,9 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 	// define the mean-weights for the gaussian shrinking function
 	std::vector<double> mean_weights(number_of_classifiers_, 0);
 
-//	cv::Mat featuresMat(1, getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
-//	for (int f = 1; f <= getFeatureCount(); ++f)
+//	voronoiRandomFieldFeatures vrf_features;
+//	cv::Mat featuresMat(1, vrf_features.getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
+//	for (int f = 1; f <= vrf_features.getFeatureCount(); ++f)
 //		featuresMat.at<float>(0, f - 1) = (float) 1;
 //
 //	// Calculate the weak hypothesis by using the wanted classifier. The weak hypothesis is given by h_i(x) = w_i * f_i(x)
@@ -1342,8 +1347,8 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_o
 	// create a column vector as starting search point, that is needed from Dlib to find the min. value of a function
 	column_vector starting_point(number_of_weights);
 
-	// initialize the starting point as zero to favour small weights
-	starting_point = 1e-1;
+	// initialize the starting point as zero to favor small weights
+	starting_point = 1e-2;
 
 	// create a Likelihood-optimizer object to find the weights that maximize the pseudo-likelihood
 	pseudoLikelihoodOptimization minimizer;
@@ -1356,8 +1361,10 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_o
 	minimizer.starting_weights = starting_weights;
 
 
+	std::cout << "starting values: " << std::endl << minimizer(starting_point) << std::endl;
+
 	// find the best weights for the given parameters
-	dlib::find_min_using_approximate_derivatives(dlib::bfgs_search_strategy(), dlib::objective_delta_stop_strategy(1e-7), minimizer, starting_point, -1, 1e-9);
+	dlib::find_min_using_approximate_derivatives(dlib::bfgs_search_strategy(), dlib::objective_delta_stop_strategy(1e-7), minimizer, starting_point, -1, 1e-11);
 
 	return starting_point;
 }
@@ -2091,27 +2098,27 @@ void VoronoiRandomFieldSegmentation::testFunc(std::string crf_storage_path, std:
 
 	std::cout << "reading weights: " << std::endl;
 
-	cv::Mat featuresMat(1, getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
-	for (int f = 1; f <= getFeatureCount(); ++f)
-	{
-		//get the features for each room and put it in the featuresMat
-		featuresMat.at<float>(0, f - 1) = (float) 1;
-	}
-
-	// Calculate the weak hypothesis by using the wanted classifier.
-	CvMat features = featuresMat;
-	cv::Mat weaker (1, number_of_classifiers_, CV_32F);
-	CvMat weak_hypothesis = weaker;	// Wanted from OpenCV to get the weak hypothesis from the
-									// separate weak classifiers.
-
-	// For each point the classifier depends on the given label. If the point is labeled as a room the room-boost should be
-	// used and so on.
-	room_boost_.predict(&features, 0, &weak_hypothesis);
-
-	for(size_t f = 0; f < number_of_classifiers_; ++f)
-	{
-		std::cout << (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f) << std::endl;
-	}
+//	cv::Mat featuresMat(1, getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
+//	for (int f = 1; f <= getFeatureCount(); ++f)
+//	{
+//		//get the features for each room and put it in the featuresMat
+//		featuresMat.at<float>(0, f - 1) = (float) 1;
+//	}
+//
+//	// Calculate the weak hypothesis by using the wanted classifier.
+//	CvMat features = featuresMat;
+//	cv::Mat weaker (1, number_of_classifiers_, CV_32F);
+//	CvMat weak_hypothesis = weaker;	// Wanted from OpenCV to get the weak hypothesis from the
+//									// separate weak classifiers.
+//
+//	// For each point the classifier depends on the given label. If the point is labeled as a room the room-boost should be
+//	// used and so on.
+//	room_boost_.predict(&features, 0, &weak_hypothesis);
+//
+//	for(size_t f = 0; f < number_of_classifiers_; ++f)
+//	{
+//		std::cout << (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f) << std::endl;
+//	}
 
 //	std::cout << "cols: " << weights.cols << " rows: " << weights.rows << std::endl;
 
