@@ -222,6 +222,50 @@ bool VoronoiRandomFieldSegmentation::pointMoreFarAway(const std::set<cv::Point, 
 	return true;
 }
 
+std::vector<double> VoronoiRandomFieldSegmentation::raycasting(const cv::Mat& map, const cv::Point& location)
+{
+//	cv::Mat test_map = map.clone();
+	//Raycasting Algorithm. It simulates the laser measurment at the given location and returns the lengths
+	//of the simulated beams
+	double simulated_x, simulated_y, simulated_cos, simulated_sin;
+	double temporary_distance;
+	std::vector<double> distances(360, 0);
+	double delta_x, delta_y;
+	double pi_to_rad = PI / 180;
+	for (double angle = 0; angle < 360; angle++)
+	{
+		simulated_cos = std::cos(angle * pi_to_rad);
+		simulated_sin = std::sin(angle * pi_to_rad);
+		temporary_distance = 90000001;
+		for (double distance = 0; distance < 1000000; ++distance)
+		{
+			simulated_x = simulated_cos * distance;
+			simulated_y = simulated_sin * distance;
+			//make sure the simulated Point isn't out of the boundaries of the map
+			if (location.x + simulated_x > 0 && location.x + simulated_x < map.rows && location.y + simulated_y > 0 && location.y + simulated_y < map.cols)
+			{
+				if (map.at<unsigned char>(location.x + simulated_x, location.y + simulated_y) == 0 && distance < temporary_distance)
+				{
+					temporary_distance = distance;
+//					cv::line(test_map, cv::Point(location.y, location.x), cv::Point(location.y + simulated_y, location.x + simulated_x), cv::Scalar(127), 1);
+					break;
+				}
+			}
+		}
+		if (temporary_distance > 90000000)
+		{
+			temporary_distance = 10;
+		}
+		distances[angle] = temporary_distance;
+	}
+
+//	cv::circle(test_map, cv::Point(location.y, location.x), 3, cv::Scalar(50), CV_FILLED);
+//	cv::imshow("simulated angles", test_map);
+//	cv::waitKey(5000);
+
+	return distances;
+}
+
 // This function takes a vector of rooms and an index in this vector and returns the ID of this room, meaning the color it has
 // been drawn in the map.
 bool VoronoiRandomFieldSegmentation::determineRoomIndexFromRoomID(const std::vector<Room>& rooms, const int room_id, size_t& room_index)
@@ -716,24 +760,10 @@ void VoronoiRandomFieldSegmentation::createConditionalField(const cv::Mat& voron
 
 		for(size_t member = 0; member < clique_members.size(); ++member)
 		{
-//			std::vector<double> current_beams;
-//			raycasting_.raycasting(original_map, cv::Point(clique_members[member].x, clique_members[member].y), current_beams);
-//			laser_beams[member] = current_beams;
-
-//			current_beams = raycasting(original_map, cv::Point(clique_members[member].x, clique_members[member].y));
-			laser_beams[member] = raycasting(original_map, cv::Point(clique_members[member].x, clique_members[member].y));
-			std::cout << "raycasted" << std::endl;
-
-//			for(size_t i = 0; i < current_beams.size(); ++i)
-//			{
-//				double dif = current_beams[i] - laser_beams[member][i];
-//				if(dif != 0)
-//					std::cout << "dif laserbeams: " << dif << std::endl;
-//			}
+			laser_beams[member] = raycasting(original_map, cv::Point(clique_members[member].y, clique_members[member].x));
 		}
 
 		conditional_random_field_cliques.back().setBeamsForMembers(laser_beams);
-		std::cout << "set beams for one clique" << std::endl;
 	}
 }
 

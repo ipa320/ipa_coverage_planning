@@ -929,7 +929,7 @@ double voronoiRandomFieldFeatures::calcFeature25(std::vector<unsigned int>& poss
 	label_mapping[possible_labels[0] + possible_labels[0]] = 10; // room-room
 	label_mapping[possible_labels[0] + possible_labels[1]] = -10; // room-hallway
 	label_mapping[possible_labels[0] + possible_labels[2]] = 5; // room-doorway
-	label_mapping[possible_labels[1] + possible_labels[1]] = 13; // hallway-hallway
+	label_mapping[possible_labels[1] + possible_labels[1]] = 10; // hallway-hallway
 	label_mapping[possible_labels[1] + possible_labels[2]] = 5; // hallway-doorway
 	label_mapping[possible_labels[2] + possible_labels[2]] = 10; // doorway-doorway
 

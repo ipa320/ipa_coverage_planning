@@ -180,6 +180,8 @@ protected:
 	// Function to check if the given point is more far away from each point in the given set than the min_distance.
 	bool pointMoreFarAway(const std::set<cv::Point, cv_Point_comp>& points, const cv::Point& point, const double min_distance);
 
+	std::vector<double> raycasting(const cv::Mat& map, const cv::Point& location);
+
 	// Function to get the ID of a room, when given an index in the storing vector.
 	bool determineRoomIndexFromRoomID(const std::vector<Room>& rooms, const int room_id, size_t& room_index);
 

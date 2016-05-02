@@ -25,5 +25,3 @@ private:
 	std::vector<double> precomputed_cos_;
 	std::vector<double> precomputed_sin_;
 };
-
-std::vector<double> raycasting(const cv::Mat& map, const cv::Point& location);
