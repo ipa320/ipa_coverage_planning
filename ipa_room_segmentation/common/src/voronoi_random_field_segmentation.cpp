@@ -716,10 +716,24 @@ void VoronoiRandomFieldSegmentation::createConditionalField(const cv::Mat& voron
 
 		for(size_t member = 0; member < clique_members.size(); ++member)
 		{
-			raycasting_.raycasting(original_map, cv::Point(clique_members[member].x, clique_members[member].y), laser_beams[member]);
+//			std::vector<double> current_beams;
+//			raycasting_.raycasting(original_map, cv::Point(clique_members[member].x, clique_members[member].y), current_beams);
+//			laser_beams[member] = current_beams;
+
+//			current_beams = raycasting(original_map, cv::Point(clique_members[member].x, clique_members[member].y));
+			laser_beams[member] = raycasting(original_map, cv::Point(clique_members[member].x, clique_members[member].y));
+			std::cout << "raycasted" << std::endl;
+
+//			for(size_t i = 0; i < current_beams.size(); ++i)
+//			{
+//				double dif = current_beams[i] - laser_beams[member][i];
+//				if(dif != 0)
+//					std::cout << "dif laserbeams: " << dif << std::endl;
+//			}
 		}
 
 		conditional_random_field_cliques.back().setBeamsForMembers(laser_beams);
+		std::cout << "set beams for one clique" << std::endl;
 	}
 }
 
@@ -1037,32 +1051,32 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 	// define the mean-weights for the gaussian shrinking function
 	std::vector<double> mean_weights(number_of_classifiers_, 0);
 
-//	voronoiRandomFieldFeatures vrf_features;
-//	cv::Mat featuresMat(1, vrf_features.getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
-//	for (int f = 1; f <= vrf_features.getFeatureCount(); ++f)
-//		featuresMat.at<float>(0, f - 1) = (float) 1;
-//
-//	// Calculate the weak hypothesis by using the wanted classifier. The weak hypothesis is given by h_i(x) = w_i * f_i(x)
-//	CvMat features = featuresMat;
-//	cv::Mat weaker (1, number_of_classifiers_, CV_32F);
-//	CvMat weak_hypothesis = weaker;	// Wanted from OpenCV to get the weak hypothesis from the
-//									// separate weak classifiers.
-//
-//	// Get weights for room, hallway and doorway classifier.
-//	room_boost_.predict(&features, 0, &weak_hypothesis);
-//
-//	for(size_t f = 0; f < number_of_classifiers_; ++f)
-//		mean_weights[f] += (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
-//
-//	hallway_boost_.predict(&features, 0, &weak_hypothesis);
-//
-//	for(size_t f = 0; f < number_of_classifiers_; ++f)
-//		mean_weights[f] *= (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
-//
-//	doorway_boost_.predict(&features, 0, &weak_hypothesis);
-//
-//	for(size_t f = 0; f < number_of_classifiers_; ++f)
-//		mean_weights[f] *= (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
+	voronoiRandomFieldFeatures vrf_features;
+	cv::Mat featuresMat(1, vrf_features.getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
+	for (int f = 1; f <= vrf_features.getFeatureCount(); ++f)
+		featuresMat.at<float>(0, f - 1) = (float) 1;
+
+	// Calculate the weak hypothesis by using the wanted classifier. The weak hypothesis is given by h_i(x) = w_i * f_i(x)
+	CvMat features = featuresMat;
+	cv::Mat weaker (1, number_of_classifiers_, CV_32F);
+	CvMat weak_hypothesis = weaker;	// Wanted from OpenCV to get the weak hypothesis from the
+									// separate weak classifiers.
+
+	// Get weights for room, hallway and doorway classifier.
+	room_boost_.predict(&features, 0, &weak_hypothesis);
+
+	for(size_t f = 0; f < number_of_classifiers_; ++f)
+		mean_weights[f] += (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
+
+	hallway_boost_.predict(&features, 0, &weak_hypothesis);
+
+	for(size_t f = 0; f < number_of_classifiers_; ++f)
+		mean_weights[f] *= (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
+
+	doorway_boost_.predict(&features, 0, &weak_hypothesis);
+
+	for(size_t f = 0; f < number_of_classifiers_; ++f)
+		mean_weights[f] *= (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
 
 	// find the best weights --> minimize the defined function for the pseudo-likelihood
 	std::cout << "finding weights using Dlib" << std::endl;
@@ -1337,9 +1351,8 @@ void VoronoiRandomFieldSegmentation::createPrunedVoronoiGraph(cv::Mat& map_for_v
 // This function is called to find minimal values of a defined log-likelihood-function using the library Dlib.
 // This log-likelihood-function is made over all training data to get a likelihood-estimation linear in the weights.
 // By minimizing this function the best weights are chosen, what is done here. See beginning of this file for detailed information.
-// !!!!Important: The more training maps you have, the more factors appear in the log-likelihood over all maps. Be sure not to
-//				  use too much training-maps, because then the log-likelihood-function easily produces values that are out of the
-//				  double range, which Dlib can't handle.
+// !!!!Important: Numerical problems might occur --> non finite outputs. This is because the derivative gets approximated.
+//				  Change the starting point and the last entry of find_min_using_approximate_derivatives when this occurs.
 column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_of_weights, double sigma,
 		const std::vector<std::vector<double> >& likelihood_parameters, const std::vector<double>& starting_weights)
 {
@@ -1348,7 +1361,7 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_o
 	column_vector starting_point(number_of_weights);
 
 	// initialize the starting point as zero to favor small weights
-	starting_point = 1e-2;
+	starting_point = 1e-1;
 
 	// create a Likelihood-optimizer object to find the weights that maximize the pseudo-likelihood
 	pseudoLikelihoodOptimization minimizer;
@@ -1361,10 +1374,10 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_o
 	minimizer.starting_weights = starting_weights;
 
 
-	std::cout << "starting values: " << std::endl << minimizer(starting_point) << std::endl;
+	std::cout << "starting value: " << std::endl << minimizer(starting_point) << std::endl;
 
 	// find the best weights for the given parameters
-	dlib::find_min_using_approximate_derivatives(dlib::bfgs_search_strategy(), dlib::objective_delta_stop_strategy(1e-7), minimizer, starting_point, -1, 1e-11);
+	dlib::find_min_using_approximate_derivatives(dlib::bfgs_search_strategy(), dlib::objective_delta_stop_strategy(1e-7), minimizer, starting_point, -1, 1e-10);
 
 	return starting_point;
 }

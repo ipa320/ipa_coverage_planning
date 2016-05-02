@@ -11,6 +11,50 @@ LaserScannerRaycasting::LaserScannerRaycasting()
 	}
 }
 
+std::vector<double> raycasting(const cv::Mat& map, const cv::Point& location)
+{
+//	cv::Mat test_map = map.clone();
+	//Raycasting Algorithm. It simulates the laser measurment at the given location and returns the lengths
+	//of the simulated beams
+	double simulated_x, simulated_y, simulated_cos, simulated_sin;
+	double temporary_distance;
+	std::vector<double> distances(360, 0);
+	double delta_x, delta_y;
+	double pi_to_rad = PI / 180;
+	for (double angle = 0; angle < 360; angle++)
+	{
+		simulated_cos = std::cos(angle * pi_to_rad);
+		simulated_sin = std::sin(angle * pi_to_rad);
+		temporary_distance = 90000001;
+		for (double distance = 0; distance < 1000000; ++distance)
+		{
+			simulated_x = simulated_cos * distance;
+			simulated_y = simulated_sin * distance;
+			//make sure the simulated Point isn't out of the boundaries of the map
+			if (location.x + simulated_x > 0 && location.x + simulated_x < map.rows && location.y + simulated_y > 0 && location.y + simulated_y < map.cols)
+			{
+				if (map.at<unsigned char>(location.x + simulated_x, location.y + simulated_y) == 0 && distance < temporary_distance)
+				{
+					temporary_distance = distance;
+//					cv::line(test_map, cv::Point(location.y, location.x), cv::Point(location.y + simulated_y, location.x + simulated_x), cv::Scalar(127), 1);
+					break;
+				}
+			}
+		}
+		if (temporary_distance > 90000000)
+		{
+			temporary_distance = 10;
+		}
+		distances[angle] = temporary_distance;
+	}
+
+//	cv::circle(test_map, cv::Point(location.y, location.x), 3, cv::Scalar(50), CV_FILLED);
+//	cv::imshow("simulated angles", test_map);
+//	cv::waitKey(5000);
+
+	return distances;
+}
+
 void LaserScannerRaycasting::raycasting(const cv::Mat& map, const cv::Point& location, std::vector<double>& distances)
 {
 //	cv::Mat test_map = map.clone();
