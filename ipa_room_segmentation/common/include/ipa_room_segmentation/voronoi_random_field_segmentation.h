@@ -87,7 +87,6 @@
 
 #include <ipa_room_segmentation/contains.h> // some useful functions defined for all segmentations
 #include <ipa_room_segmentation/voronoi_random_field_features.h>
-#include <ipa_room_segmentation/raycasting.h>
 #include <ipa_room_segmentation/wavefront_region_growing.h>
 #include <ipa_room_segmentation/clique_class.h>
 #include <ipa_room_segmentation/room_class.h>
@@ -174,8 +173,6 @@ protected:
 	CvBoost room_boost_, hallway_boost_, doorway_boost_; // The AdaBoost-Classifier to induct the features needed in the conditional random field.
 
 	std::vector<double> trained_conditional_weights_; // The weights that are needed for the feature-induction in the conditional random field.
-
-	LaserScannerRaycasting raycasting_; // object used to raycast the laser beams at several points
 
 	// Function to check if the given point is more far away from each point in the given set than the min_distance.
 	bool pointMoreFarAway(const std::set<cv::Point, cv_Point_comp>& points, const cv::Point& point, const double min_distance);
