@@ -41,8 +41,8 @@ max_area_for_merging: 12.5 #maximal area [m²] of a room that should be merged w
 #parameters for the voronoi random field segmentation that specify the size of the neighborhood generated on the Voronoi graph, the minimal
 #size this neighborhood can have, how far base nodes for each node on the graph need to be apart and how many iterations the inference 
 #max. should do
-voronoi_random_field_epsilon_for_neighborhood: 7 #larger value sets larger neighborhood, concentrated in a node of the conditional random field --> int
-min_neighborhood_size: 5 #min size of the above mentioned neighborhood --> int
+voronoi_random_field_epsilon_for_neighborhood: 5 #larger value sets larger neighborhood, concentrated in a node of the conditional random field --> int
+min_neighborhood_size: 4 #min size of the above mentioned neighborhood --> int
 min_voronoi_random_field_node_distance: 7.0 #min distance the base nodes for each crf node need to be apart --> double
 max_voronoi_random_field_inference_iterations: 9000 #max number of iterations the inference algorithm should do --> int
 

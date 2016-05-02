@@ -155,7 +155,7 @@ int main()
 
 	for(size_t i = 0; i <= 4; ++i)
 	{
-		segmenter.segmentMap(maps[i], maps[i], 7, 50, 5, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_, 12.5);
+		segmenter.segmentMap(maps[i], maps[i], 5, 50, 4, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_, 12.5);
 //		cv::imshow("res", maps[i]);
 //		cv::waitKey();
 	}
