@@ -265,6 +265,6 @@ public:
 			 double max_area_for_merging);
 
 	// Function used to test several features separately. Not relevant.
-	void testFunc(std::string crf_storage_path, std::string boost_storage_path);
+	void testFunc(const cv::Mat& original_map);
 
 };

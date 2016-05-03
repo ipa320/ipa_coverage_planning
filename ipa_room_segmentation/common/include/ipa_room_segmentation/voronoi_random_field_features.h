@@ -19,7 +19,7 @@ public:
 			std::vector<unsigned int>& possible_labels, cv::Point point, const int feature);
 	void getFeatures(const std::vector<double>& beams, const std::vector<double>& angles, const std::vector<cv::Point>& clique_points, std::vector<unsigned int>& labels_for_clique_points,
 			std::vector<unsigned int>& possible_labels, cv::Point point, std::vector<double>& features);
-	//feature 1: average difference between beamlenghts
+	//feature 1: average difference between beamlengths
 	double calcFeature1(const std::vector<double>& beams);
 	//feature 2: standard deviation of difference between beamlengths
 	double calcFeature2(const std::vector<double>& beams);
@@ -74,6 +74,10 @@ public:
 	double calcFeature24(std::vector<cv::Point> clique_points);
 	// feature 25: the relation between the labels of Points from the central point to the other points in the clique
 	double calcFeature25(std::vector<unsigned int>& possible_labels, std::vector<unsigned int>& labels_for_points);
+	// feature 26: the number of beams that are shorter than a defined maxval --> for door detection, maxval = 25
+	double calcFeature26(const std::vector<double>& beams, double maxval);
+	// feature 27: the area of the bounding box for beams that are smaller than the shortest beam in a defined epsilon neighborhood
+	double calcFeature27(const std::vector<double>& beams, const std::vector<double>& angles, double maxval, cv::Point location);
 
 protected:
 
@@ -86,3 +90,4 @@ protected:
 	cv::Point centroid_;
 	bool centroid_computed_;
 };
+

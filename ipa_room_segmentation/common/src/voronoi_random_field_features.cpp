@@ -13,7 +13,7 @@
 //get the number of implemented features. Needs to be changed to the new value if you change it
 int voronoiRandomFieldFeatures::getFeatureCount()
 {
-	return 25;
+	return 27;
 }
 
 // reset the saved features
@@ -88,6 +88,10 @@ double voronoiRandomFieldFeatures::getFeature(const std::vector<double>& beams, 
 		return calcFeature24(clique_points);
 	case 25:
 		return calcFeature25(possible_labels, labels_for_clique_points);
+	case 26:
+		return calcFeature26(beams, 22);
+	case 27:
+		return calcFeature27(beams, angles, 8, point);
 	default:
 		return -1;
 	}
@@ -125,6 +129,8 @@ void voronoiRandomFieldFeatures::getFeatures(const std::vector<double>& beams, c
 	calcFeature23(beams);
 	calcFeature24(clique_points);
 	calcFeature25(possible_labels, labels_for_clique_points);
+	calcFeature26(beams, 22);
+	calcFeature27(beams, angles, 8, point);
 
 	// write features
 	features.clear();
@@ -749,7 +755,7 @@ double voronoiRandomFieldFeatures::calcFeature18(const std::vector<double>& beam
 	return features_[17];
 }
 
-//Calculate Feature 19: The half major axis of the bounding ellipse, calculatet with openCV
+//Calculate Feature 19: The half major axis of the bounding ellipse, calculated with openCV
 double voronoiRandomFieldFeatures::calcFeature19(const std::vector<double>& beams, const std::vector<double>& angles, cv::Point location)
 {
 	if (features_computed_[18])
@@ -954,4 +960,57 @@ double voronoiRandomFieldFeatures::calcFeature25(std::vector<unsigned int>& poss
 	features_[24] = feature_value;
 
 	return features_[24];
+}
+
+// Feature 26: number of beams that are shorter than a defined maxval
+double voronoiRandomFieldFeatures::calcFeature26(const std::vector<double>& beams, double maxval)
+{
+	if(features_computed_[25] == true)
+		return features_[25];
+
+	int number_of_short_beams = 0;
+
+	for(size_t beam = 0; beam < beams.size(); ++beam)
+		if(beams[beam] <= maxval)
+			++number_of_short_beams;
+
+	features_computed_[25] = true;
+	features_[25] = (double) number_of_short_beams;
+
+	return features_[25];
+}
+
+// Feature 27: The are of the bounding box that is calculated for the endpoints of all beams that are limited to a maxval
+double voronoiRandomFieldFeatures::calcFeature27(const std::vector<double>& beams, const std::vector<double>& angles, double epsilon, cv::Point location)
+{
+	if(features_computed_[26] == true)
+		return features_[26];
+
+	std::vector<cv::Point> short_points;
+
+	// get minimal value of the beamlengths
+	double min_length = 1e5;
+	for(size_t beam = 0; beam < beams.size(); ++beam)
+		if(beams[beam] <= min_length)
+			min_length = beams[beam];
+
+	// search for beams which lengths are in the defined epsilon neighborhood
+	double pi_to_degree = PI / 180;
+	for(size_t beam = 0; beam < beams.size(); ++beam)
+	{
+		if(beams[beam] <= (min_length + epsilon) || beams[beam] > (min_length - epsilon))
+		{
+			double x = std::cos(angles[beam] * pi_to_degree) * beams[beam] + location.x;
+			double y = std::sin(angles[beam] * pi_to_degree) * beams[beam] + location.y;
+			short_points.push_back(cv::Point(x, y));
+		}
+	}
+
+	// calculate the bounding box area
+	cv::RotatedRect bounding_box = cv::minAreaRect(short_points);
+
+	features_computed_[26] = true;
+	features_[26] = bounding_box.size.area();
+
+	return features_[26];
 }

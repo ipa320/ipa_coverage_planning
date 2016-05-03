@@ -224,7 +224,7 @@ bool VoronoiRandomFieldSegmentation::pointMoreFarAway(const std::set<cv::Point, 
 
 std::vector<double> VoronoiRandomFieldSegmentation::raycasting(const cv::Mat& map, const cv::Point& location)
 {
-//	cv::Mat test_map = map.clone();
+//	cv::Mat test_map (map.rows, map.cols, map.type(), cv::Scalar(255));
 	//Raycasting Algorithm. It simulates the laser measurment at the given location and returns the lengths
 	//of the simulated beams
 	double simulated_x, simulated_y, simulated_cos, simulated_sin;
@@ -247,7 +247,8 @@ std::vector<double> VoronoiRandomFieldSegmentation::raycasting(const cv::Mat& ma
 				if (map.at<unsigned char>(location.x + simulated_x, location.y + simulated_y) == 0 && distance < temporary_distance)
 				{
 					temporary_distance = distance;
-//					cv::line(test_map, cv::Point(location.y, location.x), cv::Point(location.y + simulated_y, location.x + simulated_x), cv::Scalar(127), 1);
+//					if(distance > 15)
+//						cv::line(test_map, cv::Point(location.y, location.x), cv::Point(location.y + simulated_y, location.x + simulated_x), cv::Scalar(0), 1);
 					break;
 				}
 			}
@@ -261,7 +262,7 @@ std::vector<double> VoronoiRandomFieldSegmentation::raycasting(const cv::Mat& ma
 
 //	cv::circle(test_map, cv::Point(location.y, location.x), 3, cv::Scalar(50), CV_FILLED);
 //	cv::imshow("simulated angles", test_map);
-//	cv::waitKey(5000);
+//	cv::waitKey();
 
 	return distances;
 }
@@ -1521,7 +1522,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 	if(show_results == true)
 		cv::imshow("Voronoi graph", voronoi_map);
 
-	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/pruned_voronoi.png", voronoi_map);
+//	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/pruned_voronoi.png", voronoi_map);
 
 	// ************* II. Extract the nodes used for the conditional random field *************
 	//
@@ -1648,7 +1649,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 
 		cv::imshow("nodes of the conditional random field", node_map);
 //		cv::waitKey();
-		cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/node_map.png", node_map);
+//		cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/node_map.png", node_map);
 	}
 
 	// ************* III. Construct the Conditional Random Field from the found nodes *************
@@ -2086,14 +2087,14 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 // then the current sum is better than a saved best sum, the trained parameters are saved, what is done with this function.
 // It is good to do this, because OpenCV uses a Decision-Tree for the AdaBoost classifiers, which is depending on probabilites
 // and so every training done creates different results.
-void VoronoiRandomFieldSegmentation::testFunc(std::string crf_storage_path, std::string boost_storage_path)
+void VoronoiRandomFieldSegmentation::testFunc(const cv::Mat& original_map)
 {
 	std::cout << "testfunc" << std::endl;
 
-	// if the training results haven't been loaded or trained before load them
-	std::string filename_room = boost_storage_path + "voronoi_room_boost.xml";
-	std::string filename_hallway = boost_storage_path + "voronoi_hallway_boost.xml";
-	std::string filename_doorway = boost_storage_path + "voronoi_doorway_boost.xml";
+//	// if the training results haven't been loaded or trained before load them
+//	std::string filename_room = boost_storage_path + "voronoi_room_boost.xml";
+//	std::string filename_hallway = boost_storage_path + "voronoi_hallway_boost.xml";
+//	std::string filename_doorway = boost_storage_path + "voronoi_doorway_boost.xml";
 //
 //	room_boost_.save(filename_room.c_str(), "boost");
 //	hallway_boost_.save(filename_hallway.c_str(), "boost");
@@ -2108,44 +2109,44 @@ void VoronoiRandomFieldSegmentation::testFunc(std::string crf_storage_path, std:
 //		}
 //	}
 //	output_file.close();
-
-
-	if(trained_boost_ == false)
-	{
-		// load the AdaBoost-classifiers
-		room_boost_.load(filename_room.c_str());
-		hallway_boost_.load(filename_hallway.c_str());
-		doorway_boost_.load(filename_doorway.c_str());
-
-		// set the trained-Boolean true to only load parameters once
-		trained_boost_ = true;
-	}
-
-	if(trained_conditional_field_ == false)
-	{
-		// load the weights out of the file
-		std::ifstream input_file(crf_storage_path.c_str());
-		std::string line;
-		double value;
-		if (input_file.is_open())
-		{
-			while (getline(input_file, line))
-			{
-				std::istringstream iss(line);
-				while (iss >> value)
-				{
-					trained_conditional_weights_.push_back(value);
-				}
-			}
-			input_file.close();
-		}
-
-		// set the trained-Boolean to true so the weights only get read in once
-		trained_conditional_field_ = true;
-	}
-
-	std::cout << "reading weights: " << std::endl;
-
+//
+//
+//	if(trained_boost_ == false)
+//	{
+//		// load the AdaBoost-classifiers
+//		room_boost_.load(filename_room.c_str());
+//		hallway_boost_.load(filename_hallway.c_str());
+//		doorway_boost_.load(filename_doorway.c_str());
+//
+//		// set the trained-Boolean true to only load parameters once
+//		trained_boost_ = true;
+//	}
+//
+//	if(trained_conditional_field_ == false)
+//	{
+//		// load the weights out of the file
+//		std::ifstream input_file(crf_storage_path.c_str());
+//		std::string line;
+//		double value;
+//		if (input_file.is_open())
+//		{
+//			while (getline(input_file, line))
+//			{
+//				std::istringstream iss(line);
+//				while (iss >> value)
+//				{
+//					trained_conditional_weights_.push_back(value);
+//				}
+//			}
+//			input_file.close();
+//		}
+//
+//		// set the trained-Boolean to true so the weights only get read in once
+//		trained_conditional_field_ = true;
+//	}
+//
+//	std::cout << "reading weights: " << std::endl;
+//
 //	cv::Mat featuresMat(1, getFeatureCount(), CV_32FC1); //OpenCV expects a 32-floating-point Matrix as feature input
 //	for (int f = 1; f <= getFeatureCount(); ++f)
 //	{
@@ -2167,13 +2168,13 @@ void VoronoiRandomFieldSegmentation::testFunc(std::string crf_storage_path, std:
 //	{
 //		std::cout << (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f) << std::endl;
 //	}
-
+//
 //	std::cout << "cols: " << weights.cols << " rows: " << weights.rows << std::endl;
-
+//
 //	for(size_t i = 0; i < weights->cols; ++i)
 //		for(size_t j = 0; j < weights->rows; ++j)
 //			std::cout << (double) CV_MAT_ELEM(*weights, float, i, j) << std::endl;
-
-	std::cout << "loaded files" << std::endl;
+//
+//	std::cout << "loaded files" << std::endl;
 }
 

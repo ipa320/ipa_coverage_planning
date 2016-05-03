@@ -70,7 +70,7 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 	room_segmentation_server_.start();
 
 	//set this parameter to check if the algorithm needs to be trained
-	train_the_algorithm_ = false;
+	train_the_algorithm_ = true;
 
 	// Parameters
 	std::cout << "\n--------------------------\nRoom Segmentation Parameters:\n--------------------------\n";
@@ -307,6 +307,8 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 			training_maps.push_back(training_map);
 			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_office_h.png", 0);
 			training_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_lab_c_furnitures.png", 0);
+			training_maps.push_back(training_map);
 			// load the voronoi maps
 			std::vector<cv::Mat> voronoi_maps;
 			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/Fr52_voronoi.png", 0);
@@ -324,6 +326,8 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/office_e_voronoi.png", 0);
 			voronoi_maps.push_back(training_map);
 			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/office_h_voronoi.png", 0);
+			voronoi_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/lab_c_furnitures_voronoi.png", 0);
 			voronoi_maps.push_back(training_map);
 			// load the voronoi-nodes maps
 			std::vector<cv::Mat> voronoi_node_maps;
@@ -343,6 +347,8 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 			voronoi_node_maps.push_back(training_map);
 			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/office_h_voronoi_nodes.png", 0);
 			voronoi_node_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/lab_c_furnitures_voronoi_nodes.png", 0);
+			voronoi_node_maps.push_back(training_map);
 			// load the original maps
 			std::vector<cv::Mat> original_maps;
 			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/Fr52_original.png", 0);
@@ -360,6 +366,8 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/office_e_original.png", 0);
 			original_maps.push_back(training_map);
 			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/office_h_original.png", 0);
+			original_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_c_furnitures_original.png", 0);
 			original_maps.push_back(training_map);
 			//train the algorithm
 			vrf_segmentation.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
