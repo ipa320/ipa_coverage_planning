@@ -14,16 +14,17 @@ int main()
 	std::string map_path = package_path + "/common/files/test_maps/";
 
 	std::vector<std::string> map_names;
+	map_names.push_back("Freiburg52_scan_furnitures.png");
+	map_names.push_back("lab_a_scan_furnitures.png");
+	map_names.push_back("lab_b_scan_furnitures.png");
 	map_names.push_back("lab_ipa.png");
-	map_names.push_back("Freiburg52_scan.png");
-	map_names.push_back("office_a.png");
-	map_names.push_back("Freiburg79_scan.png");
-	map_names.push_back("office_h.png");
-	map_names.push_back("lab_f_scan.png");
+	map_names.push_back("NLB_furnitures.png");
+	map_names.push_back("office_e_furnitures.png");
+	map_names.push_back("lab_c_scan_furnitures.png");
 
-	std::vector<cv::Mat> maps(6);
+	std::vector<cv::Mat> maps(map_names.size());
 
-	for(size_t i = 0; i < 6; ++i)
+	for(size_t i = 0; i < map_names.size(); ++i)
 	{
 		cv::Mat map = cv::imread(map_path + map_names[i], 0);
 
@@ -153,7 +154,7 @@ int main()
 
 //	segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
 
-	for(size_t i = 0; i <= 4; ++i)
+	for(size_t i = 0; i < map_names.size(); ++i)
 	{
 		segmenter.segmentMap(maps[i], maps[i], 5, 50, 4, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_, 12.5);
 //		cv::imshow("res", maps[i]);

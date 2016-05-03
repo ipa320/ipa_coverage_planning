@@ -1518,6 +1518,11 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 	createPrunedVoronoiGraph(voronoi_map, node_points);
 	std::cout << "created graph. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 
+	if(show_results == true)
+		cv::imshow("Voronoi graph", voronoi_map);
+
+	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/pruned_voronoi.png", voronoi_map);
+
 	// ************* II. Extract the nodes used for the conditional random field *************
 	//
 	// 1. Get the points for the conditional random field graph by looking at an epsilon neighborhood.
@@ -1643,7 +1648,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 
 		cv::imshow("nodes of the conditional random field", node_map);
 //		cv::waitKey();
-//		cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/node_map.png", node_map);
+		cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/node_map.png", node_map);
 	}
 
 	// ************* III. Construct the Conditional Random Field from the found nodes *************
