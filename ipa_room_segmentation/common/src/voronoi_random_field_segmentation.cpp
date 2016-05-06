@@ -182,9 +182,18 @@ struct compLabelsByIndices
 {
 	bool operator()(labelWithIndex const &a, labelWithIndex const &b)
 	{
-		return a.absolute_index < b.absolute_index;
+		return (a.absolute_index < b.absolute_index);
 	}
 };
+
+// Struct used to sort contours regarding their size
+struct compContoursSize
+{
+	bool operator()(std::vector<cv::Point> const &a, std::vector<cv::Point> const &b)
+	{
+		return (cv::contourArea(a) >= cv::contourArea(b));
+	}
+} contourComparer;
 
 
 // Constructor
@@ -1519,8 +1528,8 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 	createPrunedVoronoiGraph(voronoi_map, node_points);
 	std::cout << "created graph. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 
-	if(show_results == true)
-		cv::imshow("Voronoi graph", voronoi_map);
+//	if(show_results == true)
+//		cv::imshow("Voronoi graph", voronoi_map);
 
 //	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/pruned_voronoi.png", voronoi_map);
 
@@ -1647,7 +1656,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 			cv::circle(node_map, *node, 0, cv::Scalar(250,0,0), CV_FILLED);
 		}
 
-		cv::imshow("nodes of the conditional random field", node_map);
+//		cv::imshow("nodes of the conditional random field", node_map);
 //		cv::waitKey();
 //		cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/node_map.png", node_map);
 	}
@@ -1846,7 +1855,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 			cv::circle(resulting_map, *i, 3, cv::Scalar(possible_labels[best_labels[distance]]), CV_FILLED);
 		}
 
-		cv::imshow("node-map", resulting_map);
+//		cv::imshow("node-map", resulting_map);
 //		cv::waitKey();
 	}
 	std::cout << "complete Potential: " << belief_propagation.value() << std::endl;
@@ -1974,7 +1983,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 	// 3. Make everything black except the found segments of rooms/hallways, that become totally white. This is done because
 	//	  it makes possible to find the contours of the segments and draw them into the original map with a random color.
 	//	  Only rooms or hallways stay at one step to ensure that borders from hallways to rooms are recognized.
-	std::vector < std::vector<cv::Point> > segment_contours; // variable to save found contours
+	std::set<std::vector<cv::Point>, compContoursSize> segments; // variable to save found contours
 
 	timer.start();
 	for(int color = 0; color <= 1; ++color)
@@ -2008,11 +2017,11 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 		// save the contours that are not holes (check with hierarchy --> [{0,1,2,3}]={next contour (same level), previous contour (same level), child contour, parent contour})
 		//  --> save everything with hierarchy[3] == -1
 		for(size_t contour = 0; contour < map_contours.size(); ++contour)
-			if(hierarchy[contour][3] == -1)
-				segment_contours.push_back(map_contours[contour]);
+			if(hierarchy[contour][3] == -1 && map_contours.size() > 1)
+				segments.insert(map_contours[contour]);
 	}
 
-	std::cout << "found segments: " << segment_contours.size() << ". Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
+	std::cout << "found segments: " << segments.size() << ". Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 
 	// 4. Draw the found contours with a unique color and apply a wavefront-region-growing algorithm to get rid of remaining
 	//	  white spaces. Also save the found segments as rooms to merge rooms together in the next step.
@@ -2023,10 +2032,10 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 
 	std::vector<Room> rooms; // vector to save the rooms in this map
 
-	for (int current_contour = 0; current_contour < segment_contours.size(); current_contour++)
+	for(std::set<std::vector<cv::Point> >::iterator current_contour = segments.begin(); current_contour != segments.end(); ++current_contour)
 	{
 		// calculate area for the contour and check if it is large enough to be a separate segment
-		double room_area = map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(segment_contours[current_contour]);
+		double room_area = map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(*current_contour);//segment_contours[current_contour]);
 		if (room_area >= room_area_factor_lower_limit && room_area <= room_area_factor_upper_limit)
 		{
 			// Draw the region with a random color into the map if it is large/small enough
@@ -2041,12 +2050,12 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 				//check if color has already been used
 				if (!contains(already_used_colors, fill_color) || loop_counter > 1000)
 				{
-					cv::drawContours(segmented_map, segment_contours, current_contour, fill_color, CV_FILLED);
+					cv::drawContours(segmented_map, std::vector<std::vector<cv::Point> >(1,*current_contour), -1, fill_color, 40);
 					already_used_colors.push_back(fill_color);
 					Room current_room(random_number); //add the current Contour as a room
-					for (int point = 0; point < segment_contours[current_contour].size(); point++) //add contour points to room
+					for (int point = 0; point < current_contour->size(); point++) //add contour points to room
 					{
-						current_room.insertMemberPoint(cv::Point(segment_contours[current_contour][point]), map_resolution_from_subscription);
+						current_room.insertMemberPoint(cv::Point(current_contour->at(point)), map_resolution_from_subscription);
 					}
 					rooms.push_back(current_room);
 					drawn = true;
@@ -2055,20 +2064,25 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 		}
 	}
 
-	// color remaining white space
-	wavefrontRegionGrowing(segmented_map);
-
 	// make black what has been black before (drawContours draws filled areas and might overwrite black holes)
 	for(unsigned int u = 0; u < segmented_map.rows; ++u)
 		for(unsigned int v = 0; v < segmented_map.cols; ++v)
 			if(original_image.at<unsigned char>(u, v) == 0)
 				segmented_map.at<int>(u, v) = 0;
 
+	cv::imshow("before wavefront", segmented_map);
+
+	// color remaining white space
+	wavefrontRegionGrowing(segmented_map);
+
 	std::cout << "filled map with unique colors. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 
 	// 5. Merge rooms that are too small together with the surrounding big rooms. This is done because it is possible to
 	//	  create very small segments in the last step, tha don't make very much sense.
 	timer.start();
+
+	if(show_results == true)
+		cv::imshow("before merge", segmented_map);
 
 	mergeRooms(segmented_map, rooms, map_resolution_from_subscription, max_area_for_merging, false);
 

@@ -14,13 +14,13 @@ int main()
 	std::string map_path = package_path + "/common/files/test_maps/";
 
 	std::vector<std::string> map_names;
-	map_names.push_back("Freiburg52_scan_furnitures.png");
-	map_names.push_back("lab_a_scan_furnitures.png");
-	map_names.push_back("lab_b_scan_furnitures.png");
-	map_names.push_back("lab_ipa.png");
-	map_names.push_back("NLB_furnitures.png");
-	map_names.push_back("office_e_furnitures.png");
-	map_names.push_back("lab_c_scan_furnitures.png");
+//	map_names.push_back("office_b.png");
+	map_names.push_back("office_e.png");
+//	map_names.push_back("lab_b_scan_furnitures.png");
+//	map_names.push_back("lab_ipa.png");
+//	map_names.push_back("NLB_furnitures.png");
+//	map_names.push_back("office_e_furnitures.png");
+//	map_names.push_back("lab_c_scan_furnitures.png");
 
 	std::vector<cv::Mat> maps(map_names.size());
 
@@ -32,7 +32,7 @@ int main()
 		{
 			for(unsigned int v = 0; v < map.cols; ++v)
 			{
-				if(map.at<unsigned char>(u,v) < 240)
+				if(map.at<unsigned char>(u,v) < 250)
 				{
 					map.at<unsigned char>(u,v) = 0;
 				}
@@ -160,7 +160,7 @@ int main()
 
 	VoronoiRandomFieldSegmentation segmenter(false, false);
 
-	segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
+//	segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
 
 	for(size_t i = 0; i < map_names.size(); ++i)
 	{
