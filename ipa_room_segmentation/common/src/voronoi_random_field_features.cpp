@@ -1,9 +1,3 @@
-#include <iostream>
-#include <list>
-#include <vector>
-#include <math.h>
-#include <opencv/cv.h>
-
 #include <ipa_room_segmentation/voronoi_random_field_features.h>
 
 #define PI 3.14159265
@@ -13,7 +7,7 @@
 //get the number of implemented features. Needs to be changed to the new value if you change it
 int voronoiRandomFieldFeatures::getFeatureCount()
 {
-	return 27;
+	return 28;
 }
 
 // reset the saved features
@@ -92,6 +86,8 @@ double voronoiRandomFieldFeatures::getFeature(const std::vector<double>& beams, 
 		return calcFeature26(beams, 22);
 	case 27:
 		return calcFeature27(beams, angles, 8, point);
+	case 28:
+		return calcFeature28(beams, 5);
 	default:
 		return -1;
 	}
@@ -131,6 +127,7 @@ void voronoiRandomFieldFeatures::getFeatures(const std::vector<double>& beams, c
 	calcFeature25(possible_labels, labels_for_clique_points);
 	calcFeature26(beams, 22);
 	calcFeature27(beams, angles, 8, point);
+	calcFeature28(beams, 5);
 
 	// write features
 	features.clear();
@@ -1013,4 +1010,43 @@ double voronoiRandomFieldFeatures::calcFeature27(const std::vector<double>& beam
 	features_[26] = bounding_box.size.area();
 
 	return features_[26];
+}
+
+// Feature 28: Ratio of the average lengths of n longest and n smalles beams.
+double voronoiRandomFieldFeatures::calcFeature28(const std::vector<double>& beams, double number_of_beams)
+{
+	if(features_computed_[27] == true)
+		return features_[27];
+
+	// find n longest and shortest beams
+	std::vector<double> longest_beams (number_of_beams);
+	std::vector<double> shortest_beams (number_of_beams);
+	std::vector<double> sorted_beams = beams;
+
+	std::sort(sorted_beams.begin(), sorted_beams.end());
+
+	int index = 0;
+	for(std::vector<double>::iterator beam = sorted_beams.begin(); beam != sorted_beams.begin()+number_of_beams; ++beam)
+	{
+		longest_beams[index] = *beam;
+		++index;
+	}
+
+	index = 0;
+	for(std::vector<double>::reverse_iterator beam = sorted_beams.rbegin(); beam != sorted_beams.rbegin()+number_of_beams; ++beam)
+	{
+		shortest_beams[index] = *beam;
+		++index;
+	}
+
+	// get average beamlengths
+	double average_longest = std::accumulate(longest_beams.begin(), longest_beams.end(), 0) / (double) longest_beams.size();
+	double average_shortest = std::accumulate(shortest_beams.begin(), shortest_beams.end(), 0) / (double) shortest_beams.size();
+
+	// calculate ratio
+	features_computed_[27] = true;
+	features_[27] = average_shortest / average_longest;
+
+	return features_[27];
+
 }

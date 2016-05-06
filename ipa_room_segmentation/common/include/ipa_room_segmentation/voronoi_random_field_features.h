@@ -3,6 +3,13 @@
 #pragma once
 #include <opencv/cv.h>
 #include <queue>
+#include <iostream>
+#include <list>
+#include <vector>
+#include <numeric>
+#include <math.h>
+#include <opencv/cv.h>
+
 #include <ipa_room_segmentation/contains.h>
 
 class voronoiRandomFieldFeatures
@@ -78,6 +85,8 @@ public:
 	double calcFeature26(const std::vector<double>& beams, double maxval);
 	// feature 27: the area of the bounding box for beams that are smaller than the shortest beam in a defined epsilon neighborhood
 	double calcFeature27(const std::vector<double>& beams, const std::vector<double>& angles, double maxval, cv::Point location);
+	// feature 28: the ratio of the average beamlengths of the n longest and shortest beams
+	double calcFeature28(const std::vector<double>& beams, double number_of_beams);
 
 protected:
 
