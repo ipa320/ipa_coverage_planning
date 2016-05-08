@@ -1968,17 +1968,26 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 		}
 	}
 
+	std::cout << "drawn all segments. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
+
 	if(show_results == true)
 	{
 		cv::imshow("intersected map", map_copy);
 //		cv::waitKey();
 	}
 
-	std::cout << "drawn all segments. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
-
 	// 2. Apply a wavefront algorithm to the map copy to fill all segments with the labels that are given to the crf-nodes.
 	map_copy.convertTo(map_copy, CV_32SC1, 256, 0);
 	wavefrontRegionGrowing(map_copy);
+
+
+	// 3. search for points where the map copy is still white, because these points could get colored wrong
+	// 	  by too large contours
+	std::vector<cv::Point> white_points;
+	for(unsigned int u = 0; u < map_copy.rows; ++u)
+		for(unsigned int v = 0; v < map_copy.cols; ++v)
+			if(map_copy.at<int>(u, v) == 255*256)
+				white_points.push_back(cv::Point(v, u));
 
 	// 3. Make everything black except the found segments of rooms/hallways, that become totally white. This is done because
 	//	  it makes possible to find the contours of the segments and draw them into the original map with a random color.
@@ -2035,7 +2044,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 	for(std::set<std::vector<cv::Point> >::iterator current_contour = segments.begin(); current_contour != segments.end(); ++current_contour)
 	{
 		// calculate area for the contour and check if it is large enough to be a separate segment
-		double room_area = map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(*current_contour);//segment_contours[current_contour]);
+		double room_area = map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(*current_contour);
 		if (room_area >= room_area_factor_lower_limit && room_area <= room_area_factor_upper_limit)
 		{
 			// Draw the region with a random color into the map if it is large/small enough
@@ -2050,7 +2059,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 				//check if color has already been used
 				if (!contains(already_used_colors, fill_color) || loop_counter > 1000)
 				{
-					cv::drawContours(segmented_map, std::vector<std::vector<cv::Point> >(1,*current_contour), -1, fill_color, 40);
+					cv::drawContours(segmented_map, std::vector<std::vector<cv::Point> >(1,*current_contour), -1, fill_color, CV_FILLED);
 					already_used_colors.push_back(fill_color);
 					Room current_room(random_number); //add the current Contour as a room
 					for (int point = 0; point < current_contour->size(); point++) //add contour points to room
@@ -2062,13 +2071,38 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 				}
 			} while (!drawn);
 		}
+		// draw too small segments white, to prevent that they are covered by large closed contours
+		if(room_area < room_area_factor_lower_limit)
+			cv::drawContours(segmented_map, std::vector<std::vector<cv::Point> >(1,*current_contour), -1, 255*256, CV_FILLED);
 	}
 
-	// make black what has been black before (drawContours draws filled areas and might overwrite black holes)
+	// Make black what has been black before (drawContours draws filled areas and might overwrite black holes).
+	// Also make regions that are black on the eroded map but white on the original map also white to prevent large closed contours
+	// to go around small contours in them. Also make the intersections in got by connecting the voronoi nodes with their
+	// base points for doorways white for the same reason.
 	for(unsigned int u = 0; u < segmented_map.rows; ++u)
+	{
 		for(unsigned int v = 0; v < segmented_map.cols; ++v)
-			if(original_image.at<unsigned char>(u, v) == 0)
+		{
+			if(original_image.at<unsigned char>(u, v) == 0 && eroded_map.at<unsigned char>(u, v) == 0)
+			{
 				segmented_map.at<int>(u, v) = 0;
+			}
+
+			if(original_image.at<unsigned char>(u, v) == 255 && eroded_map.at<unsigned char>(u, v) == 0)
+			{
+				segmented_map.at<int>(u, v) = 255*256;
+			}
+			if(map_copy.at<int>(u, v) == 0 && original_image.at<unsigned char>(u, v) == 255)
+			{
+				segmented_map.at<int>(u, v) = 255*256;
+			}
+		}
+	}
+
+	// go trough the saved white points and make them white in the segmented map again
+	for(std::vector<cv::Point>::iterator point = white_points.begin(); point != white_points.end(); ++point)
+		segmented_map.at<int>(*point) = 255*256;
 
 	cv::imshow("before wavefront", segmented_map);
 

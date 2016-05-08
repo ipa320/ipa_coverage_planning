@@ -15,8 +15,8 @@ int main()
 
 	std::vector<std::string> map_names;
 //	map_names.push_back("office_b.png");
-	map_names.push_back("office_e.png");
-//	map_names.push_back("lab_b_scan_furnitures.png");
+//	map_names.push_back("office_e.png");
+	map_names.push_back("NLB.png");
 //	map_names.push_back("lab_ipa.png");
 //	map_names.push_back("NLB_furnitures.png");
 //	map_names.push_back("office_e_furnitures.png");
