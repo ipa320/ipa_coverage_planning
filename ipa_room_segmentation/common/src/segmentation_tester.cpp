@@ -15,10 +15,10 @@ int main()
 
 	std::vector<std::string> map_names;
 //	map_names.push_back("office_b.png");
-//	map_names.push_back("office_e.png");
-	map_names.push_back("NLB.png");
-//	map_names.push_back("lab_ipa.png");
-//	map_names.push_back("NLB_furnitures.png");
+	map_names.push_back("office_e.png");
+//	map_names.push_back("NLB.png");
+	map_names.push_back("lab_ipa.png");
+	map_names.push_back("NLB_furnitures.png");
 //	map_names.push_back("office_e_furnitures.png");
 //	map_names.push_back("lab_c_scan_furnitures.png");
 
@@ -158,13 +158,18 @@ int main()
 	double room_lower_limit_voronoi_ = 1.53;	//1.53;
 	double room_upper_limit_voronoi_ = 1000000.;	//120.0;
 
+	std::vector<cv::Point> door_points;
+
 	VoronoiRandomFieldSegmentation segmenter(false, false);
 
 //	segmenter.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
 
 	for(size_t i = 0; i < map_names.size(); ++i)
 	{
-		segmenter.segmentMap(maps[i], maps[i], 5, 50, 4, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_, 12.5);
+		segmenter.segmentMap(maps[i], maps[i], 5, 50, 4, possible_labels, 7, true, conditional_weights_path, boost_file_path, 9000, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_, 12.5, &door_points);
+
+		std::cout << "number of doorpoints: " << door_points.size() << std::endl;
+		door_points.clear();
 //		cv::imshow("res", maps[i]);
 //		cv::waitKey();
 	}

@@ -112,6 +112,7 @@ protected:
 	double min_critical_point_distance_factor_; //Variable that sets the minimal distance between two critical Points before one gets eliminated
 	double max_area_for_merging_; //Variable that shows the maximal area of a room that should be merged with its surrounding rooms
 	bool display_segmented_map_;	// displays the segmented map upon service call
+	std::vector<cv::Point> doorway_points_; // vector that saves the found doorway points, when using the 5th algorithm (vrf)
 
 	//converter-> Pixel to meter for X coordinate
 	double convert_pixel_to_meter_for_x_coordinate(const int pixel_valued_object_x, const float map_resolution, const cv::Point2d map_origin)

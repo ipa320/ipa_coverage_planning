@@ -262,7 +262,7 @@ public:
 			const double min_node_distance, bool show_results,
 			std::string crf_storage_path, std::string boost_storage_path, const int max_inference_iterations,
 			 double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit,
-			 double max_area_for_merging);
+			 double max_area_for_merging, std::vector<cv::Point>* door_points = NULL);
 
 	// Function used to test several features separately. Not relevant.
 	void testFunc(const cv::Mat& original_map);

@@ -372,10 +372,11 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 			//train the algorithm
 			vrf_segmentation.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
 		}
+		doorway_points_.clear();
 		vrf_segmentation.segmentMap(original_img, segmented_map, voronoi_random_field_epsilon_for_neighborhood_, max_iterations_,
 				min_neighborhood_size_, possible_labels, min_voronoi_random_field_node_distance_,
 				display_segmented_map_, conditional_weights_path, boost_file_path, max_voronoi_random_field_inference_iterations_,
-				map_resolution, room_lower_limit_voronoi_random_, room_upper_limit_voronoi_random_, max_area_for_merging_);
+				map_resolution, room_lower_limit_voronoi_random_, room_upper_limit_voronoi_random_, max_area_for_merging_, &doorway_points_);
 	}
 	else
 	{
@@ -604,6 +605,20 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 			room_information[i].room_min_max.points[1].y = max_y_value_of_the_room[i];
 		}
 		action_result.room_information_in_pixel = room_information;
+
+		// returning doorway points if the vector is not empty
+		if(doorway_points_.empty() == false)
+		{
+			std::vector<geometry_msgs::Point32> found_doorway_points(doorway_points_.size());
+			for(size_t i = 0; i < doorway_points_.size(); ++i)
+			{
+				found_doorway_points[i].x = doorway_points_[i].x;
+				found_doorway_points[i].y = doorway_points_[i].y;
+			}
+			doorway_points_.clear();
+
+			action_result.doorway_points = found_doorway_points;
+		}
 	}
 	//setting massages in meter
 	action_result.room_information_in_meter.clear();
@@ -621,7 +636,22 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 			room_information[i].room_min_max.points[1].y = convert_pixel_to_meter_for_y_coordinate(max_y_value_of_the_room[i], map_resolution, map_origin);
 		}
 		action_result.room_information_in_meter = room_information;
+
+		// returning doorway points if the vector is not empty
+		if(doorway_points_.empty() == false)
+		{
+			std::vector<geometry_msgs::Point32> found_doorway_points(doorway_points_.size());
+			for(size_t i = 0; i < doorway_points_.size(); ++i)
+			{
+				found_doorway_points[i].x = convert_pixel_to_meter_for_x_coordinate(doorway_points_[i].x, map_resolution, map_origin);;
+				found_doorway_points[i].y = convert_pixel_to_meter_for_y_coordinate(doorway_points_[i].y, map_resolution, map_origin);
+			}
+			doorway_points_.clear();
+
+			action_result.doorway_points = found_doorway_points;
+		}
 	}
+
 
 	//publish result
 	room_segmentation_server_.setSucceeded(action_result);

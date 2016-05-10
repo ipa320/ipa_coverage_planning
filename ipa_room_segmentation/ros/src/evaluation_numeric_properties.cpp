@@ -566,6 +566,7 @@ int main(int argc, char **argv) {
 
 			// retrieve segmentation
 			ipa_room_segmentation::MapSegmentationResultConstPtr result = ac.getResult();
+			std::cout << "number of found doorways: " << result->doorway_points.size() << std::endl;
 			cv_bridge::CvImagePtr cv_ptr_seq = cv_bridge::toCvCopy(result->segmented_map, sensor_msgs::image_encodings::TYPE_32SC1);
 			cv::Mat segmented_map = cv_ptr_seq->image;
 

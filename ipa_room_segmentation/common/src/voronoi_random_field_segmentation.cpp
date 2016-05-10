@@ -1471,7 +1471,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 		const int max_iterations, const int min_neighborhood_size, std::vector<uint>& possible_labels,
 		const double min_node_distance,  bool show_results, std::string crf_storage_path, std::string boost_storage_path,
 		const int max_inference_iterations, double map_resolution_from_subscription, double room_area_factor_lower_limit,
-		double room_area_factor_upper_limit, double max_area_for_merging)
+		double room_area_factor_upper_limit, double max_area_for_merging, std::vector<cv::Point>* door_points)
 {
 	// save a copy of the original image
 	cv::Mat original_image = original_map.clone();
@@ -1959,6 +1959,10 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 			// draw a line from the node to the two basis points
 			cv::line(map_copy, *node, basis_point_1, 0, 2);
 			cv::line(map_copy, *node, basis_point_2, 0, 2);
+
+			// return the door-points if wanted
+			if(door_points != NULL)
+				door_points->push_back(*node);
 		}
 		else
 		{
@@ -1970,16 +1974,15 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 
 	std::cout << "drawn all segments. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 
+	// 2. Apply a wavefront algorithm to the map copy to fill all segments with the labels that are given to the crf-nodes.
+	map_copy.convertTo(map_copy, CV_32SC1, 256, 0);
+	wavefrontRegionGrowing(map_copy);
+
 	if(show_results == true)
 	{
 		cv::imshow("intersected map", map_copy);
 //		cv::waitKey();
 	}
-
-	// 2. Apply a wavefront algorithm to the map copy to fill all segments with the labels that are given to the crf-nodes.
-	map_copy.convertTo(map_copy, CV_32SC1, 256, 0);
-	wavefrontRegionGrowing(map_copy);
-
 
 	// 3. search for points where the map copy is still white, because these points could get colored wrong
 	// 	  by too large contours
