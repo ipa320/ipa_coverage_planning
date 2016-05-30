@@ -37,9 +37,9 @@ find_package(Boost REQUIRED COMPONENTS system)
 #)
 
 # Generate messages in the 'msg' folder
-#add_message_files(
+add_message_files(
 #	FILES RoomSequence.msg
-#)
+)
 
 ## Generate services in the 'srv' folder
 #add_service_files(
@@ -98,12 +98,12 @@ include_directories(
 )
 
 # client for testing purpose
-#add_executable(room_sequence_planning_client ros/src/room_sequence_planning_action_client.cpp)
-#target_link_libraries(room_sequence_planning_client
-#	${catkin_LIBRARIES} 
-#	${OpenCV_LIBRARIES}
-#)
-#add_dependencies(room_sequence_planning_client ${catkin_EXPORTED_TARGETS} ${ipa_building_navigation_EXPORTED_TARGETS})
+add_executable(twist_publisher ros/src/robot_mover.cpp)
+target_link_libraries(twist_publisher
+	${catkin_LIBRARIES} 
+	${OpenCV_LIBRARIES}
+)
+add_dependencies(twist_publisher ${catkin_EXPORTED_TARGETS} ${ipa_room_exploration_EXPORTED_TARGETS})
 
  
 #############
