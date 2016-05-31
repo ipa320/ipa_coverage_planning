@@ -23,7 +23,7 @@ bool RoomExplorationServer::publish_navigation_goal(const geometry_msgs::Pose2D&
 
 	double x = 5.5;
 	double y = 5.0;
-	double theta = 0.5*0;
+	double theta = 0.5*3.14;
 
 	move_base_msgs::MoveBaseGoal move_base_goal;
 
