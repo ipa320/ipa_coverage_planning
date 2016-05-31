@@ -2,6 +2,7 @@
 #include <actionlib/server/simple_action_server.h>
 #include <move_base_msgs/MoveBaseAction.h>
 #include <actionlib/client/simple_action_client.h>
+#include <geometry_msgs/Pose2D.h>
 
 #include <iostream>
 #include <list>
@@ -21,8 +22,11 @@ protected:
 
 	int path_planning_algorithm_; // variable to specify which algorithm is going to be used to plan a path
 
-	// This is the execution function used by action server
+	// this is the execution function used by action server
 	void execute_exploration_server(const ipa_room_exploration::RoomExplorationGoalConstPtr &goal);
+
+	// function to publish a navigation goal, it returns true if the goal could be reached
+	bool publish_navigation_goal(const geometry_msgs::Pose2D& nav_goal);
 
 	// !!Important!!
 	//  define the Nodehandle before the action server, or else the server won't start
