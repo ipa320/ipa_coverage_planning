@@ -23,6 +23,7 @@
 	<depend>std_msgs</depend>
 	<depend>sensor_msgs</depend>
 	<depend>geometry_msgs</depend>
+	<depend>move_base_msgs</depend>
 	<depend>message_generation</depend>
 	<depend>genmsg</depend>
 	<depend>boost</depend>

@@ -7,7 +7,7 @@
 #include <string>
 #include <geometry_msgs/Pose2D.h>
 
-#include <ipa_building_navigation/concorde_TSP.h>
+//#include <ipa_building_navigation/concorde_TSP.h>
 
 // Class that generates a room exploration path by laying a small grid over the given map and then planning the best path trough
 // all points, by defining an traveling salesman problem (TSP). This class only produces a static path, regarding the given map
@@ -16,8 +16,8 @@
 class gridPointExplorator
 {
 protected:
-	// object that solves the TSP, when the grid has been computed
-	ConcordeTSPSolver tsp_solver_;
+//	 object that solves the TSP, when the grid has been computed
+//	ConcordeTSPSolver tsp_solver_;
 
 	// length of the grid cell lines [pixel]
 	int grid_line_length_;

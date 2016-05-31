@@ -10,6 +10,7 @@ set(catkin_RUN_PACKAGES
 	std_msgs
 	sensor_msgs
 	geometry_msgs
+	move_base_msgs
 	cv_bridge
 	ipa_building_navigation
 )
@@ -31,10 +32,10 @@ find_package(Boost REQUIRED COMPONENTS system)
 
 
 # Add the Files for actionlib
-#add_action_files(
-#	DIRECTORY action
-#	FILES FindRoomSequenceWithCheckpoints.action
-#)
+add_action_files(
+	DIRECTORY action
+	FILES RoomExploration.action
+)
 
 # Generate messages in the 'msg' folder
 add_message_files(
@@ -54,6 +55,7 @@ generate_messages(
 		actionlib_msgs
 		sensor_msgs
 		geometry_msgs
+		move_base_msgs
 )
 
 
@@ -90,45 +92,64 @@ DEPENDS
 # include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 # important: common/include also needs to be here if you have it
 include_directories(
-	#common/include
-	#ros/include
-	${catkin_INCLUDE_DIRS}
+	common/include
+	ros/include
+	${include_INCLUDE_DIRS}
 	${OpenCV_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIRS}
 )
 
-# client for testing purpose
-add_executable(twist_publisher ros/src/robot_mover.cpp)
-target_link_libraries(twist_publisher
+# turtlebot mover --> simulation, not relevant
+#add_executable(turtlebot_mover ros/src/turtlebot_mover.cpp) 
+#target_link_libraries(turtlebot_mover
+#	${catkin_LIBRARIES} 
+#	${OpenCV_LIBRARIES}
+#)
+#add_dependencies(turtlebot_mover ${catkin_EXPORTED_TARGETS} ${ipa_room_exploration_EXPORTED_TARGETS} ${Boost_LIBRARIES})
+
+# room exploration action server
+add_executable(room_exploration_server ros/src/room_exploration_action_server.cpp
+					common/src/grid_point_explorator.cpp)
+target_link_libraries(room_exploration_server
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBRARIES}
+	${Boost_LIBRARIES}
 )
-add_dependencies(twist_publisher ${catkin_EXPORTED_TARGETS} ${ipa_room_exploration_EXPORTED_TARGETS})
+add_dependencies(room_exploration_server ${catkin_EXPORTED_TARGETS})
+
+# room exploration client
+add_executable(room_exploration_client ros/src/room_exploration_action_client.cpp)
+target_link_libraries(room_exploration_client
+	${catkin_LIBRARIES} 
+	${OpenCV_LIBRARIES}
+	${Boost_LIBRARIES}
+)
+add_dependencies(room_exploration_client ${catkin_EXPORTED_TARGETS})
 
  
 #############
 ## Install ##
 #############
 # Mark executables and/or libraries for installation
-#install(TARGETS room_sequence_planning_server room_sequence_planning_client #a_star_tester tester
-#	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-#)
+install(TARGETS room_exploration_server room_exploration_client
+	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 #uncomment this if you have a common-directory with header-files
-#install(DIRECTORY common/include/${PROJECT_NAME}/
-#	DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-#	FILES_MATCHING PATTERN "*.h"
-#	PATTERN ".svn" EXCLUDE
-#)
+install(DIRECTORY common/include/${PROJECT_NAME}/
+	DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+	FILES_MATCHING PATTERN "*.h"
+	PATTERN ".svn" EXCLUDE
+)
 
 #uncomment this if you have header-files in your project
-#install(DIRECTORY ros/include/${PROJECT_NAME}/
-#	DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-#	FILES_MATCHING PATTERN "*.h"
-#	PATTERN ".svn" EXCLUDE
-#)
+install(DIRECTORY ros/include/${PROJECT_NAME}/
+	DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+	FILES_MATCHING PATTERN "*.h"
+	PATTERN ".svn" EXCLUDE
+)
 
 #install(DIRECTORY scripts
 #	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
