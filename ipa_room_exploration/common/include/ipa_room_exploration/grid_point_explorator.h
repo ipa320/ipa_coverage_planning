@@ -5,6 +5,7 @@
 #include <vector>
 #include <math.h>
 #include <string>
+
 #include <geometry_msgs/Pose2D.h>
 
 //#include <ipa_building_navigation/concorde_TSP.h>
@@ -29,5 +30,12 @@ public:
 	// Function that creates an exploration path for a given room. The room has to be drawn in a cv::Mat (filled with Bit-uchar),
 	// with free space drawn white (255) and obstacles as black (0). It returns a series of 2D poses that show to which positions
 	// the robot should drive at.
-	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path);
+	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float robot_radius,
+			const geometry_msgs::Pose2D starting_position);
+
+	// function to set the grid size
+	void setGridLineLength(int new_line_length)
+	{
+		grid_line_length_ = new_line_length;
+	}
 };
