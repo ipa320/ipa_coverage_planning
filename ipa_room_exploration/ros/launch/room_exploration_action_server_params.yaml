@@ -5,4 +5,4 @@ room_segmentation_algorithm: 1
 
 # line length of one cell in the grid, when using the grid point exploration method
 # [pixel]
-grid_line_length: 25
+grid_line_length: 10

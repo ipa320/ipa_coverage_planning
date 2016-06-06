@@ -10,6 +10,7 @@ geometry_msgs/Point32[] field_of_view			# the points that define the field of vi
 int32 path_planning_algorithm				#  this variable selects the algorithm for path planning
 								# 1 = grid point explorator
 geometry_msgs/Pose2D starting_position			# Pose where the robot starts in the room coordinatesystem [meter]
+geometry_msgs/Polygon room_min_max			# first point provides the minimum (x,y)-coordinate values of the rooms, second point provides the maximum (x,y)-coordinate values of the rooms
 ---
 # result definition
 bool inspected_room

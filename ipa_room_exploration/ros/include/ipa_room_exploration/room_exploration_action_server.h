@@ -2,7 +2,9 @@
 #include <actionlib/server/simple_action_server.h>
 #include <move_base_msgs/MoveBaseAction.h>
 #include <actionlib/client/simple_action_client.h>
+
 #include <geometry_msgs/Pose2D.h>
+#include <geometry_msgs/Polygon.h>
 
 #include <iostream>
 #include <list>
@@ -12,6 +14,10 @@
 #include <cv_bridge/cv_bridge.h>
 
 #include <ipa_room_exploration/RoomExplorationAction.h>
+
+#include <geometry_msgs/Pose2D.h>
+#include <geometry_msgs/Polygon.h>
+#include <geometry_msgs/Point32.h>
 
 #include <ipa_room_exploration/grid_point_explorator.h>
 

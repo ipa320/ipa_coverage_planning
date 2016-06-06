@@ -109,7 +109,9 @@ include_directories(
 
 # room exploration action server
 add_executable(room_exploration_server ros/src/room_exploration_action_server.cpp
-					common/src/grid_point_explorator.cpp)
+					common/src/grid_point_explorator.cpp
+					common/src/A_star_pathplanner.cpp common/src/node.cpp
+					common/src/concorde_TSP.cpp)
 target_link_libraries(room_exploration_server
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBRARIES}

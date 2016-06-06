@@ -82,6 +82,7 @@ void RoomExplorationServer::execute_exploration_server(const ipa_room_exploratio
 	float robot_radius = goal->robot_radius;
 
 	geometry_msgs::Pose2D starting_position = goal->starting_position;
+	geometry_msgs::Polygon min_max_coordinates = goal->room_min_max;
 
 	// converting the map msg in cv format
 	cv_bridge::CvImagePtr cv_ptr_obj;
@@ -96,7 +97,7 @@ void RoomExplorationServer::execute_exploration_server(const ipa_room_exploratio
 		grid_point_planner.setGridLineLength(grid_line_length_);
 
 		// plan path
-		grid_point_planner.getExplorationPath(room_map, exploration_path, robot_radius, starting_position);
+		grid_point_planner.getExplorationPath(room_map, exploration_path, robot_radius, map_resolution, starting_position, min_max_coordinates);
 	}
 
 	geometry_msgs::Pose2D nav_goal;

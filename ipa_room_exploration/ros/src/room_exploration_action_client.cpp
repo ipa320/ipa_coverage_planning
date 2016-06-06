@@ -12,6 +12,8 @@
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
 #include <geometry_msgs/Pose2D.h>
+#include <geometry_msgs/Polygon.h>
+#include <geometry_msgs/Point32.h>
 
 #include <ipa_room_exploration/RoomExplorationAction.h>
 
@@ -30,6 +32,7 @@ int main(int argc, char **argv)
 	// read in test map
 	cv::Mat map = cv::imread("/home/florianj/git/care-o-bot-indigo/src/autopnp/ipa_room_exploration/maps/map.png", 0);
 	//make non-white pixels black
+	int min_y = 1e5, max_y = 0, min_x = 1e5, max_x = 0;
 	for (int y = 0; y < map.rows; y++)
 	{
 		for (int x = 0; x < map.cols; x++)
@@ -43,6 +46,15 @@ int main(int argc, char **argv)
 			else
 			{
 				map.at<unsigned char>(y, x) = 255;
+
+				if(y < min_y)
+					min_y = y;
+				if(y > max_y)
+					max_y = y;
+				if(x < min_x)
+					min_x = x;
+				if(x > max_x)
+					max_x = x;
 			}
 		}
 	}
@@ -55,6 +67,19 @@ int main(int argc, char **argv)
 	cv_image.encoding = "mono8";
 	cv_image.image = map;
 	cv_image.toImageMsg(labeling);
+
+	geometry_msgs::Polygon min_max_points;
+	geometry_msgs::Point32 min_point, max_point;
+	min_point.x = min_x;
+	min_point.y = min_y;
+	max_point.x = max_x;
+	max_point.y = max_y;
+	min_max_points.points;
+	min_max_points.points.push_back(min_point);
+	min_max_points.points.push_back(max_point);
+
+	std::cout << min_max_points.points[0] << " " << min_max_points.points[1] << std::endl;
+
 
 	geometry_msgs::Pose2D map_origin;
 	map_origin.x = 0.0;
@@ -71,7 +96,8 @@ int main(int argc, char **argv)
 	goal.map_origin = map_origin;
 	goal.starting_position = starting_position;
 	goal.map_resolution = 0.05;
-	goal.robot_radius = 0.177; // turtlebot, used for sim
+	goal.robot_radius = 0.3; // turtlebot, used for sim 0.177
+	goal.room_min_max = min_max_points;
 	ac.sendGoal(goal);
 	return 0;
 }
