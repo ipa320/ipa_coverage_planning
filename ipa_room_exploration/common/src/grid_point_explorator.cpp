@@ -17,7 +17,7 @@ gridPointExplorator::gridPointExplorator(int grid_line_length)
 //			as angle for the Poses.
 void gridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
 		const float robot_radius, const float map_resolution, const geometry_msgs::Pose2D starting_position,
-		const geometry_msgs::Polygon room_min_max_coordinates)
+		const geometry_msgs::Polygon room_min_max_coordinates, const cv::Point2d map_origin)
 {
 	//******************* I. Get grid points *************************
 	// vector to store all found points
@@ -69,9 +69,10 @@ void gridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 
 
 	// solve the Traveling Salesman Problem
-	std::cout << "Finding optimal order of the found points. Index: " << min_index << std::endl;
+	std::cout << "Finding optimal order of the found points. Start-index: " << min_index << std::endl;
 	ConcordeTSPSolver tsp_solver;
-	std::vector<int> optimal_order = tsp_solver.solveConcordeTSP(room_map, grid_points, 0.25, robot_radius, map_resolution, min_index, 0);
+	double map_downsampling_factor = 0.25;
+	std::vector<int> optimal_order = tsp_solver.solveConcordeTSP(room_map, grid_points, map_downsampling_factor, robot_radius, map_resolution, min_index, 0);
 
 	// resave the found points in the optimal order and convert them to the right format
 	for(unsigned int point_index = 0; point_index < optimal_order.size(); ++point_index)
@@ -85,10 +86,19 @@ void gridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 
 		float angle = std::acos(quotient);
 
-		if(quotient < 0)
-			angle += 3.14159;
+		// correct angle if robot moves in negative y-direction
+		if(vector.y < 0 && vector.x >= 0)
+			angle -= 3.14159;
 
-		std::cout << "angle: " << angle << std::endl;
+		// add the next navigation goal to the path
+		geometry_msgs::Pose2D navigation_goal;
+		navigation_goal.x = (current_point.x * map_resolution) + map_origin.x; // coordinate systems are rotated to each other
+		navigation_goal.y = (current_point.y * map_resolution) + map_origin.y;
+		navigation_goal.theta = angle;
+
+		path.push_back(navigation_goal);
+
+		std::cout << "angle: " << angle << ", vector: " << vector << std::endl;
 
 		cv::line(point_map, current_point, next_point, cv::Scalar(127), 1);
 	}

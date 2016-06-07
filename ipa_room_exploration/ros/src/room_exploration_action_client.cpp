@@ -58,6 +58,11 @@ int main(int argc, char **argv)
 			}
 		}
 	}
+//	cv::Point2f src_center(map.cols/2.0F, map.rows/2.0F);
+//	cv::Mat rot_mat = getRotationMatrix2D(src_center, 180, 1.0);
+//	cv::Mat dst;
+//	cv::warpAffine(map, dst, rot_mat, map.size());
+//	cv::flip(dst, map, 1);
 //	cv::imshow("map", map);
 //	cv::waitKey();
 	sensor_msgs::Image labeling;
@@ -70,7 +75,7 @@ int main(int argc, char **argv)
 
 	geometry_msgs::Polygon min_max_points;
 	geometry_msgs::Point32 min_point, max_point;
-	min_point.x = min_x;
+	min_point.x = min_x+9;
 	min_point.y = min_y;
 	max_point.x = max_x;
 	max_point.y = max_y;

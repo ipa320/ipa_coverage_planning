@@ -26,13 +26,15 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 bool RoomExplorationServer::publish_navigation_goal(const geometry_msgs::Pose2D& nav_goal)
 {
 	// move base client, that sends navigation goals to a move_base action server
-	MoveBaseClient mv_base_client_("move_base", true);
+	MoveBaseClient mv_base_client("/move_base", true);
 
 	// wait for the action server to come up
-	while(!mv_base_client_.waitForServer(ros::Duration(5.0)))
+	while(!mv_base_client.waitForServer(ros::Duration(5.0)))
 	{
 	  ROS_INFO("Waiting for the move_base action server to come up");
 	}
+
+	std::cout << "navigation goal: (" << nav_goal.x << ", "  << nav_goal.y << ")" << std::endl;
 
 	move_base_msgs::MoveBaseGoal move_base_goal;
 
@@ -47,13 +49,13 @@ bool RoomExplorationServer::publish_navigation_goal(const geometry_msgs::Pose2D&
 
 	// send goal to the move_base sever, when one is found
 	ROS_INFO("Sending goal");
-	mv_base_client_.sendGoal(move_base_goal);
+	mv_base_client.sendGoal(move_base_goal);
 
 	// wait until action is done
-	mv_base_client_.waitForResult();
+	mv_base_client.waitForResult();
 
 	// check if point could be reached or not
-	if(mv_base_client_.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+	if(mv_base_client.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
 	{
 		ROS_INFO("Hooray, the base moved to the goal");
 		return true;
@@ -88,6 +90,7 @@ void RoomExplorationServer::execute_exploration_server(const ipa_room_exploratio
 	cv_bridge::CvImagePtr cv_ptr_obj;
 	cv_ptr_obj = cv_bridge::toCvCopy(goal->input_map, sensor_msgs::image_encodings::MONO8);
 	cv::Mat room_map = cv_ptr_obj->image;
+	transform_map_to_room_cordinates(room_map);
 
 	// plan the path using the wanted planner
 	std::vector<geometry_msgs::Pose2D> exploration_path;
@@ -97,13 +100,25 @@ void RoomExplorationServer::execute_exploration_server(const ipa_room_exploratio
 		grid_point_planner.setGridLineLength(grid_line_length_);
 
 		// plan path
-		grid_point_planner.getExplorationPath(room_map, exploration_path, robot_radius, map_resolution, starting_position, min_max_coordinates);
+		grid_point_planner.getExplorationPath(room_map, exploration_path, robot_radius, map_resolution, starting_position, min_max_coordinates, map_origin);
+	}
+
+	// after planning a path, navigate trough all points
+	for(size_t goal = 0; goal < exploration_path.size(); ++goal)
+	{
+//		cv::Mat map_copy = room_map.clone();
+//
+//		cv::circle(map_copy, cv::Point(exploration_path[goal].y / map_resolution, exploration_path[goal].x / map_resolution), 3, cv::Scalar(127), CV_FILLED);
+//		cv::imshow("current_goal", map_copy);
+//		cv::waitKey();
+
+		publish_navigation_goal(exploration_path[goal]);
 	}
 
 	geometry_msgs::Pose2D nav_goal;
 	nav_goal.x = convert_pixel_to_meter_for_x_coordinate(150, map_resolution, map_origin);
 	nav_goal.y = convert_pixel_to_meter_for_y_coordinate(100, map_resolution, map_origin);
-	nav_goal.theta = 0.0;
+	nav_goal.theta = -0.5*3.14159;
 
 	std::cout << "nav goal: (" << nav_goal.x << ", "  << nav_goal.y << ")" << std::endl;
 

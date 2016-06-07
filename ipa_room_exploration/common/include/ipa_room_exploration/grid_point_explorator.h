@@ -36,7 +36,7 @@ public:
 	// the robot should drive at.
 	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float robot_radius,
 			const float map_resolution, const geometry_msgs::Pose2D starting_position,
-			const geometry_msgs::Polygon room_min_max_coordinates);
+			const geometry_msgs::Polygon room_min_max_coordinates, const cv::Point2d map_origin);
 
 	// function to set the grid size
 	void setGridLineLength(int new_line_length)
