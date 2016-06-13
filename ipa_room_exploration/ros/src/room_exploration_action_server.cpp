@@ -52,7 +52,13 @@ bool RoomExplorationServer::publish_navigation_goal(const geometry_msgs::Pose2D&
 	mv_base_client.sendGoal(move_base_goal);
 
 	// wait until action is done
-	mv_base_client.waitForResult();
+//	mv_base_client.waitForResult();
+	ros::Duration sleep_rate(2.0);
+	do
+	{
+		std::cout << "waiting for server to do what he has to do" << std::endl;
+		sleep_rate.sleep();
+	}while(mv_base_client.getState() != actionlib::SimpleClientGoalState::ABORTED && mv_base_client.getState() != actionlib::SimpleClientGoalState::SUCCEEDED);
 
 	// check if point could be reached or not
 	if(mv_base_client.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
@@ -90,7 +96,7 @@ void RoomExplorationServer::execute_exploration_server(const ipa_room_exploratio
 	cv_bridge::CvImagePtr cv_ptr_obj;
 	cv_ptr_obj = cv_bridge::toCvCopy(goal->input_map, sensor_msgs::image_encodings::MONO8);
 	cv::Mat room_map = cv_ptr_obj->image;
-	transform_map_to_room_cordinates(room_map);
+	transform_image_to_room_cordinates(room_map);
 
 	// plan the path using the wanted planner
 	std::vector<geometry_msgs::Pose2D> exploration_path;

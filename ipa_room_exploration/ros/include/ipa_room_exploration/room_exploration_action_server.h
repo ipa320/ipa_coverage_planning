@@ -58,7 +58,7 @@ protected:
 	// function to transform the given map in a way s.t. the OpenCV and room coordinate system are the same
 	//	--> the map_saver from ros saves maps as images with the origin laying in the lower left corner of it, but openCV assumes
 	//		that the origin is in the upper left corner, also they are rotated around the image-x-axis about each other
-	void transform_map_to_room_cordinates(cv::Mat& map)
+	void transform_image_to_room_cordinates(cv::Mat& map)
 	{
 		cv::Point2f src_center(map.cols/2.0F, map.rows/2.0F);
 		cv::Mat rot_mat = getRotationMatrix2D(src_center, 180, 1.0);
