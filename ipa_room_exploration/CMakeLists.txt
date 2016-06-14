@@ -7,6 +7,7 @@ set(catkin_RUN_PACKAGES
 	concorde_tsp_solver
 	actionlib
 	actionlib_msgs
+	tf
 	std_msgs
 	sensor_msgs
 	geometry_msgs

@@ -98,11 +98,11 @@ void gridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 
 		path.push_back(navigation_goal);
 
-		std::cout << "angle: " << angle << ", vector: " << vector << std::endl;
+//		std::cout << "angle: " << angle << ", vector: " << vector << std::endl;
 
 		cv::line(point_map, current_point, next_point, cv::Scalar(127), 1);
 	}
 
-	cv::imshow("grid", point_map);
-	cv::waitKey();
+//	cv::imshow("grid", point_map);
+//	cv::waitKey();
 }

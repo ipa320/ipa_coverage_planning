@@ -23,7 +23,11 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 }
 
 // Function to publish a navigation goal for move_base. It returns true, when the goal could be reached.
-bool RoomExplorationServer::publish_navigation_goal(const geometry_msgs::Pose2D& nav_goal)
+// The function tracks the robot pose while moving to the goal and adds these poses to the given pose-vector. This is done
+// because it allows to calculate where the robot field of view has theoretically been and identify positions of the map that
+// the robot hasn't seen.
+bool RoomExplorationServer::publish_navigation_goal(const geometry_msgs::Pose2D& nav_goal, const std::string map_frame,
+		const std::string base_frame, std::vector<geometry_msgs::Pose2D>& robot_poses)
 {
 	// move base client, that sends navigation goals to a move_base action server
 	MoveBaseClient mv_base_client("/move_base", true);
@@ -34,11 +38,11 @@ bool RoomExplorationServer::publish_navigation_goal(const geometry_msgs::Pose2D&
 	  ROS_INFO("Waiting for the move_base action server to come up");
 	}
 
-	std::cout << "navigation goal: (" << nav_goal.x << ", "  << nav_goal.y << ")" << std::endl;
+	std::cout << "navigation goal: (" << nav_goal.x << ", "  << nav_goal.y << ", " << nav_goal.theta << ")" << std::endl;
 
 	move_base_msgs::MoveBaseGoal move_base_goal;
 
-	// create mve_base_goal
+	// create move_base_goal
 	move_base_goal.target_pose.header.frame_id = "map";
 	move_base_goal.target_pose.header.stamp = ros::Time::now();
 
@@ -51,13 +55,38 @@ bool RoomExplorationServer::publish_navigation_goal(const geometry_msgs::Pose2D&
 	ROS_INFO("Sending goal");
 	mv_base_client.sendGoal(move_base_goal);
 
-	// wait until action is done
-//	mv_base_client.waitForResult();
-	ros::Duration sleep_rate(2.0);
+	// wait until goal is reached or the goal is aborted
+//	ros::Duration sleep_rate(0.1);
 	do
 	{
-		std::cout << "waiting for server to do what he has to do" << std::endl;
-		sleep_rate.sleep();
+		tf::TransformListener listener;
+		tf::StampedTransform transform;
+
+		// try to get the transformation from map_frame to base_frame, wait max 5 seconds for this transform to come up
+		try
+		{
+			ros::Time time = ros::Time(0);
+			listener.waitForTransform("/map", "/base_footprint", time, ros::Duration(5.0));
+			listener.lookupTransform("/map", "/base_footprint", time, transform);
+
+			ROS_INFO("Got a transform! x = %f, y = %f", transform.getOrigin().x(), transform.getOrigin().y());
+
+			// save the current pose
+			geometry_msgs::Pose2D current_pose;
+
+			current_pose.x = transform.getOrigin().x();
+			current_pose.y = transform.getOrigin().y();
+			double roll, pitch, yaw;
+			transform.getBasis().getRPY(roll, pitch, yaw);
+			current_pose.theta = yaw;
+
+			robot_poses.push_back(current_pose);
+		}
+		catch(tf::TransformException ex)
+		{
+			ROS_INFO("Couldn't get transform!");// %s", ex.what());
+		}
+
 	}while(mv_base_client.getState() != actionlib::SimpleClientGoalState::ABORTED && mv_base_client.getState() != actionlib::SimpleClientGoalState::SUCCEEDED);
 
 	// check if point could be reached or not
@@ -106,19 +135,20 @@ void RoomExplorationServer::execute_exploration_server(const ipa_room_exploratio
 		grid_point_planner.setGridLineLength(grid_line_length_);
 
 		// plan path
-		grid_point_planner.getExplorationPath(room_map, exploration_path, robot_radius, map_resolution, starting_position, min_max_coordinates, map_origin);
+//		grid_point_planner.getExplorationPath(room_map, exploration_path, robot_radius, map_resolution, starting_position, min_max_coordinates, map_origin);
 	}
 
-	// after planning a path, navigate trough all points
-	for(size_t goal = 0; goal < exploration_path.size(); ++goal)
+	// after planning a path, navigate trough all points and save the robot poses to check what regions have been seen
+	std::vector<geometry_msgs::Pose2D> robot_poses;
+	for(size_t nav_goal = 0; nav_goal < 8; ++nav_goal)
 	{
 //		cv::Mat map_copy = room_map.clone();
 //
-//		cv::circle(map_copy, cv::Point(exploration_path[goal].y / map_resolution, exploration_path[goal].x / map_resolution), 3, cv::Scalar(127), CV_FILLED);
+//		cv::circle(map_copy, cv::Point(exploration_path[nav_goal].y / map_resolution, exploration_path[nav_goal].x / map_resolution), 3, cv::Scalar(127), CV_FILLED);
 //		cv::imshow("current_goal", map_copy);
 //		cv::waitKey();
 
-		publish_navigation_goal(exploration_path[goal]);
+//		publish_navigation_goal(exploration_path[nav_goal], goal->map_frame, goal->base_frame, robot_poses);
 	}
 
 	geometry_msgs::Pose2D nav_goal;
@@ -126,9 +156,25 @@ void RoomExplorationServer::execute_exploration_server(const ipa_room_exploratio
 	nav_goal.y = convert_pixel_to_meter_for_y_coordinate(100, map_resolution, map_origin);
 	nav_goal.theta = -0.5*3.14159;
 
-	std::cout << "nav goal: (" << nav_goal.x << ", "  << nav_goal.y << ")" << std::endl;
+//	std::cout << "nav goal: (" << nav_goal.x << ", "  << nav_goal.y << ", " << nav_goal.theta << ")" << std::endl;
 
-	publish_navigation_goal(nav_goal);
+	publish_navigation_goal(nav_goal, goal->map_frame, goal->base_frame, robot_poses);
+
+//	tf::TransformListener listener;
+//	tf::StampedTransform transform;
+//
+//	ros::Time begin = ros::Time::now();
+//	listener.waitForTransform("/map", "/base_footprint", begin, ros::Duration(10.0));
+//	listener.lookupTransform("/map", "/base_footprint", begin, transform);
+//
+//	ROS_INFO("Got a transform! x = %f, y = %f", transform.getOrigin().x(), transform.getOrigin().y());
+
+	for(size_t i = 0; i < robot_poses.size(); ++i)
+	{
+//		std::cout << "Pose: " << robot_poses[i] << std::endl;
+		std::vector<geometry_msgs::Pose2D> test;
+		publish_navigation_goal(robot_poses[i], goal->map_frame, goal->base_frame, test);
+	}
 
 	room_exploration_server_.setSucceeded();
 }

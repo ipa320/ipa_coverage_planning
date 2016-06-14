@@ -2,9 +2,9 @@
 #include <actionlib/server/simple_action_server.h>
 #include <move_base_msgs/MoveBaseAction.h>
 #include <actionlib/client/simple_action_client.h>
+#include <ros/time.h>
 
-#include <geometry_msgs/Pose2D.h>
-#include <geometry_msgs/Polygon.h>
+#include <tf/transform_listener.h>
 
 #include <iostream>
 #include <list>
@@ -40,7 +40,8 @@ protected:
 	void execute_exploration_server(const ipa_room_exploration::RoomExplorationGoalConstPtr &goal);
 
 	// function to publish a navigation goal, it returns true if the goal could be reached
-	bool publish_navigation_goal(const geometry_msgs::Pose2D& nav_goal);
+	bool publish_navigation_goal(const geometry_msgs::Pose2D& nav_goal, const std::string map_frame,
+			const std::string base_frame, std::vector<geometry_msgs::Pose2D>& robot_poses);
 
 	// converter-> Pixel to meter for X coordinate
 	double convert_pixel_to_meter_for_x_coordinate(const int pixel_valued_object_x, const float map_resolution, const cv::Point2d map_origin)

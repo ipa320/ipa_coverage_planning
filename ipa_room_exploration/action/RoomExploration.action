@@ -11,6 +11,8 @@ int32 path_planning_algorithm				#  this variable selects the algorithm for path
 								# 1 = grid point explorator
 geometry_msgs/Pose2D starting_position			# Pose where the robot starts in the room coordinatesystem [meter]
 geometry_msgs/Polygon room_min_max			# first point provides the minimum (x,y)-coordinate values of the rooms, second point provides the maximum (x,y)-coordinate values of the rooms
+string map_frame					# string that carries the name of the map frame, used for tracking of the robot
+string base_frame					# string that carries the name of the base frame, that is in the same kinematic chain as the map_frame and shows the robot pose
 ---
 # result definition
 bool inspected_room
