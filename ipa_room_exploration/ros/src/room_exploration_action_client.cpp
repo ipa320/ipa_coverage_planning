@@ -23,12 +23,6 @@ int main(int argc, char **argv)
 
 	actionlib::SimpleActionClient<ipa_room_exploration::RoomExplorationAction> ac("room_exploration/room_exploration_server", true);
 
-	ROS_INFO("Waiting for action server to start.");
-	// wait for the action server to start
-	ac.waitForServer(); //will wait for infinite time
-
-	ROS_INFO("Action server started, sending goal.");
-
 	// read in test map
 	cv::Mat map = cv::imread("/home/florianj/git/care-o-bot-indigo/src/autopnp/ipa_room_exploration/maps/map.png", 0);
 	//make non-white pixels black
@@ -58,6 +52,15 @@ int main(int argc, char **argv)
 			}
 		}
 	}
+
+	std::cout << "map-size: " << map.rows << "x" << map.cols << std::endl;
+
+	ROS_INFO("Waiting for action server to start.");
+	// wait for the action server to start
+	ac.waitForServer(); //will wait for infinite time
+
+	ROS_INFO("Action server started, sending goal.");
+
 //	cv::Point2f src_center(map.cols/2.0F, map.rows/2.0F);
 //	cv::Mat rot_mat = getRotationMatrix2D(src_center, 180, 1.0);
 //	cv::Mat dst;
