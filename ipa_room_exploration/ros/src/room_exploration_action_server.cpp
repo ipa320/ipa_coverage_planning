@@ -66,12 +66,12 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 		try
 		{
 			ros::Time time = ros::Time(0);
-			listener.waitForTransform("/map", "/base_footprint", time, ros::Duration(5.0));
-			listener.lookupTransform("/map", "/base_footprint", time, transform);
+			listener.waitForTransform(map_frame, base_frame, time, ros::Duration(5.0));
+			listener.lookupTransform(map_frame, base_frame, time, transform);
 
 			ROS_INFO("Got a transform! x = %f, y = %f", transform.getOrigin().x(), transform.getOrigin().y());
 
-			// save the current pose
+			// save the current pose if a transform could be found
 			geometry_msgs::Pose2D current_pose;
 
 			current_pose.x = transform.getOrigin().x();
@@ -82,7 +82,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 
 			robot_poses.push_back(current_pose);
 		}
-		catch(tf::TransformException ex)
+		catch(tf::TransformException &ex)
 		{
 			ROS_INFO("Couldn't get transform!");// %s", ex.what());
 		}
@@ -99,6 +99,58 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 	{
 		ROS_INFO("The base failed to move to the goal for some reason");
 		return false;
+	}
+}
+
+// Function to draw the seen points into the given map, that shows the positions the robot can actually reach. This is done by
+// going trough all given robot-poses and calculate where the field of view has been. The field of view is given in the relative
+// not rotated case, meaning to be in the robot-frame, where x_robot shows into the direction of the front and the y_robot axis
+// along its left side. The function then calculates the field_of_view_points in the global frame by using the given robot pose
+// and draws a rectangle at this position.
+void RoomExplorationServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std::vector<geometry_msgs::Pose2D>& robot_poses,
+			const std::vector<geometry_msgs::Point32>& field_of_view_points, const float map_resolution, const cv::Point2d map_origin)
+{
+	// go trough each given robot pose
+	for(std::vector<geometry_msgs::Pose2D>::const_iterator current_pose = robot_poses.begin(); current_pose != robot_poses.end(); ++current_pose)
+	{
+		// get the rotation matrix
+		float sin_theta = std::sin(current_pose->theta);
+		float cos_theta = std::cos(current_pose->theta);
+//		cv::Mat R = (cv::Mat_<float>(2, 2) << cos_theta, -sin_theta, sin_theta, cos_theta); // template initialization
+		Eigen::Matrix<float, 2, 2> R;
+		R << cos_theta, -sin_theta, sin_theta, cos_theta;
+
+		// transform field of view points
+		std::vector<cv::Point2f> transformed_fow_points;
+		Eigen::Matrix<float, 2, 1> pose_as_matrix;
+		pose_as_matrix << current_pose->x, current_pose->y;
+		for(size_t point = 0; point < field_of_view_points.size(); ++point)
+		{
+			// transform fow-point from geometry_msgs::Point32 to Eigen::Matrix
+			Eigen::Matrix<float, 2, 1> fow_point;
+			fow_point << field_of_view_points[point].x, field_of_view_points[point].y;
+
+			// linear transformation
+			Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R * fow_point;
+
+			// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
+			// values
+			cv::Point2f current_point = cv::Point2f((transformed_vector(0, 0) - map_origin.x)/map_resolution, (transformed_vector(1, 0) - map_origin.y)/map_resolution);
+			current_point.x = std::max(current_point.x, 0.0f);
+			current_point.y = std::max(current_point.y, 0.0f);
+			current_point.x = std::min(current_point.x, (float) reachable_areas_map.cols);
+			current_point.y = std::min(current_point.y, (float) reachable_areas_map.rows);
+			transformed_fow_points.push_back(current_point);
+		}
+
+		// draw field of view in map for current pose
+		cv::fillConvexPoly(reachable_areas_map, transformed_fow_points, cv::Scalar(127));
+
+		// print results
+//		std::cout << "Pose: " << *current_pose << std::endl;
+//		for(size_t i = 0; i < transformed_fow_points.size(); ++i)
+//			 std::cout << "fow: " <<  transformed_fow_points[i] << std::endl;
+//		std::cout << std::endl;
 	}
 }
 
@@ -131,7 +183,7 @@ void RoomExplorationServer::exploreRoom(const ipa_room_exploration::RoomExplorat
 	std::vector<geometry_msgs::Pose2D> exploration_path;
 	if(path_planning_algorithm_ == 1) // use grid point explorator
 	{
-		// set grid size
+		// set wanted grid size
 		grid_point_planner.setGridLineLength(grid_line_length_);
 
 		// plan path
@@ -140,7 +192,7 @@ void RoomExplorationServer::exploreRoom(const ipa_room_exploration::RoomExplorat
 
 	// after planning a path, navigate trough all points and save the robot poses to check what regions have been seen
 	std::vector<geometry_msgs::Pose2D> robot_poses;
-	for(size_t nav_goal = 0; nav_goal < exploration_path.size(); ++nav_goal)
+	for(size_t nav_goal = 0; nav_goal < 5; ++nav_goal)
 	{
 //		cv::Mat map_copy = room_map.clone();
 //
@@ -151,12 +203,19 @@ void RoomExplorationServer::exploreRoom(const ipa_room_exploration::RoomExplorat
 		publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->base_frame, robot_poses);
 	}
 
-	geometry_msgs::Pose2D nav_goal;
-	nav_goal.x = convertPixelToMeterForXCoordinate(150, map_resolution, map_origin);
-	nav_goal.y = convertPixelToMeterForYCoordinate(100, map_resolution, map_origin);
-	nav_goal.theta = -0.5*3.14159;
+	// draw the seen positions so the server can check what points haven't been seen
+	cv::Mat seen_positions_map = room_map.clone();
+	drawSeenPoints(seen_positions_map, robot_poses, goal->field_of_view, map_resolution, map_origin);
 
-	publishNavigationGoal(nav_goal, goal->map_frame, goal->base_frame, robot_poses);
+	// testing purpose: print the listened robot positions
+	cv::Mat map_copy = room_map.clone();
+	for(size_t i = 0; i < robot_poses.size(); ++i)
+	{
+		cv::circle(map_copy, cv::Point(robot_poses[i].x/map_resolution, robot_poses[i].y/map_resolution), 2, cv::Scalar(127), CV_FILLED);
+	}
+	cv::imshow("listened positions", map_copy);
+	cv::imshow("seen area", seen_positions_map);
+	cv::waitKey();
 
 	room_exploration_server_.setSucceeded();
 }

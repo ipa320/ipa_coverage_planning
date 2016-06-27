@@ -30,6 +30,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
+find_package(Eigen REQUIRED)
 
 
 # Add the Files for actionlib
@@ -98,6 +99,7 @@ include_directories(
 	${include_INCLUDE_DIRS}
 	${OpenCV_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIRS}
+	${Eigen_INCLUDE_DIRS}
 )
 
 # turtlebot mover --> simulation, not relevant
@@ -117,6 +119,7 @@ target_link_libraries(room_exploration_server
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBRARIES}
 	${Boost_LIBRARIES}
+	${Eigen_LIBRARIES}
 )
 add_dependencies(room_exploration_server ${catkin_EXPORTED_TARGETS})
 

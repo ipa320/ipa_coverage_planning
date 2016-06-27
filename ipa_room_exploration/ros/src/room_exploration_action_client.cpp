@@ -99,6 +99,24 @@ int main(int argc, char **argv)
 	starting_position.y = 1.0;
 	starting_position.theta = 0.0;
 
+	geometry_msgs::Point32 fow_point_1;// geometry_msgs::Point32(0.3, 0.3);
+	fow_point_1.x = 0.3;
+	fow_point_1.y = 0.3;
+	geometry_msgs::Point32 fow_point_2;// = geometry_msgs::Point32(0.3, -0.3);
+	fow_point_2.x = 0.3;
+	fow_point_2.y = -0.3;
+	geometry_msgs::Point32 fow_point_3;// = geometry_msgs::Point32(0.7, 0.7);
+	fow_point_3.x = 0.7;
+	fow_point_3.y = 0.7;
+	geometry_msgs::Point32 fow_point_4;// = geometry_msgs::Point32(0.7, -0.7);
+	fow_point_4.x = 0.7;
+	fow_point_4.y = -0.7;
+	std::vector<geometry_msgs::Point32> fow_points(4);
+	fow_points[0] = fow_point_1;
+	fow_points[1] = fow_point_2;
+	fow_points[2] = fow_point_3;
+	fow_points[3] = fow_point_4;
+
 	ipa_room_exploration::RoomExplorationGoal goal;
 	goal.input_map = labeling;
 	goal.map_origin = map_origin;
@@ -106,6 +124,9 @@ int main(int argc, char **argv)
 	goal.map_resolution = 0.05;
 	goal.robot_radius = 0.3; // turtlebot, used for sim 0.177
 	goal.room_min_max = min_max_points;
+	goal.base_frame = "/base_footprint";
+	goal.map_frame = "/map";
+	goal.field_of_view = fow_points;
 	ac.sendGoal(goal);
 	return 0;
 }

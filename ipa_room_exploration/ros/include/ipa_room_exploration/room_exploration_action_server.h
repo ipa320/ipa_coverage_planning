@@ -3,15 +3,16 @@
 #include <move_base_msgs/MoveBaseAction.h>
 #include <actionlib/client/simple_action_client.h>
 #include <ros/time.h>
+#include <cv_bridge/cv_bridge.h>
 
 #include <tf/transform_listener.h>
+
+#include <Eigen/Dense>
 
 #include <iostream>
 #include <list>
 #include <string>
 #include <vector>
-
-#include <cv_bridge/cv_bridge.h>
 
 #include <ipa_room_exploration/RoomExplorationAction.h>
 
@@ -67,6 +68,11 @@ protected:
 		cv::warpAffine(map, dst, rot_mat, map.size());
 		cv::flip(dst, map, 1);
 	}
+
+	// function to draw the points that have been covered by the field of view, when the robot moved trough the room
+	//		--> use given Poses and original field of view points to do so
+	void drawSeenPoints(cv::Mat& reachable_areas_map, const std::vector<geometry_msgs::Pose2D>& robot_poses,
+			const std::vector<geometry_msgs::Point32>& field_of_view_points, const float map_resolution, const cv::Point2d map_origin);
 
 	// !!Important!!
 	//  define the Nodehandle before the action server, or else the server won't start
