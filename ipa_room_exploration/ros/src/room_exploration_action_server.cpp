@@ -121,7 +121,7 @@ void RoomExplorationServer::drawSeenPoints(cv::Mat& reachable_areas_map, const s
 		R << cos_theta, -sin_theta, sin_theta, cos_theta;
 
 		// transform field of view points
-		std::vector<cv::Point2f> transformed_fow_points;
+		std::vector<cv::Point> transformed_fow_points;
 		Eigen::Matrix<float, 2, 1> pose_as_matrix;
 		pose_as_matrix << current_pose->x, current_pose->y;
 		for(size_t point = 0; point < field_of_view_points.size(); ++point)
@@ -135,22 +135,24 @@ void RoomExplorationServer::drawSeenPoints(cv::Mat& reachable_areas_map, const s
 
 			// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
 			// values
-			cv::Point2f current_point = cv::Point2f((transformed_vector(0, 0) - map_origin.x)/map_resolution, (transformed_vector(1, 0) - map_origin.y)/map_resolution);
-			current_point.x = std::max(current_point.x, 0.0f);
-			current_point.y = std::max(current_point.y, 0.0f);
-			current_point.x = std::min(current_point.x, (float) reachable_areas_map.cols);
-			current_point.y = std::min(current_point.y, (float) reachable_areas_map.rows);
+			cv::Point current_point = cv::Point((transformed_vector(0, 0) - map_origin.x)/map_resolution, (transformed_vector(1, 0) - map_origin.y)/map_resolution);
+			current_point.x = std::max(current_point.x, 0);
+			current_point.y = std::max(current_point.y, 0);
+			current_point.x = std::min(current_point.x, reachable_areas_map.cols);
+			current_point.y = std::min(current_point.y, reachable_areas_map.rows);
 			transformed_fow_points.push_back(current_point);
+//			std::cout << current_point << std::endl;
 		}
-
-		// draw field of view in map for current pose
-		cv::fillConvexPoly(reachable_areas_map, transformed_fow_points, cv::Scalar(127));
+//		std::cout << std::endl;
 
 		// print results
 //		std::cout << "Pose: " << *current_pose << std::endl;
 //		for(size_t i = 0; i < transformed_fow_points.size(); ++i)
 //			 std::cout << "fow: " <<  transformed_fow_points[i] << std::endl;
 //		std::cout << std::endl;
+
+		// draw field of view in map for current pose
+		cv::fillConvexPoly(reachable_areas_map, transformed_fow_points, cv::Scalar(127));
 	}
 }
 
@@ -192,10 +194,9 @@ void RoomExplorationServer::exploreRoom(const ipa_room_exploration::RoomExplorat
 
 	// after planning a path, navigate trough all points and save the robot poses to check what regions have been seen
 	std::vector<geometry_msgs::Pose2D> robot_poses;
-	for(size_t nav_goal = 0; nav_goal < 5; ++nav_goal)
+	for(size_t nav_goal = 0; nav_goal < exploration_path.size(); ++nav_goal)
 	{
 //		cv::Mat map_copy = room_map.clone();
-//
 //		cv::circle(map_copy, cv::Point(exploration_path[nav_goal].y / map_resolution, exploration_path[nav_goal].x / map_resolution), 3, cv::Scalar(127), CV_FILLED);
 //		cv::imshow("current_goal", map_copy);
 //		cv::waitKey();
@@ -211,10 +212,12 @@ void RoomExplorationServer::exploreRoom(const ipa_room_exploration::RoomExplorat
 	cv::Mat map_copy = room_map.clone();
 	for(size_t i = 0; i < robot_poses.size(); ++i)
 	{
-		cv::circle(map_copy, cv::Point(robot_poses[i].x/map_resolution, robot_poses[i].y/map_resolution), 2, cv::Scalar(127), CV_FILLED);
+		cv::circle(seen_positions_map, cv::Point(robot_poses[i].x/map_resolution, robot_poses[i].y/map_resolution), 2, cv::Scalar(100), CV_FILLED);
 	}
-	cv::imshow("listened positions", map_copy);
+//	cv::imshow("listened positions", map_copy);
+	cv::namedWindow("seen area", cv::WINDOW_NORMAL);
 	cv::imshow("seen area", seen_positions_map);
+	cv::resizeWindow("seen area", 600, 600);
 	cv::waitKey();
 
 	room_exploration_server_.setSucceeded();
