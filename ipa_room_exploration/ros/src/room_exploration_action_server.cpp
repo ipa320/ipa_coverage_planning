@@ -27,7 +27,7 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 // because it allows to calculate where the robot field of view has theoretically been and identify positions of the map that
 // the robot hasn't seen.
 bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& nav_goal, const std::string map_frame,
-		const std::string base_frame, std::vector<geometry_msgs::Pose2D>& robot_poses)
+		const std::string camera_frame, std::vector<geometry_msgs::Pose2D>& robot_poses)
 {
 	// move base client, that sends navigation goals to a move_base action server
 	MoveBaseClient mv_base_client("/move_base", true);
@@ -62,12 +62,12 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 		tf::TransformListener listener;
 		tf::StampedTransform transform;
 
-		// try to get the transformation from map_frame to base_frame, wait max 5 seconds for this transform to come up
+		// try to get the transformation from map_frame to base_frame, wait max. 5 seconds for this transform to come up
 		try
 		{
 			ros::Time time = ros::Time(0);
-			listener.waitForTransform(map_frame, base_frame, time, ros::Duration(5.0));
-			listener.lookupTransform(map_frame, base_frame, time, transform);
+			listener.waitForTransform(map_frame, camera_frame, time, ros::Duration(5.0));
+			listener.lookupTransform(map_frame, camera_frame, time, transform);
 
 			ROS_INFO("Got a transform! x = %f, y = %f", transform.getOrigin().x(), transform.getOrigin().y());
 
@@ -201,7 +201,7 @@ void RoomExplorationServer::exploreRoom(const ipa_room_exploration::RoomExplorat
 //		cv::imshow("current_goal", map_copy);
 //		cv::waitKey();
 
-		publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->base_frame, robot_poses);
+		publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->camera_frame, robot_poses);
 	}
 
 	// draw the seen positions so the server can check what points haven't been seen

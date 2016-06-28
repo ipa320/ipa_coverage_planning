@@ -42,7 +42,7 @@ protected:
 
 	// function to publish a navigation goal, it returns true if the goal could be reached
 	bool publishNavigationGoal(const geometry_msgs::Pose2D& nav_goal, const std::string map_frame,
-			const std::string base_frame, std::vector<geometry_msgs::Pose2D>& robot_poses);
+			const std::string camera_frame, std::vector<geometry_msgs::Pose2D>& robot_poses);
 
 	// converter-> Pixel to meter for X coordinate
 	double convertPixelToMeterForXCoordinate(const int pixel_valued_object_x, const float map_resolution, const cv::Point2d map_origin)
