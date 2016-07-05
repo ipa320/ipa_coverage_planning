@@ -219,26 +219,42 @@ void RoomExplorationServer::exploreRoom(const ipa_room_exploration::RoomExplorat
 	abs = fow_vectors[2].norm() * fow_vectors[3].norm();
 	double angle_2 = std::acos(dot/abs);
 
-	// get points that define the edge-points of the line the raycasting should go to
-	double travel_distance = 1.2 * fow_vectors[2].norm(); // from current pose to most far points
-	Eigen::Matrix<double, 2, 1> edge_point_1, edge_point_2, robot_pose_as_vector;
-	if(angle_1 > angle_2)
+	// get points that define the edge-points of the line the raycasting should go to, by computing the intersection of two
+	// lines: the line defined by the robot pose and the fow-point that spans the highest angle and a line parallel to the
+	// front side of the fow with an offset
+	Eigen::Matrix<double, 2, 1> end_point_1, end_point_2;
+	double border_distance = 5;
+	Eigen::Matrix<double, 2, 1> pose_to_fow_edge_vector_1 = fow_vectors[0];
+	Eigen::Matrix<double, 2, 1> pose_to_fow_edge_vector_2 = fow_vectors[1];
+	if(angle_1 > angle_2) // do line crossings s.t. the corners are guaranteed to be after the fow
 	{
+		// get vectors showing the directions for for the lines from pose to edge of fow
 		Eigen::Matrix<double, 2, 1> normed_fow_vector_1 = fow_vectors[0]/fow_vectors[0].norm();
 		Eigen::Matrix<double, 2, 1> normed_fow_vector_2 = fow_vectors[1]/fow_vectors[1].norm();
 
-		edge_point_1 = travel_distance * normed_fow_vector_1;
-		edge_point_2 = travel_distance * normed_fow_vector_2;
+		// get the offset point after the end of the fow
+		Eigen::Matrix<double, 2, 1> offset_point_after_fow = fow_vectors[2];
+		offset_point_after_fow(1, 0) = offset_point_after_fow(1, 0) + border_distance;
+
+		// find the parameters for the two different intersections (for each corner point)
+		double first_edge_parameter = (pose_to_fow_edge_vector_1(1, 0)/pose_to_fow_edge_vector_1(0, 0) * (fow_vectors[0](0, 0) - offset_point_after_fow(0, 0)) + offset_point_after_fow(1, 0) - fow_vectors[0](1, 0))/( pose_to_fow_edge_vector_1(1, 0)/pose_to_fow_edge_vector_1(0, 0) * (fow_vectors[3](0, 0) - fow_vectors[2](0, 0)) - (fow_vectors[3](1, 0) - fow_vectors[2](1, 0)) );
+		double second_edge_parameter = (pose_to_fow_edge_vector_2(1, 0)/pose_to_fow_edge_vector_2(0, 0) * (fow_vectors[1](0, 0) - offset_point_after_fow(0, 0)) + offset_point_after_fow(1, 0) - fow_vectors[1](1, 0))/( pose_to_fow_edge_vector_2(1, 0)/pose_to_fow_edge_vector_2(0, 0) * (fow_vectors[3](0, 0) - fow_vectors[2](0, 0)) - (fow_vectors[3](1, 0) - fow_vectors[2](1, 0)) );
+
+		// use the line equation and found parameters to actually find the corners
+		end_point_1 = first_edge_parameter * (fow_vectors[3] - fow_vectors[2]) + offset_point_after_fow;
+		end_point_2 = second_edge_parameter * (fow_vectors[3] - fow_vectors[2]) + offset_point_after_fow;
 	}
 	else
 	{
-		edge_point_1 = 1.2 * fow_vectors[2];
-		edge_point_2 = 1.2 * fow_vectors[3];
+		// follow the lines to the farthest points and go a little longer, this ensures that the whole fow is covered
+		double travel_distance = 1.2 * fow_vectors[2].norm(); // from current pose to most far points
+		end_point_1 = 1.2 * fow_vectors[2];
+		end_point_2 = 1.2 * fow_vectors[3];
 	}
 
 	// transform to OpenCv format
-	cv::Point corner_1 (edge_point_1(0, 0), edge_point_1(1, 0));
-	cv::Point corner_2 (edge_point_2(0, 0), edge_point_2(1, 0));
+	cv::Point corner_1 (end_point_1(0, 0), end_point_1(1, 0));
+	cv::Point corner_2 (end_point_2(0, 0), end_point_2(1, 0));
 
 	// draw the seen positions so the server can check what points haven't been seen
 	cv::Mat seen_positions_map = room_map.clone();
