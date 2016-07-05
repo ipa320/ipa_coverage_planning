@@ -105,10 +105,12 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 // Function to draw the seen points into the given map, that shows the positions the robot can actually reach. This is done by
 // going trough all given robot-poses and calculate where the field of view has been. The field of view is given in the relative
 // not rotated case, meaning to be in the robot-frame, where x_robot shows into the direction of the front and the y_robot axis
-// along its left side. The function then calculates the field_of_view_points in the global frame by using the given robot pose
-// and draws a rectangle at this position.
+// along its left side. The function then calculates the field_of_view_points in the global frame by using the given robot pose.
+// After this the function does a raycasting to check if the field of view has been blocked by an obstacle and couldn't see
+// whats behind it. This ensures that no Point is wrongly classified as seen.
 void RoomExplorationServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std::vector<geometry_msgs::Pose2D>& robot_poses,
-			const std::vector<geometry_msgs::Point32>& field_of_view_points, const float map_resolution, const cv::Point2d map_origin)
+			const std::vector<geometry_msgs::Point32>& field_of_view_points, const std::vector<cv::Point> raycasting_edge_points,
+			const float map_resolution, const cv::Point2d map_origin)
 {
 	// go trough each given robot pose
 	for(std::vector<geometry_msgs::Pose2D>::const_iterator current_pose = robot_poses.begin(); current_pose != robot_poses.end(); ++current_pose)
@@ -143,12 +145,6 @@ void RoomExplorationServer::drawSeenPoints(cv::Mat& reachable_areas_map, const s
 			transformed_fow_points.push_back(current_point);
 //			std::cout << current_point << std::endl;
 		}
-//		std::cout << std::endl;
-
-		// print results
-//		std::cout << "Pose: " << *current_pose << std::endl;
-//		for(size_t i = 0; i < transformed_fow_points.size(); ++i)
-//			 std::cout << "fow: " <<  transformed_fow_points[i] << std::endl;
 //		std::cout << std::endl;
 
 		// draw field of view in map for current pose
@@ -204,9 +200,49 @@ void RoomExplorationServer::exploreRoom(const ipa_room_exploration::RoomExplorat
 		publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->camera_frame, robot_poses);
 	}
 
+	// find the points that are used to raycast the field of view
+	// find points that span biggest angle
+	std::vector<Eigen::Matrix<double, 2, 1> > fow_vectors;
+	for(int i = 0; i < 4; ++i)
+	{
+		Eigen::Matrix<double, 2, 1> current_vector;
+		current_vector << goal->field_of_view[i].x, goal->field_of_view[i].y;
+
+		fow_vectors.push_back(current_vector);
+	}
+
+	// get angles
+	double dot = fow_vectors[0].transpose()*fow_vectors[1];
+	double abs = fow_vectors[0].norm() * fow_vectors[1].norm();
+	double angle_1 = std::acos(dot/abs);
+	dot = fow_vectors[2].transpose()*fow_vectors[3];
+	abs = fow_vectors[2].norm() * fow_vectors[3].norm();
+	double angle_2 = std::acos(dot/abs);
+
+	// get points that define the edge-points of the line the raycasting should go to
+	double travel_distance = 1.2 * fow_vectors[2].norm(); // from current pose to most far points
+	Eigen::Matrix<double, 2, 1> edge_point_1, edge_point_2, robot_pose_as_vector;
+	if(angle_1 > angle_2)
+	{
+		Eigen::Matrix<double, 2, 1> normed_fow_vector_1 = fow_vectors[0]/fow_vectors[0].norm();
+		Eigen::Matrix<double, 2, 1> normed_fow_vector_2 = fow_vectors[1]/fow_vectors[1].norm();
+
+		edge_point_1 = travel_distance * normed_fow_vector_1;
+		edge_point_2 = travel_distance * normed_fow_vector_2;
+	}
+	else
+	{
+		edge_point_1 = 1.2 * fow_vectors[2];
+		edge_point_2 = 1.2 * fow_vectors[3];
+	}
+
+	// transform to OpenCv format
+	cv::Point corner_1 (edge_point_1(0, 0), edge_point_1(1, 0));
+	cv::Point corner_2 (edge_point_2(0, 0), edge_point_2(1, 0));
+
 	// draw the seen positions so the server can check what points haven't been seen
 	cv::Mat seen_positions_map = room_map.clone();
-	drawSeenPoints(seen_positions_map, robot_poses, goal->field_of_view, map_resolution, map_origin);
+//	drawSeenPoints(seen_positions_map, robot_poses, goal->field_of_view, map_resolution, map_origin);
 
 	// testing purpose: print the listened robot positions
 	cv::Mat map_copy = room_map.clone();

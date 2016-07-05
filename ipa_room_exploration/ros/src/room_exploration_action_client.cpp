@@ -161,24 +161,23 @@ int main(int argc, char **argv)
 
 	// testing
 	std::vector<cv::Point> fow(5);
-	fow[0] = cv::Point(10, 10);
-	fow[1] = cv::Point(30, 10);
-	fow[2] = cv::Point(40, 40);
-	fow[3] = cv::Point(0, 40);
-	fow[4] = cv::Point(10, 10);
+	fow[0] = cv::Point(70, 20);
+	fow[1] = cv::Point(90, 20);
+	fow[2] = cv::Point(100, 40);
+	fow[3] = cv::Point(60, 40);
+	fow[4] = cv::Point(70, 20);
 
-	cv::Point robot_pose(20, 5);
-	cv::Point test_point(20, 50);
+	cv::Point robot_pose(80, 5);
+	cv::Point test_point(80, 50);
 
-	cv::Mat white_map = cv::Mat(100, 100, CV_8U, cv::Scalar(255));
+	cv::Mat white_map = cv::Mat(200, 200, CV_8U, cv::Scalar(255));
+	cv::line(white_map, cv::Point(80, 20), cv::Point(90, 20), cv::Scalar(0), 1);
+	cv::line(white_map, cv::Point(90, 20), cv::Point(75, 25), cv::Scalar(0), 1);
 
 	Timer tim;
+	tim.start();
 //	std::cout << pointInsidePolygonCheck(robot_pose, fow) << std::endl;
 //	std::cout << pointInsidePolygonCheck(test_point, fow) << std::endl;
-
-	double simulated_sin = std::sin(3.14/2.0);
-	double simulated_cos = std::cos(3.14/2.0);
-	double temporary_distance = 1e12;
 
 	// find points that span biggest angle
 	std::vector<Eigen::Matrix<double, 2, 1> > fow_vectors;
@@ -188,8 +187,6 @@ int main(int argc, char **argv)
 		current_vector << fow[i].x - robot_pose.x , fow[i].y - robot_pose.y;
 
 		fow_vectors.push_back(current_vector);
-
-		std::cout << current_vector << std::endl << std::endl;
 	}
 
 	// get angles
@@ -200,7 +197,7 @@ int main(int argc, char **argv)
 	abs = fow_vectors[2].norm() * fow_vectors[3].norm();
 	double angle_2 = std::acos(dot/abs);
 
-	// get points that define the points the raycasting should go to
+	// get points that define the edge-points of the line the raycasting should go to
 	double travel_distance = 1.2 * fow_vectors[2].norm(); // from current pose to most far points
 	Eigen::Matrix<double, 2, 1> edge_point_1, edge_point_2, robot_pose_as_vector;
 	robot_pose_as_vector << robot_pose.x, robot_pose.y;
@@ -224,25 +221,61 @@ int main(int argc, char **argv)
 
 	std::cout << "corners: " << std::endl << corner_1 << std::endl << corner_2 << std::endl;
 
-	cv::circle(white_map, corner_1, 2, cv::Scalar(100), CV_FILLED);
-	cv::circle(white_map, corner_2, 2, cv::Scalar(100), CV_FILLED);
-	cv::fillConvexPoly(white_map, fow, cv::Scalar(200));
+	// get points between the edge-points to get goals for raycasting
+	cv::LineIterator border_line(white_map, corner_1, corner_2, 8); // opencv implementation of bresenham algorithm, 8: color, irrelevant
+	std::vector<cv::Point> raycasting_goals(border_line.count);
 
-	for (double distance = 1; distance < 50; ++distance)
+	for(size_t i = 0; i < border_line.count; i++, ++border_line)
+		raycasting_goals[i] = border_line.pos();
+
+//	for(size_t i = 0; i < raycasting_goals.size(); ++i)
+//	{
+//		white_map.at<uchar>(raycasting_goals[i]) = 127;
+//	}
+
+	cv::circle(white_map, corner_1, 2, cv::Scalar(100), CV_FILLED);
+	cv::circle(white_map, cv::Point(96, 60), 2, cv::Scalar(70), CV_FILLED);
+	cv::circle(white_map, corner_2, 2, cv::Scalar(100), CV_FILLED);
+//	cv::fillConvexPoly(white_map, fow, cv::Scalar(200));
+
+	// go trough the found raycasting goals and draw the field-of-view
+	for(std::vector<cv::Point>::iterator goal = raycasting_goals.begin(); goal != raycasting_goals.end(); ++goal)
 	{
-		const int ny = robot_pose.y + simulated_sin * distance;
-		const int nx = robot_pose.x + simulated_cos * distance;
-		//make sure the simulated point isn't out of the boundaries of the map
-		if (ny < 0 || ny >= map.rows || nx < 0 || nx >= map.cols)
-			break;
-		if (white_map.at<unsigned char>(ny, nx) > 0 && pointInsidePolygonCheck(cv::Point(nx, ny), fow) == 1)
+		// use openCVs bresenham algorithm to find the points from the robot pose to the goal
+		cv::LineIterator ray_points(white_map, robot_pose, *goal, 8);
+
+		// go trough the points on the ray and draw them if they are inside the fow, stop the current for-step when a black
+		// pixel is hit (an obstacle stops the camera from seeing whats behind)
+		for(size_t point = 0; point < ray_points.count; point++, ++ray_points)
 		{
-			white_map.at<uchar> (ny, nx) = 127;
+			if(white_map.at<unsigned char>(ray_points.pos()) == 0)
+			{
+				break;
+			}
+
+			if (white_map.at<unsigned char>(ray_points.pos()) > 0 && pointInsidePolygonCheck(ray_points.pos(), fow) == 1)
+			{
+				white_map.at<uchar> (ray_points.pos()) = 127;
+			}
 		}
 	}
 
+	std::cout << std::endl << "ellapsed time: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
+
+//	for (double distance = 1; distance < 50; ++distance)
+//	{
+//		const int ny = robot_pose.y + simulated_sin * distance;
+//		const int nx = robot_pose.x + simulated_cos * distance;
+//		//make sure the simulated point isn't out of the boundaries of the map
+//		if (ny < 0 || ny >= map.rows || nx < 0 || nx >= map.cols)
+//			break;
+//		if (white_map.at<unsigned char>(ny, nx) > 0 && pointInsidePolygonCheck(cv::Point(nx, ny), fow) == 1)
+//		{
+//			white_map.at<uchar> (ny, nx) = 127;
+//		}
+//	}
+
 	cv::circle(white_map, robot_pose, 2, cv::Scalar(100), CV_FILLED);
-	cv::circle(white_map, test_point, 2, cv::Scalar(100), CV_FILLED);
 
 	cv::namedWindow("seen area", cv::WINDOW_NORMAL);
 	cv::imshow("seen area", white_map);
