@@ -87,7 +87,7 @@ int main(int argc, char **argv)
 
 	ROS_INFO("Waiting for action server to start.");
 	// wait for the action server to start
-//	ac.waitForServer(); //will wait for infinite time
+	ac.waitForServer(); //will wait for infinite time
 
 	ROS_INFO("Action server started, sending goal.");
 
@@ -157,7 +157,7 @@ int main(int argc, char **argv)
 	goal.camera_frame = "/base_footprint";
 	goal.map_frame = "/map";
 	goal.field_of_view = fow_points;
-//	ac.sendGoal(goal);
+	ac.sendGoal(goal);
 
 //	// testing
 //	std::vector<cv::Point> fow(5);

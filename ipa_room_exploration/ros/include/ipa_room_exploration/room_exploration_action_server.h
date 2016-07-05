@@ -44,6 +44,9 @@ protected:
 	bool publishNavigationGoal(const geometry_msgs::Pose2D& nav_goal, const std::string map_frame,
 			const std::string camera_frame, std::vector<geometry_msgs::Pose2D>& robot_poses);
 
+	// function to check if a point is inside a given polygon, using the crossing line algorithm
+	int pointInsidePolygonCheck(const cv::Point& P, const std::vector<cv::Point>& V);
+
 	// converter-> Pixel to meter for X coordinate
 	double convertPixelToMeterForXCoordinate(const int pixel_valued_object_x, const float map_resolution, const cv::Point2d map_origin)
 	{
@@ -72,8 +75,8 @@ protected:
 	// function to draw the points that have been covered by the field of view, when the robot moved trough the room
 	//		--> use given Poses and original field of view points to do so
 	void drawSeenPoints(cv::Mat& reachable_areas_map, const std::vector<geometry_msgs::Pose2D>& robot_poses,
-			const std::vector<geometry_msgs::Point32>& field_of_view_points, const std::vector<cv::Point> raycasting_edge_points,
-			const float map_resolution, const cv::Point2d map_origin);
+			const std::vector<geometry_msgs::Point32>& field_of_view_points, const Eigen::Matrix<float, 2, 1> raycasting_corner_1,
+			const Eigen::Matrix<float, 2, 1> raycasting_corner_2, const float map_resolution, const cv::Point2d map_origin);
 
 	// !!Important!!
 	//  define the Nodehandle before the action server, or else the server won't start

@@ -102,15 +102,39 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 	}
 }
 
+// crossing number test for a point in a polygon
+//      Input:   P = a point,
+//               V[] = vertex points of a polygon V[n+1] with V[n]=V[0]
+//      Return:  0 = outside, 1 = inside
+// This code is patterned after [Franklin, 2000]
+int RoomExplorationServer::pointInsidePolygonCheck(const cv::Point& P, const std::vector<cv::Point>& V)
+{
+    int    cn = 0;    // the  crossing number counter
+
+    // loop through all edges of the polygon
+    for (int i = 0; i < V.size(); i++)  // edge from V[i]  to V[i+1]
+    {
+       if (((V[i].y <= P.y) && (V[i+1].y > P.y))    // an upward crossing
+        || ((V[i].y > P.y) && (V[i+1].y <=  P.y))) 	// a downward crossing
+       {
+            // compute  the actual edge-ray intersect x-coordinate
+            float vt = (float)(P.y  - V[i].y) / (V[i+1].y - V[i].y);
+            if (P.x <  V[i].x + vt * (V[i+1].x - V[i].x)) // P.x < intersect
+                 ++cn;   // a valid crossing of y=P.y right of P.x
+        }
+    }
+    return (cn&1);    // 0 if even (out), and 1 if  odd (in)
+}
+
 // Function to draw the seen points into the given map, that shows the positions the robot can actually reach. This is done by
 // going trough all given robot-poses and calculate where the field of view has been. The field of view is given in the relative
 // not rotated case, meaning to be in the robot-frame, where x_robot shows into the direction of the front and the y_robot axis
 // along its left side. The function then calculates the field_of_view_points in the global frame by using the given robot pose.
 // After this the function does a raycasting to check if the field of view has been blocked by an obstacle and couldn't see
-// whats behind it. This ensures that no Point is wrongly classified as seen.
+// what's behind it. This ensures that no Point is wrongly classified as seen.
 void RoomExplorationServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std::vector<geometry_msgs::Pose2D>& robot_poses,
-			const std::vector<geometry_msgs::Point32>& field_of_view_points, const std::vector<cv::Point> raycasting_edge_points,
-			const float map_resolution, const cv::Point2d map_origin)
+			const std::vector<geometry_msgs::Point32>& field_of_view_points, const Eigen::Matrix<float, 2, 1> raycasting_corner_1,
+			const Eigen::Matrix<float, 2, 1> raycasting_corner_2, const float map_resolution, const cv::Point2d map_origin)
 {
 	// go trough each given robot pose
 	for(std::vector<geometry_msgs::Pose2D>::const_iterator current_pose = robot_poses.begin(); current_pose != robot_poses.end(); ++current_pose)
@@ -147,8 +171,56 @@ void RoomExplorationServer::drawSeenPoints(cv::Mat& reachable_areas_map, const s
 		}
 //		std::cout << std::endl;
 
+		// transform corners for raycasting
+		Eigen::Matrix<float, 2, 1> transformed_corner_1 = pose_as_matrix + R * raycasting_corner_1;
+		Eigen::Matrix<float, 2, 1> transformed_corner_2 = pose_as_matrix + R * raycasting_corner_2;
+
+		// convert to openCV format
+		cv::Point transformed_corner_cv_1 = cv::Point((transformed_corner_1(0, 0) - map_origin.x)/map_resolution, (transformed_corner_1(1, 0) - map_origin.y)/map_resolution);
+		transformed_corner_cv_1.x = std::max(transformed_corner_cv_1.x, 0);
+		transformed_corner_cv_1.y = std::max(transformed_corner_cv_1.y, 0);
+		transformed_corner_cv_1.x = std::min(transformed_corner_cv_1.x, reachable_areas_map.cols);
+		transformed_corner_cv_1.x = std::min(transformed_corner_cv_1.y, reachable_areas_map.rows);
+		cv::Point transformed_corner_cv_2 = cv::Point((transformed_corner_2(0, 0) - map_origin.x)/map_resolution, (transformed_corner_2(1, 0) - map_origin.y)/map_resolution);
+		transformed_corner_cv_2.x = std::max(transformed_corner_cv_2.x, 0);
+		transformed_corner_cv_2.y = std::max(transformed_corner_cv_2.y, 0);
+		transformed_corner_cv_2.x = std::min(transformed_corner_cv_2.x, reachable_areas_map.cols);
+		transformed_corner_cv_2.x = std::min(transformed_corner_cv_2.y, reachable_areas_map.rows);
+
+		std::cout << "corners: " << std::endl << transformed_corner_cv_1 << std::endl <<transformed_corner_cv_2 << std::endl;
+
+		// raycast the field of view to look what areas actually have been seen
+		// get points between the edge-points to get goals for raycasting
+		cv::LineIterator border_line(reachable_areas_map, transformed_corner_cv_1, transformed_corner_cv_2, 8); // opencv implementation of bresenham algorithm, 8: color, irrelevant
+		std::vector<cv::Point> raycasting_goals(border_line.count);
+
+		for(size_t i = 0; i < border_line.count; i++, ++border_line)
+			raycasting_goals[i] = border_line.pos();
+
+		// go trough the found raycasting goals and draw the field-of-view
+		for(std::vector<cv::Point>::iterator goal = raycasting_goals.begin(); goal != raycasting_goals.end(); ++goal)
+		{
+			// use openCVs bresenham algorithm to find the points from the robot pose to the goal
+			cv::LineIterator ray_points(reachable_areas_map, cv::Point(current_pose->x, current_pose->y), *goal, 8);
+
+			// go trough the points on the ray and draw them if they are inside the fow, stop the current for-step when a black
+			// pixel is hit (an obstacle stops the camera from seeing whats behind)
+			for(size_t point = 0; point < ray_points.count; point++, ++ray_points)
+			{
+				if(reachable_areas_map.at<unsigned char>(ray_points.pos()) == 0)
+				{
+					break;
+				}
+
+				if (reachable_areas_map.at<unsigned char>(ray_points.pos()) > 0 && pointInsidePolygonCheck(ray_points.pos(), transformed_fow_points) == 1)
+				{
+					reachable_areas_map.at<uchar> (ray_points.pos()) = 127;
+				}
+			}
+		}
+
 		// draw field of view in map for current pose
-		cv::fillConvexPoly(reachable_areas_map, transformed_fow_points, cv::Scalar(127));
+//		cv::fillConvexPoly(reachable_areas_map, transformed_fow_points, cv::Scalar(127));
 	}
 }
 
@@ -190,7 +262,7 @@ void RoomExplorationServer::exploreRoom(const ipa_room_exploration::RoomExplorat
 
 	// after planning a path, navigate trough all points and save the robot poses to check what regions have been seen
 	std::vector<geometry_msgs::Pose2D> robot_poses;
-	for(size_t nav_goal = 0; nav_goal < exploration_path.size(); ++nav_goal)
+	for(size_t nav_goal = 0; nav_goal < 3; ++nav_goal)
 	{
 //		cv::Mat map_copy = room_map.clone();
 //		cv::circle(map_copy, cv::Point(exploration_path[nav_goal].y / map_resolution, exploration_path[nav_goal].x / map_resolution), 3, cv::Scalar(127), CV_FILLED);
@@ -202,63 +274,60 @@ void RoomExplorationServer::exploreRoom(const ipa_room_exploration::RoomExplorat
 
 	// find the points that are used to raycast the field of view
 	// find points that span biggest angle
-	std::vector<Eigen::Matrix<double, 2, 1> > fow_vectors;
+	std::vector<Eigen::Matrix<float, 2, 1> > fow_vectors;
 	for(int i = 0; i < 4; ++i)
 	{
-		Eigen::Matrix<double, 2, 1> current_vector;
+		Eigen::Matrix<float, 2, 1> current_vector;
 		current_vector << goal->field_of_view[i].x, goal->field_of_view[i].y;
 
 		fow_vectors.push_back(current_vector);
 	}
 
 	// get angles
-	double dot = fow_vectors[0].transpose()*fow_vectors[1];
-	double abs = fow_vectors[0].norm() * fow_vectors[1].norm();
-	double angle_1 = std::acos(dot/abs);
+	float dot = fow_vectors[0].transpose()*fow_vectors[1];
+	float abs = fow_vectors[0].norm() * fow_vectors[1].norm();
+	float angle_1 = std::acos(dot/abs);
 	dot = fow_vectors[2].transpose()*fow_vectors[3];
 	abs = fow_vectors[2].norm() * fow_vectors[3].norm();
-	double angle_2 = std::acos(dot/abs);
+	float angle_2 = std::acos(dot/abs);
 
 	// get points that define the edge-points of the line the raycasting should go to, by computing the intersection of two
 	// lines: the line defined by the robot pose and the fow-point that spans the highest angle and a line parallel to the
 	// front side of the fow with an offset
-	Eigen::Matrix<double, 2, 1> end_point_1, end_point_2;
-	double border_distance = 5;
-	Eigen::Matrix<double, 2, 1> pose_to_fow_edge_vector_1 = fow_vectors[0];
-	Eigen::Matrix<double, 2, 1> pose_to_fow_edge_vector_2 = fow_vectors[1];
+	Eigen::Matrix<float, 2, 1> corner_point_1, corner_point_2;
+	float border_distance = 5;
+	Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_1 = fow_vectors[0];
+	Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_2 = fow_vectors[1];
 	if(angle_1 > angle_2) // do line crossings s.t. the corners are guaranteed to be after the fow
 	{
 		// get vectors showing the directions for for the lines from pose to edge of fow
-		Eigen::Matrix<double, 2, 1> normed_fow_vector_1 = fow_vectors[0]/fow_vectors[0].norm();
-		Eigen::Matrix<double, 2, 1> normed_fow_vector_2 = fow_vectors[1]/fow_vectors[1].norm();
+		Eigen::Matrix<float, 2, 1> normed_fow_vector_1 = fow_vectors[0]/fow_vectors[0].norm();
+		Eigen::Matrix<float, 2, 1> normed_fow_vector_2 = fow_vectors[1]/fow_vectors[1].norm();
 
 		// get the offset point after the end of the fow
-		Eigen::Matrix<double, 2, 1> offset_point_after_fow = fow_vectors[2];
+		Eigen::Matrix<float, 2, 1> offset_point_after_fow = fow_vectors[2];
 		offset_point_after_fow(1, 0) = offset_point_after_fow(1, 0) + border_distance;
 
 		// find the parameters for the two different intersections (for each corner point)
-		double first_edge_parameter = (pose_to_fow_edge_vector_1(1, 0)/pose_to_fow_edge_vector_1(0, 0) * (fow_vectors[0](0, 0) - offset_point_after_fow(0, 0)) + offset_point_after_fow(1, 0) - fow_vectors[0](1, 0))/( pose_to_fow_edge_vector_1(1, 0)/pose_to_fow_edge_vector_1(0, 0) * (fow_vectors[3](0, 0) - fow_vectors[2](0, 0)) - (fow_vectors[3](1, 0) - fow_vectors[2](1, 0)) );
-		double second_edge_parameter = (pose_to_fow_edge_vector_2(1, 0)/pose_to_fow_edge_vector_2(0, 0) * (fow_vectors[1](0, 0) - offset_point_after_fow(0, 0)) + offset_point_after_fow(1, 0) - fow_vectors[1](1, 0))/( pose_to_fow_edge_vector_2(1, 0)/pose_to_fow_edge_vector_2(0, 0) * (fow_vectors[3](0, 0) - fow_vectors[2](0, 0)) - (fow_vectors[3](1, 0) - fow_vectors[2](1, 0)) );
+		float first_edge_parameter = (pose_to_fow_edge_vector_1(1, 0)/pose_to_fow_edge_vector_1(0, 0) * (fow_vectors[0](0, 0) - offset_point_after_fow(0, 0)) + offset_point_after_fow(1, 0) - fow_vectors[0](1, 0))/( pose_to_fow_edge_vector_1(1, 0)/pose_to_fow_edge_vector_1(0, 0) * (fow_vectors[3](0, 0) - fow_vectors[2](0, 0)) - (fow_vectors[3](1, 0) - fow_vectors[2](1, 0)) );
+		float second_edge_parameter = (pose_to_fow_edge_vector_2(1, 0)/pose_to_fow_edge_vector_2(0, 0) * (fow_vectors[1](0, 0) - offset_point_after_fow(0, 0)) + offset_point_after_fow(1, 0) - fow_vectors[1](1, 0))/( pose_to_fow_edge_vector_2(1, 0)/pose_to_fow_edge_vector_2(0, 0) * (fow_vectors[3](0, 0) - fow_vectors[2](0, 0)) - (fow_vectors[3](1, 0) - fow_vectors[2](1, 0)) );
 
 		// use the line equation and found parameters to actually find the corners
-		end_point_1 = first_edge_parameter * (fow_vectors[3] - fow_vectors[2]) + offset_point_after_fow;
-		end_point_2 = second_edge_parameter * (fow_vectors[3] - fow_vectors[2]) + offset_point_after_fow;
+		corner_point_1 = first_edge_parameter * (fow_vectors[3] - fow_vectors[2]) + offset_point_after_fow;
+		corner_point_2 = second_edge_parameter * (fow_vectors[3] - fow_vectors[2]) + offset_point_after_fow;
 	}
 	else
 	{
 		// follow the lines to the farthest points and go a little longer, this ensures that the whole fow is covered
-		double travel_distance = 1.2 * fow_vectors[2].norm(); // from current pose to most far points
-		end_point_1 = 1.2 * fow_vectors[2];
-		end_point_2 = 1.2 * fow_vectors[3];
+		corner_point_1 = 1.2 * fow_vectors[2];
+		corner_point_2 = 1.2 * fow_vectors[3];
 	}
 
-	// transform to OpenCv format
-	cv::Point corner_1 (end_point_1(0, 0), end_point_1(1, 0));
-	cv::Point corner_2 (end_point_2(0, 0), end_point_2(1, 0));
+	std::cout << "relative corners: " << corner_point_1 << std::endl << corner_point_2 << std::endl;
 
 	// draw the seen positions so the server can check what points haven't been seen
 	cv::Mat seen_positions_map = room_map.clone();
-//	drawSeenPoints(seen_positions_map, robot_poses, goal->field_of_view, map_resolution, map_origin);
+	drawSeenPoints(seen_positions_map, robot_poses, goal->field_of_view, corner_point_1, corner_point_2, map_resolution, map_origin);
 
 	// testing purpose: print the listened robot positions
 	cv::Mat map_copy = room_map.clone();
