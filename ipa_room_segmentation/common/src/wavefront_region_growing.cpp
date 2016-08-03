@@ -6,7 +6,7 @@ void wavefrontRegionGrowing(cv::Mat& image)
 	//This function spreads the colored regions of the given map to the neighboring white pixels
 	if (image.type()!=CV_32SC1)
 	{
-		std::cout << "Error: wavefrontRegionGrowing: provided image is not of type CV_32SC1.";
+		std::cout << "Error: wavefrontRegionGrowing: provided image is not of type CV_32SC1." << std::endl;
 		return;
 	}
 

@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 
 	for (size_t image_index = 0; image_index<map_names.size(); ++image_index)
 	{
-		std::string image_filename = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/" + map_names[image_index];
+		std::string image_filename = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/" + map_names[image_index] + ".png";
 		cv::Mat map = cv::imread(image_filename.c_str(), 0);
 		//make non-white pixels black
 		for (int y = 0; y < map.rows; y++)
@@ -69,14 +69,19 @@ int main(int argc, char **argv)
 			for (int x = 0; x < map.cols; x++)
 			{
 				//find not reachable regions and make them black
-				if (map.at<unsigned char>(y, x) != 255)
+				if (map.at<unsigned char>(y, x) < 250)
 				{
 					map.at<unsigned char>(y, x) = 0;
 				}
+				//else make it white
+				else
+				{
+					map.at<unsigned char>(y, x) = 255;
+				}
 			}
 		}
-		cv::imshow("map", map);
-		cv::waitKey();
+//		cv::imshow("map", map);
+//		cv::waitKey();
 		sensor_msgs::Image labeling;
 
 		cv_bridge::CvImage cv_image;
@@ -101,12 +106,12 @@ int main(int argc, char **argv)
 		goal.map_resolution = 0.05;
 		goal.return_format_in_meter = false;
 		goal.return_format_in_pixel = true;
-		goal.room_segmentation_algorithm = 4;
-		goal.robot_radius = 0.3;
+		goal.room_segmentation_algorithm = 5;
+		goal.robot_radius = 0.4;
 		ac.sendGoal(goal);
 
 		//wait for the action to return
-		bool finished_before_timeout = ac.waitForResult(ros::Duration(300.0));
+		bool finished_before_timeout = ac.waitForResult(ros::Duration());
 
 		if (finished_before_timeout)
 		{

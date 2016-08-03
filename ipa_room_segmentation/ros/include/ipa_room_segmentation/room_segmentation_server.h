@@ -83,6 +83,8 @@
 
 #include <ipa_room_segmentation/adaboost_classifier.h>
 
+#include <ipa_room_segmentation/voronoi_random_field_segmentation.h>
+
 class RoomSegmentationServer
 {
 protected:
@@ -90,21 +92,27 @@ protected:
 	// parameters
 	double map_sampling_factor_check_;	//sampling-factor of the map
 	//limits for the room-areas
-	double room_upper_limit_morphological_, room_upper_limit_distance_, room_upper_limit_voronoi_, room_upper_limit_semantic_;
-	double room_lower_limit_morphological_, room_lower_limit_distance_, room_lower_limit_voronoi_, room_lower_limit_semantic_;
+	double room_upper_limit_morphological_, room_upper_limit_distance_, room_upper_limit_voronoi_, room_upper_limit_semantic_, room_upper_limit_voronoi_random_;
+	double room_lower_limit_morphological_, room_lower_limit_distance_, room_lower_limit_voronoi_, room_lower_limit_semantic_, room_lower_limit_voronoi_random_;
 	int room_segmentation_algorithm_;	// this variable selects the algorithm for room segmentation,
 										// 1 = morphological segmentation
 										// 2 = distance segmentation
 										// 3 = Voronoi segmentation
 										// 4 = semantic segmentation
+										// 5 = voronoi-random-field segmentation
 
 	bool train_the_algorithm_; //Boolean to say if the algorithm needs to be trained
 
 	int voronoi_neighborhood_index_; //Variable for the Voronoi method that specifies the neighborhood that is looked at for critical Point extraction
-	int max_iterations_; //number of iterations for search of neighborhood in voronoi method
+	int voronoi_random_field_epsilon_for_neighborhood_; //Variable that specifies the neighborhood for the vrf-segmentation.
+	int max_iterations_; //number of iterations for search of neighborhood in voronoi method and vrf method
+	int min_neighborhood_size_; //Variable that stores the minimum size of a neighborhood, used for the vrf method.
+	double min_voronoi_random_field_node_distance_; //Variable that shows how near two nodes of the conditional random field can be in the vrf method. [pixel]
+	int max_voronoi_random_field_inference_iterations_; //Variable that shows how many iterations should max. be done when infering in the conditional random field.
 	double min_critical_point_distance_factor_; //Variable that sets the minimal distance between two critical Points before one gets eliminated
 	double max_area_for_merging_; //Variable that shows the maximal area of a room that should be merged with its surrounding rooms
 	bool display_segmented_map_;	// displays the segmented map upon service call
+	std::vector<cv::Point> doorway_points_; // vector that saves the found doorway points, when using the 5th algorithm (vrf)
 
 	//converter-> Pixel to meter for X coordinate
 	double convert_pixel_to_meter_for_x_coordinate(const int pixel_valued_object_x, const float map_resolution, const cv::Point2d map_origin)

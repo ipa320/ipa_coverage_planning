@@ -397,6 +397,8 @@ int segmentationNameToNumber(const std::string name)
 		return 3;
 	else if (name.compare("4semantic") == 0)
 		return 4;
+	else if (name.compare("5vrf") == 0)
+		return 5;
 	return 1;
 }
 
@@ -404,16 +406,31 @@ int segmentationNameToNumber(const std::string name)
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "evaluation");
 	ros::NodeHandle n;
+//	ros::Subscriber semantic_labeler = n.Subscribe("Laser_scanner", 1000, segmentation_algorithm);
 	ROS_INFO("Evaluation of the segmented maps. Calculates some Parameters describing the rooms.");
+//	ros::spin();
 
 	double map_resolution = 0.0500;
 
 	std::vector<std::string> segmentation_names;
-	segmentation_names.push_back("1morphological");
-	segmentation_names.push_back("2distance");
-	segmentation_names.push_back("3voronoi");
-	segmentation_names.push_back("4semantic");
+//	segmentation_names.push_back("1morphological");
+//	segmentation_names.push_back("2distance");
+//	segmentation_names.push_back("3voronoi");
+//	segmentation_names.push_back("4semantic");
+	segmentation_names.push_back("5vrf");
 
+//	std::string map_name = "NLB";
+////		"lab_ipa" //done
+////		"lab_c_scan" //done
+////		"Freiburg52_scan" //done
+////		"Freiburg79_scan" //done
+////		"lab_b_scan" //done
+////		"lab_intel" //done
+////		"Freiburg101_scan" //done
+////		"lab_d_scan" //done
+////		"lab_f_scan" //done
+////		"lab_a_scan" //done
+////		"NLB" //done
 	std::vector< std::string > map_names;
 	map_names.push_back("lab_ipa");
 	map_names.push_back("lab_c_scan");
@@ -549,6 +566,7 @@ int main(int argc, char **argv) {
 
 			// retrieve segmentation
 			ipa_room_segmentation::MapSegmentationResultConstPtr result = ac.getResult();
+			std::cout << "number of found doorways: " << result->doorway_points.size() << std::endl;
 			cv_bridge::CvImagePtr cv_ptr_seq = cv_bridge::toCvCopy(result->segmented_map, sensor_msgs::image_encodings::TYPE_32SC1);
 			cv::Mat segmented_map = cv_ptr_seq->image;
 

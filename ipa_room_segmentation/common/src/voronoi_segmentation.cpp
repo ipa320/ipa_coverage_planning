@@ -815,7 +815,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 	std::cout << "critical lines: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
 	tim.start();
 
-	//***********************Find the Contours seperated from the critcal lines and fill them with colour******************
+	//***********************Find the Contours seperated from the critcal lines and fill them with color******************
 
 	Timer tim2;
 
@@ -837,7 +837,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 			double room_area = map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(contours[current_contour]);
 			if (room_area >= room_area_factor_lower_limit && room_area <= room_area_factor_upper_limit)
 			{
-				//2. Draw the region with a random colour into the map if it is large/small enough
+				//2. Draw the region with a random color into the map if it is large/small enough
 				bool drawn = false;
 				int loop_counter = 0; //counter if the loop gets into a endless loop
 				do
@@ -845,7 +845,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 					loop_counter++;
 					int random_number = rand() % 52224 + 13056;
 					cv::Scalar fill_colour(random_number);
-					//check if colour has already been used
+					//check if color has already been used
 					if (!contains(already_used_colors, fill_colour) || loop_counter > 1000)
 					{
 						cv::drawContours(segmented_map, contours, current_contour, fill_colour, 1);

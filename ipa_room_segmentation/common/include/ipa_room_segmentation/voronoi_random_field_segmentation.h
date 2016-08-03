@@ -64,45 +64,90 @@
 
 #include <iostream>
 #include <fstream>
-#include <list>
+#include <map>
+#include <set>
 #include <vector>
+#include <algorithm>
 
 #include <math.h>
 #include <functional>
 
 #include <dlib/optimization.h>
 
+// OpenGM-library headers
+#include <opengm/graphicalmodel/graphicalmodel.hxx>
+#include <opengm/graphicalmodel/space/discretespace.hxx>
+#include <opengm/functions/explicit_function.hxx>
+#include <opengm/operations/multiplier.hxx>
+#include <opengm/graphicalmodel/space/simplediscretespace.hxx>
+#include <opengm/inference/messagepassing/messagepassing.hxx>
+#include <opengm/operations/maximizer.hxx>
+
 #include <ctime>
 
 #include <ipa_room_segmentation/contains.h> // some useful functions defined for all segmentations
 #include <ipa_room_segmentation/voronoi_random_field_features.h>
-#include <ipa_room_segmentation/raycasting.h>
 #include <ipa_room_segmentation/wavefront_region_growing.h>
 #include <ipa_room_segmentation/clique_class.h>
+#include <ipa_room_segmentation/room_class.h>
 
 #pragma once
 
-typedef dlib::matrix<double,0,1> column_vector; // typedef used for the dlib optimization
+// Struct that compares two given points and returns if the y-coordinate of the first is smaller or if they are equal if the
+// x-coordinate of the first is smaller. This is used for sets to easily store cv::Point objects and search for specific objects.
+struct cv_Point_comp
+{
+	bool operator()(const cv::Point& lhs, const cv::Point& rhs) const
+	{
+		return ((lhs.y < rhs.y) || (lhs.y == rhs.y && lhs.x < rhs.x));
+	}
+};
 
+// Typedef used for the dlib optimization. This Type stores n times 1 elements in a matirx --> represents a column-vector.
+typedef dlib::matrix<double,0,1> column_vector;
+
+// Typedefs for the OpenGM library. This library is a template-library for discrete factor-graphs (https://en.wikipedia.org/wiki/Factor_graph)
+// and for operations on these, used in this algorithm to do loopy-belief-propagation for the conditional random field.
+//
+// Typedef for the Label-Space. This stores n variables that each can have m labels.
+typedef opengm::SimpleDiscreteSpace<size_t, size_t> LabelSpace;
+
+// Typedef for a factor-graph that stores doubles as results, adds the factors and has discrete labels for each variable.
+typedef opengm::GraphicalModel <double, opengm::Adder, opengm::ExplicitFunction<double>, LabelSpace > FactorGraph;
+
+// Typedef for the update rule of messages in a factor graph, when using message propagation.
+// Second Typedef is the Belief-Propagation used in this algorithm. It can be used on the defined FactorGraph, maximizes the defined
+// functions and uses the Update-Rule for the messages that maximize the overall Graph. MaxDistance is a metric used to measure
+// the distance of two messages in the graph.
+typedef opengm::BeliefPropagationUpdateRules <FactorGraph, opengm::Maximizer> UpdateRules;
+typedef opengm::MessagePassing<FactorGraph, opengm::Maximizer, UpdateRules, opengm::MaxDistance> LoopyBeliefPropagation;
+
+// Overload of the + operator for vectors:
+//		Given vectors a and b it returns a+b. If the vectors are not the same size a -1 vector gets returned to show an error.
 template <typename T>
 std::vector<T> operator+(const std::vector<T>& a, const std::vector<T>& b)
 {
 //    assert(a.size() == b.size());
 
-    if(a.empty())
+    if(a.empty()) // if a doesn't store any element it is the zero-vector, so return b
     	return b;
-    else if(b.empty())
+    else if(b.empty()) // if b doesn't store any element it is the zero-vector, so return a
     	return a;
+    else if(a.size() != b.size()) // if the vectors are not the same size return a vector with -1 as entries as failure
+    	return std::vector<T>(100, -1);
 
-    std::vector<T> result;
+    std::vector<T> result; // create temporary new vector
     result.reserve(a.size());
 
+    // add each element of the vectors and store them at the corresponding temporary vector position
     std::transform(a.begin(), a.end(), b.begin(),
                    std::back_inserter(result), std::plus<T>());
 
     return result;
 }
 
+// Overload of the += operator for vectors:
+//		Given vector a and b from arbitrary sizes this operator takes vector b and expands a by these elements.
 template <typename T>
 std::vector<T>& operator+=(std::vector<T>& a, const std::vector<T>& b)
 {
@@ -129,31 +174,54 @@ protected:
 
 	std::vector<double> trained_conditional_weights_; // The weights that are needed for the feature-induction in the conditional random field.
 
-	LaserScannerRaycasting raycasting_;
+	// Function to check if the given point is more far away from each point in the given set than the min_distance.
+	bool pointMoreFarAway(const std::set<cv::Point, cv_Point_comp>& points, const cv::Point& point, const double min_distance);
 
-	// Function to check if the given point is more far away from each point in the given vector than the min_distance.
-	bool pointMoreFarAway(const std::vector<cv::Point>& points, const cv::Point& point, const double min_distance);
+	std::vector<double> raycasting(const cv::Mat& map, const cv::Point& location);
+
+	// Function to get the ID of a room, when given an index in the storing vector.
+	bool determineRoomIndexFromRoomID(const std::vector<Room>& rooms, const int room_id, size_t& room_index);
+
+	// Function to merge two rooms together on the given already segmented map.
+	void mergeRoomPair(std::vector<Room>& rooms, const int target_index, const int room_to_merge_index,
+			cv::Mat& segmented_map, const double map_resolution);
+
+	// Function that goes trough each given room and checks if it should be merged together wit another bigger room, if it
+	// is too small.
+	void mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Room>& rooms, double map_resolution_from_subscription, double max_area_for_merging, bool display_map);
+
+	// Function to get all possible configurations for n variables that each can have m labels. E.g. with 2 variables and 3 possible
+	// labels for each variable there are 9 different configurations.
+	void getPossibleConfigurations(std::vector<std::vector<uint> >& possible_configurations, const std::vector<uint>& possible_labels,
+			const uint number_of_variables);
+
+	// Function that swaps the label-configurations of CRF-nodes in a way s.t. the nodes are sorted in increasing order. Needed
+	// to use OpenGM for inference later.
+	void swapConfigsRegardingNodeIndices(std::vector<std::vector<uint> >& configurations, size_t point_indices[]);
 
 	// Function to draw the approximated voronoi graph into a given map. It doesn't draw lines of the graph that start or end
 	// in a black region. This is necessary because the voronoi graph gets approximated by diskretizing the maps contour and
 	// using these points as centers for the graph. It gets wrong lines, that are eliminated in this function. See the .cpp
 	// files for further information.
 	void drawVoronoi(cv::Mat &img, const std::vector<std::vector<cv::Point2f> >& facets_of_voronoi, const cv::Scalar voronoi_color,
-			const std::vector<cv::Point>& contour, const std::vector<std::vector<cv::Point> >& hole_contours);
+			const cv::Mat& eroded_map);
 
 	// Function to calculate the feature vector for a given clique, using the trained AdaBoost classifiers.
 	void getAdaBoostFeatureVector(std::vector<double>& feature_vector, Clique& clique,
-			std::vector<uint> given_labels, std::vector<unsigned int>& possible_labels);
+			 std::vector<uint>& given_labels, std::vector<unsigned int>& possible_labels);
 
+	// Function that takes a map and draws a pruned voronoi graph in it.
+	void createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation, std::set<cv::Point, cv_Point_comp>& node_points);
 
-	void createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation, std::vector<cv::Point>& node_points); // Function that takes a map and draws a pruned voronoi
-																	    									// graph in it.
+	// Function to create a conditional random field out of given points. It needs
+	// the voronoi-map extracted from the original map to find the neighbors for each point
+	// and the voronoi-node-points to add the right points as nodes.
+	void createConditionalField(const cv::Mat& voronoi_map, const std::set<cv::Point, cv_Point_comp>& node_points,
+			std::vector<Clique>& conditional_random_field_cliques, const std::set<cv::Point, cv_Point_comp>& voronoi_node_points,
+			const cv::Mat& original_map);
 
-	void createConditionalField(const cv::Mat& voronoi_map, const std::vector<cv::Point>& node_points, 					// Function to create a conditional random field out of given points. It needs
-			std::vector<Clique>& conditional_random_field_cliques, const std::vector<cv::Point> voronoi_node_points,    // the voronoi-map extracted from the original map to find the neighbors for each point
-			const cv::Mat& original_map);																				// and the voronoi-node-points to add the right points as nodes.
-
-
+	// Function that takes all given training maps and calculates the AdaBoost-Classifiers for them to best label a
+	// room, hallway and doorway.
 	void trainBoostClassifiers(const std::vector<cv::Mat>& training_maps,
 			std::vector< std::vector<Clique> >& cliques_of_training_maps, const std::vector<uint> possible_labels,
 			const std::string& classifier_storage_path); // Function to train the AdaBoost classifiers, used for feature induction of the conditional
@@ -161,27 +229,42 @@ protected:
 
 	// Function to find the weights used to calculate the clique potentials.
 	void findConditionalWeights(std::vector< std::vector<Clique> >& conditional_random_field_cliques,
-			std::vector<std::vector<cv::Point> >& random_field_node_points, const std::vector<cv::Mat>& training_maps,
+			std::vector<std::set<cv::Point, cv_Point_comp> >& random_field_node_points, const std::vector<cv::Mat>& training_maps,
 			const size_t number_of_training_maps, std::vector<uint>& possible_labels, const std::string weights_filepath);
 
 
 public:
+	// Constructor
+	VoronoiRandomFieldSegmentation(bool trained_boost = true, bool trained_conditional_field = true);
 
-	VoronoiRandomFieldSegmentation(bool trained_boost = true, bool trained_conditional_field = true); // constructor
-
+	// This function is used to train the algorithm. The above defined functions separately train the AdaBoost-classifiers and
+	// the conditional random field. By calling this function the training is done in the right order, because the AdaBoost-classifiers
+	// need to be trained to calculate features for the conditional random field.
 	void trainAlgorithms(const std::vector<cv::Mat>& training_maps, const std::vector<cv::Mat>& voronoi_maps,
 			const std::vector<cv::Mat>& voronoi_node_maps, std::vector<cv::Mat>& original_maps,
 			std::vector<unsigned int>& possible_labels, const std::string weights_filepath, const std::string boost_filepath);
 
+	// This function is called to find minimal values of a defined log-likelihood-function using the library Dlib.
+	// This log-likelihood-function is made over all training data to get a likelihood-estimation linear in the weights.
+	// By minimizing this function the best weights are chosen, what is done here. See voronoi_random_field_segmentation.cpp at
+	// the beginning for detailed information.
+	// !!!!Important: The more training maps you have, the more factors appear in the log-likelihood over all maps. Be sure not to
+	//				  use too much training-maps, because then the log-likelihood-function easily produces values that are out of the
+	//				  double range, which Dlib can't handle.
 	column_vector findMinValue(unsigned int number_of_weights, double sigma,
 			const std::vector<std::vector<double> >& likelihood_parameters, const std::vector<double>& starting_weights); // Function to find the minimal value of a function. Used to find the optimal weights for
 								  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  // the conditional random field.
 
-	// Function to segment a given map into different regions.
-	void segmentMap(cv::Mat& original_map, const int epsilon_for_neighborhood,
-			const int max_iterations, unsigned int min_neighborhood_size, const double min_node_distance, bool show_nodes,
-			std::string boost_storage_path, std::string crf_storage_path);
+	// Function to segment a given map into different regions. It uses the above trained AdaBoost-classifiers and conditional-random-field.
+	// Also it uses OpenGM to do a inference in the created crf, so it uses the above defined typedefs.
+	void segmentMap(const cv::Mat& original_map, cv::Mat& segmented_map, const int epsilon_for_neighborhood,
+			const int max_iterations, const int min_neighborhood_size, std::vector<uint>& possible_labels,
+			const double min_node_distance, bool show_results,
+			std::string crf_storage_path, std::string boost_storage_path, const int max_inference_iterations,
+			 double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit,
+			 double max_area_for_merging, std::vector<cv::Point>* door_points = NULL);
 
-	void testFunc(cv::Mat& original_map);
+	// Function used to test several features separately. Not relevant.
+	void testFunc(const cv::Mat& original_map);
 
 };

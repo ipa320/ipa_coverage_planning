@@ -84,6 +84,8 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 		ROS_INFO("You have chosen the voronoi segmentation method.");
 	else if (room_segmentation_algorithm_ == 4)
 		ROS_INFO("You have chosen the semantic segmentation method.");
+	else if (room_segmentation_algorithm_ == 5)
+		ROS_INFO("You have chosen the voronoi random field segmentation method.");
 	std::cout << std::endl;
 
 	//Set mapsamplingfactor, which is the same for every algorithm because it depends on the map
@@ -116,7 +118,7 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 		std::cout << "room_segmentation/max_iterations = " << max_iterations_ << std::endl;
 		node_handle_.param("min_critical_point_distance_factor", min_critical_point_distance_factor_, 27.0);
 		std::cout << "room_segmentation/min_critical_point_distance_factor = " << min_critical_point_distance_factor_ << std::endl;
-		node_handle_.param("max_area_for_merging", max_area_for_merging_, 20.0);
+		node_handle_.param("max_area_for_merging", max_area_for_merging_, 12.5);
 		std::cout << "room_segmentation/max_area_for_merging = " << max_area_for_merging_ << std::endl;
 	}
 	if (room_segmentation_algorithm_ == 4) //set semantic parameters
@@ -125,6 +127,32 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_semantic_ << std::endl;
 		node_handle_.param("room_area_factor_lower_limit_semantic", room_lower_limit_semantic_, 1.0);
 		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_semantic_ << std::endl;
+	}
+	if (room_segmentation_algorithm_ == 5) //set voronoi random field parameters
+	{
+		node_handle_.param("room_upper_limit_voronoi_random", room_upper_limit_voronoi_random_, 10000.0);
+		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_voronoi_random_ << std::endl;
+
+		node_handle_.param("room_lower_limit_voronoi_random", room_lower_limit_voronoi_random_, 1.53);
+		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_voronoi_random_ << std::endl;
+
+		node_handle_.param("voronoi_random_field_epsilon_for_neighborhood", voronoi_random_field_epsilon_for_neighborhood_, 7);
+		std::cout << "room_segmentation/voronoi_random_field_epsilon_for_neighborhood = " << voronoi_random_field_epsilon_for_neighborhood_ << std::endl;
+
+		node_handle_.param("min_neighborhood_size", min_neighborhood_size_, 5);
+		std::cout << "room_segmentation/min_neighborhood_size = " << min_neighborhood_size_ << std::endl;
+
+		node_handle_.param("max_iterations", max_iterations_, 150);
+		std::cout << "room_segmentation/max_iterations = " << max_iterations_ << std::endl;
+
+		node_handle_.param("min_voronoi_random_field_node_distance", min_voronoi_random_field_node_distance_, 7.0);
+		std::cout << "room_segmentation/min_voronoi_random_field_node_distance = " << min_voronoi_random_field_node_distance_ << std::endl;
+
+		node_handle_.param("max_voronoi_random_field_inference_iterations", max_voronoi_random_field_inference_iterations_, 9000);
+		std::cout << "room_segmentation/max_voronoi_random_field_inference_iterations = " << max_voronoi_random_field_inference_iterations_ << std::endl;
+
+		node_handle_.param("max_area_for_merging", max_area_for_merging_, 12.5);
+		std::cout << "room_segmentation/max_area_for_merging = " << max_area_for_merging_ << std::endl;
 	}
 
 	node_handle_.param("display_segmented_map", display_segmented_map_, false);
@@ -149,7 +177,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 
 	//segment the given map
 	const int room_segmentation_algorithm_value = room_segmentation_algorithm_;
-	if (goal->room_segmentation_algorithm > 0 && goal->room_segmentation_algorithm < 5)
+	if (goal->room_segmentation_algorithm > 0 && goal->room_segmentation_algorithm < 6)
 	{
 		room_segmentation_algorithm_ = goal->room_segmentation_algorithm;
 		if(room_segmentation_algorithm_ == 1) //morpho
@@ -179,6 +207,17 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 			room_lower_limit_semantic_ = 1.0;
 			room_upper_limit_semantic_ = 1000000.;//23.0;
 			ROS_INFO("You have chosen the semantic segmentation.");
+		}
+		if(room_segmentation_algorithm_ == 5) //voronoi random field
+		{
+			room_lower_limit_voronoi_random_ = 1.53; //1.53
+			room_upper_limit_voronoi_random_ = 1000000.; //1000000.0
+			voronoi_random_field_epsilon_for_neighborhood_ = 7;
+			min_neighborhood_size_ = 5;
+			min_voronoi_random_field_node_distance_ = 7; // [pixel]
+			max_voronoi_random_field_inference_iterations_ = 9000;
+			max_area_for_merging_ = 12.5;
+			ROS_INFO("You have chosen the voronoi random field segmentation.");
 		}
 	}
 	cv::Mat segmented_map;
@@ -235,6 +274,109 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 		}
 		semantic_segmentation.semanticLabeling(original_img, segmented_map, map_resolution, room_lower_limit_semantic_, room_upper_limit_semantic_,
 			classifier_path, display_segmented_map_);
+	}
+	else if (room_segmentation_algorithm_ == 5)
+	{
+		VoronoiRandomFieldSegmentation vrf_segmentation(false, false); //voronoi random field segmentation method
+		const std::string package_path = ros::package::getPath("ipa_room_segmentation");
+		std::string conditional_weights_path = package_path + "/common/files/training_results/conditional_field_weights.txt";
+		std::string boost_file_path = package_path + "/common/files/training_results/";
+		// vector that stores the possible labels that are drawn in the training maps. Order: room - hallway - doorway
+		std::vector<uint> possible_labels(3);
+		possible_labels[0] = 77;
+		possible_labels[1] = 115;
+		possible_labels[2] = 179;
+		if (train_the_algorithm_)
+		{
+			// load the training maps
+			cv::Mat training_map;
+			std::vector<cv::Mat> training_maps;
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_Fr52.png", 0);
+			training_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_Fr101.png", 0);
+			training_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_intel.png", 0);
+			training_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_lab_d_furniture.png", 0);
+			training_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_lab_ipa.png", 0);
+			training_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_NLB_furniture.png", 0);
+			training_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_office_e.png", 0);
+			training_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_office_h.png", 0);
+			training_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_lab_c_furnitures.png", 0);
+			training_maps.push_back(training_map);
+			// load the voronoi maps
+			std::vector<cv::Mat> voronoi_maps;
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/Fr52_voronoi.png", 0);
+			voronoi_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/Fr101_voronoi.png", 0);
+			voronoi_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/lab_intel_voronoi.png", 0);
+			voronoi_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/lab_d_furnitures_voronoi.png", 0);
+			voronoi_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/lab_ipa_voronoi.png", 0);
+			voronoi_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/NLB_voronoi.png", 0);
+			voronoi_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/office_e_voronoi.png", 0);
+			voronoi_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/office_h_voronoi.png", 0);
+			voronoi_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/lab_c_furnitures_voronoi.png", 0);
+			voronoi_maps.push_back(training_map);
+			// load the voronoi-nodes maps
+			std::vector<cv::Mat> voronoi_node_maps;
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/Fr52_voronoi_nodes.png", 0);
+			voronoi_node_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/Fr101_voronoi_nodes.png", 0);
+			voronoi_node_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/lab_intel_voronoi_nodes.png", 0);
+			voronoi_node_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/lab_d_furnitures_voronoi_nodes.png", 0);
+			voronoi_node_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/lab_ipa_voronoi_nodes.png", 0);
+			voronoi_node_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/NLB_voronoi_nodes.png", 0);
+			voronoi_node_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/office_e_voronoi_nodes.png", 0);
+			voronoi_node_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/office_h_voronoi_nodes.png", 0);
+			voronoi_node_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/lab_c_furnitures_voronoi_nodes.png", 0);
+			voronoi_node_maps.push_back(training_map);
+			// load the original maps
+			std::vector<cv::Mat> original_maps;
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/Fr52_original.png", 0);
+			original_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/Fr101_original.png", 0);
+			original_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_intel_original.png", 0);
+			original_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_d_furnitures_original.png", 0);
+			original_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_ipa_original.png", 0);
+			original_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/NLB_original.png", 0);
+			original_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/office_e_original.png", 0);
+			original_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/office_h_original.png", 0);
+			original_maps.push_back(training_map);
+			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_c_furnitures_original.png", 0);
+			original_maps.push_back(training_map);
+			//train the algorithm
+			vrf_segmentation.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
+		}
+		doorway_points_.clear();
+		vrf_segmentation.segmentMap(original_img, segmented_map, voronoi_random_field_epsilon_for_neighborhood_, max_iterations_,
+				min_neighborhood_size_, possible_labels, min_voronoi_random_field_node_distance_,
+				display_segmented_map_, conditional_weights_path, boost_file_path, max_voronoi_random_field_inference_iterations_,
+				map_resolution, room_lower_limit_voronoi_random_, room_upper_limit_voronoi_random_, max_area_for_merging_, &doorway_points_);
 	}
 	else
 	{
@@ -463,6 +605,20 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 			room_information[i].room_min_max.points[1].y = max_y_value_of_the_room[i];
 		}
 		action_result.room_information_in_pixel = room_information;
+
+		// returning doorway points if the vector is not empty
+		if(doorway_points_.empty() == false)
+		{
+			std::vector<geometry_msgs::Point32> found_doorway_points(doorway_points_.size());
+			for(size_t i = 0; i < doorway_points_.size(); ++i)
+			{
+				found_doorway_points[i].x = doorway_points_[i].x;
+				found_doorway_points[i].y = doorway_points_[i].y;
+			}
+			doorway_points_.clear();
+
+			action_result.doorway_points = found_doorway_points;
+		}
 	}
 	//setting massages in meter
 	action_result.room_information_in_meter.clear();
@@ -480,7 +636,22 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 			room_information[i].room_min_max.points[1].y = convert_pixel_to_meter_for_y_coordinate(max_y_value_of_the_room[i], map_resolution, map_origin);
 		}
 		action_result.room_information_in_meter = room_information;
+
+		// returning doorway points if the vector is not empty
+		if(doorway_points_.empty() == false)
+		{
+			std::vector<geometry_msgs::Point32> found_doorway_points(doorway_points_.size());
+			for(size_t i = 0; i < doorway_points_.size(); ++i)
+			{
+				found_doorway_points[i].x = convert_pixel_to_meter_for_x_coordinate(doorway_points_[i].x, map_resolution, map_origin);;
+				found_doorway_points[i].y = convert_pixel_to_meter_for_y_coordinate(doorway_points_[i].y, map_resolution, map_origin);
+			}
+			doorway_points_.clear();
+
+			action_result.doorway_points = found_doorway_points;
+		}
 	}
+
 
 	//publish result
 	room_segmentation_server_.setSucceeded(action_result);

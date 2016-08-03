@@ -38,3 +38,16 @@ bool contains(std::vector<int> vector, int element)
 		return false;
 	}
 }
+
+bool contains(std::vector<std::vector<uint> > vector, std::vector<uint> element)
+{
+	//this functions checks, if the given element is in the given vector (in this case for vector<double>)
+	if (!vector.empty())
+	{
+		return vector.end() != std::find(vector.begin(), vector.end(), element);
+	}
+	else
+	{
+		return false;
+	}
+}
