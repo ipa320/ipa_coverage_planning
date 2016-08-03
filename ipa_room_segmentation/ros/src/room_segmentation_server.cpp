@@ -159,7 +159,7 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 	std::cout << "room_segmentation/display_segmented_map_ = " << display_segmented_map_ << std::endl;
 }
 
-void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmentation::MapSegmentationGoalConstPtr &goal)
+void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs::MapSegmentationGoalConstPtr &goal)
 {
 	ros::Rate looping_rate(1);
 	ROS_INFO("*****Segmentation action server*****");
@@ -577,7 +577,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	}
 
 	//****************publish the results**********************
-	ipa_room_segmentation::MapSegmentationResult action_result;
+	ipa_building_msgs::MapSegmentationResult action_result;
 	//converting the cv format in map msg format
 	cv_bridge::CvImage cv_image;
 	cv_image.header.stamp = ros::Time::now();
@@ -593,7 +593,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	action_result.room_information_in_pixel.clear();
 	if (goal->return_format_in_pixel == true)
 	{
-		std::vector<ipa_room_segmentation::RoomInformation> room_information(room_centers_x_values.size());
+		std::vector<ipa_building_msgs::RoomInformation> room_information(room_centers_x_values.size());
 		for (size_t i=0; i<room_centers_x_values.size(); ++i)
 		{
 			room_information[i].room_center.x = room_centers_x_values[i];
@@ -624,7 +624,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_room_segmenta
 	action_result.room_information_in_meter.clear();
 	if (goal->return_format_in_meter == true)
 	{
-		std::vector<ipa_room_segmentation::RoomInformation> room_information(room_centers_x_values.size());
+		std::vector<ipa_building_msgs::RoomInformation> room_information(room_centers_x_values.size());
 		for (size_t i=0; i<room_centers_x_values.size(); ++i)
 		{
 			room_information[i].room_center.x = convert_pixel_to_meter_for_x_coordinate(room_centers_x_values[i], map_resolution, map_origin);

@@ -17,8 +17,8 @@
 
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
-#include <ipa_room_segmentation/MapSegmentationAction.h>
-#include <ipa_building_navigation/FindRoomSequenceWithCheckpointsAction.h>
+#include <ipa_building_msgs/MapSegmentationAction.h>
+#include <ipa_building_msgs/FindRoomSequenceWithCheckpointsAction.h>
 #include <ipa_building_navigation/A_star_pathplanner.h>
 
 #include <ipa_building_navigation/timer.h>
@@ -193,13 +193,13 @@ class Evaluation
 public:
 
 	// to segment the map only once for each segmentation algorithm
-	ipa_room_segmentation::MapSegmentationResultConstPtr result_seg_morph;
+	ipa_building_msgs::MapSegmentationResultConstPtr result_seg_morph;
 	bool segmented_morph;
-	ipa_room_segmentation::MapSegmentationResultConstPtr result_seg_dist;
+	ipa_building_msgs::MapSegmentationResultConstPtr result_seg_dist;
 	bool segmented_dist;
-	ipa_room_segmentation::MapSegmentationResultConstPtr result_seg_vor;
+	ipa_building_msgs::MapSegmentationResultConstPtr result_seg_vor;
 	bool segmented_vor;
-	ipa_room_segmentation::MapSegmentationResultConstPtr result_seg_semant;
+	ipa_building_msgs::MapSegmentationResultConstPtr result_seg_semant;
 	bool segmented_semant;
 
 	Evaluation(const std::string& test_map_path, const std::string& data_storage_path, const double robot_radius)
@@ -658,7 +658,7 @@ public:
 			struct timespec t0, t1, t2, t3;
 
 			// 1. retrieve segmentation and check if the map has already been segmented
-			ipa_room_segmentation::MapSegmentationResultConstPtr result_seg;
+			ipa_building_msgs::MapSegmentationResultConstPtr result_seg;
 			clock_gettime(CLOCK_MONOTONIC,  &t0); //set time stamp before the segmentation
 			if(evaluation_configuration_vector[config].room_segmentation_algorithm_ == 1)
 			{
@@ -744,7 +744,7 @@ public:
 			// 2. solve sequence problem
 			std::cout << "Starting to solve sequence problem." << std::endl;
 			tim.start();
-			ipa_building_navigation::FindRoomSequenceWithCheckpointsResultConstPtr result_seq;
+			ipa_building_msgs::FindRoomSequenceWithCheckpointsResultConstPtr result_seq;
 			clock_gettime(CLOCK_MONOTONIC,  &t2); //set time stamp before the sequence planning
 			if (computeRoomSequence(evaluation_data, evaluation_configuration_vector[config], room_centers, result_seq, t2) == false)
 			{
@@ -825,7 +825,7 @@ public:
 					cv::circle(draw_path_map, robot_position, 3, CV_RGB(0,255,0), -1);
 					// clear all trash bins: go to trash bin, go back to trolley to empty trash and then drive back to trash bin
 					std::cout << " arrived in room " << current_roomcenter << "\n starting to clean the trash bins" << std::endl; screenoutput << " arrived in room " << current_roomcenter << "\n starting to clean the trash bins" << std::endl;
-					ipa_building_navigation::FindRoomSequenceWithCheckpointsResultConstPtr result_trash_bin_seq;
+					ipa_building_msgs::FindRoomSequenceWithCheckpointsResultConstPtr result_trash_bin_seq;
 					std::vector<cv::Point> trash_bin_sequence_in_this_room;
 					if (room_trash_bins[room_index].size()>1 && computeTrashBinSequence(evaluation_data, evaluation_configuration_vector[config], room_trash_bins[room_index], robot_position, result_trash_bin_seq) == true)
 					{
@@ -957,7 +957,7 @@ public:
 	}
 
 	bool segmentFloorPlan(const EvaluationData& evaluation_data, const EvaluationConfig& evaluation_configuration,
-			ipa_room_segmentation::MapSegmentationResultConstPtr& result_seg, struct timespec& t0)
+			ipa_building_msgs::MapSegmentationResultConstPtr& result_seg, struct timespec& t0)
 	{
 		int loopcounter = 0;
 		bool segmented = false;
@@ -969,13 +969,13 @@ public:
 			cv_image.encoding = "mono8";
 			cv_image.image = evaluation_data.floor_plan_;
 			cv_image.toImageMsg(map_msg);
-			actionlib::SimpleActionClient<ipa_room_segmentation::MapSegmentationAction> ac_seg("/room_segmentation/room_segmentation_server", true);
+			actionlib::SimpleActionClient<ipa_building_msgs::MapSegmentationAction> ac_seg("/room_segmentation/room_segmentation_server", true);
 			ROS_INFO("Waiting for action server '/room_segmentation/room_segmentation_server' to start.");
 			ac_seg.waitForServer(ros::Duration(60)); // wait for the action server to start, will wait for infinite time
 
 			std::cout << "Action server started, sending goal_seg." << std::endl;
 			// send a goal to the action
-			ipa_room_segmentation::MapSegmentationGoal goal_seg;
+			ipa_building_msgs::MapSegmentationGoal goal_seg;
 			goal_seg.input_map = map_msg;
 			goal_seg.map_origin = evaluation_data.map_origin_;
 			goal_seg.map_resolution = evaluation_data.map_resolution_;
@@ -1035,7 +1035,7 @@ public:
 
 	bool computeTrashBinSequence(const EvaluationData& evaluation_data, const EvaluationConfig& evaluation_configuration,
 			const std::vector<cv::Point>& reachable_roomcenters, const cv::Point& robot_start_position,
-			ipa_building_navigation::FindRoomSequenceWithCheckpointsResultConstPtr& result_seq)
+			ipa_building_msgs::FindRoomSequenceWithCheckpointsResultConstPtr& result_seq)
 	{
 		bool planned = false;
 
@@ -1045,13 +1045,13 @@ public:
 		cv_image.image = evaluation_data.floor_plan_;
 		cv_image.toImageMsg(map_msg);
 
-		actionlib::SimpleActionClient<ipa_building_navigation::FindRoomSequenceWithCheckpointsAction> ac_seq("/room_sequence_planning/room_sequence_planning_server", true);
+		actionlib::SimpleActionClient<ipa_building_msgs::FindRoomSequenceWithCheckpointsAction> ac_seq("/room_sequence_planning/room_sequence_planning_server", true);
 //		ROS_INFO("Waiting for action server '/room_sequence_planning/room_sequence_planning_server' to start.");
 		// wait for the action server to start
 		ac_seq.waitForServer(ros::Duration(60)); //will wait for infinite time
 
 		//put the vector<Point> format in the msg format
-		std::vector<ipa_room_segmentation::RoomInformation> roomcenters_for_sequence_planning(reachable_roomcenters.size());
+		std::vector<ipa_building_msgs::RoomInformation> roomcenters_for_sequence_planning(reachable_roomcenters.size());
 		for(size_t room = 0; room < reachable_roomcenters.size(); ++room)
 		{
 			roomcenters_for_sequence_planning[room].room_center.x = reachable_roomcenters[room].x;
@@ -1060,7 +1060,7 @@ public:
 
 //		std::cout << "Action server started, sending goal_seq." << std::endl;
 		// send a goal_seg to the action
-		ipa_building_navigation::FindRoomSequenceWithCheckpointsGoal goal_seq;
+		ipa_building_msgs::FindRoomSequenceWithCheckpointsGoal goal_seq;
 		goal_seq.input_map = map_msg;
 		goal_seq.map_resolution = evaluation_data.map_resolution_;
 		goal_seq.map_origin = evaluation_data.map_origin_;
@@ -1090,7 +1090,7 @@ public:
 
 	bool computeRoomSequence(const EvaluationData& evaluation_data, const EvaluationConfig& evaluation_configuration,
 			const std::vector<cv::Point>& reachable_roomcenters,
-			ipa_building_navigation::FindRoomSequenceWithCheckpointsResultConstPtr& result_seq, struct timespec& t2)
+			ipa_building_msgs::FindRoomSequenceWithCheckpointsResultConstPtr& result_seq, struct timespec& t2)
 	{
 		bool planned = false;
 		int loopcounter = 0;
@@ -1103,13 +1103,13 @@ public:
 			cv_image.image = evaluation_data.floor_plan_;
 			cv_image.toImageMsg(map_msg);
 
-			actionlib::SimpleActionClient<ipa_building_navigation::FindRoomSequenceWithCheckpointsAction> ac_seq("/room_sequence_planning/room_sequence_planning_server", true);
+			actionlib::SimpleActionClient<ipa_building_msgs::FindRoomSequenceWithCheckpointsAction> ac_seq("/room_sequence_planning/room_sequence_planning_server", true);
 			ROS_INFO("Waiting for action server '/room_sequence_planning/room_sequence_planning_server' to start.");
 			// wait for the action server to start
 			ac_seq.waitForServer(ros::Duration(60)); //will wait for infinite time
 
 			//put the vector<Point> format in the msg format
-			std::vector<ipa_room_segmentation::RoomInformation> roomcenters_for_sequence_planning(reachable_roomcenters.size());
+			std::vector<ipa_building_msgs::RoomInformation> roomcenters_for_sequence_planning(reachable_roomcenters.size());
 			for(size_t room = 0; room < reachable_roomcenters.size(); ++room)
 			{
 				roomcenters_for_sequence_planning[room].room_center.x = reachable_roomcenters[room].x;
@@ -1118,7 +1118,7 @@ public:
 
 			std::cout << "Action server started, sending goal_seq." << std::endl;
 			// send a goal_seg to the action
-			ipa_building_navigation::FindRoomSequenceWithCheckpointsGoal goal_seq;
+			ipa_building_msgs::FindRoomSequenceWithCheckpointsGoal goal_seq;
 			goal_seq.input_map = map_msg;
 			goal_seq.map_resolution = evaluation_data.map_resolution_;
 			goal_seq.map_origin = evaluation_data.map_origin_;

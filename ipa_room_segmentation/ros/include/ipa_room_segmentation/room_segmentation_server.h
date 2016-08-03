@@ -73,16 +73,13 @@
 #include <vector>
 
 
-#include <ipa_room_segmentation/MapSegmentationAction.h>
+#include <ipa_building_msgs/MapSegmentationAction.h>
+#include <ipa_building_msgs/RoomInformation.h>
 
 #include <ipa_room_segmentation/distance_segmentation.h>
-
 #include <ipa_room_segmentation/morphological_segmentation.h>
-
 #include <ipa_room_segmentation/voronoi_segmentation.h>
-
 #include <ipa_room_segmentation/adaboost_classifier.h>
-
 #include <ipa_room_segmentation/voronoi_random_field_segmentation.h>
 
 class RoomSegmentationServer
@@ -128,14 +125,14 @@ protected:
 	}
 
 	//This is the execution function used by action server
-	void execute_segmentation_server(const ipa_room_segmentation::MapSegmentationGoalConstPtr &goal);
+	void execute_segmentation_server(const ipa_building_msgs::MapSegmentationGoalConstPtr &goal);
 
 
 	//!!Important!!
 	// define the Nodehandle before the action server, or else the server won't start
 	//
 	ros::NodeHandle node_handle_;
-	actionlib::SimpleActionServer<ipa_room_segmentation::MapSegmentationAction> room_segmentation_server_;
+	actionlib::SimpleActionServer<ipa_building_msgs::MapSegmentationAction> room_segmentation_server_;
 
 public:
 	//initialize the action-server

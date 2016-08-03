@@ -7,7 +7,7 @@
 
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
-#include <ipa_room_segmentation/MapSegmentationAction.h>
+#include <ipa_building_msgs/MapSegmentationAction.h>
 #include <sensor_msgs/image_encodings.h>
 
 #include <ipa_room_segmentation/timer.h>
@@ -536,7 +536,7 @@ int main(int argc, char **argv) {
 			cv_image.toImageMsg(labeling);
 			// create the action client --> "name of server"
 			// true causes the client to spin its own thread
-			actionlib::SimpleActionClient<ipa_room_segmentation::MapSegmentationAction> ac("/room_segmentation/room_segmentation_server", true);
+			actionlib::SimpleActionClient<ipa_building_msgs::MapSegmentationAction> ac("/room_segmentation/room_segmentation_server", true);
 
 			ROS_INFO("Waiting for action server to start.");
 			// wait for the action server to start
@@ -544,7 +544,7 @@ int main(int argc, char **argv) {
 
 			ROS_INFO("Action server started, sending goal.");
 			// send a goal to the action
-			ipa_room_segmentation::MapSegmentationGoal goal;
+			ipa_building_msgs::MapSegmentationGoal goal;
 			goal.input_map = labeling;
 			goal.map_origin.position.x = 0;
 			goal.map_origin.position.y = 0;
@@ -565,7 +565,7 @@ int main(int argc, char **argv) {
 			ROS_INFO("Finished successfully!");
 
 			// retrieve segmentation
-			ipa_room_segmentation::MapSegmentationResultConstPtr result = ac.getResult();
+			ipa_building_msgs::MapSegmentationResultConstPtr result = ac.getResult();
 			std::cout << "number of found doorways: " << result->doorway_points.size() << std::endl;
 			cv_bridge::CvImagePtr cv_ptr_seq = cv_bridge::toCvCopy(result->segmented_map, sensor_msgs::image_encodings::TYPE_32SC1);
 			cv::Mat segmented_map = cv_ptr_seq->image;

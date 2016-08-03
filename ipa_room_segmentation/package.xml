@@ -24,21 +24,15 @@
 
 	<buildtool_depend>catkin</buildtool_depend>
 	
+	<depend>actionlib</depend>
 	<depend>cmake_modules</depend>
 	<depend>cv_bridge</depend>
+	<depend>ipa_building_msgs</depend>
+	<depend>libdlib</depend>
+	<depend>libopengm</depend>
 	<depend>libopencv-dev</depend>
 	<depend>roscpp</depend>
 	<depend>roslib</depend>
-	<depend>actionlib</depend>
-	<depend>actionlib_msgs</depend>
-	<depend>std_msgs</depend>
 	<depend>sensor_msgs</depend>
-	<depend>geometry_msgs</depend>
-	<depend>message_generation</depend>
-	<depend>genmsg</depend>
-	<depend>libdlib</depend>
-	<depend>libopengm</depend>
-	
-	<exec_depend>message_runtime</exec_depend>
 
 </package>

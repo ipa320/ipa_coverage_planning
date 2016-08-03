@@ -11,7 +11,7 @@
 
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
-#include <ipa_room_segmentation/MapSegmentationAction.h>
+#include <ipa_building_msgs/MapSegmentationAction.h>
 
 int main(int argc, char **argv)
 {
@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 		cv_image.toImageMsg(labeling);
 		// create the action client --> "name of server"
 		// true causes the client to spin its own thread
-		actionlib::SimpleActionClient<ipa_room_segmentation::MapSegmentationAction> ac("/room_segmentation/room_segmentation_server", true);
+		actionlib::SimpleActionClient<ipa_building_msgs::MapSegmentationAction> ac("/room_segmentation/room_segmentation_server", true);
 
 		ROS_INFO("Waiting for action server to start.");
 		// wait for the action server to start
@@ -99,7 +99,7 @@ int main(int argc, char **argv)
 
 		ROS_INFO("Action server started, sending goal.");
 		// send a goal to the action
-		ipa_room_segmentation::MapSegmentationGoal goal;
+		ipa_building_msgs::MapSegmentationGoal goal;
 		goal.input_map = labeling;
 		goal.map_origin.position.x = 0;
 		goal.map_origin.position.y = 0;
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 		if (finished_before_timeout)
 		{
 			ROS_INFO("Finished successfully!");
-			ipa_room_segmentation::MapSegmentationResultConstPtr result_seg = ac.getResult();
+			ipa_building_msgs::MapSegmentationResultConstPtr result_seg = ac.getResult();
 
 			// display
 			cv_bridge::CvImagePtr cv_ptr_obj;
