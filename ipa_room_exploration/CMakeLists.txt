@@ -4,7 +4,7 @@ project(ipa_room_exploration)
 set(catkin_RUN_PACKAGES
 	roscpp
 	roslib
-	concorde_tsp_solver
+	libconcorde_tsp_solver
 	actionlib
 	actionlib_msgs
 	tf
@@ -40,9 +40,9 @@ add_action_files(
 )
 
 # Generate messages in the 'msg' folder
-add_message_files(
+#add_message_files(
 #	FILES RoomSequence.msg
-)
+#)
 
 ## Generate services in the 'srv' folder
 #add_service_files(

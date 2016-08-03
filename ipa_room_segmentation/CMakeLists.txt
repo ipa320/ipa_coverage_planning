@@ -10,8 +10,8 @@ set(catkin_RUN_PACKAGES
 	sensor_msgs
 	geometry_msgs
 	cv_bridge
-	dlib_lib
-	opengm_lib
+	libdlib
+	libopengm
 )
 
 set(catkin_BUILD_PACKAGES
@@ -50,12 +50,6 @@ add_action_files(
 add_message_files(
 	FILES RoomInformation.msg
 )
-
-## Generate services in the 'srv' folder
-#add_service_files(
-#	FILES
-#)
-
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(

@@ -4,7 +4,7 @@ project(ipa_building_navigation)
 set(catkin_RUN_PACKAGES
 	roscpp
 	roslib
-	concorde_tsp_solver
+	libconcorde_tsp_solver
 	actionlib
 	actionlib_msgs
 	std_msgs

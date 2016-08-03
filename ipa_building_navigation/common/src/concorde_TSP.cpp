@@ -42,8 +42,7 @@ ConcordeTSPSolver::ConcordeTSPSolver()
 //as input to solve the TSP. See http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/ for documentation.
 void ConcordeTSPSolver::writeToFile(const cv::Mat& pathlength_matrix)
 {
-	std::string path_for_saving_file = ros::package::getPath(
-			"concorde_tsp_solver") + "/common/files/TSPlib_file.txt";
+	std::string path_for_saving_file = "TSPlib_file.txt";//ros::package::getPath("libconcorde_tsp_solver") + "/common/files/TSPlib_file.txt";
 	std::ofstream saving_file(path_for_saving_file.c_str());
 	if (saving_file.is_open()) {
 		std::cout << "Starting to create the TSPlib file." << std::endl;
@@ -70,9 +69,10 @@ void ConcordeTSPSolver::writeToFile(const cv::Mat& pathlength_matrix)
 
 		std::cout << "Created the TSPlib file." << std::endl;
 		saving_file.close();
-	} else {
-		std::cout << "Saving file for concorde could not be opened."
-				<< std::endl;
+	}
+	else
+	{
+		std::cout << "Saving file '" << path_for_saving_file << "' for concorde could not be opened." << std::endl;
 	}
 }
 
@@ -81,8 +81,7 @@ void ConcordeTSPSolver::writeToFile(const cv::Mat& pathlength_matrix)
 //of nodes of this problem, so this one is not necessary.
 std::vector<int> ConcordeTSPSolver::readFromFile()
 {
-	std::string path_for_order_file = ros::package::getPath(
-			"concorde_tsp_solver") + "/common/files/TSP_order.txt"; //get path to file
+	std::string path_for_order_file = "TSP_order.txt";//ros::package::getPath("libconcorde_tsp_solver") + "/common/files/TSP_order.txt"; //get path to file
 	std::ifstream reading_file(path_for_order_file.c_str()); //open file
 
 	std::vector<int> order_vector; //vector that stores the calculated TSP order
@@ -107,7 +106,7 @@ std::vector<int> ConcordeTSPSolver::readFromFile()
 		}
 		reading_file.close();
 	} else {
-		std::cout << "TSP order file could not be opened." << std::endl;
+		std::cout << "TSP order file '" << path_for_order_file << "' could not be opened." << std::endl;
 	}
 	return order_vector;
 }
@@ -131,12 +130,10 @@ std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_
 		writeToFile(path_length_Matrix);
 
 		//use concorde to find optimal tour
-		std::string cmd = ros::package::getPath("concorde_tsp_solver")
-				+ "/common/bin/concorde -o"
-				+ ros::package::getPath("concorde_tsp_solver")
-				+ "/common/files/TSP_order.txt "
-				+ ros::package::getPath("concorde_tsp_solver")
-				+ "/common/files/TSPlib_file.txt";
+		std::string cmd = ros::package::getPath("libconcorde_tsp_solver")
+				+ "/common/bin/concorde -o " + "$HOME/.ros/TSP_order.txt $HOME/.ros/TSPlib_file.txt";
+				//+ ros::package::getPath("libconcorde_tsp_solver") + "/common/files/TSP_order.txt "
+				//+ ros::package::getPath("libconcorde_tsp_solver") + "/common/files/TSPlib_file.txt";
 		int result = system(cmd.c_str());
 		assert(!result);
 

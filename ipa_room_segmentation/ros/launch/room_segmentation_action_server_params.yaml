@@ -57,7 +57,7 @@ max_voronoi_random_field_inference_iterations: 9000 #max number of iterations th
 # 4 = semantic segmentation
 # 5 = voronoi random field segmentation
 # int
-room_segmentation_algorithm: 5
+room_segmentation_algorithm: 3
 
 # displays the segmented map upon service call
 # bool

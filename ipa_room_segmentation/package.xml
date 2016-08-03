@@ -36,8 +36,8 @@
 	<depend>geometry_msgs</depend>
 	<depend>message_generation</depend>
 	<depend>genmsg</depend>
-	<depend>dlib_lib</depend>
-	<depend>opengm_lib</depend>
+	<depend>libdlib</depend>
+	<depend>libopengm</depend>
 	
 	<exec_depend>message_runtime</exec_depend>
 
