@@ -15,11 +15,16 @@ set(catkin_RUN_PACKAGES
 set(catkin_BUILD_PACKAGES
 	${catkin_RUN_PACKAGES}
 	cmake_modules
+	dynamic_reconfigure
 )
 
-## Find catkin macros and libraries 
+## Find catkin macros and libraries
 find_package(catkin REQUIRED COMPONENTS
 	${catkin_BUILD_PACKAGES}
+)
+
+generate_dynamic_reconfigure_options(
+  cfg/RoomSegmentation.cfg
 )
 
 find_package(OpenCV REQUIRED)
@@ -88,7 +93,8 @@ add_executable(room_segmentation_server
 	common/src/voronoi_random_field_features.cpp)
 target_compile_options(room_segmentation_server PRIVATE ${OpenMP_FLAGS})
 add_dependencies(room_segmentation_server
-	${catkin_EXPORTED_TARGETS})
+	${catkin_EXPORTED_TARGETS}
+	${PROJECT_NAME}_gencfg)
 target_link_libraries(room_segmentation_server
 	${catkin_LIBRARIES}
 	${OpenMP_LIBS}

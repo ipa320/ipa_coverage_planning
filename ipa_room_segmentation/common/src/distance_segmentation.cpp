@@ -40,13 +40,11 @@ void DistanceSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labele
 	for (int current_threshold = 255; current_threshold > 0; current_threshold--)
 	{ //change the threshold for the grayscale-image from largest possible value to smallest
 	  //reset number of rooms
-		double current_energy = 0;
 		temporary_contours.clear();
 		contours.clear();
 		hierarchy.clear();
 		cv::threshold(distance_map, thresh_map, current_threshold, 255, cv::THRESH_BINARY);
 		cv::findContours(thresh_map, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
-		//cv::drawContours();
 
 		//Get the number of large enough regions to be a room. Only check non-holes.
 		//Energy function: -(x-a)^2 + b, where x is the current area, a is the optimal area and b is a factor to make the function zero at x=0
@@ -67,11 +65,9 @@ void DistanceSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labele
 				{
 					temporary_contours.push_back(contours[c]);
 					//update the energy of the current configuration
-					current_energy += -1*(std::pow((room_area - optimal_room_area), 2.0)) + constant_additional_value;
 				}
 			}
 		}
-//		current_energy = current_energy / temporary_contours.size();
 		//check if current step has a better energy than the saved one
 		if (temporary_contours.size() >= saved_contours.size())//(current_energy >= saved_energy)
 		{
@@ -81,7 +77,6 @@ void DistanceSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labele
 			saved_contours = temporary_contours;
 			hole_contour_saver = contours;
 			hierarchy_saver = hierarchy;
-			saved_energy = current_energy;
 		}
 	}
 	//Draw the found contours from the step with most areas in the map with a random colour, that hasn't been used yet

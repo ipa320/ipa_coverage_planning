@@ -58,10 +58,6 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 					temporary_features.resize(features.cols);
 					for (int i=0; i<features.cols; ++i)
 						temporary_features[i] = features.at<float>(0,i);
-//					for (int f = 1; f <= get_feature_count(); f++)
-//					{
-//						temporary_features.push_back((float) get_feature(temporary_beams, angles_for_simulation_, cv::Point(x, y), f));
-//					}
 					room_features.push_back(temporary_features);
 					temporary_features.clear();
 				}
@@ -94,10 +90,6 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 					temporary_features.resize(features.cols);
 					for (int i=0; i<features.cols; ++i)
 						temporary_features[i] = features.at<float>(0,i);
-//					for (int f = 1; f <= get_feature_count(); f++)
-//					{
-//						temporary_features.push_back(get_feature(temporary_beams, angles_for_simulation_, cv::Point(x, y), f));
-//					}
 					hallway_features.push_back(temporary_features);
 					temporary_features.clear();
 				}
@@ -192,8 +184,6 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 	}
 
 	//*************** II. Go trough each Point and label it as room or hallway.**************************
-	Timer tim;//, tim2;
-//	double ray_time = 0., feature_time = 0.;
 #pragma omp parallel for
 	for (int y = 0; y < original_map_to_be_labeled.rows; y++)
 	{
@@ -203,14 +193,10 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 			if (original_map_to_be_labeled.at<unsigned char>(y, x) == 255)
 			{
 				std::vector<double> temporary_beams;
-//				tim2.start();
 				raycasting_.raycasting(original_map_to_be_labeled, cv::Point(x, y), temporary_beams);
-//				ray_time += tim2.getElapsedTimeInMilliSec();
 				std::vector<float> temporary_features;
 				cv::Mat features_mat; //OpenCV expects a 32-floating-point Matrix as feature input
-//				tim2.start();
 				lsf.get_features(temporary_beams, angles_for_simulation_, cv::Point(x, y), features_mat);
-//				feature_time += tim2.getElapsedTimeInMilliSec();
 				//classify each Point
 				float room_sum = room_boost_.predict(features_mat, cv::Mat(), cv::Range::all(), false, true);
 				float hallway_sum = hallway_boost_.predict(features_mat, cv::Mat(), cv::Range::all(), false, true);
@@ -232,7 +218,7 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 			}
 		}
 	}
-	std::cout << "labeled all white pixels: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;	//,    ray_time=" << ray_time << "        feature_time=" << feature_time << std::endl;
+	std::cout << "labeled all white pixels: " << std::endl;
 	//******************** III. Apply a median filter over the image to smooth the results.***************************
 	cv::Mat temporary_map = original_map_to_be_labeled.clone();
 	cv::medianBlur(temporary_map, temporary_map, 3);
@@ -250,7 +236,6 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 		}
 	}
 //	cv::imshow("thresholded", temporary_map);
-//	cv::imwrite("/home/rmb/Bilder/semantic_classified.png", temporary_map);
 //	cv::waitKey();
 	if(display_results)
 	{
@@ -312,7 +297,7 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 					temporary_watershed_centers.push_back(cv::Point(random_x, random_y));
 					center_counter++;
 				}
-			} while (center_counter <= (map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(contours[contour_counter])) / 8);		// todo: parameter
+			} while (center_counter <= (map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(contours[contour_counter])) / 8);
 			cv::Mat temporary_Map_to_wavefront;
 			contour_Map.convertTo(temporary_Map_to_wavefront, CV_32SC1, 256, 0);
 			//draw the centers as white circles into a black map and give the center-map and the contour-map to the opencv watershed-algorithm
@@ -397,7 +382,6 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 	//spread the coloured regions to regions, which were too small and aren't drawn into the map
 	wavefrontRegionGrowing(segmented_map);
 	//make sure previously black pixels are still black
-	// todo: why is this necessary? it seems like this should not alter any data.
 	for (int v = 0; v < map_to_be_labeled.rows; ++v)
 	{
 		for (int u = 0; u < map_to_be_labeled.cols; ++u)
