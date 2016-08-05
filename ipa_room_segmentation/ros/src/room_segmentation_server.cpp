@@ -112,8 +112,8 @@ void RoomSegmentationServer::dynamic_reconfigure_callback(ipa_room_segmentation:
 	}
 	if (room_segmentation_algorithm_ == 5) //set voronoi random field parameters
 	{
-		room_upper_limit_voronoi_random_ = config.room_upper_limit_voronoi_random;
-		room_lower_limit_voronoi_random_ = config.room_lower_limit_voronoi_random;
+		room_upper_limit_voronoi_random_ = config.room_area_upper_limit_voronoi_random;
+		room_lower_limit_voronoi_random_ = config.room_area_lower_limit_voronoi_random;
 
 		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_voronoi_random_ << std::endl;
 		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_voronoi_random_ << std::endl;
@@ -204,10 +204,10 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 	}
 	if (room_segmentation_algorithm_ == 5) //set voronoi random field parameters
 	{
-		node_handle_.param("room_upper_limit_voronoi_random", room_upper_limit_voronoi_random_, 10000.0);
+		node_handle_.param("room_area_upper_limit_voronoi_random", room_upper_limit_voronoi_random_, 10000.0);
 		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_voronoi_random_ << std::endl;
 
-		node_handle_.param("room_lower_limit_voronoi_random", room_lower_limit_voronoi_random_, 1.53);
+		node_handle_.param("room_area_lower_limit_voronoi_random", room_lower_limit_voronoi_random_, 1.53);
 		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_voronoi_random_ << std::endl;
 
 		node_handle_.param("voronoi_random_field_epsilon_for_neighborhood", voronoi_random_field_epsilon_for_neighborhood_, 7);

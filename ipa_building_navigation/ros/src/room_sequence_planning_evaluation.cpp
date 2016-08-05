@@ -22,6 +22,7 @@
 #include <ipa_building_navigation/A_star_pathplanner.h>
 
 #include <ipa_building_navigation/timer.h>
+#include <ipa_building_navigation/dynamic_reconfigure_client.h>
 
 #include <geometry_msgs/Pose.h>
 #include <sensor_msgs/image_encodings.h>
@@ -202,8 +203,8 @@ public:
 	ipa_building_msgs::MapSegmentationResultConstPtr result_seg_semant;
 	bool segmented_semant;
 
-	Evaluation(const std::string& test_map_path, const std::string& data_storage_path, const double robot_radius)
-	: robot_radius_(robot_radius)
+	Evaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::string& data_storage_path, const double robot_radius)
+	: node_handle_(nh), robot_radius_(robot_radius)
 	{
 		segmented_morph = false;
 		segmented_dist = false;
@@ -972,8 +973,52 @@ public:
 			actionlib::SimpleActionClient<ipa_building_msgs::MapSegmentationAction> ac_seg("/room_segmentation/room_segmentation_server", true);
 			ROS_INFO("Waiting for action server '/room_segmentation/room_segmentation_server' to start.");
 			ac_seg.waitForServer(ros::Duration(60)); // wait for the action server to start, will wait for infinite time
-
 			std::cout << "Action server started, sending goal_seg." << std::endl;
+
+			// send dynamic reconfigure config
+			DynamicReconfigureClient drc(node_handle_, "/room_segmentation/room_segmentation_server/set_parameters", "/room_segmentation/room_segmentation_server/parameter_updates");
+			const int room_segmentation_algorithm = evaluation_configuration.room_segmentation_algorithm_;
+			drc.setConfig("room_segmentation_algorithm", room_segmentation_algorithm);
+			if(room_segmentation_algorithm == 1) //morpho
+			{
+				drc.setConfig("room_area_factor_lower_limit_morphological", 0.8);
+				drc.setConfig("room_area_factor_upper_limit_morphological", 47.0);
+				ROS_INFO("You have chosen the morphological segmentation.");
+			}
+			if(room_segmentation_algorithm == 2) //distance
+			{
+				drc.setConfig("room_area_factor_lower_limit_distance", 0.35);
+				drc.setConfig("room_area_factor_upper_limit_distance", 163.0);
+				ROS_INFO("You have chosen the distance segmentation.");
+			}
+			if(room_segmentation_algorithm == 3) //voronoi
+			{
+				drc.setConfig("room_area_factor_lower_limit_voronoi", 0.1);	//1.53;
+				drc.setConfig("room_area_factor_upper_limit_voronoi", 1000000.);	//120.0;
+				drc.setConfig("voronoi_neighborhood_index", 280);
+				drc.setConfig("max_iterations", 150);
+				drc.setConfig("min_critical_point_distance_factor", 0.5); //1.6;
+				drc.setConfig("max_area_for_merging", 12.5);
+				ROS_INFO("You have chosen the Voronoi segmentation");
+			}
+			if(room_segmentation_algorithm == 4) //semantic
+			{
+				drc.setConfig("room_area_factor_lower_limit_semantic", 1.0);
+				drc.setConfig("room_area_factor_upper_limit_semantic", 1000000.);//23.0;
+				ROS_INFO("You have chosen the semantic segmentation.");
+			}
+			if(room_segmentation_algorithm == 5) //voronoi random field
+			{
+				drc.setConfig("room_area_lower_limit_voronoi_random", 1.53); //1.53
+				drc.setConfig("room_area_upper_limit_voronoi_random", 1000000.); //1000000.0
+				drc.setConfig("voronoi_random_field_epsilon_for_neighborhood", 7);
+				drc.setConfig("min_neighborhood_size", 5);
+				drc.setConfig("min_voronoi_random_field_node_distance", 7); // [pixel]
+				drc.setConfig("max_voronoi_random_field_inference_iterations", 9000);
+				drc.setConfig("max_area_for_merging", 12.5);
+				ROS_INFO("You have chosen the Voronoi random field segmentation.");
+			}
+
 			// send a goal to the action
 			ipa_building_msgs::MapSegmentationGoal goal_seg;
 			goal_seg.input_map = map_msg;
@@ -981,7 +1026,7 @@ public:
 			goal_seg.map_resolution = evaluation_data.map_resolution_;
 			goal_seg.return_format_in_meter = false;
 			goal_seg.return_format_in_pixel = true;
-			goal_seg.room_segmentation_algorithm = evaluation_configuration.room_segmentation_algorithm_;
+			//goal_seg.room_segmentation_algorithm = evaluation_configuration.room_segmentation_algorithm_;
 			goal_seg.robot_radius = evaluation_data.robot_radius_;
 			ac_seg.sendGoal(goal_seg);
 
@@ -1184,6 +1229,8 @@ public:
 
 private:
 
+	ros::NodeHandle node_handle_;
+
 	std::vector< EvaluationData > evaluation_data_;
 
 	const double robot_radius_;
@@ -1194,10 +1241,11 @@ private:
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "room_sequence_planning_client");
+	ros::NodeHandle nh;
 
 	const std::string test_map_path = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/";
 	const std::string data_storage_path = "room_sequence_planning/";
-	Evaluation ev(test_map_path, data_storage_path, 0.3);
+	Evaluation ev(nh, test_map_path, data_storage_path, 0.3);
 	ros::shutdown();
 
 	//exit
