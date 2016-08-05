@@ -580,9 +580,10 @@ int main(int argc, char **argv) {
 			{
 				drc.setConfig("room_area_lower_limit_voronoi_random", 1.53); //1.53
 				drc.setConfig("room_area_upper_limit_voronoi_random", 1000000.); //1000000.0
+				drc.setConfig("max_iterations", 150);
 				drc.setConfig("voronoi_random_field_epsilon_for_neighborhood", 7);
 				drc.setConfig("min_neighborhood_size", 5);
-				drc.setConfig("min_voronoi_random_field_node_distance", 7); // [pixel]
+				drc.setConfig("min_voronoi_random_field_node_distance", 7.0); // [pixel]
 				drc.setConfig("max_voronoi_random_field_inference_iterations", 9000);
 				drc.setConfig("max_area_for_merging", 12.5);
 				ROS_INFO("You have chosen the Voronoi random field segmentation.");
