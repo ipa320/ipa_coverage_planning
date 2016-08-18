@@ -130,17 +130,17 @@ int main(int argc, char **argv)
 	starting_position.theta = 0.0;
 
 	geometry_msgs::Point32 fow_point_1;// geometry_msgs::Point32(0.3, 0.3);
-	fow_point_1.x = 0.3;
-	fow_point_1.y = 0.3;
+	fow_point_1.x = 0.2;
+	fow_point_1.y = 0.35;
 	geometry_msgs::Point32 fow_point_2;// = geometry_msgs::Point32(0.3, -0.3);
-	fow_point_2.x = 0.3;
-	fow_point_2.y = -0.3;
+	fow_point_2.x = 0.2;
+	fow_point_2.y = -0.35;
 	geometry_msgs::Point32 fow_point_3;// = geometry_msgs::Point32(0.7, 0.7);
 	fow_point_3.x = 0.6;
-	fow_point_3.y = -0.6;
+	fow_point_3.y = -0.65;
 	geometry_msgs::Point32 fow_point_4;// = geometry_msgs::Point32(0.7, -0.7);
 	fow_point_4.x = 0.6;
-	fow_point_4.y = 0.6;
+	fow_point_4.y = 0.65;
 	std::vector<geometry_msgs::Point32> fow_points(4);
 	fow_points[0] = fow_point_1;
 	fow_points[1] = fow_point_2;

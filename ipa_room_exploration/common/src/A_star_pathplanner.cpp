@@ -272,7 +272,7 @@ double AStarPlanner::planPath(const cv::Mat& map, const cv::Point& start_point, 
 		}
 		if (route_ == "")
 		{
-			std::cout << "No path from " << start_point << " to " << end_point << " found for map of size " << map.rows << "x" << map.cols << " and downsampling factor " << downsampling_factor << std::endl;
+//			std::cout << "No path from " << start_point << " to " << end_point << " found for map of size " << map.rows << "x" << map.cols << " and downsampling factor " << downsampling_factor << std::endl;
 			return 1e10; //return extremely large distance as path length if the rout could not be generated
 		}
 	}
