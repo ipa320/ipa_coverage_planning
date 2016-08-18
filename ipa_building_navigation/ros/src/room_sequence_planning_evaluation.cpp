@@ -17,11 +17,12 @@
 
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
-#include <ipa_room_segmentation/MapSegmentationAction.h>
-#include <ipa_building_navigation/FindRoomSequenceWithCheckpointsAction.h>
+#include <ipa_building_msgs/MapSegmentationAction.h>
+#include <ipa_building_msgs/FindRoomSequenceWithCheckpointsAction.h>
 #include <ipa_building_navigation/A_star_pathplanner.h>
 
 #include <ipa_building_navigation/timer.h>
+#include <ipa_building_navigation/dynamic_reconfigure_client.h>
 
 #include <geometry_msgs/Pose.h>
 #include <sensor_msgs/image_encodings.h>
@@ -193,17 +194,17 @@ class Evaluation
 public:
 
 	// to segment the map only once for each segmentation algorithm
-	ipa_room_segmentation::MapSegmentationResultConstPtr result_seg_morph;
+	ipa_building_msgs::MapSegmentationResultConstPtr result_seg_morph;
 	bool segmented_morph;
-	ipa_room_segmentation::MapSegmentationResultConstPtr result_seg_dist;
+	ipa_building_msgs::MapSegmentationResultConstPtr result_seg_dist;
 	bool segmented_dist;
-	ipa_room_segmentation::MapSegmentationResultConstPtr result_seg_vor;
+	ipa_building_msgs::MapSegmentationResultConstPtr result_seg_vor;
 	bool segmented_vor;
-	ipa_room_segmentation::MapSegmentationResultConstPtr result_seg_semant;
+	ipa_building_msgs::MapSegmentationResultConstPtr result_seg_semant;
 	bool segmented_semant;
 
-	Evaluation(const std::string& test_map_path, const std::string& data_storage_path, const double robot_radius)
-	: robot_radius_(robot_radius)
+	Evaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::string& data_storage_path, const double robot_radius)
+	: node_handle_(nh), robot_radius_(robot_radius)
 	{
 		segmented_morph = false;
 		segmented_dist = false;
@@ -230,30 +231,30 @@ public:
 		std::vector< std::string > map_names;
 //		map_names.push_back("lab_ipa");
 //		map_names.push_back("lab_c_scan");
-		map_names.push_back("Freiburg52_scan");
-		map_names.push_back("Freiburg79_scan");
-		map_names.push_back("lab_b_scan");
-		map_names.push_back("lab_intel");
-		map_names.push_back("Freiburg101_scan");
-		map_names.push_back("lab_d_scan");
-		map_names.push_back("lab_f_scan");
-		map_names.push_back("lab_a_scan");
-		map_names.push_back("NLB");
-		map_names.push_back("office_a");
-		map_names.push_back("office_b");
-		map_names.push_back("office_c");
-		map_names.push_back("office_d");
-		map_names.push_back("office_e");
-		map_names.push_back("office_f");
-		map_names.push_back("office_g");
-		map_names.push_back("office_h");
-		map_names.push_back("office_i");
-		map_names.push_back("lab_ipa_furnitures");
-		map_names.push_back("lab_c_scan_furnitures");
-		map_names.push_back("Freiburg52_scan_furnitures");
-		map_names.push_back("Freiburg79_scan_furnitures");
-		map_names.push_back("lab_b_scan_furnitures");
-		map_names.push_back("lab_intel_furnitures");
+//		map_names.push_back("Freiburg52_scan");
+//		map_names.push_back("Freiburg79_scan");
+//		map_names.push_back("lab_b_scan");
+//		map_names.push_back("lab_intel");
+//		map_names.push_back("Freiburg101_scan");
+//		map_names.push_back("lab_d_scan");
+//		map_names.push_back("lab_f_scan");
+//		map_names.push_back("lab_a_scan");
+//		map_names.push_back("NLB");
+//		map_names.push_back("office_a");
+//		map_names.push_back("office_b");
+//		map_names.push_back("office_c");
+//		map_names.push_back("office_d");
+//		map_names.push_back("office_e");
+//		map_names.push_back("office_f");
+//		map_names.push_back("office_g");
+//		map_names.push_back("office_h");
+//		map_names.push_back("office_i");
+//		map_names.push_back("lab_ipa_furnitures");
+//		map_names.push_back("lab_c_scan_furnitures");
+//		map_names.push_back("Freiburg52_scan_furnitures");
+//		map_names.push_back("Freiburg79_scan_furnitures");
+//		map_names.push_back("lab_b_scan_furnitures");
+//		map_names.push_back("lab_intel_furnitures");
 		map_names.push_back("Freiburg101_scan_furnitures");
 		map_names.push_back("lab_d_scan_furnitures");
 		map_names.push_back("lab_f_scan_furnitures");
@@ -658,7 +659,7 @@ public:
 			struct timespec t0, t1, t2, t3;
 
 			// 1. retrieve segmentation and check if the map has already been segmented
-			ipa_room_segmentation::MapSegmentationResultConstPtr result_seg;
+			ipa_building_msgs::MapSegmentationResultConstPtr result_seg;
 			clock_gettime(CLOCK_MONOTONIC,  &t0); //set time stamp before the segmentation
 			if(evaluation_configuration_vector[config].room_segmentation_algorithm_ == 1)
 			{
@@ -744,7 +745,7 @@ public:
 			// 2. solve sequence problem
 			std::cout << "Starting to solve sequence problem." << std::endl;
 			tim.start();
-			ipa_building_navigation::FindRoomSequenceWithCheckpointsResultConstPtr result_seq;
+			ipa_building_msgs::FindRoomSequenceWithCheckpointsResultConstPtr result_seq;
 			clock_gettime(CLOCK_MONOTONIC,  &t2); //set time stamp before the sequence planning
 			if (computeRoomSequence(evaluation_data, evaluation_configuration_vector[config], room_centers, result_seq, t2) == false)
 			{
@@ -825,7 +826,7 @@ public:
 					cv::circle(draw_path_map, robot_position, 3, CV_RGB(0,255,0), -1);
 					// clear all trash bins: go to trash bin, go back to trolley to empty trash and then drive back to trash bin
 					std::cout << " arrived in room " << current_roomcenter << "\n starting to clean the trash bins" << std::endl; screenoutput << " arrived in room " << current_roomcenter << "\n starting to clean the trash bins" << std::endl;
-					ipa_building_navigation::FindRoomSequenceWithCheckpointsResultConstPtr result_trash_bin_seq;
+					ipa_building_msgs::FindRoomSequenceWithCheckpointsResultConstPtr result_trash_bin_seq;
 					std::vector<cv::Point> trash_bin_sequence_in_this_room;
 					if (room_trash_bins[room_index].size()>1 && computeTrashBinSequence(evaluation_data, evaluation_configuration_vector[config], room_trash_bins[room_index], robot_position, result_trash_bin_seq) == true)
 					{
@@ -957,7 +958,7 @@ public:
 	}
 
 	bool segmentFloorPlan(const EvaluationData& evaluation_data, const EvaluationConfig& evaluation_configuration,
-			ipa_room_segmentation::MapSegmentationResultConstPtr& result_seg, struct timespec& t0)
+			ipa_building_msgs::MapSegmentationResultConstPtr& result_seg, struct timespec& t0)
 	{
 		int loopcounter = 0;
 		bool segmented = false;
@@ -969,19 +970,64 @@ public:
 			cv_image.encoding = "mono8";
 			cv_image.image = evaluation_data.floor_plan_;
 			cv_image.toImageMsg(map_msg);
-			actionlib::SimpleActionClient<ipa_room_segmentation::MapSegmentationAction> ac_seg("/room_segmentation/room_segmentation_server", true);
+			actionlib::SimpleActionClient<ipa_building_msgs::MapSegmentationAction> ac_seg("/room_segmentation/room_segmentation_server", true);
 			ROS_INFO("Waiting for action server '/room_segmentation/room_segmentation_server' to start.");
 			ac_seg.waitForServer(ros::Duration(60)); // wait for the action server to start, will wait for infinite time
-
 			std::cout << "Action server started, sending goal_seg." << std::endl;
+
+			// send dynamic reconfigure config
+			DynamicReconfigureClient drc(node_handle_, "/room_segmentation/room_segmentation_server/set_parameters", "/room_segmentation/room_segmentation_server/parameter_updates");
+			const int room_segmentation_algorithm = evaluation_configuration.room_segmentation_algorithm_;
+			drc.setConfig("room_segmentation_algorithm", room_segmentation_algorithm);
+			if(room_segmentation_algorithm == 1) //morpho
+			{
+				drc.setConfig("room_area_factor_lower_limit_morphological", 0.8);
+				drc.setConfig("room_area_factor_upper_limit_morphological", 47.0);
+				ROS_INFO("You have chosen the morphological segmentation.");
+			}
+			if(room_segmentation_algorithm == 2) //distance
+			{
+				drc.setConfig("room_area_factor_lower_limit_distance", 0.35);
+				drc.setConfig("room_area_factor_upper_limit_distance", 163.0);
+				ROS_INFO("You have chosen the distance segmentation.");
+			}
+			if(room_segmentation_algorithm == 3) //voronoi
+			{
+				drc.setConfig("room_area_factor_lower_limit_voronoi", 0.1);	//1.53;
+				drc.setConfig("room_area_factor_upper_limit_voronoi", 1000000.);	//120.0;
+				drc.setConfig("voronoi_neighborhood_index", 280);
+				drc.setConfig("max_iterations", 150);
+				drc.setConfig("min_critical_point_distance_factor", 0.5); //1.6;
+				drc.setConfig("max_area_for_merging", 12.5);
+				ROS_INFO("You have chosen the Voronoi segmentation");
+			}
+			if(room_segmentation_algorithm == 4) //semantic
+			{
+				drc.setConfig("room_area_factor_lower_limit_semantic", 1.0);
+				drc.setConfig("room_area_factor_upper_limit_semantic", 1000000.);//23.0;
+				ROS_INFO("You have chosen the semantic segmentation.");
+			}
+			if(room_segmentation_algorithm == 5) //voronoi random field
+			{
+				drc.setConfig("room_area_lower_limit_voronoi_random", 1.53); //1.53
+				drc.setConfig("room_area_upper_limit_voronoi_random", 1000000.); //1000000.0
+				drc.setConfig("max_iterations", 150);
+				drc.setConfig("voronoi_random_field_epsilon_for_neighborhood", 7);
+				drc.setConfig("min_neighborhood_size", 5);
+				drc.setConfig("min_voronoi_random_field_node_distance", 7.0); // [pixel]
+				drc.setConfig("max_voronoi_random_field_inference_iterations", 9000);
+				drc.setConfig("max_area_for_merging", 12.5);
+				ROS_INFO("You have chosen the Voronoi random field segmentation.");
+			}
+
 			// send a goal to the action
-			ipa_room_segmentation::MapSegmentationGoal goal_seg;
+			ipa_building_msgs::MapSegmentationGoal goal_seg;
 			goal_seg.input_map = map_msg;
 			goal_seg.map_origin = evaluation_data.map_origin_;
 			goal_seg.map_resolution = evaluation_data.map_resolution_;
 			goal_seg.return_format_in_meter = false;
 			goal_seg.return_format_in_pixel = true;
-			goal_seg.room_segmentation_algorithm = evaluation_configuration.room_segmentation_algorithm_;
+			//goal_seg.room_segmentation_algorithm = evaluation_configuration.room_segmentation_algorithm_;
 			goal_seg.robot_radius = evaluation_data.robot_radius_;
 			ac_seg.sendGoal(goal_seg);
 
@@ -1035,7 +1081,7 @@ public:
 
 	bool computeTrashBinSequence(const EvaluationData& evaluation_data, const EvaluationConfig& evaluation_configuration,
 			const std::vector<cv::Point>& reachable_roomcenters, const cv::Point& robot_start_position,
-			ipa_building_navigation::FindRoomSequenceWithCheckpointsResultConstPtr& result_seq)
+			ipa_building_msgs::FindRoomSequenceWithCheckpointsResultConstPtr& result_seq)
 	{
 		bool planned = false;
 
@@ -1045,13 +1091,13 @@ public:
 		cv_image.image = evaluation_data.floor_plan_;
 		cv_image.toImageMsg(map_msg);
 
-		actionlib::SimpleActionClient<ipa_building_navigation::FindRoomSequenceWithCheckpointsAction> ac_seq("/room_sequence_planning/room_sequence_planning_server", true);
+		actionlib::SimpleActionClient<ipa_building_msgs::FindRoomSequenceWithCheckpointsAction> ac_seq("/room_sequence_planning/room_sequence_planning_server", true);
 //		ROS_INFO("Waiting for action server '/room_sequence_planning/room_sequence_planning_server' to start.");
 		// wait for the action server to start
 		ac_seq.waitForServer(ros::Duration(60)); //will wait for infinite time
 
 		//put the vector<Point> format in the msg format
-		std::vector<ipa_room_segmentation::RoomInformation> roomcenters_for_sequence_planning(reachable_roomcenters.size());
+		std::vector<ipa_building_msgs::RoomInformation> roomcenters_for_sequence_planning(reachable_roomcenters.size());
 		for(size_t room = 0; room < reachable_roomcenters.size(); ++room)
 		{
 			roomcenters_for_sequence_planning[room].room_center.x = reachable_roomcenters[room].x;
@@ -1060,7 +1106,7 @@ public:
 
 //		std::cout << "Action server started, sending goal_seq." << std::endl;
 		// send a goal_seg to the action
-		ipa_building_navigation::FindRoomSequenceWithCheckpointsGoal goal_seq;
+		ipa_building_msgs::FindRoomSequenceWithCheckpointsGoal goal_seq;
 		goal_seq.input_map = map_msg;
 		goal_seq.map_resolution = evaluation_data.map_resolution_;
 		goal_seq.map_origin = evaluation_data.map_origin_;
@@ -1090,7 +1136,7 @@ public:
 
 	bool computeRoomSequence(const EvaluationData& evaluation_data, const EvaluationConfig& evaluation_configuration,
 			const std::vector<cv::Point>& reachable_roomcenters,
-			ipa_building_navigation::FindRoomSequenceWithCheckpointsResultConstPtr& result_seq, struct timespec& t2)
+			ipa_building_msgs::FindRoomSequenceWithCheckpointsResultConstPtr& result_seq, struct timespec& t2)
 	{
 		bool planned = false;
 		int loopcounter = 0;
@@ -1103,13 +1149,13 @@ public:
 			cv_image.image = evaluation_data.floor_plan_;
 			cv_image.toImageMsg(map_msg);
 
-			actionlib::SimpleActionClient<ipa_building_navigation::FindRoomSequenceWithCheckpointsAction> ac_seq("/room_sequence_planning/room_sequence_planning_server", true);
+			actionlib::SimpleActionClient<ipa_building_msgs::FindRoomSequenceWithCheckpointsAction> ac_seq("/room_sequence_planning/room_sequence_planning_server", true);
 			ROS_INFO("Waiting for action server '/room_sequence_planning/room_sequence_planning_server' to start.");
 			// wait for the action server to start
 			ac_seq.waitForServer(ros::Duration(60)); //will wait for infinite time
 
 			//put the vector<Point> format in the msg format
-			std::vector<ipa_room_segmentation::RoomInformation> roomcenters_for_sequence_planning(reachable_roomcenters.size());
+			std::vector<ipa_building_msgs::RoomInformation> roomcenters_for_sequence_planning(reachable_roomcenters.size());
 			for(size_t room = 0; room < reachable_roomcenters.size(); ++room)
 			{
 				roomcenters_for_sequence_planning[room].room_center.x = reachable_roomcenters[room].x;
@@ -1118,7 +1164,7 @@ public:
 
 			std::cout << "Action server started, sending goal_seq." << std::endl;
 			// send a goal_seg to the action
-			ipa_building_navigation::FindRoomSequenceWithCheckpointsGoal goal_seq;
+			ipa_building_msgs::FindRoomSequenceWithCheckpointsGoal goal_seq;
 			goal_seq.input_map = map_msg;
 			goal_seq.map_resolution = evaluation_data.map_resolution_;
 			goal_seq.map_origin = evaluation_data.map_origin_;
@@ -1184,6 +1230,8 @@ public:
 
 private:
 
+	ros::NodeHandle node_handle_;
+
 	std::vector< EvaluationData > evaluation_data_;
 
 	const double robot_radius_;
@@ -1194,10 +1242,11 @@ private:
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "room_sequence_planning_client");
+	ros::NodeHandle nh;
 
 	const std::string test_map_path = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/";
 	const std::string data_storage_path = "room_sequence_planning/";
-	Evaluation ev(test_map_path, data_storage_path, 0.3);
+	Evaluation ev(nh, test_map_path, data_storage_path, 0.3);
 	ros::shutdown();
 
 	//exit

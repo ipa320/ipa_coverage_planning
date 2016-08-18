@@ -17,7 +17,7 @@
 	<depend>libopencv-dev</depend>
 	<depend>roscpp</depend>
 	<depend>roslib</depend>
-	<depend>concorde_tsp_solver</depend>
+	<depend>libconcorde_tsp_solver</depend>
 	<depend>actionlib</depend>
 	<depend>actionlib_msgs</depend>
 	<depend>tf</depend>

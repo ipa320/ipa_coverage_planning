@@ -256,8 +256,6 @@ std::vector<double> VoronoiRandomFieldSegmentation::raycasting(const cv::Mat& ma
 				if (map.at<unsigned char>(location.x + simulated_x, location.y + simulated_y) == 0 && distance < temporary_distance)
 				{
 					temporary_distance = distance;
-//					if(distance > 15)
-//						cv::line(test_map, cv::Point(location.y, location.x), cv::Point(location.y + simulated_y, location.x + simulated_x), cv::Scalar(0), 1);
 					break;
 				}
 			}
@@ -268,10 +266,6 @@ std::vector<double> VoronoiRandomFieldSegmentation::raycasting(const cv::Mat& ma
 		}
 		distances[angle] = temporary_distance;
 	}
-
-//	cv::circle(test_map, cv::Point(location.y, location.x), 3, cv::Scalar(50), CV_FILLED);
-//	cv::imshow("simulated angles", test_map);
-//	cv::waitKey();
 
 	return distances;
 }
@@ -340,8 +334,6 @@ void VoronoiRandomFieldSegmentation::mergeRoomPair(std::vector<Room>& rooms, con
 // that are small enough and have only two or one neighbor.
 void VoronoiRandomFieldSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Room>& rooms, double map_resolution_from_subscription, double max_area_for_merging, bool display_map)
 {
-	Timer tim;
-
 	// 1. go trough every pixel and add points to the rooms with the same ID
 	for (int y = 0; y < map_to_merge_rooms.rows; y++)
 	{
@@ -361,8 +353,6 @@ void VoronoiRandomFieldSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std
 			}
 		}
 	}
-	std::cout << "merge1: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
-	tim.start();
 
 	// 2. add the neighbor IDs for every point
 	for (int current_room = 0; current_room < rooms.size(); current_room++)
@@ -393,8 +383,6 @@ void VoronoiRandomFieldSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std
 			}
 		}
 	}
-	std::cout << "merge2: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
-	tim.start();
 
 	// 3. merge criteria
 	// sort rooms ascending by area
@@ -423,8 +411,7 @@ void VoronoiRandomFieldSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std
 	}
 	if (display_map == true)
 		cv::imshow("a", map_to_merge_rooms);
-	std::cout << "merge3a: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
-	tim.start();
+
 	// b) small rooms
 	for (int current_room_index = 0; current_room_index < rooms.size(); )
 	{
@@ -452,8 +439,7 @@ void VoronoiRandomFieldSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std
 	}
 	if (display_map == true)
 		cv::imshow("b", map_to_merge_rooms);
-	std::cout << "merge3b: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
-	tim.start();
+
 	// c) merge a room with one neighbor that has max. 2 neighbors and sufficient wall ratio (connect parts inside a room)
 	for (int current_room_index = 0; current_room_index < rooms.size(); )
 	{
@@ -483,8 +469,7 @@ void VoronoiRandomFieldSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std
 	}
 	if (display_map == true)
 		cv::imshow("c", map_to_merge_rooms);
-	std::cout << "merge3c: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
-	tim.start();
+
 	// d) merge rooms that share a significant part of their perimeter
 	for (int current_room_index = 0; current_room_index < rooms.size(); )
 	{
@@ -524,8 +509,7 @@ void VoronoiRandomFieldSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std
 	}
 	if (display_map == true)
 		cv::imshow("d", map_to_merge_rooms);
-	std::cout << "merge3d: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
-	tim.start();
+
 	// e) largest room neighbor touches > 0.5 perimeter (happens often with furniture)
 	for (int current_room_index = 0; current_room_index < rooms.size(); )
 	{
@@ -549,8 +533,6 @@ void VoronoiRandomFieldSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std
 		else
 			current_room_index++;
 	}
-	std::cout << "merge3e: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
-	tim.start();
 }
 
 // This function computes all possible configurations for n variables that each can have m labels, e.g. when there are 2 variabels
@@ -850,10 +832,8 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 		room_labels_Mat.at<float>(i, 0) = labels_for_classes[0][i];
 		for (int f = 0; f < vrf_feature_computer.getFeatureCount(); f++)
 		{
-//			std::cout << "f" << f << ": " << (float) features_for_points[i][f] << std::endl;
 			features_Mat.at<float>(i, f) = (float) features_for_points[i][f];
 		}
-//		std::cout << std::endl;
 	}
 	// Train a boost classifier
 	room_boost_.train(features_Mat, CV_ROW_SAMPLE, room_labels_Mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
@@ -861,6 +841,7 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 	std::string filename_room = classifier_storage_path + "voronoi_room_boost.xml";
 	room_boost_.save(filename_room.c_str(), "boost");
 	std::cout << "Trained room classifier" << std::endl;
+
 	//
 	//*************hallway***************
 	//save the found labels and features in Matrices
@@ -873,6 +854,7 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 	std::string filename_hallway = classifier_storage_path + "voronoi_hallway_boost.xml";
 	hallway_boost_.save(filename_hallway.c_str(), "boost");
 	std::cout << "Trained hallway classifier" << std::endl;
+
 	//
 	//*************doorway***************
 	//save the found labels and features in Matrices
@@ -932,11 +914,8 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 
 		for (int f = 1; f <= vrf_feature_computer.getFeatureCount(); ++f)
 		{
-			//get the features for each room and put it in the featuresMat
-//			std::cout << "f" << f << ": " << (float) current_features[f-1] << std::endl;
 			featuresMat.at<float>(0, f - 1) = (float) current_features[f-1];
 		}
-//		std::cout << std::endl;
 
 		// Calculate the weak hypothesis by using the wanted classifier.
 		CvMat features = featuresMat;
@@ -1157,10 +1136,6 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 //		IV. In the last step the weights for the conditional-random-field are found. As said above the clique-potentials are
 //			depending on these weights and so they are chosen to maximize the potentials over all training maps. Because this
 //			would be really hard to do directly, a log-likelihood estimation is applied.
-// !!!!Important: The more training maps you have, the more factors appear in the log-likelihood over all maps. Be sure not to
-//				  use too much training-maps, because then the log-likelihood-function easily produces values that are out of the
-//				  double range, which Dlib can't handle. So it is important for this algorithm to have good training data, insted
-//				  of many.
 void VoronoiRandomFieldSegmentation::trainAlgorithms(const std::vector<cv::Mat>& training_maps,
 		const std::vector<cv::Mat>& voronoi_maps, const std::vector<cv::Mat>& voronoi_node_maps, std::vector<cv::Mat>& original_maps,
 		std::vector<unsigned int>& possible_labels, const std::string weights_filepath, const std::string boost_filepath)
@@ -1413,9 +1388,6 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_o
 	minimizer.log_parameters = likelihood_parameters;
 	minimizer.starting_weights = starting_weights;
 
-
-	std::cout << "starting value: " << std::endl << minimizer(starting_point) << std::endl;
-
 	// find the best weights for the given parameters
 	dlib::find_min_using_approximate_derivatives(dlib::bfgs_search_strategy(), dlib::objective_delta_stop_strategy(1e-7), minimizer, starting_point, -1, 1e-10);
 
@@ -1527,11 +1499,6 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 	Timer timer; // variable to measure computation-time
 	createPrunedVoronoiGraph(voronoi_map, node_points);
 	std::cout << "created graph. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
-
-//	if(show_results == true)
-//		cv::imshow("Voronoi graph", voronoi_map);
-
-//	cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/pruned_voronoi.png", voronoi_map);
 
 	// ************* II. Extract the nodes used for the conditional random field *************
 	//
@@ -1658,7 +1625,6 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 
 //		cv::imshow("nodes of the conditional random field", node_map);
 //		cv::waitKey();
-//		cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/node_map.png", node_map);
 	}
 
 	// ************* III. Construct the Conditional Random Field from the found nodes *************
@@ -1700,7 +1666,6 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 //			cv::imshow("neighbors", neighbor_map);
 //			cv::waitKey();
 		}
-//		cv::imwrite("/home/rmb-fj/Pictures/voronoi_random_fields/neighbor_map.png", neighbor_map);
 	}
 
 	// ************* IV. Construct the Factor graph from the calculated random-Field *************

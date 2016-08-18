@@ -11,8 +11,8 @@
 
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
-#include <ipa_room_segmentation/MapSegmentationAction.h>
-#include <ipa_building_navigation/FindRoomSequenceWithCheckpointsAction.h>
+#include <ipa_building_msgs/MapSegmentationAction.h>
+#include <ipa_building_msgs/FindRoomSequenceWithCheckpointsAction.h>
 
 int main(int argc, char **argv)
 {
@@ -55,14 +55,14 @@ int main(int argc, char **argv)
 		cv_image.toImageMsg(map_msg);
 		// create the action client --> "name of server"
 		// true causes the client to spin its own thread
-		actionlib::SimpleActionClient<ipa_room_segmentation::MapSegmentationAction> ac_seg("/room_segmentation/room_segmentation_server", true);
+		actionlib::SimpleActionClient<ipa_building_msgs::MapSegmentationAction> ac_seg("/room_segmentation/room_segmentation_server", true);
 		ROS_INFO("Waiting for action server '/room_segmentation/room_segmentation_server' to start.");
 		// wait for the action server to start
 		ac_seg.waitForServer(); //will wait for infinite time
 
 		ROS_INFO("Action server started, sending goal.");
 		// send a goal to the action
-		ipa_room_segmentation::MapSegmentationGoal goal_seg;
+		ipa_building_msgs::MapSegmentationGoal goal_seg;
 		goal_seg.input_map = map_msg;
 		goal_seg.map_origin.position.x = 0;
 		goal_seg.map_origin.position.y = 0;
@@ -78,18 +78,18 @@ int main(int argc, char **argv)
 			ROS_ERROR("Timeout on room segmentation.");
 			return -1;
 		}
-		ipa_room_segmentation::MapSegmentationResultConstPtr result_seg = ac_seg.getResult();
+		ipa_building_msgs::MapSegmentationResultConstPtr result_seg = ac_seg.getResult();
 		ROS_INFO("Finished segmentation successfully!");
 
 		// solve sequence problem
-		actionlib::SimpleActionClient<ipa_building_navigation::FindRoomSequenceWithCheckpointsAction> ac_seq("/room_sequence_planning/room_sequence_planning_server", true);
+		actionlib::SimpleActionClient<ipa_building_msgs::FindRoomSequenceWithCheckpointsAction> ac_seq("/room_sequence_planning/room_sequence_planning_server", true);
 		ROS_INFO("Waiting for action server '/room_sequence_planning/room_sequence_planning_server' to start.");
 		// wait for the action server to start
 		ac_seq.waitForServer(); //will wait for infinite time
 
 		ROS_INFO("Action server started, sending goal_seg.");
 		// send a goal_seg to the action
-		ipa_building_navigation::FindRoomSequenceWithCheckpointsGoal goal_seq;
+		ipa_building_msgs::FindRoomSequenceWithCheckpointsGoal goal_seq;
 		goal_seq.input_map = map_msg;
 		goal_seq.map_resolution = goal_seg.map_resolution;
 		goal_seq.map_origin.position.x = goal_seg.map_origin.position.x;

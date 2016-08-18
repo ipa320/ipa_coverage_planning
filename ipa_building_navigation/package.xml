@@ -18,22 +18,17 @@
 
 	<buildtool_depend>catkin</buildtool_depend>
 	
+	<depend>actionlib</depend>
+	<depend>boost</depend>
 	<depend>cmake_modules</depend>
 	<depend>cv_bridge</depend>
+	<depend>geometry_msgs</depend>
+	<depend>ipa_building_msgs</depend>
+	<depend>libconcorde_tsp_solver</depend>
 	<depend>libopencv-dev</depend>
+	<depend>message_generation</depend>
 	<depend>roscpp</depend>
 	<depend>roslib</depend>
-	<depend>concorde_tsp_solver</depend>
-	<depend>actionlib</depend>
-	<depend>actionlib_msgs</depend>
-	<depend>std_msgs</depend>
 	<depend>sensor_msgs</depend>
-	<depend>geometry_msgs</depend>
-	<depend>message_generation</depend>
-	<depend>genmsg</depend>
-	<depend>boost</depend>
-	<depend>ipa_room_segmentation</depend>
-
-	<exec_depend>message_runtime</exec_depend>
 
 </package>

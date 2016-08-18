@@ -91,7 +91,7 @@ RoomSequencePlanningServer::RoomSequencePlanningServer(ros::NodeHandle nh, std::
 	std::cout << "room_sequence_planning/display_map = " << display_map_ << std::endl;
 }
 
-void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa_building_navigation::FindRoomSequenceWithCheckpointsGoalConstPtr &goal)
+void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa_building_msgs::FindRoomSequenceWithCheckpointsGoalConstPtr &goal)
 {
 	// converting the map msg in cv format
 	cv_bridge::CvImagePtr cv_ptr_obj;
@@ -447,8 +447,8 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 	std::cout << "done sequence planning" << std::endl << std::endl;
 
 	// return results
-	ipa_building_navigation::FindRoomSequenceWithCheckpointsResult action_result;
-	std::vector<ipa_building_navigation::RoomSequence> room_sequences(cliques.size());
+	ipa_building_msgs::FindRoomSequenceWithCheckpointsResult action_result;
+	std::vector<ipa_building_msgs::RoomSequence> room_sequences(cliques.size());
 	for(size_t i=0; i<cliques.size(); ++i)
 	{
 		//convert signed int to unsigned int (necessary for this msg type)

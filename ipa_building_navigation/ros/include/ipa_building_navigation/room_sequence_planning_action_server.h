@@ -93,7 +93,7 @@
 
 // action
 #include <actionlib/server/simple_action_server.h>
-#include <ipa_building_navigation/FindRoomSequenceWithCheckpointsAction.h>
+#include <ipa_building_msgs/FindRoomSequenceWithCheckpointsAction.h>
 
 
 class RoomSequencePlanningServer
@@ -111,7 +111,7 @@ protected:
 	//
 	ros::NodeHandle node_handle_;
 
-	actionlib::SimpleActionServer<ipa_building_navigation::FindRoomSequenceWithCheckpointsAction> room_sequence_with_checkpoints_server_;
+	actionlib::SimpleActionServer<ipa_building_msgs::FindRoomSequenceWithCheckpointsAction> room_sequence_with_checkpoints_server_;
 
 	std::string action_name_;
 
@@ -129,7 +129,7 @@ protected:
 	}
 
 	// this is the execution function used by action server
-	void findRoomSequenceWithCheckpointsServer(const ipa_building_navigation::FindRoomSequenceWithCheckpointsGoalConstPtr &goal);
+	void findRoomSequenceWithCheckpointsServer(const ipa_building_msgs::FindRoomSequenceWithCheckpointsGoalConstPtr &goal);
 
 	size_t getNearestLocation(const cv::Mat& floor_plan, const cv::Point start_coordinate, const std::vector<cv::Point>& positions,
 			const double map_downsampling_factor, const double robot_radius, const double map_resolution);

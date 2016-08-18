@@ -66,6 +66,8 @@
 #include <sensor_msgs/image_encodings.h>
 #include <actionlib/server/simple_action_server.h>
 
+#include <dynamic_reconfigure/server.h>
+#include <ipa_room_segmentation/RoomSegmentationConfig.h>
 
 #include <iostream>
 #include <list>
@@ -73,16 +75,13 @@
 #include <vector>
 
 
-#include <ipa_room_segmentation/MapSegmentationAction.h>
+#include <ipa_building_msgs/MapSegmentationAction.h>
+#include <ipa_building_msgs/RoomInformation.h>
 
 #include <ipa_room_segmentation/distance_segmentation.h>
-
 #include <ipa_room_segmentation/morphological_segmentation.h>
-
 #include <ipa_room_segmentation/voronoi_segmentation.h>
-
 #include <ipa_room_segmentation/adaboost_classifier.h>
-
 #include <ipa_room_segmentation/voronoi_random_field_segmentation.h>
 
 class RoomSegmentationServer
@@ -90,7 +89,6 @@ class RoomSegmentationServer
 protected:
 
 	// parameters
-	double map_sampling_factor_check_;	//sampling-factor of the map
 	//limits for the room-areas
 	double room_upper_limit_morphological_, room_upper_limit_distance_, room_upper_limit_voronoi_, room_upper_limit_semantic_, room_upper_limit_voronoi_random_;
 	double room_lower_limit_morphological_, room_lower_limit_distance_, room_lower_limit_voronoi_, room_lower_limit_semantic_, room_lower_limit_voronoi_random_;
@@ -128,14 +126,17 @@ protected:
 	}
 
 	//This is the execution function used by action server
-	void execute_segmentation_server(const ipa_room_segmentation::MapSegmentationGoalConstPtr &goal);
+	void execute_segmentation_server(const ipa_building_msgs::MapSegmentationGoalConstPtr &goal);
 
+	//Callback for dynamic reconfigure server
+	void dynamic_reconfigure_callback(ipa_room_segmentation::RoomSegmentationConfig &config, uint32_t level);
 
 	//!!Important!!
 	// define the Nodehandle before the action server, or else the server won't start
 	//
 	ros::NodeHandle node_handle_;
-	actionlib::SimpleActionServer<ipa_room_segmentation::MapSegmentationAction> room_segmentation_server_;
+	actionlib::SimpleActionServer<ipa_building_msgs::MapSegmentationAction> room_segmentation_server_;
+	dynamic_reconfigure::Server<ipa_room_segmentation::RoomSegmentationConfig> room_segmentation_dynamic_reconfigure_server_;
 
 public:
 	//initialize the action-server

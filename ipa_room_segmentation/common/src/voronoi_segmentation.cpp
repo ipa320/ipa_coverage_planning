@@ -198,8 +198,6 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 	//This function takes the segmented Map from the original Voronoi-segmentation-algorithm and merges rooms together,
 	//that are small enough and have only two or one neighbor.
 
-	Timer tim;
-
 	// 1. go trough every pixel and add points to the rooms with the same ID
 	for (int y = 0; y < map_to_merge_rooms.rows; y++)
 	{
@@ -219,8 +217,6 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 			}
 		}
 	}
-	std::cout << "merge1: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
-	tim.start();
 
 	// 2. add the neighbor IDs for every point
 	for (int current_room = 0; current_room < rooms.size(); current_room++)
@@ -251,8 +247,6 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 			}
 		}
 	}
-	std::cout << "merge2: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
-	tim.start();
 
 	// 3. merge criteria
 	// sort rooms ascending by area
@@ -281,8 +275,7 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 	}
 	if (display_map == true)
 		cv::imshow("a", map_to_merge_rooms);
-	std::cout << "merge3a: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
-	tim.start();
+
 	// b) small rooms
 	for (int current_room_index = 0; current_room_index < rooms.size(); )
 	{
@@ -291,7 +284,7 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 		size_t merge_index = 0;
 
 		const int max_border_neighbor_id = current_room.getNeighborWithLargestCommonBorder();
-		if (current_room.getArea() < 2.0 && (double)current_room.getNeighborStatistics()[max_border_neighbor_id]/current_room.getPerimeter() > 0.2)		// todo: param
+		if (current_room.getArea() < 2.0 && (double)current_room.getNeighborStatistics()[max_border_neighbor_id]/current_room.getPerimeter() > 0.2)
 		{
 			// merge with that neighbor that shares the most neighboring pixels
 			merge_rooms = determineRoomIndexFromRoomID(rooms, max_border_neighbor_id, merge_index);
@@ -310,8 +303,7 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 	}
 	if (display_map == true)
 		cv::imshow("b", map_to_merge_rooms);
-	std::cout << "merge3b: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
-	tim.start();
+
 	// c) merge a room with one neighbor that has max. 2 neighbors and sufficient wall ratio (connect parts inside a room)
 	for (int current_room_index = 0; current_room_index < rooms.size(); )
 	{
@@ -341,8 +333,7 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 	}
 	if (display_map == true)
 		cv::imshow("c", map_to_merge_rooms);
-	std::cout << "merge3c: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
-	tim.start();
+
 	// d) merge rooms that share a significant part of their perimeter
 	for (int current_room_index = 0; current_room_index < rooms.size(); )
 	{
@@ -360,7 +351,7 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 				continue;		// skip wall
 
 			const double neighbor_border_ratio = (double)current_room.getNeighborStatistics()[it->second]/current_room.getPerimeter();
-			if (neighbor_border_ratio > 0.2 || (neighbor_border_ratio > 0.1 && current_room.getWallToPerimeterRatio() > (1-2*neighbor_border_ratio-0.05) && current_room.getWallToPerimeterRatio() < (1-neighbor_border_ratio)))		// todo: param
+			if (neighbor_border_ratio > 0.2 || (neighbor_border_ratio > 0.1 && current_room.getWallToPerimeterRatio() > (1-2*neighbor_border_ratio-0.05) && current_room.getWallToPerimeterRatio() < (1-neighbor_border_ratio)))
 			{
 				// merge with that neighbor that shares the most neighboring pixels
 				merge_rooms = determineRoomIndexFromRoomID(rooms, it->second, merge_index);
@@ -382,8 +373,7 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 	}
 	if (display_map == true)
 		cv::imshow("d", map_to_merge_rooms);
-	std::cout << "merge3d: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
-	tim.start();
+
 	// e) largest room neighbor touches > 0.5 perimeter (happens often with furniture)
 	for (int current_room_index = 0; current_room_index < rooms.size(); )
 	{
@@ -407,64 +397,6 @@ void VoronoiSegmentation::mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Ro
 		else
 			current_room_index++;
 	}
-	std::cout << "merge3e: " << tim.getElapsedTimeInMilliSec() << "ms" << std::endl;
-	tim.start();
-
-
-//	//check every room if it should be merged with its neighbor that it shares the most boundary with
-//	for (int current_room = 0; current_room < rooms.size(); current_room++)
-//	{
-//		//only merge rooms that have 2 or less neighbors and are small enough
-//		if ((rooms[current_room].getNeighborCount() <= 2 && rooms[current_room].getArea() < max_area_for_merging) //12.5
-//				|| (rooms[current_room].getNeighborCount() == 3 && rooms[current_room].getArea() < 3.5))//3.5 --> if room is too small merge it with neighbors		// todo: parameter
-//		{
-//			const std::vector<cv::Point>& current_room_members = rooms[current_room].getMembers();
-//			double max_shared_perimeter = 0;
-//			int room_indice = -1;
-//			int largest_ID = 0;
-//			std::vector<int> neighbor_ids = rooms[current_room].getNeighborIDs(); //get IDs for every neighbor of this room
-//			for (int current_neighbor = 0; current_neighbor < rooms.size(); current_neighbor++)
-//			{
-//				if (contains(neighbor_ids, rooms[current_neighbor].getID()))
-//				{
-//					std::vector<cv::Point> neighboring_points;
-//					std::vector<cv::Point> neighbor_members = rooms[current_neighbor].getMembers();
-//					for(int room_point = 0; room_point < current_room_members.size(); room_point++)
-//					{
-//						//check 3x3 region around current point if a neighboring point is a member of the neighbor --> add it to neighboring vector
-//						for(int row_counter = -1; row_counter <= 1; row_counter++)
-//						{
-//							for(int col_counter = -1; col_counter <= 1; col_counter++)
-//							{
-//								cv::Point temporary_point(current_room_members[room_point].x + col_counter, current_room_members[room_point].y + row_counter);
-//								if(contains(neighbor_members, temporary_point) && !contains(neighboring_points, temporary_point))
-//								{
-//									neighboring_points.push_back(temporary_point);
-//								}
-//							}
-//						}
-//					}
-//
-//					//check if current shared boundary is larger than saved one and also check if boundary is larger than
-//					//the typical shared boundary in a door
-//					if(neighboring_points.size() >= max_shared_perimeter
-//							&& neighboring_points.size() >= 24) //24 --> most doors fulfill this criterion			// todo: parameter
-//					{
-//						max_shared_perimeter = neighboring_points.size();
-//						largest_ID = rooms[current_neighbor].getID();
-//						room_indice = current_neighbor;
-//					}
-//				}
-//			}
-//			if(largest_ID != 0)//check if the largest ID has been set and isn't zero
-//			{
-//				rooms[current_room].setRoomId(largest_ID, map_to_merge_rooms);
-//				rooms[room_indice].insertMemberPoints(current_room_members, map_resolution_from_subscription);
-////				cv::imshow("test", map_to_merge_rooms);
-////				cv::waitKey();
-//			}
-//		}
-//	}
 }
 
 void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription,
@@ -505,13 +437,8 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 
 	//*********************I. Calculate and draw the Voronoi-Diagram in the given map*****************
 
-	Timer tim;
-
 	cv::Mat voronoi_map = map_to_be_labeled.clone();
 	createVoronoiGraph(voronoi_map); //voronoi-map for the segmentation-algorithm
-
-	std::cout << "createVoronoiGraph: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
-	tim.start();
 
 	//
 	//***************************II. extract the possible candidates for critical Points****************************
@@ -668,9 +595,6 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 		}
 	}
 
-	std::cout << "critical points: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
-	tim.start();
-
 //	if(display_map == true)
 //	{
 //		cv::Mat display = map_to_be_labeled.clone();
@@ -812,12 +736,7 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 //	if(display_map == true)
 //		cv::imshow("voronoi_map", voronoi_map);
 
-	std::cout << "critical lines: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
-	tim.start();
-
 	//***********************Find the Contours seperated from the critcal lines and fill them with color******************
-
-	Timer tim2;
 
 	std::vector < cv::Scalar > already_used_colors; //saving-vector to save the already used coloures
 
@@ -864,14 +783,8 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 	}
 	std::cout << "Found " << rooms.size() << " rooms.\n";
 
-	std::cout << "finish 1: " << tim2.getElapsedTimeInMilliSec() << " ms" << std::endl;
-	tim2.start();
-
 	//3.fill the last white areas with the surrounding color
 	wavefrontRegionGrowing(segmented_map);
-
-	std::cout << "finish 3: " << tim2.getElapsedTimeInMilliSec() << " ms" << std::endl;
-	tim2.start();
 
 	if(display_map == true)
 	{
@@ -881,9 +794,4 @@ void VoronoiSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled
 
 	//4.merge the rooms together if neccessary
 	mergeRooms(segmented_map, rooms, map_resolution_from_subscription, max_area_for_merging, display_map);
-
-	std::cout << "finish 4: " << tim2.getElapsedTimeInMilliSec() << " ms" << std::endl;
-	tim2.start();
-
-	std::cout << "finish: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
 }
