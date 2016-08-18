@@ -1,5 +1,23 @@
 #include <ipa_room_exploration/room_exploration_action_server.h>
 
+// Callback function for dynamic reconfigure.
+void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::RoomExplorationConfig &config, uint32_t level)
+{
+	// set segmentation algorithm
+	std::cout << "######################################################################################" << std::endl;
+	std::cout << "Dynamic reconfigure request:" << std::endl;
+
+	path_planning_algorithm_ = config.room_exploration_algorithm;
+	std::cout << "room_exploration/path_planning_algorithm_ = " << path_planning_algorithm_ << std::endl;
+
+	// set parameters regarding the chosen algorithm
+	if (path_planning_algorithm_ == 1) // set grid point exploration parameters
+	{
+		grid_line_length_ = config.grid_line_length;
+		std::cout << "room_exploration/grid_line_length_ = " << grid_line_length_ << std::endl;
+	}
+}
+
 // constructor
 RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string name_of_the_action) :
 	node_handle_(nh),
@@ -8,9 +26,13 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	//Start action server
 	room_exploration_server_.start();
 
+	// dynamic reconfigure
+	room_exploration_dynamic_reconfigure_server_.setCallback(boost::bind(&RoomExplorationServer::dynamic_reconfigure_callback, this, _1, _2));
+
+
 	// Parameters
 	std::cout << "\n--------------------------\nRoom Exploration Parameters:\n--------------------------\n";
-	node_handle_.param("room_segmentation_algorithm", path_planning_algorithm_, 1);
+	node_handle_.param("room_exploration_algorithm", path_planning_algorithm_, 1);
 	std::cout << "room_exploration/room_exploration_algorithm = " << path_planning_algorithm_ << std::endl << std::endl;
 	if (path_planning_algorithm_ == 1)
 		ROS_INFO("You have chosen the grid exploration method.");
@@ -243,7 +265,7 @@ void RoomExplorationServer::drawSeenPoints(cv::Mat& reachable_areas_map, const s
 }
 
 // Function executed by Call.
-void RoomExplorationServer::exploreRoom(const ipa_room_exploration::RoomExplorationGoalConstPtr &goal)
+void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExplorationGoalConstPtr &goal)
 {
 	ros::Rate looping_rate(1);
 	ROS_INFO("*****Room Exploration action server*****");
