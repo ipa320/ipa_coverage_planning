@@ -45,7 +45,7 @@ protected:
 			const std::string camera_frame, std::vector<geometry_msgs::Pose2D>& robot_poses);
 
 	// function to check if a point is inside a given polygon, using the crossing line algorithm
-	int pointInsidePolygonCheck(const cv::Point& P, const std::vector<cv::Point>& V);
+	int pointInsidePolygonCheck(cv::Point P, std::vector<cv::Point> V);
 
 	// converter-> Pixel to meter for X coordinate
 	double convertPixelToMeterForXCoordinate(const int pixel_valued_object_x, const float map_resolution, const cv::Point2d map_origin)

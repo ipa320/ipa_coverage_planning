@@ -107,7 +107,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 //               V[] = vertex points of a polygon V[n+1] with V[n]=V[0]
 //      Return:  0 = outside, 1 = inside
 // This code is patterned after [Franklin, 2000]
-int RoomExplorationServer::pointInsidePolygonCheck(const cv::Point& P, const std::vector<cv::Point>& V)
+int RoomExplorationServer::pointInsidePolygonCheck(cv::Point P, std::vector<cv::Point> V)
 {
     int    cn = 0;    // the  crossing number counter
 
@@ -191,7 +191,7 @@ void RoomExplorationServer::drawSeenPoints(cv::Mat& reachable_areas_map, const s
 		transformed_corner_cv_2.x = std::min(transformed_corner_cv_2.x, reachable_areas_map.cols);
 		transformed_corner_cv_2.y = std::min(transformed_corner_cv_2.y, reachable_areas_map.rows);
 
-		std::cout << "corners: " << std::endl << transformed_corner_cv_1 << std::endl <<transformed_corner_cv_2 << std::endl;
+//		std::cout << "corners: " << std::endl << transformed_corner_cv_1 << std::endl <<transformed_corner_cv_2 << std::endl;
 
 		// raycast the field of view to look what areas actually have been seen
 		// get points between the edge-points to get goals for raycasting
@@ -201,14 +201,19 @@ void RoomExplorationServer::drawSeenPoints(cv::Mat& reachable_areas_map, const s
 		for(size_t i = 0; i < border_line.count; i++, ++border_line)
 			raycasting_goals[i] = border_line.pos();
 
+		cv::circle(drawing, transformed_corner_cv_1, 3, cv::Scalar(200), CV_FILLED);
+		cv::circle(drawing, transformed_corner_cv_2, 3, cv::Scalar(200), CV_FILLED);
+
+		// transform pose into OpenCV format
+		cv::Point pose_cv((current_pose->x - map_origin.x)/map_resolution, (current_pose->y - map_origin.y)/map_resolution);
+
 		// go trough the found raycasting goals and draw the field-of-view
 		for(std::vector<cv::Point>::iterator goal = raycasting_goals.begin(); goal != raycasting_goals.end(); ++goal)
 		{
 			// use openCVs bresenham algorithm to find the points from the robot pose to the goal
-			cv::LineIterator ray_points(reachable_areas_map, cv::Point((current_pose->x - map_origin.x)/map_resolution, (current_pose->y - map_origin.y)/map_resolution), *goal, 8);
-			cv::circle(drawing, cv::Point((current_pose->x - map_origin.x)/map_resolution, (current_pose->y - map_origin.y)/map_resolution), 3, cv::Scalar(50), CV_FILLED);
-			cv::circle(drawing, transformed_corner_cv_1, 3, cv::Scalar(200), CV_FILLED);
-			cv::circle(drawing, transformed_corner_cv_2, 3, cv::Scalar(200), CV_FILLED);
+			cv::LineIterator ray_points(reachable_areas_map, pose_cv , *goal, 8);
+			cv::circle(drawing, pose_cv, 3, cv::Scalar(50), CV_FILLED);
+			drawing.at<uchar>(*goal) = 100;
 
 			// go trough the points on the ray and draw them if they are inside the fow, stop the current for-step when a black
 			// pixel is hit (an obstacle stops the camera from seeing whats behind)
@@ -219,7 +224,7 @@ void RoomExplorationServer::drawSeenPoints(cv::Mat& reachable_areas_map, const s
 					break;
 				}
 
-				if (reachable_areas_map.at<uchar>(ray_points.pos()) > 0 && pointInsidePolygonCheck(ray_points.pos(), transformed_fow_points) == 1)
+				if (reachable_areas_map.at<uchar>(ray_points.pos()) > 0 && cv::pointPolygonTest(transformed_fow_points, ray_points.pos(), false) >= 0)//pointInsidePolygonCheck(ray_points.pos(), transformed_fow_points) == 1)
 				{
 					reachable_areas_map.at<uchar>(ray_points.pos()) = 127;
 					drawing.at<uchar>(ray_points.pos()) = 127;
@@ -227,10 +232,10 @@ void RoomExplorationServer::drawSeenPoints(cv::Mat& reachable_areas_map, const s
 			}
 		}
 
-		cv::namedWindow("drawing", cv::WINDOW_NORMAL);
-		cv::imshow("drawing", drawing);
-		cv::resizeWindow("drawing", 800, 800);
-		cv::waitKey();
+//		cv::namedWindow("drawing", cv::WINDOW_NORMAL);
+//		cv::imshow("drawing", drawing);
+//		cv::resizeWindow("drawing", 800, 800);
+//		cv::waitKey();
 
 		// draw field of view in map for current pose
 //		cv::fillConvexPoly(reachable_areas_map, transformed_fow_points, cv::Scalar(127));
@@ -275,7 +280,7 @@ void RoomExplorationServer::exploreRoom(const ipa_room_exploration::RoomExplorat
 
 	// after planning a path, navigate trough all points and save the robot poses to check what regions have been seen
 	std::vector<geometry_msgs::Pose2D> robot_poses;
-	for(size_t nav_goal = 0; nav_goal < 11; ++nav_goal)
+	for(size_t nav_goal = 0; nav_goal < exploration_path.size(); ++nav_goal)
 	{
 //		cv::Mat map_copy = room_map.clone();
 //		cv::circle(map_copy, cv::Point(exploration_path[nav_goal].y / map_resolution, exploration_path[nav_goal].x / map_resolution), 3, cv::Scalar(127), CV_FILLED);
