@@ -287,7 +287,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	// after planning a path, navigate trough all points and save the robot poses to check what regions have been seen
 	std::vector<geometry_msgs::Pose2D> robot_poses;
-	for(size_t nav_goal = 0; nav_goal < 7; ++nav_goal)
+	for(size_t nav_goal = 0; nav_goal < exploration_path.size(); ++nav_goal)
 	{
 //		cv::Mat map_copy = room_map.clone();
 //		cv::circle(map_copy, cv::Point(exploration_path[nav_goal].y / map_resolution, exploration_path[nav_goal].x / map_resolution), 3, cv::Scalar(127), CV_FILLED);
@@ -364,10 +364,22 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv::namedWindow("seen area", cv::WINDOW_NORMAL);
 	cv::imshow("seen area", seen_positions_map);
 	cv::resizeWindow("seen area", 600, 600);
-	cv::waitKey();
+//	cv::waitKey();
+
+	// apply a binary filter on the image, making the drawn seen areas black
+	cv::threshold(seen_positions_map, seen_positions_map, 150, 255, cv::THRESH_BINARY);
 
 	// find regions with an area that is bigger than a defined value, which have not been seen by the fow
+	std::vector < std::vector<cv::Point> > left_areas;
+	cv::findContours(seen_positions_map, left_areas, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
 
+	cv::Mat black_map(room_map.cols, room_map.rows, room_map.type(), cv::Scalar(0));
+	cv::drawContours(black_map, left_areas, -1, cv::Scalar(255), CV_FILLED);
+
+	cv::namedWindow("left area", cv::WINDOW_NORMAL);
+	cv::imshow("left area", black_map);
+	cv::resizeWindow("left area", 600, 600);
+	cv::waitKey();
 
 	room_exploration_server_.setSucceeded();
 }
