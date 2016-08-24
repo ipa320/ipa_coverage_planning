@@ -9,7 +9,7 @@ room_segmentation_algorithm: 3
 
 # displays the segmented map upon service call
 # bool
-display_segmented_map: true
+display_segmented_map: false
 
 # room area factor-> Set the limitation of area of the room -------> in [m^2]
 #morphological segmentation: 47.0 - 0.8 (means the room area after eroding/shrinking s.t. too small/big contours are not treated as rooms)

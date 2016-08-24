@@ -234,34 +234,33 @@ public:
 //		"Freiburg52_scan_furnitures_trashbins"
 //		map_names.push_back("lab_ipa_furnitures");
 
-		// todo: uncomment all maps
 		std::vector< std::string > map_names;
-//		map_names.push_back("lab_ipa");
-//		map_names.push_back("lab_c_scan");
-//		map_names.push_back("Freiburg52_scan");
-//		map_names.push_back("Freiburg79_scan");
-//		map_names.push_back("lab_b_scan");
-//		map_names.push_back("lab_intel");
-//		map_names.push_back("Freiburg101_scan");
-//		map_names.push_back("lab_d_scan");
-//		map_names.push_back("lab_f_scan");
-//		map_names.push_back("lab_a_scan");
-//		map_names.push_back("NLB");
-//		map_names.push_back("office_a");
-//		map_names.push_back("office_b");
-//		map_names.push_back("office_c");
-//		map_names.push_back("office_d");
-//		map_names.push_back("office_e");
-//		map_names.push_back("office_f");
-//		map_names.push_back("office_g");
-//		map_names.push_back("office_h");
-//		map_names.push_back("office_i");
-//		map_names.push_back("lab_ipa_furnitures");
-//		map_names.push_back("lab_c_scan_furnitures");
-//		map_names.push_back("Freiburg52_scan_furnitures");
-//		map_names.push_back("Freiburg79_scan_furnitures");
-//		map_names.push_back("lab_b_scan_furnitures");
-//		map_names.push_back("lab_intel_furnitures");
+		map_names.push_back("lab_ipa");
+		map_names.push_back("lab_c_scan");
+		map_names.push_back("Freiburg52_scan");
+		map_names.push_back("Freiburg79_scan");
+		map_names.push_back("lab_b_scan");
+		map_names.push_back("lab_intel");
+		map_names.push_back("Freiburg101_scan");
+		map_names.push_back("lab_d_scan");
+		map_names.push_back("lab_f_scan");
+		map_names.push_back("lab_a_scan");
+		map_names.push_back("NLB");
+		map_names.push_back("office_a");
+		map_names.push_back("office_b");
+		map_names.push_back("office_c");
+		map_names.push_back("office_d");
+		map_names.push_back("office_e");
+		map_names.push_back("office_f");
+		map_names.push_back("office_g");
+		map_names.push_back("office_h");
+		map_names.push_back("office_i");
+		map_names.push_back("lab_ipa_furnitures");
+		map_names.push_back("lab_c_scan_furnitures");
+		map_names.push_back("Freiburg52_scan_furnitures");
+		map_names.push_back("Freiburg79_scan_furnitures");
+		map_names.push_back("lab_b_scan_furnitures");
+		map_names.push_back("lab_intel_furnitures");
 		map_names.push_back("Freiburg101_scan_furnitures");
 		map_names.push_back("lab_d_scan_furnitures");
 		map_names.push_back("lab_f_scan_furnitures");
@@ -548,7 +547,7 @@ public:
 			//define values to show how much different algorithms has been implemented
 			double max_clique_path_length = 4.0;
 			int number_of_cliquelenghts = 8;
-			int number_of_segmentation_algorithms = 4;
+			int number_of_segmentation_algorithms = 5;
 			int number_of_tsp_solver = 3;
 			for(size_t i = 0; i < map_names.size(); ++i)
 			{
@@ -716,6 +715,18 @@ public:
 				else
 					std::cout << "map has already been segmented" << std::endl;
 				result_seg = result_seg_semant;
+			}
+			else if (evaluation_configuration_vector[config].room_segmentation_algorithm_ == 5)
+			{
+				if(segmented_vrf == false)
+				{
+					if (segmentFloorPlan(evaluation_data, evaluation_configuration_vector[config], result_seg_vrf, t0) == false)
+						return false;
+					segmented_vrf = true;
+				}
+				else
+					std::cout << "map has already been segmented" << std::endl;
+				result_seg = result_seg_vrf;
 			}
 			clock_gettime(CLOCK_MONOTONIC,  &t1); //set time stamp after the segmentation
 			std::cout << "Segmentation computed " << result_seg->room_information_in_pixel.size() << " rooms." << std::endl;
@@ -1027,6 +1038,7 @@ public:
 				drc.setConfig("max_area_for_merging", 12.5);
 				ROS_INFO("You have chosen the Voronoi random field segmentation.");
 			}
+			drc.setConfig("display_segmented_map", false);
 
 			// send a goal to the action
 			ipa_building_msgs::MapSegmentationGoal goal_seg;
@@ -1113,7 +1125,7 @@ public:
 		}
 
 		// set algorithm parameters
-		DynamicReconfigureClient drc(node_handle_, "room_sequence_planning/set_parameters", "room_sequence_planning/parameter_updates");
+		DynamicReconfigureClient drc(node_handle_, "/room_sequence_planning/room_sequence_planning_server/set_parameters", "/room_sequence_planning/room_sequence_planning_server/parameter_updates");
 		drc.setConfig("max_clique_path_length", 1e9);
 		drc.setConfig("map_downsampling_factor", evaluation_data.map_downsampling_factor_);
 		drc.setConfig("planning_method", 1);
@@ -1174,7 +1186,7 @@ public:
 			}
 
 			// set algorithm parameters
-			DynamicReconfigureClient drc(node_handle_, "room_sequence_planning/set_parameters", "room_sequence_planning/parameter_updates");
+			DynamicReconfigureClient drc(node_handle_, "/room_sequence_planning/room_sequence_planning_server/set_parameters", "/room_sequence_planning/room_sequence_planning_server/parameter_updates");
 			drc.setConfig("max_clique_path_length", evaluation_configuration.max_clique_path_length_);
 			drc.setConfig("map_downsampling_factor", evaluation_data.map_downsampling_factor_);
 			drc.setConfig("planning_method", evaluation_configuration.sequence_planning_method_);
