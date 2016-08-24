@@ -81,6 +81,7 @@ add_executable(room_segmentation_server
 	ros/src/room_segmentation_server.cpp
 	common/src/distance_segmentation.cpp
 	common/src/morphological_segmentation.cpp
+	common/src/abstract_voronoi_segmentation.cpp
 	common/src/voronoi_segmentation.cpp
 	common/src/adaboost_classifier.cpp
 	common/src/wavefront_region_growing.cpp

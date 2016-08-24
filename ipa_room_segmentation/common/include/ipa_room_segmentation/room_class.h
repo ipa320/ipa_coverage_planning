@@ -17,6 +17,8 @@ class Room
 {
 public:
 
+	// Struct that compares two given points and returns if the y-coordinate of the first is smaller or if they are equal if the
+	// x-coordinate of the first is smaller. This is used for sets to easily store cv::Point objects and search for specific objects.
 	struct cv_Point_comp
 	{
 		bool operator()(const cv::Point& lhs, const cv::Point& rhs) const
