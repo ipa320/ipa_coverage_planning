@@ -39,6 +39,7 @@ struct EvaluationConfig
 											// 2 = distance segmentation
 											// 3 = Voronoi segmentation
 											// 4 = semantic segmentation
+											// 5 = Voronoi random field segmentation
 	double max_clique_path_length_;		// max A* path length between two rooms that are assigned to the same clique, in [m]
 	int sequence_planning_method_;		// Method for sequence planning
 											// 1 = drag trolley if next room is too far away
@@ -103,6 +104,8 @@ struct EvaluationConfig
 			s = "Voronoi segmentation";
 		else if (room_segmentation_algorithm_ == 4)
 			s = "semantic segmentation";
+		else if (room_segmentation_algorithm_ == 5)
+			s = "Voronoi random field segmentation";
 		return s;
 	}
 };
@@ -202,6 +205,8 @@ public:
 	bool segmented_vor;
 	ipa_building_msgs::MapSegmentationResultConstPtr result_seg_semant;
 	bool segmented_semant;
+	ipa_building_msgs::MapSegmentationResultConstPtr result_seg_vrf;
+	bool segmented_vrf;
 
 	Evaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::string& data_storage_path, const double robot_radius)
 	: node_handle_(nh), robot_radius_(robot_radius)
@@ -210,6 +215,7 @@ public:
 		segmented_dist = false;
 		segmented_vor = false;
 		segmented_semant = false;
+		segmented_vrf = false;
 		// prepare relevant floor map data
 //		std::vector<std::string> map_names;
 ////	map_names.push_back("lab_ipa"); // done
@@ -228,6 +234,7 @@ public:
 //		"Freiburg52_scan_furnitures_trashbins"
 //		map_names.push_back("lab_ipa_furnitures");
 
+		// todo: uncomment all maps
 		std::vector< std::string > map_names;
 //		map_names.push_back("lab_ipa");
 //		map_names.push_back("lab_c_scan");
@@ -348,6 +355,7 @@ public:
 			segmented_dist = false;
 			segmented_vor = false;
 			segmented_semant = false;
+			segmented_vrf = false;
 		}
 		failed_maps.close();
 
@@ -617,7 +625,7 @@ public:
 	void setConfigurations(std::vector< EvaluationConfig >& evaluation_configurations)
 	{
 		evaluation_configurations.clear();
-		for (int room_segmentation_algorithm=1; room_segmentation_algorithm<=4; ++room_segmentation_algorithm)
+		for (int room_segmentation_algorithm=1; room_segmentation_algorithm<=5; ++room_segmentation_algorithm)
 		{
 			for(int sequence_planning_method = 1; sequence_planning_method <= 2; ++sequence_planning_method)
 			{

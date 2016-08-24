@@ -29,6 +29,6 @@ check_accessibility_of_rooms: true
 # bool
 return_sequence_map: false
 
-# displays the map with paths upon service call
+# displays the map with paths upon service call (only if return_sequence_map=true)
 # bool
 display_map: false

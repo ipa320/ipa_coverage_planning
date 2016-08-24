@@ -65,7 +65,7 @@ int main(int argc, char **argv)
 
 		// set algorithm parameters
 		ROS_INFO("Action server started, sending goal.");
-		DynamicReconfigureClient drc_seg(nh, "room_segmentation_server/set_parameters", "room_segmentation_server/parameter_updates");
+		DynamicReconfigureClient drc_seg(nh, "/room_segmentation/room_segmentation_server/set_parameters", "/room_segmentation/room_segmentation_server/parameter_updates");
 		drc_seg.setConfig("room_segmentation_algorithm", 3);
 
 		// send a goal to the action
@@ -96,9 +96,11 @@ int main(int argc, char **argv)
 
 		// set algorithm parameters
 		ROS_INFO("Action server started, sending goal_seq.");
-		DynamicReconfigureClient drc_seq(nh, "room_sequence_planning/set_parameters", "room_sequence_planning/parameter_updates");
+		DynamicReconfigureClient drc_seq(nh, "/room_sequence_planning/room_sequence_planning_server/set_parameters", "/room_sequence_planning/room_sequence_planning_server/parameter_updates");
 		drc_seq.setConfig("planning_method", 1);
 		drc_seq.setConfig("tsp_solver", 2);
+		drc_seq.setConfig("return_sequence_map", true);
+		drc_seq.setConfig("display_map", true);
 
 		// send a goal_seg to the action
 		ipa_building_msgs::FindRoomSequenceWithCheckpointsGoal goal_seq;

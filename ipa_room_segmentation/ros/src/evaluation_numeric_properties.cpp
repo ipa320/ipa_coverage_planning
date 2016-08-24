@@ -609,8 +609,6 @@ int main(int argc, char **argv) {
 
 			double runtime = tim.getElapsedTimeInSec();
 			ROS_INFO("Finished successfully!");
-// todo:
-continue;
 
 			// retrieve segmentation
 			ipa_building_msgs::MapSegmentationResultConstPtr result = ac.getResult();

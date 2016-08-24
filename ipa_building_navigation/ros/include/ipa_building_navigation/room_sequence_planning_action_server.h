@@ -150,5 +150,5 @@ protected:
 	double map_downsampling_factor_;	// the map may be downsampled during computations (e.g. of A* path lengths) in order to speed up the algorithm, range of the factor [0 < factor <= 1], if set to 1 the map will have original size, if set to 0 the algorithm won't work
 	bool check_accessibility_of_rooms_;	// boolean to tell the sequence planner if it should check the given room centers for accessibility from the starting position
 	bool return_sequence_map_;	// boolean to tell the server if the map with the sequence drawn in should be returned
-	bool display_map_;		// displays the map with paths upon service call
+	bool display_map_;		// displays the map with paths upon service call (only if return_sequence_map=true)
 };
