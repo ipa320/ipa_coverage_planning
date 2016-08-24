@@ -28,7 +28,7 @@ generate_dynamic_reconfigure_options(
 )
 
 find_package(OpenCV REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED COMPONENTS system thread)
 
 find_package(OpenMP)
 if(OPENMP_FOUND)
@@ -94,6 +94,7 @@ add_executable(room_segmentation_server
 target_compile_options(room_segmentation_server PRIVATE ${OpenMP_FLAGS})
 add_dependencies(room_segmentation_server
 	${catkin_EXPORTED_TARGETS}
+	${${PROJECT_NAME}_EXPORTED_TARGETS}
 	${PROJECT_NAME}_gencfg)
 target_link_libraries(room_segmentation_server
 	${catkin_LIBRARIES}

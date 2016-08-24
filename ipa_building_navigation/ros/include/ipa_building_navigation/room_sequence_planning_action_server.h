@@ -77,6 +77,10 @@
 
 #include <fstream>
 
+// Dynamic reconfigure
+#include <dynamic_reconfigure/server.h>
+#include <ipa_building_navigation/BuildingNavigationConfig.h>
+
 //TSP solver
 #include <ipa_building_navigation/nearest_neighbor_TSP.h>
 #include <ipa_building_navigation/genetic_TSP.h>
@@ -134,8 +138,17 @@ protected:
 	size_t getNearestLocation(const cv::Mat& floor_plan, const cv::Point start_coordinate, const std::vector<cv::Point>& positions,
 			const double map_downsampling_factor, const double robot_radius, const double map_resolution);
 
+	// callback function for dynamic reconfigure
+	void dynamic_reconfigure_callback(ipa_building_navigation::BuildingNavigationConfig &config, uint32_t level);
+
+	dynamic_reconfigure::Server<ipa_building_navigation::BuildingNavigationConfig> room_sequence_planning_dynamic_reconfigure_server_;
+
 	// params
 	int tsp_solver_;		// TSP solver: 1 = Nearest Neighbor,  2 = Genetic solver,  3 = Concorde solver
-	bool display_map_;		// displays the map with paths upon service call
 	int planning_method_;	// Method of planning the sequence: 1 = drag trolley if next room is too far away, 2 = calculate cliques as roomgroups with trolleypositions
+	double max_clique_path_length_;	// max A* path length between two rooms that are assigned to the same clique, in [m]
+	double map_downsampling_factor_;	// the map may be downsampled during computations (e.g. of A* path lengths) in order to speed up the algorithm, range of the factor [0 < factor <= 1], if set to 1 the map will have original size, if set to 0 the algorithm won't work
+	bool check_accessibility_of_rooms_;	// boolean to tell the sequence planner if it should check the given room centers for accessibility from the starting position
+	bool return_sequence_map_;	// boolean to tell the server if the map with the sequence drawn in should be returned
+	bool display_map_;		// displays the map with paths upon service call
 };

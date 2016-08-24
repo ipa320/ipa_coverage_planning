@@ -1104,6 +1104,15 @@ public:
 			roomcenters_for_sequence_planning[room].room_center.y = reachable_roomcenters[room].y;
 		}
 
+		// set algorithm parameters
+		DynamicReconfigureClient drc(node_handle_, "room_sequence_planning/set_parameters", "room_sequence_planning/parameter_updates");
+		drc.setConfig("max_clique_path_length", 1e9);
+		drc.setConfig("map_downsampling_factor", evaluation_data.map_downsampling_factor_);
+		drc.setConfig("planning_method", 1);
+		drc.setConfig("tsp_solver", evaluation_configuration.tsp_solver_);
+		drc.setConfig("return_sequence_map", false);
+		drc.setConfig("check_accessibility_of_rooms", false);
+
 //		std::cout << "Action server started, sending goal_seq." << std::endl;
 		// send a goal_seg to the action
 		ipa_building_msgs::FindRoomSequenceWithCheckpointsGoal goal_seq;
@@ -1111,15 +1120,9 @@ public:
 		goal_seq.map_resolution = evaluation_data.map_resolution_;
 		goal_seq.map_origin = evaluation_data.map_origin_;
 		goal_seq.room_information_in_pixel = roomcenters_for_sequence_planning;
-		goal_seq.max_clique_path_length = 1e9;
-		goal_seq.map_downsampling_factor = evaluation_data.map_downsampling_factor_;
 		goal_seq.robot_radius = 0.;
 		goal_seq.robot_start_coordinate.position.x = robot_start_position.x*evaluation_data.map_resolution_ + evaluation_data.map_origin_.position.x;
 		goal_seq.robot_start_coordinate.position.y = robot_start_position.y*evaluation_data.map_resolution_ + evaluation_data.map_origin_.position.y;
-		goal_seq.planning_method = 1;
-		goal_seq.tsp_solver = evaluation_configuration.tsp_solver_;
-		goal_seq.return_sequence_map = false;
-		goal_seq.check_accessibility_of_rooms = false;
 		ac_seq.sendGoal(goal_seq);
 
 		//wait for the action to return
@@ -1162,6 +1165,15 @@ public:
 				roomcenters_for_sequence_planning[room].room_center.y = reachable_roomcenters[room].y;
 			}
 
+			// set algorithm parameters
+			DynamicReconfigureClient drc(node_handle_, "room_sequence_planning/set_parameters", "room_sequence_planning/parameter_updates");
+			drc.setConfig("max_clique_path_length", evaluation_configuration.max_clique_path_length_);
+			drc.setConfig("map_downsampling_factor", evaluation_data.map_downsampling_factor_);
+			drc.setConfig("planning_method", evaluation_configuration.sequence_planning_method_);
+			drc.setConfig("tsp_solver", evaluation_configuration.tsp_solver_);
+			drc.setConfig("return_sequence_map", true);
+			drc.setConfig("check_accessibility_of_rooms", false);
+
 			std::cout << "Action server started, sending goal_seq." << std::endl;
 			// send a goal_seg to the action
 			ipa_building_msgs::FindRoomSequenceWithCheckpointsGoal goal_seq;
@@ -1169,14 +1181,8 @@ public:
 			goal_seq.map_resolution = evaluation_data.map_resolution_;
 			goal_seq.map_origin = evaluation_data.map_origin_;
 			goal_seq.room_information_in_pixel = roomcenters_for_sequence_planning;
-			goal_seq.max_clique_path_length = evaluation_configuration.max_clique_path_length_;
-			goal_seq.map_downsampling_factor = evaluation_data.map_downsampling_factor_;
 			goal_seq.robot_radius = robot_radius_;
 			goal_seq.robot_start_coordinate = evaluation_data.robot_start_position_;
-			goal_seq.planning_method = evaluation_configuration.sequence_planning_method_;
-			goal_seq.tsp_solver = evaluation_configuration.tsp_solver_;
-			goal_seq.return_sequence_map = true;
-			goal_seq.check_accessibility_of_rooms = false;
 			ac_seq.sendGoal(goal_seq);
 
 			//wait for the action to return

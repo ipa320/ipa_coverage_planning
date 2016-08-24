@@ -61,81 +61,8 @@
 
 #include <ros/package.h>
 #include <ipa_room_segmentation/meanshift2d.h>
+#include <ipa_room_segmentation/dynamic_reconfigure_client.h>
 
-// Callback function for dynamic reconfigure.
-void RoomSegmentationServer::dynamic_reconfigure_callback(ipa_room_segmentation::RoomSegmentationConfig &config, uint32_t level)
-{
-	// set segmentation algorithm
-	std::cout << "######################################################################################" << std::endl;
-	std::cout << "Dynamic reconfigure request:" << std::endl;
-
-	room_segmentation_algorithm_ = config.room_segmentation_algorithm;
-	std::cout << "room_segmentation/room_segmentation_algorithm = " << room_segmentation_algorithm_ << std::endl;
-
-	// set parameters regarding the chosen algorithm
-	if (room_segmentation_algorithm_ == 1) //set morphological parameters
-	{
-		room_upper_limit_morphological_ = config.room_area_factor_upper_limit_morphological;
-		room_lower_limit_morphological_ = config.room_area_factor_lower_limit_morphological;
-		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_morphological_ << std::endl;
-		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_morphological_ << std::endl;
-	}
-	if (room_segmentation_algorithm_ == 2) //set distance parameters
-	{
-		room_upper_limit_distance_ = config.room_area_factor_upper_limit_distance;
-		room_lower_limit_distance_ = config.room_area_factor_lower_limit_distance;
-		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_distance_ << std::endl;
-		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_distance_ << std::endl;
-	}
-	if (room_segmentation_algorithm_ == 3) //set voronoi parameters
-	{
-		room_upper_limit_voronoi_ = config.room_area_factor_upper_limit_voronoi;
-		room_lower_limit_voronoi_ = config.room_area_factor_lower_limit_voronoi;
-		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_voronoi_ << std::endl;
-		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_voronoi_ << std::endl;
-
-		voronoi_neighborhood_index_ = config.voronoi_neighborhood_index;
-		max_iterations_ = config.max_iterations;
-		min_critical_point_distance_factor_ = config.min_critical_point_distance_factor;
-		max_area_for_merging_ = config.max_area_for_merging;
-		std::cout << "room_segmentation/voronoi_neighborhood_index = " << voronoi_neighborhood_index_ << std::endl;
-		std::cout << "room_segmentation/max_iterations = " << max_iterations_ << std::endl;
-		std::cout << "room_segmentation/min_critical_point_distance_factor = " << min_critical_point_distance_factor_ << std::endl;
-		std::cout << "room_segmentation/max_area_for_merging = " << max_area_for_merging_ << std::endl;
-	}
-	if (room_segmentation_algorithm_ == 4) //set semantic parameters
-	{
-		room_upper_limit_semantic_ = config.room_area_factor_upper_limit_semantic;
-		room_lower_limit_semantic_ = config.room_area_factor_lower_limit_semantic;
-		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_semantic_ << std::endl;
-		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_semantic_ << std::endl;
-	}
-	if (room_segmentation_algorithm_ == 5) //set voronoi random field parameters
-	{
-		room_upper_limit_voronoi_random_ = config.room_area_upper_limit_voronoi_random;
-		room_lower_limit_voronoi_random_ = config.room_area_lower_limit_voronoi_random;
-
-		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_voronoi_random_ << std::endl;
-		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_voronoi_random_ << std::endl;
-
-		voronoi_random_field_epsilon_for_neighborhood_ = config.voronoi_random_field_epsilon_for_neighborhood;
-		min_neighborhood_size_ = config.min_neighborhood_size;
-		max_iterations_ = config.max_iterations;
-		min_voronoi_random_field_node_distance_ = config.min_voronoi_random_field_node_distance;
-		max_voronoi_random_field_inference_iterations_ = config.max_voronoi_random_field_inference_iterations;
-		max_area_for_merging_ = config.max_area_for_merging;
-
-		std::cout << "room_segmentation/voronoi_random_field_epsilon_for_neighborhood = " << voronoi_random_field_epsilon_for_neighborhood_ << std::endl;
-		std::cout << "room_segmentation/min_neighborhood_size = " << min_neighborhood_size_ << std::endl;
-		std::cout << "room_segmentation/max_iterations = " << max_iterations_ << std::endl;
-		std::cout << "room_segmentation/min_voronoi_random_field_node_distance = " << min_voronoi_random_field_node_distance_ << std::endl;
-		std::cout << "room_segmentation/max_voronoi_random_field_inference_iterations = " << max_voronoi_random_field_inference_iterations_ << std::endl;
-		std::cout << "room_segmentation/max_area_for_merging = " << max_area_for_merging_ << std::endl;
-	}
-	display_segmented_map_ = config.display_segmented_map;
-	std::cout << "room_segmentation/display_segmented_map = " << display_segmented_map_ << std::endl;
-	std::cout << "######################################################################################" << std::endl;
-}
 
 RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string name_of_the_action) :
 	node_handle_(nh),
@@ -151,7 +78,7 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 	room_segmentation_dynamic_reconfigure_server_.setCallback(boost::bind(&RoomSegmentationServer::dynamic_reconfigure_callback, this, _1, _2));
 
 	// Parameters
-	std::cout << "\n--------------------------\nRoom Segmentation Parameters:\n--------------------------\n";
+	std::cout << "\n------------------------------------\nRoom Segmentation Parameters:\n------------------------------------\n";
 	node_handle_.param("room_segmentation_algorithm", room_segmentation_algorithm_, 3);
 	std::cout << "room_segmentation/room_segmentation_algorithm = " << room_segmentation_algorithm_ << std::endl << std::endl;
 	if (room_segmentation_algorithm_ == 1)
@@ -228,9 +155,83 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 		node_handle_.param("max_area_for_merging", max_area_for_merging_, 12.5);
 		std::cout << "room_segmentation/max_area_for_merging = " << max_area_for_merging_ << std::endl;
 	}
-
 	node_handle_.param("display_segmented_map", display_segmented_map_, false);
 	std::cout << "room_segmentation/display_segmented_map_ = " << display_segmented_map_ << std::endl;
+}
+
+// Callback function for dynamic reconfigure.
+void RoomSegmentationServer::dynamic_reconfigure_callback(ipa_room_segmentation::RoomSegmentationConfig &config, uint32_t level)
+{
+	// set segmentation algorithm
+	std::cout << "######################################################################################" << std::endl;
+	std::cout << "Dynamic reconfigure request:" << std::endl;
+
+	room_segmentation_algorithm_ = config.room_segmentation_algorithm;
+	std::cout << "room_segmentation/room_segmentation_algorithm = " << room_segmentation_algorithm_ << std::endl;
+
+	// set parameters regarding the chosen algorithm
+	if (room_segmentation_algorithm_ == 1) //set morphological parameters
+	{
+		room_upper_limit_morphological_ = config.room_area_factor_upper_limit_morphological;
+		room_lower_limit_morphological_ = config.room_area_factor_lower_limit_morphological;
+		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_morphological_ << std::endl;
+		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_morphological_ << std::endl;
+	}
+	if (room_segmentation_algorithm_ == 2) //set distance parameters
+	{
+		room_upper_limit_distance_ = config.room_area_factor_upper_limit_distance;
+		room_lower_limit_distance_ = config.room_area_factor_lower_limit_distance;
+		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_distance_ << std::endl;
+		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_distance_ << std::endl;
+	}
+	if (room_segmentation_algorithm_ == 3) //set voronoi parameters
+	{
+		room_upper_limit_voronoi_ = config.room_area_factor_upper_limit_voronoi;
+		room_lower_limit_voronoi_ = config.room_area_factor_lower_limit_voronoi;
+		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_voronoi_ << std::endl;
+		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_voronoi_ << std::endl;
+
+		voronoi_neighborhood_index_ = config.voronoi_neighborhood_index;
+		max_iterations_ = config.max_iterations;
+		min_critical_point_distance_factor_ = config.min_critical_point_distance_factor;
+		max_area_for_merging_ = config.max_area_for_merging;
+		std::cout << "room_segmentation/voronoi_neighborhood_index = " << voronoi_neighborhood_index_ << std::endl;
+		std::cout << "room_segmentation/max_iterations = " << max_iterations_ << std::endl;
+		std::cout << "room_segmentation/min_critical_point_distance_factor = " << min_critical_point_distance_factor_ << std::endl;
+		std::cout << "room_segmentation/max_area_for_merging = " << max_area_for_merging_ << std::endl;
+	}
+	if (room_segmentation_algorithm_ == 4) //set semantic parameters
+	{
+		room_upper_limit_semantic_ = config.room_area_factor_upper_limit_semantic;
+		room_lower_limit_semantic_ = config.room_area_factor_lower_limit_semantic;
+		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_semantic_ << std::endl;
+		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_semantic_ << std::endl;
+	}
+	if (room_segmentation_algorithm_ == 5) //set voronoi random field parameters
+	{
+		room_upper_limit_voronoi_random_ = config.room_area_upper_limit_voronoi_random;
+		room_lower_limit_voronoi_random_ = config.room_area_lower_limit_voronoi_random;
+
+		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_voronoi_random_ << std::endl;
+		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_voronoi_random_ << std::endl;
+
+		voronoi_random_field_epsilon_for_neighborhood_ = config.voronoi_random_field_epsilon_for_neighborhood;
+		min_neighborhood_size_ = config.min_neighborhood_size;
+		max_iterations_ = config.max_iterations;
+		min_voronoi_random_field_node_distance_ = config.min_voronoi_random_field_node_distance;
+		max_voronoi_random_field_inference_iterations_ = config.max_voronoi_random_field_inference_iterations;
+		max_area_for_merging_ = config.max_area_for_merging;
+
+		std::cout << "room_segmentation/voronoi_random_field_epsilon_for_neighborhood = " << voronoi_random_field_epsilon_for_neighborhood_ << std::endl;
+		std::cout << "room_segmentation/min_neighborhood_size = " << min_neighborhood_size_ << std::endl;
+		std::cout << "room_segmentation/max_iterations = " << max_iterations_ << std::endl;
+		std::cout << "room_segmentation/min_voronoi_random_field_node_distance = " << min_voronoi_random_field_node_distance_ << std::endl;
+		std::cout << "room_segmentation/max_voronoi_random_field_inference_iterations = " << max_voronoi_random_field_inference_iterations_ << std::endl;
+		std::cout << "room_segmentation/max_area_for_merging = " << max_area_for_merging_ << std::endl;
+	}
+	display_segmented_map_ = config.display_segmented_map;
+	std::cout << "room_segmentation/display_segmented_map = " << display_segmented_map_ << std::endl;
+	std::cout << "######################################################################################" << std::endl;
 }
 
 void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs::MapSegmentationGoalConstPtr &goal)
@@ -735,7 +736,7 @@ int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "room_segmentation_server");
 
-	ros::NodeHandle nh;
+	ros::NodeHandle nh("~");
 
 	RoomSegmentationServer segmentationAlgorithmObj(nh, ros::this_node::getName());
 	ROS_INFO("Action Server for room segmentation has been initialized......");

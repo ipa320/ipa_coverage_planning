@@ -14,9 +14,12 @@
 #include <ipa_building_msgs/MapSegmentationAction.h>
 #include <ipa_building_msgs/FindRoomSequenceWithCheckpointsAction.h>
 
+#include <ipa_building_navigation/dynamic_reconfigure_client.h>
+
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "room_sequence_planning_client");
+	ros::NodeHandle nh;
 
 	std::vector< std::string > map_names;
 	map_names.push_back("lab_ipa.png");
@@ -60,7 +63,11 @@ int main(int argc, char **argv)
 		// wait for the action server to start
 		ac_seg.waitForServer(); //will wait for infinite time
 
+		// set algorithm parameters
 		ROS_INFO("Action server started, sending goal.");
+		DynamicReconfigureClient drc_seg(nh, "room_segmentation_server/set_parameters", "room_segmentation_server/parameter_updates");
+		drc_seg.setConfig("room_segmentation_algorithm", 3);
+
 		// send a goal to the action
 		ipa_building_msgs::MapSegmentationGoal goal_seg;
 		goal_seg.input_map = map_msg;
@@ -87,7 +94,12 @@ int main(int argc, char **argv)
 		// wait for the action server to start
 		ac_seq.waitForServer(); //will wait for infinite time
 
-		ROS_INFO("Action server started, sending goal_seg.");
+		// set algorithm parameters
+		ROS_INFO("Action server started, sending goal_seq.");
+		DynamicReconfigureClient drc_seq(nh, "room_sequence_planning/set_parameters", "room_sequence_planning/parameter_updates");
+		drc_seq.setConfig("planning_method", 1);
+		drc_seq.setConfig("tsp_solver", 2);
+
 		// send a goal_seg to the action
 		ipa_building_msgs::FindRoomSequenceWithCheckpointsGoal goal_seq;
 		goal_seq.input_map = map_msg;
@@ -95,8 +107,6 @@ int main(int argc, char **argv)
 		goal_seq.map_origin.position.x = goal_seg.map_origin.position.x;
 		goal_seq.map_origin.position.y = goal_seg.map_origin.position.y;
 		goal_seq.room_information_in_pixel = result_seg->room_information_in_pixel;
-		goal_seq.max_clique_path_length = 13.5;
-		goal_seq.map_downsampling_factor = 0.25;
 		goal_seq.robot_radius = 0.3;
 		cv::Mat map_eroded;
 		cv::erode(map, map_eroded, cv::Mat(), cv::Point(-1,-1), goal_seq.robot_radius/goal_seq.map_resolution+2);
