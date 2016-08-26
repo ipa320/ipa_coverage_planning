@@ -1,7 +1,7 @@
 # this variable selects the algorithm for room exploration
 # 1 = grid point explorator
 # int
-room_segmentation_algorithm: 1
+room_exploration_algorithm: 1
 
 # line length of one cell in the grid, when using the grid point exploration method
 # [pixel]

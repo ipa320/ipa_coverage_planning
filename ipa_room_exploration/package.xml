@@ -12,24 +12,20 @@
 
 	<buildtool_depend>catkin</buildtool_depend>
 	
+	<depend>boost</depend>
 	<depend>cmake_modules</depend>
 	<depend>cv_bridge</depend>
+	<depend>dynamic_reconfigure</depend>
+	<depend>geometry_msgs</depend>
+	<depend>ipa_building_msgs</depend>
+	<depend>ipa_building_navigation</depend>
+	<depend>libconcorde_tsp_solver</depend>
 	<depend>libopencv-dev</depend>
+	<depend>move_base_msgs</depend>
 	<depend>roscpp</depend>
 	<depend>roslib</depend>
-	<depend>libconcorde_tsp_solver</depend>
-	<depend>actionlib</depend>
-	<depend>actionlib_msgs</depend>
-	<depend>tf</depend>
-	<depend>std_msgs</depend>
 	<depend>sensor_msgs</depend>
-	<depend>geometry_msgs</depend>
-	<depend>move_base_msgs</depend>
-	<depend>message_generation</depend>
-	<depend>genmsg</depend>
-	<depend>boost</depend>
-	<depend>ipa_building_navigation</depend>
-
-	<exec_depend>message_runtime</exec_depend>
+	<depend>std_msgs</depend>
+	<depend>tf</depend>
 
 </package>

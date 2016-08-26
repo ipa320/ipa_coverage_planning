@@ -25,6 +25,7 @@ add_action_files(
 	FILES 
 		MapSegmentation.action
 		FindRoomSequenceWithCheckpoints.action
+		RoomExploration.action
 )
 
 ## Generate messages in the 'msg' folder
@@ -40,8 +41,8 @@ add_message_files(
 generate_messages(
 	DEPENDENCIES
 		actionlib_msgs
-		sensor_msgs
 		geometry_msgs
+		sensor_msgs
 		std_msgs
 )
 

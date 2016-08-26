@@ -5,6 +5,9 @@
 #include <ros/time.h>
 #include <cv_bridge/cv_bridge.h>
 
+#include <dynamic_reconfigure/server.h>
+#include <ipa_room_exploration/RoomExplorationConfig.h>
+
 #include <tf/transform_listener.h>
 
 #include <Eigen/Dense>
@@ -14,7 +17,7 @@
 #include <string>
 #include <vector>
 
-#include <ipa_room_exploration/RoomExplorationAction.h>
+#include <ipa_building_msgs/RoomExplorationAction.h>
 
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>
@@ -37,15 +40,18 @@ protected:
 	// parameters for the different planners
 	int grid_line_length_; // size of the grid-lines that the grid-point-explorator lays over the map
 
+	// callback function for dynamic reconfigure
+	void dynamic_reconfigure_callback(ipa_room_exploration::RoomExplorationConfig &config, uint32_t level);
+
 	// this is the execution function used by action server
-	void exploreRoom(const ipa_room_exploration::RoomExplorationGoalConstPtr &goal);
+	void exploreRoom(const ipa_building_msgs::RoomExplorationGoalConstPtr &goal);
 
 	// function to publish a navigation goal, it returns true if the goal could be reached
 	bool publishNavigationGoal(const geometry_msgs::Pose2D& nav_goal, const std::string map_frame,
 			const std::string camera_frame, std::vector<geometry_msgs::Pose2D>& robot_poses);
 
 	// function to check if a point is inside a given polygon, using the crossing line algorithm
-	int pointInsidePolygonCheck(const cv::Point& P, const std::vector<cv::Point>& V);
+	int pointInsidePolygonCheck(cv::Point P, std::vector<cv::Point> V);
 
 	// converter-> Pixel to meter for X coordinate
 	double convertPixelToMeterForXCoordinate(const int pixel_valued_object_x, const float map_resolution, const cv::Point2d map_origin)
@@ -82,7 +88,8 @@ protected:
 	//  define the Nodehandle before the action server, or else the server won't start
 	//
 	ros::NodeHandle node_handle_;
-	actionlib::SimpleActionServer<ipa_room_exploration::RoomExplorationAction> room_exploration_server_;
+	actionlib::SimpleActionServer<ipa_building_msgs::RoomExplorationAction> room_exploration_server_;
+	dynamic_reconfigure::Server<ipa_room_exploration::RoomExplorationConfig> room_exploration_dynamic_reconfigure_server_;
 
 public:
 	// initialize the action-server
