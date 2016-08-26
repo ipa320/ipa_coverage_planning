@@ -301,17 +301,17 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 	if (room_segmentation_algorithm_ == 1)
 	{
 		MorphologicalSegmentation morphological_segmentation; //morphological segmentation method
-		morphological_segmentation.segmentationAlgorithm(original_img, segmented_map, map_resolution, room_lower_limit_morphological_, room_upper_limit_morphological_);
+		morphological_segmentation.segmentMap(original_img, segmented_map, map_resolution, room_lower_limit_morphological_, room_upper_limit_morphological_);
 	}
 	else if (room_segmentation_algorithm_ == 2)
 	{
 		DistanceSegmentation distance_segmentation; //distance segmentation method
-		distance_segmentation.segmentationAlgorithm(original_img, segmented_map, map_resolution, room_lower_limit_distance_, room_upper_limit_distance_);
+		distance_segmentation.segmentMap(original_img, segmented_map, map_resolution, room_lower_limit_distance_, room_upper_limit_distance_);
 	}
 	else if (room_segmentation_algorithm_ == 3)
 	{
 		VoronoiSegmentation voronoi_segmentation; //voronoi segmentation method
-		voronoi_segmentation.segmentationAlgorithm(original_img, segmented_map, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_,
+		voronoi_segmentation.segmentMap(original_img, segmented_map, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_,
 			voronoi_neighborhood_index_, max_iterations_, min_critical_point_distance_factor_, max_area_for_merging_, display_segmented_map_);
 	}
 	else if (room_segmentation_algorithm_ == 4)
@@ -349,7 +349,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 			//train the algorithm
 			semantic_segmentation.trainClassifiers(room_training_maps, hallway_training_maps, classifier_path);
 		}
-		semantic_segmentation.semanticLabeling(original_img, segmented_map, map_resolution, room_lower_limit_semantic_, room_upper_limit_semantic_,
+		semantic_segmentation.segmentMap(original_img, segmented_map, map_resolution, room_lower_limit_semantic_, room_upper_limit_semantic_,
 			classifier_path, display_segmented_map_);
 	}
 	else if (room_segmentation_algorithm_ == 5)
@@ -386,6 +386,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 			training_maps.push_back(training_map);
 			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_lab_c_furnitures.png", 0);
 			training_maps.push_back(training_map);
+			// todo: transfer file lists to launch file
 			// load the voronoi maps
 			std::vector<cv::Mat> voronoi_maps;
 //			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/Fr52_voronoi.png", 0);

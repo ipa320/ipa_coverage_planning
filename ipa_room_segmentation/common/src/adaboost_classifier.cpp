@@ -152,7 +152,7 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 	ROS_INFO("Finished training the algorithm.");
 }
 
-void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription,
+void AdaboostClassifier::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription,
         double room_area_factor_lower_limit, double room_area_factor_upper_limit, const std::string& classifier_storage_path, bool display_results)
 {
 	//******************Semantic-labeling function based on AdaBoost*****************************
