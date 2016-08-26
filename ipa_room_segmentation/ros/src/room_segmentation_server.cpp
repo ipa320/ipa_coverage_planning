@@ -63,6 +63,8 @@
 #include <ipa_room_segmentation/meanshift2d.h>
 #include <ipa_room_segmentation/dynamic_reconfigure_client.h>
 
+#include <boost/algorithm/string.hpp>
+
 
 RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string name_of_the_action) :
 	node_handle_(nh),
@@ -157,6 +159,22 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 	}
 	node_handle_.param("display_segmented_map", display_segmented_map_, false);
 	std::cout << "room_segmentation/display_segmented_map_ = " << display_segmented_map_ << std::endl;
+	node_handle_.getParam("vrf_original_maps_file_list", vrf_original_maps_file_list_);
+	std::cout << "room_segmentation/vrf_original_maps_file_list = \n";
+	for (size_t i=0; i<vrf_original_maps_file_list_.size(); ++i)
+		std::cout << "   " << vrf_original_maps_file_list_[i] << std::endl;
+	node_handle_.getParam("vrf_training_maps_file_list", vrf_training_maps_file_list_);
+	std::cout << "room_segmentation/vrf_training_maps_file_list = \n";
+	for (size_t i=0; i<vrf_training_maps_file_list_.size(); ++i)
+		std::cout << "   " << vrf_training_maps_file_list_[i] << std::endl;
+	node_handle_.getParam("vrf_voronoi_maps_file_list", vrf_voronoi_maps_file_list_);
+	std::cout << "room_segmentation/vrf_voronoi_maps_file_list = \n";
+	for (size_t i=0; i<vrf_voronoi_maps_file_list_.size(); ++i)
+		std::cout << "   " << vrf_voronoi_maps_file_list_[i] << std::endl;
+	node_handle_.getParam("vrf_voronoi_node_maps_file_list", vrf_voronoi_node_maps_file_list_);
+	std::cout << "room_segmentation/vrf_voronoi_node_maps_file_list = \n";
+	for (size_t i=0; i<vrf_voronoi_node_maps_file_list_.size(); ++i)
+		std::cout << "   " << vrf_voronoi_node_maps_file_list_[i] << std::endl;
 }
 
 // Callback function for dynamic reconfigure.
@@ -366,29 +384,40 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 		if (train_the_algorithm_)
 		{
 			// load the training maps
-			cv::Mat training_map;
 			std::vector<cv::Mat> training_maps;
-			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_Fr52.png", 0);
-			training_maps.push_back(training_map);
-			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_Fr101.png", 0);
-			training_maps.push_back(training_map);
-			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_intel.png", 0);
-			training_maps.push_back(training_map);
-			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_lab_d_furniture.png", 0);
-			training_maps.push_back(training_map);
-			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_lab_ipa.png", 0);
-			training_maps.push_back(training_map);
-			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_NLB_furniture.png", 0);
-			training_maps.push_back(training_map);
-			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_office_e.png", 0);
-			training_maps.push_back(training_map);
-			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_office_h.png", 0);
-			training_maps.push_back(training_map);
-			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_lab_c_furnitures.png", 0);
-			training_maps.push_back(training_map);
+			for (size_t i=0; i<vrf_training_maps_file_list_.size(); ++i)
+			{
+				cv::Mat training_map = cv::imread(vrf_training_maps_file_list_[i], 0);
+				training_maps.push_back(training_map);
+			}
+//			cv::Mat training_map;
+//			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_Fr52.png", 0);
+//			training_maps.push_back(training_map);
+//			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_Fr101.png", 0);
+//			training_maps.push_back(training_map);
+//			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_intel.png", 0);
+//			training_maps.push_back(training_map);
+//			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_lab_d_furniture.png", 0);
+//			training_maps.push_back(training_map);
+//			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_lab_ipa.png", 0);
+//			training_maps.push_back(training_map);
+//			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_NLB_furniture.png", 0);
+//			training_maps.push_back(training_map);
+//			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_office_e.png", 0);
+//			training_maps.push_back(training_map);
+//			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_office_h.png", 0);
+//			training_maps.push_back(training_map);
+//			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_lab_c_furnitures.png", 0);
+//			training_maps.push_back(training_map);
+
 			// todo: transfer file lists to launch file
 			// load the voronoi maps
 			std::vector<cv::Mat> voronoi_maps;
+			for (size_t i=0; i<vrf_voronoi_maps_file_list_.size(); ++i)
+			{
+				cv::Mat training_map = cv::imread(vrf_voronoi_maps_file_list_[i], 0);
+				voronoi_maps.push_back(training_map);
+			}
 //			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/Fr52_voronoi.png", 0);
 //			voronoi_maps.push_back(training_map);
 //			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_maps/Fr101_voronoi.png", 0);
@@ -409,6 +438,11 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 //			voronoi_maps.push_back(training_map);
 			// load the voronoi-nodes maps
 			std::vector<cv::Mat> voronoi_node_maps;
+			for (size_t i=0; i<vrf_voronoi_node_maps_file_list_.size(); ++i)
+			{
+				cv::Mat training_map = cv::imread(vrf_voronoi_node_maps_file_list_[i], 0);
+				voronoi_node_maps.push_back(training_map);
+			}
 //			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/Fr52_voronoi_nodes.png", 0);
 //			voronoi_node_maps.push_back(training_map);
 //			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/Fr101_voronoi_nodes.png", 0);
@@ -429,24 +463,29 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 //			voronoi_node_maps.push_back(training_map);
 			// load the original maps
 			std::vector<cv::Mat> original_maps;
-			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/Fr52_original.png", 0);
-			original_maps.push_back(training_map);
-			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/Fr101_original.png", 0);
-			original_maps.push_back(training_map);
-			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_intel_original.png", 0);
-			original_maps.push_back(training_map);
-			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_d_furnitures_original.png", 0);
-			original_maps.push_back(training_map);
-			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_ipa_original.png", 0);
-			original_maps.push_back(training_map);
-			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/NLB_original.png", 0);
-			original_maps.push_back(training_map);
-			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/office_e_original.png", 0);
-			original_maps.push_back(training_map);
-			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/office_h_original.png", 0);
-			original_maps.push_back(training_map);
-			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_c_furnitures_original.png", 0);
-			original_maps.push_back(training_map);
+			for (size_t i=0; i<vrf_original_maps_file_list_.size(); ++i)
+			{
+				cv::Mat training_map = cv::imread(vrf_original_maps_file_list_[i], 0);
+				original_maps.push_back(training_map);
+			}
+//			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/Fr52_original.png", 0);
+//			original_maps.push_back(training_map);
+//			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/Fr101_original.png", 0);
+//			original_maps.push_back(training_map);
+//			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_intel_original.png", 0);
+//			original_maps.push_back(training_map);
+//			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_d_furnitures_original.png", 0);
+//			original_maps.push_back(training_map);
+//			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_ipa_original.png", 0);
+//			original_maps.push_back(training_map);
+//			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/NLB_original.png", 0);
+//			original_maps.push_back(training_map);
+//			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/office_e_original.png", 0);
+//			original_maps.push_back(training_map);
+//			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/office_h_original.png", 0);
+//			original_maps.push_back(training_map);
+//			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_c_furnitures_original.png", 0);
+//			original_maps.push_back(training_map);
 			//train the algorithm
 			vrf_segmentation.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path);
 		}
