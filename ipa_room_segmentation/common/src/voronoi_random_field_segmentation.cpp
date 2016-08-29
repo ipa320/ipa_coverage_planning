@@ -468,8 +468,6 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 		std::vector< std::vector<Clique> >& cliques_of_training_maps, std::vector<uint> possible_labels,
 		const std::string& classifier_storage_path)
 {
-	std::cout << "starting to train the Boost Classifiers." << std::endl;
-
 	// vectors that store the given labels and features for each point (order: room-hallway-doorway)
 	std::vector< std::vector<float> > labels_for_classes(number_of_classes_);
 	std::vector< std::vector<double> > features_for_points;
@@ -850,6 +848,7 @@ void VoronoiRandomFieldSegmentation::trainAlgorithms(const std::vector<cv::Mat>&
 	{
 		compute_voronoi_maps = true;
 		voronoi_maps.resize(original_maps.size());
+		std::cout << "Creating the voronoi graphs before training." << std::endl;
 	}
 	for(size_t current_map_index = 0; current_map_index < training_maps.size(); ++current_map_index)
 	{
@@ -875,11 +874,11 @@ void VoronoiRandomFieldSegmentation::trainAlgorithms(const std::vector<cv::Mat>&
 			createPrunedVoronoiGraph(voronoi_maps[current_map_index], current_voronoi_nodes);
 		}
 
-		// todo: read in a fully labeled map (not only points) and generate current_nodes accordingly
 		// find the conditional random field nodes for the current map
 		cv::Mat distance_map; //distance-map of the original-map (used to check the distance of each point to nearest black pixel)
 		cv::distanceTransform(original_maps[current_map_index], distance_map, CV_DIST_L2, 5);
 		cv::convertScaleAbs(distance_map, distance_map);
+
 
 		// find all nodes for the conditional random field
 		findConditonalNodes(current_nodes, voronoi_maps[current_map_index], distance_map, current_voronoi_nodes, epsilon_for_neighborhood, max_iterations, min_neighborhood_size, min_node_distance);
