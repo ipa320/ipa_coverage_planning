@@ -134,12 +134,13 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 //	}
 //	fs.release();
 
+	// check if path for storing classifier models exists
 	boost::filesystem::path storage_path(classifier_storage_path);
 	if (boost::filesystem::exists(storage_path) == false)
 	{
-		if (boost::filesystem::create_directory(storage_path) == false)
+		if (boost::filesystem::create_directories(storage_path) == false && boost::filesystem::exists(storage_path) == false)
 		{
-			std::cout << "Error: AdaboostClassifier::trainClassifiers: Could not create directory " << storage_path;
+			std::cout << "Error: AdaboostClassifier::trainClassifiers: Could not create directory " << storage_path << std::endl;
 			return;
 		}
 	}
@@ -188,12 +189,13 @@ void AdaboostClassifier::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat& s
 	//***********************I. check if classifiers has already been trained*****************************
 	if (!trained_) //classifiers hasn't been trained before so they should be loaded
 	{
+		// check if path for storing classifier models exists
 		boost::filesystem::path storage_path(classifier_storage_path);
 		if (boost::filesystem::exists(storage_path) == false)
 		{
-			if (boost::filesystem::create_directory(storage_path) == false)
+			if (boost::filesystem::create_directories(storage_path) == false && boost::filesystem::exists(storage_path) == false)
 			{
-				std::cout << "Error: AdaboostClassifier::segmentMap: Could not create directory " << storage_path;
+				std::cout << "Error: AdaboostClassifier::segmentMap: Could not create directory " << storage_path << std::endl;
 				return;
 			}
 		}

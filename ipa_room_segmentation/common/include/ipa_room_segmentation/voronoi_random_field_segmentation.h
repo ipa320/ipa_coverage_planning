@@ -210,7 +210,7 @@ protected:
 	// Function to find the weights used to calculate the clique potentials.
 	void findConditionalWeights(std::vector< std::vector<Clique> >& conditional_random_field_cliques,
 			std::vector<std::set<cv::Point, cv_Point_comp> >& random_field_node_points, const std::vector<cv::Mat>& training_maps,
-			const size_t number_of_training_maps, std::vector<uint>& possible_labels, const std::string weights_filepath);
+			std::vector<uint>& possible_labels, const std::string weights_filepath);
 
 
 public:
@@ -222,7 +222,7 @@ public:
 	// need to be trained to calculate features for the conditional random field.
 	void trainAlgorithms(const std::vector<cv::Mat>& original_maps, const std::vector<cv::Mat>& training_maps,
 			std::vector<cv::Mat>& voronoi_maps, const std::vector<cv::Mat>& voronoi_node_maps,
-			std::vector<unsigned int>& possible_labels, const std::string weights_filepath, const std::string boost_filepath,
+			std::vector<unsigned int>& possible_labels, const std::string storage_path,
 			const int epsilon_for_neighborhood, const int max_iterations, const int min_neighborhood_size,
 			const double min_node_distance);
 
@@ -242,9 +242,9 @@ public:
 	void segmentMap(const cv::Mat& original_map, cv::Mat& segmented_map, const int epsilon_for_neighborhood,
 			const int max_iterations, const int min_neighborhood_size, std::vector<uint>& possible_labels,
 			const double min_node_distance, bool show_results,
-			std::string crf_storage_path, std::string boost_storage_path, const int max_inference_iterations,
-			 double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit,
-			 double max_area_for_merging, std::vector<cv::Point>* door_points = NULL);
+			const std::string classifier_storage_path, const std::string classifier_default_path, const int max_inference_iterations,
+			double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit,
+			double max_area_for_merging, std::vector<cv::Point>* door_points = NULL);
 
 	// Function used to test several features separately. Not relevant.
 	void testFunc(const cv::Mat& original_map);

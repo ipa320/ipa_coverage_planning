@@ -57,7 +57,9 @@
  *
  ****************************************************************/
 
-#include <ipa_room_segmentation/voronoi_random_field_segmentation.h> // header
+#include <ipa_room_segmentation/voronoi_random_field_segmentation.h>
+
+#include <boost/filesystem.hpp>
 
 #include <ipa_room_segmentation/timer.h>
 
@@ -468,6 +470,16 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 		std::vector< std::vector<Clique> >& cliques_of_training_maps, std::vector<uint> possible_labels,
 		const std::string& classifier_storage_path)
 {
+	boost::filesystem::path storage_path(classifier_storage_path);
+	if (boost::filesystem::exists(storage_path) == false)
+	{
+		if (boost::filesystem::create_directories(storage_path) == false && boost::filesystem::exists(storage_path) == false)
+		{
+			std::cout << "Error: VoronoiRandomFieldSegmentation::trainBoostClassifiers: Could not create directory " << storage_path << std::endl;
+			return;
+		}
+	}
+
 	std::cout << "starting to train the Boost Classifiers." << std::endl;
 
 	// vectors that store the given labels and features for each point (order: room-hallway-doorway)
@@ -667,7 +679,7 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 //
 void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::vector<Clique> >& conditional_random_field_cliques,
 		std::vector<std::set<cv::Point, cv_Point_comp> >& random_field_node_points, const std::vector<cv::Mat>& training_maps,
-		const size_t number_of_training_maps, std::vector<uint>& possible_labels, const std::string weights_filepath)
+		std::vector<uint>& possible_labels, const std::string weights_filepath)
 {
 	// check if the AdaBoost-classifiers has already been trained yet, if not the conditional field can't be trained
 	if(trained_boost_ == false)
@@ -683,7 +695,7 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 																 // values are for the real training label and the rest of it
 																 // for labels different than the given one.
 
-	for(size_t current_map_index = 0; current_map_index < number_of_training_maps; ++current_map_index)
+	for(size_t current_map_index = 0; current_map_index < training_maps.size(); ++current_map_index)
 	{
 		for(std::set<cv::Point, cv_Point_comp>::iterator current_point = random_field_node_points[current_map_index].begin(); current_point != random_field_node_points[current_map_index].end(); ++current_point)
 		{
@@ -808,7 +820,17 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 		trained_conditional_weights_.push_back(weight_results(0, weight));
 
 	// save the weights to a file
-	std::ofstream output_file(weights_filepath.c_str(), std::ios::out);
+	boost::filesystem::path storage_path(weights_filepath);
+	if (boost::filesystem::exists(storage_path) == false)
+	{
+		if (boost::filesystem::create_directories(storage_path) == false && boost::filesystem::exists(storage_path) == false)
+		{
+			std::cout << "Error: VoronoiRandomFieldSegmentation::findConditionalWeights: Could not create directory " << storage_path << std::endl;
+			return;
+		}
+	}
+	std::string filename = weights_filepath + "vrf_conditional_field_weights.txt";
+	std::ofstream output_file(filename.c_str(), std::ios::out);
 	if (output_file.is_open()==true)
 		output_file << weight_results;
 	output_file.close();
@@ -836,7 +858,7 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 //			would be really hard to do directly, a log-likelihood estimation is applied.
 void VoronoiRandomFieldSegmentation::trainAlgorithms(const std::vector<cv::Mat>& original_maps, const std::vector<cv::Mat>& training_maps,
 		std::vector<cv::Mat>& voronoi_maps, const std::vector<cv::Mat>& voronoi_node_maps,
-		std::vector<unsigned int>& possible_labels, const std::string weights_filepath, const std::string boost_filepath,
+		std::vector<unsigned int>& possible_labels, const std::string storage_path,
 		const int epsilon_for_neighborhood, const int max_iterations, const int min_neighborhood_size,
 		const double min_node_distance)
 {
@@ -875,7 +897,7 @@ void VoronoiRandomFieldSegmentation::trainAlgorithms(const std::vector<cv::Mat>&
 			createPrunedVoronoiGraph(voronoi_maps[current_map_index], current_voronoi_nodes);
 		}
 
-		// todo: read in a fully labeled map (not only points) and generate current_nodes accordingly
+		// read in a fully labeled map (not only points) and generate current_nodes accordingly
 		// find the conditional random field nodes for the current map
 		cv::Mat distance_map; //distance-map of the original-map (used to check the distance of each point to nearest black pixel)
 		cv::distanceTransform(original_maps[current_map_index], distance_map, CV_DIST_L2, 5);
@@ -904,11 +926,10 @@ void VoronoiRandomFieldSegmentation::trainAlgorithms(const std::vector<cv::Mat>&
 	}
 
 	// ********** III. Train the AdaBoost-classifiers. *****************
-	trainBoostClassifiers(training_maps, conditional_random_field_cliques, possible_labels, boost_filepath);
+	trainBoostClassifiers(training_maps, conditional_random_field_cliques, possible_labels, storage_path);
 
 	// ********** IV. Find the conditional-random-field weights. *****************
-	// todo: do we need to provide training_maps.size()?
-	findConditionalWeights(conditional_random_field_cliques, random_field_node_points, training_maps, training_maps.size(), possible_labels, weights_filepath);
+	findConditionalWeights(conditional_random_field_cliques, random_field_node_points, training_maps, possible_labels, storage_path);
 }
 
 //
@@ -1115,22 +1136,44 @@ column_vector VoronoiRandomFieldSegmentation::findMinValue(unsigned int number_o
 //			 and hallways are searched and drawn in the given map with a unique color into the map, if they are not too small or big.
 void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv::Mat& segmented_map, const int epsilon_for_neighborhood,
 		const int max_iterations, const int min_neighborhood_size, std::vector<uint>& possible_labels,
-		const double min_node_distance,  bool show_results, std::string crf_storage_path, std::string boost_storage_path,
+		const double min_node_distance,  bool show_results, const std::string classifier_storage_path, const std::string classifier_default_path,
 		const int max_inference_iterations, double map_resolution_from_subscription, double room_area_factor_lower_limit,
 		double room_area_factor_upper_limit, double max_area_for_merging, std::vector<cv::Point>* door_points)
 {
+	// check if path for storing classifier models exists
+	boost::filesystem::path storage_path(classifier_storage_path);
+	if (boost::filesystem::exists(storage_path) == false)
+	{
+		if (boost::filesystem::create_directories(storage_path) == false && boost::filesystem::exists(storage_path) == false)
+		{
+			std::cout << "Error: VoronoiRandomFieldSegmentation::segmentMap: Could not create directory " << storage_path << std::endl;
+			return;
+		}
+	}
+
 	// save a copy of the original image
 	cv::Mat original_image = original_map.clone();
 
 	// if the training results haven't been loaded or trained before load them
-	std::string filename_room = boost_storage_path + "vrf_room_boost.xml";
-	std::string filename_hallway = boost_storage_path + "vrf_hallway_boost.xml";
-	std::string filename_doorway = boost_storage_path + "vrf_doorway_boost.xml";
 	if(trained_boost_ == false)
 	{
 		// load the AdaBoost-classifiers
+		std::string filename_room = classifier_storage_path + "vrf_room_boost.xml";
+		std::string filename_room_default = classifier_default_path + "vrf_room_boost.xml";
+		if (boost::filesystem::exists(boost::filesystem::path(filename_room)) == false)
+			boost::filesystem::copy_file(filename_room_default, filename_room);
 		room_boost_.load(filename_room.c_str());
+
+		std::string filename_hallway = classifier_storage_path + "vrf_hallway_boost.xml";
+		std::string filename_hallway_default = classifier_default_path + "vrf_hallway_boost.xml";
+		if (boost::filesystem::exists(boost::filesystem::path(filename_hallway)) == false)
+			boost::filesystem::copy_file(filename_hallway_default, filename_hallway);
 		hallway_boost_.load(filename_hallway.c_str());
+
+		std::string filename_doorway = classifier_storage_path + "vrf_doorway_boost.xml";
+		std::string filename_doorway_default = classifier_default_path + "vrf_doorway_boost.xml";
+		if (boost::filesystem::exists(boost::filesystem::path(filename_doorway)) == false)
+			boost::filesystem::copy_file(filename_doorway_default, filename_doorway);
 		doorway_boost_.load(filename_doorway.c_str());
 
 		// set the trained-Boolean true to only load parameters once
@@ -1143,7 +1186,11 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 		trained_conditional_weights_.clear();
 
 		// load the weights out of the file
-		std::ifstream input_file(crf_storage_path.c_str());
+		std::string filename_crf = classifier_storage_path + "vrf_conditional_field_weights.txt";
+		std::string filename_crf_default = classifier_default_path + "vrf_conditional_field_weights.txt";
+		if (boost::filesystem::exists(boost::filesystem::path(filename_crf)) == false)
+			boost::filesystem::copy_file(filename_crf_default, filename_crf);
+		std::ifstream input_file(filename_crf.c_str());
 		std::string line;
 		double value;
 		if (input_file.is_open())

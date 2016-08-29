@@ -393,8 +393,8 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 	{
 		VoronoiRandomFieldSegmentation vrf_segmentation; //voronoi random field segmentation method
 		const std::string package_path = ros::package::getPath("ipa_room_segmentation");
-		std::string conditional_weights_path = package_path + "/common/files/classifier_models/conditional_field_weights.txt";
-		std::string boost_file_path = package_path + "/common/files/classifier_models/";
+		std::string classifier_default_path = package_path + "/common/files/classifier_models/";
+		std::string classifier_storage_path = "room_segmentation/classifier_models/";
 		// vector that stores the possible labels that are drawn in the training maps. Order: room - hallway - doorway
 		std::vector<uint> possible_labels(3);
 		possible_labels[0] = 77;
@@ -506,13 +506,13 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 //			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_c_furnitures_original.png", 0);
 //			original_maps.push_back(training_map);
 			//train the algorithm
-			vrf_segmentation.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, conditional_weights_path, boost_file_path,
+			vrf_segmentation.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, classifier_storage_path,
 					voronoi_random_field_epsilon_for_neighborhood_, max_iterations_, min_neighborhood_size_, min_voronoi_random_field_node_distance_);
 		}
 		doorway_points_.clear();
 		vrf_segmentation.segmentMap(original_img, segmented_map, voronoi_random_field_epsilon_for_neighborhood_, max_iterations_,
 				min_neighborhood_size_, possible_labels, min_voronoi_random_field_node_distance_,
-				display_segmented_map_, conditional_weights_path, boost_file_path, max_voronoi_random_field_inference_iterations_,
+				display_segmented_map_, classifier_storage_path, classifier_default_path, max_voronoi_random_field_inference_iterations_,
 				map_resolution, room_lower_limit_voronoi_random_, room_upper_limit_voronoi_random_, max_area_for_merging_, &doorway_points_);
 	}
 	else
