@@ -187,6 +187,12 @@ protected:
 	// Function that takes a map and draws a pruned voronoi graph in it.
 	void createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation, std::set<cv::Point, cv_Point_comp>& node_points);
 
+	// Function to find the Nodes for the conditional random field, given a voronoi-graph.
+	void findConditonalNodes(std::set<cv::Point, cv_Point_comp>&  conditional_nodes, const cv::Mat& voronoi_map,
+			const cv::Mat& distance_map, const std::set<cv::Point, cv_Point_comp>& voronoi_nodes,
+			const int epsilon_for_neighborhood, const int max_iterations, const int min_neighborhood_size,
+			const double min_node_distance);
+
 	// Function to create a conditional random field out of given points. It needs
 	// the voronoi-map extracted from the original map to find the neighbors for each point
 	// and the voronoi-node-points to add the right points as nodes.
@@ -216,7 +222,9 @@ public:
 	// need to be trained to calculate features for the conditional random field.
 	void trainAlgorithms(const std::vector<cv::Mat>& original_maps, const std::vector<cv::Mat>& training_maps,
 			std::vector<cv::Mat>& voronoi_maps, const std::vector<cv::Mat>& voronoi_node_maps,
-			std::vector<unsigned int>& possible_labels, const std::string weights_filepath, const std::string boost_filepath);
+			std::vector<unsigned int>& possible_labels, const std::string weights_filepath, const std::string boost_filepath,
+			const int epsilon_for_neighborhood, const int max_iterations, const int min_neighborhood_size,
+			const double min_node_distance);
 
 	// This function is called to find minimal values of a defined log-likelihood-function using the library Dlib.
 	// This log-likelihood-function is made over all training data to get a likelihood-estimation linear in the weights.

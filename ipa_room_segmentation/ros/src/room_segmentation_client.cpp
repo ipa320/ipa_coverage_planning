@@ -165,7 +165,7 @@ int main(int argc, char **argv)
 
 		// test dynamic reconfigure
 		DynamicReconfigureClient drc(nh, "room_segmentation_server/set_parameters", "room_segmentation_server/parameter_updates");
-		drc.setConfig("room_segmentation_algorithm", 3);
+		drc.setConfig("room_segmentation_algorithm", 5);
 		//drc.setConfig("room_area_factor_upper_limit_voronoi", 120.0);
 
 		// send a goal to the action
