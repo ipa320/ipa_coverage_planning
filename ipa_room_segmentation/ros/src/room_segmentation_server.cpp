@@ -391,7 +391,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 	}
 	else if (room_segmentation_algorithm_ == 5)
 	{
-		VoronoiRandomFieldSegmentation vrf_segmentation(false, false); //voronoi random field segmentation method
+		VoronoiRandomFieldSegmentation vrf_segmentation; //voronoi random field segmentation method
 		const std::string package_path = ros::package::getPath("ipa_room_segmentation");
 		std::string conditional_weights_path = package_path + "/common/files/classifier_models/conditional_field_weights.txt";
 		std::string boost_file_path = package_path + "/common/files/classifier_models/";

@@ -215,7 +215,7 @@ protected:
 
 public:
 	// Constructor
-	VoronoiRandomFieldSegmentation(bool trained_boost = true, bool trained_conditional_field = true);
+	VoronoiRandomFieldSegmentation();
 
 	// This function is used to train the algorithm. The above defined functions separately train the AdaBoost-classifiers and
 	// the conditional random field. By calling this function the training is done in the right order, because the AdaBoost-classifiers

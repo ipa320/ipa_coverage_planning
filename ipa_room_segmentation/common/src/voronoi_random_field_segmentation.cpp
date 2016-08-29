@@ -197,7 +197,7 @@ struct compContoursSize
 
 
 // Constructor
-VoronoiRandomFieldSegmentation::VoronoiRandomFieldSegmentation(bool trained_boost, bool trained_conditional_field)
+VoronoiRandomFieldSegmentation::VoronoiRandomFieldSegmentation()
 {
 	//save the angles between the simulated beams, used in the following algorithm
 	for (double angle = 0; angle < 360; angle++)
@@ -212,8 +212,8 @@ VoronoiRandomFieldSegmentation::VoronoiRandomFieldSegmentation(bool trained_boos
 	number_of_classifiers_ = 35;
 	CvBoostParams params(CvBoost::DISCRETE, number_of_classifiers_, 0, 2, false, 0);
 	params_ = params;
-	trained_boost_ = trained_boost;
-	trained_conditional_field_ = trained_conditional_field;
+	trained_boost_ = false;
+	trained_conditional_field_ = false;
 }
 
 // This Function checks if the given cv::Point is more far away from all the cv::Points in the given set. If one point gets found
