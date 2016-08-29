@@ -6,6 +6,21 @@
 	<node ns="room_segmentation" pkg="ipa_room_segmentation" type="room_segmentation_server" name="room_segmentation_server" output="screen" respawn="true" respawn_delay="2">
 		<rosparam command="load" file="$(find ipa_room_segmentation)/ros/launch/room_segmentation_action_server_params.yaml"/>
 		
+		<!-- Parameters for Semantic segmentation -->
+		<!-- list of files containing maps with room labels for training the semantic segmentation -->
+		<rosparam param="semantic_training_maps_room_file_list">["$(find ipa_room_segmentation)/common/files/training_maps/lab_ipa_room_training_map.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/lab_d_room_training_map.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/Freiburg52_scan_room_training.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/Freiburg52_scan_furnitures_room_training.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/lab_intel_furnitures_room_training_map.png"]</rosparam>
+
+		<!-- list of files containing maps with hallway labels for training the semantic segmentation -->
+		<rosparam param="semantic_training_maps_hallway_file_list">["$(find ipa_room_segmentation)/common/files/training_maps/lab_ipa_hallway_training_map.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/lab_a_hallway_training_map.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/Freiburg52_scan_hallway_training.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/Freiburg52_scan_furnitures_hallway_training.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/lab_intel_hallway_training_map.png"]</rosparam>
+
 		<!-- Parameters for VRF segmentation -->
 		<!-- list of files containing the original maps for training the VRF segmentation -->
 		<rosparam param="vrf_original_maps_file_list">["$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/original_maps/Fr52_original.png",

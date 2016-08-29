@@ -112,6 +112,8 @@ protected:
 	bool display_segmented_map_;	// displays the segmented map upon service call
 	std::vector<cv::Point> doorway_points_; // vector that saves the found doorway points, when using the 5th algorithm (vrf)
 
+	std::vector<std::string> semantic_training_maps_room_file_list_;	// list of files containing maps with room labels for training the semantic segmentation
+	std::vector<std::string> semantic_training_maps_hallway_file_list_;	// list of files containing maps with hallway labels for training the semantic segmentation
 	std::vector<std::string> vrf_original_maps_file_list_;	// list of files containing the original maps for training the VRF segmentation
 	std::vector<std::string> vrf_training_maps_file_list_;	// list of files containing the labeled maps for training the VRF segmentation
 	std::vector<std::string> vrf_voronoi_maps_file_list_;	// list of files containing the Voronoi maps for training the VRF segmentation - these files are optional for training and just yield a speedup
