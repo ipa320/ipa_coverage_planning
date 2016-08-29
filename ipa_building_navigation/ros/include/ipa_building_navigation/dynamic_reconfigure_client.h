@@ -63,6 +63,8 @@
 #include <ros/ros.h>
 #include <ros/subscriber.h>
 
+#include <boost/thread/mutex.hpp>
+
 #include <dynamic_reconfigure/DoubleParameter.h>
 #include <dynamic_reconfigure/IntParameter.h>
 #include <dynamic_reconfigure/Reconfigure.h>
@@ -83,11 +85,14 @@ public:
 
 	dynamic_reconfigure::Config& getConfig()
 	{
+		boost::mutex::scoped_lock lock(dynamic_reconfigure_lock_);
 		return dynamic_reconfigure_config_;
 	}
 
 	bool setConfig(const std::string& param_name, const bool param_value)
 	{
+		boost::mutex::scoped_lock lock(dynamic_reconfigure_lock_);
+
 		if (dynamic_reconfigure_current_config_received_ == false)
 		{
 			ROS_WARN("DynamicReconfigureClient: Did not receive the current configuration, yet.");
@@ -117,6 +122,8 @@ public:
 
 	bool setConfig(const std::string& param_name, const double param_value)
 	{
+		boost::mutex::scoped_lock lock(dynamic_reconfigure_lock_);
+
 		if (dynamic_reconfigure_current_config_received_ == false)
 		{
 			ROS_WARN("DynamicReconfigureClient: Did not receive the current configuration, yet.");
@@ -146,6 +153,8 @@ public:
 
 	bool setConfig(const std::string& param_name, const int param_value)
 	{
+		boost::mutex::scoped_lock lock(dynamic_reconfigure_lock_);
+
 		if (dynamic_reconfigure_current_config_received_ == false)
 		{
 			ROS_WARN("DynamicReconfigureClient: Did not receive the current configuration, yet.");
@@ -175,6 +184,8 @@ public:
 
 	bool setConfig(const std::string& param_name, const std::string& param_value)
 	{
+		boost::mutex::scoped_lock lock(dynamic_reconfigure_lock_);
+
 		if (dynamic_reconfigure_current_config_received_ == false)
 		{
 			ROS_WARN("DynamicReconfigureClient: Did not receive the current configuration, yet.");
@@ -205,6 +216,8 @@ public:
 private:
 	void dynamic_reconfigure_current_config_callback(const dynamic_reconfigure::ConfigConstPtr& current_config)
 	{
+		boost::mutex::scoped_lock lock(dynamic_reconfigure_lock_);
+
 		dynamic_reconfigure_config_ = *current_config;
 		dynamic_reconfigure_current_config_received_ = true;
 	}
@@ -224,6 +237,8 @@ private:
 	dynamic_reconfigure::Config dynamic_reconfigure_config_;
 	bool dynamic_reconfigure_current_config_received_;
 	std::string dynamic_reconfigure_service_name_;
+
+	boost::mutex dynamic_reconfigure_lock_;
 };
 
 #endif //_DYNAMIC_RECONFIGURE_CLIENT_H_

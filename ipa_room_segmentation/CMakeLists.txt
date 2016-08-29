@@ -28,7 +28,7 @@ generate_dynamic_reconfigure_options(
 )
 
 find_package(OpenCV REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED COMPONENTS system thread)
 
 find_package(OpenMP)
 if(OPENMP_FOUND)
@@ -81,6 +81,7 @@ add_executable(room_segmentation_server
 	ros/src/room_segmentation_server.cpp
 	common/src/distance_segmentation.cpp
 	common/src/morphological_segmentation.cpp
+	common/src/abstract_voronoi_segmentation.cpp
 	common/src/voronoi_segmentation.cpp
 	common/src/adaboost_classifier.cpp
 	common/src/wavefront_region_growing.cpp
@@ -94,6 +95,7 @@ add_executable(room_segmentation_server
 target_compile_options(room_segmentation_server PRIVATE ${OpenMP_FLAGS})
 add_dependencies(room_segmentation_server
 	${catkin_EXPORTED_TARGETS}
+	${${PROJECT_NAME}_EXPORTED_TARGETS}
 	${PROJECT_NAME}_gencfg)
 target_link_libraries(room_segmentation_server
 	${catkin_LIBRARIES}

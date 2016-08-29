@@ -2,18 +2,16 @@ cmake_minimum_required(VERSION 2.8.3)
 project(ipa_room_exploration)
 
 set(catkin_RUN_PACKAGES
-	actionlib
-	actionlib_msgs
 	cv_bridge
 	geometry_msgs
 	ipa_building_msgs
 	libconcorde_tsp_solver
+	move_base_msgs
 	roscpp
 	roslib
 	sensor_msgs
 	std_msgs
 	tf
-	move_base_msgs
 )
 
 set(catkin_BUILD_PACKAGES
@@ -36,32 +34,6 @@ find_package(Boost REQUIRED COMPONENTS system)
 find_package(Eigen REQUIRED)
 
 
-# Add the Files for actionlib
-#add_action_files(
-#	DIRECTORY action
-#	FILES RoomExploration.action
-#)
-
-# Generate messages in the 'msg' folder
-#add_message_files(
-#	FILES RoomSequence.msg
-#)
-
-## Generate services in the 'srv' folder
-#add_service_files(
-#	FILES
-#)
-
-
-# Generate added messages and services with any dependencies listed here
-#generate_messages(
-#	DEPENDENCIES
-#		actionlib_msgs
-#		geometry_msgs
-#		move_base_msgs
-#		sensor_msgs
-#		std_msgs
-#)
 
 
 ###################################
@@ -81,8 +53,6 @@ INCLUDE_DIRS
 LIBRARIES
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
-	message_runtime
-	actionlib_msgs
 DEPENDS
 	OpenCV
 	Boost
@@ -118,8 +88,9 @@ add_executable(room_exploration_server ros/src/room_exploration_action_server.cp
 					common/src/grid_point_explorator.cpp
 					common/src/A_star_pathplanner.cpp common/src/node.cpp
 					common/src/concorde_TSP.cpp)
-add_dependencies(
-	room_exploration_server ${catkin_EXPORTED_TARGETS}
+add_dependencies(room_exploration_server
+	${catkin_EXPORTED_TARGETS}
+	${${PROJECT_NAME}_EXPORTED_TARGETS}
 	${PROJECT_NAME}_gencfg)
 target_link_libraries(room_exploration_server
 	${catkin_LIBRARIES} 

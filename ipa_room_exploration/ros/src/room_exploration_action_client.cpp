@@ -15,7 +15,7 @@
 #include <geometry_msgs/Polygon.h>
 #include <geometry_msgs/Point32.h>
 
-#include <ipa_room_exploration/RoomExplorationAction.h>
+#include <ipa_building_msgs/RoomExplorationAction.h>
 
 #include <ipa_room_exploration/timer.h>
 
@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "room_exploration_client");
 
-	actionlib::SimpleActionClient<ipa_room_exploration::RoomExplorationAction> ac("room_exploration/room_exploration_server", true);
+	actionlib::SimpleActionClient<ipa_building_msgs::RoomExplorationAction> ac("room_exploration/room_exploration_server", true);
 
 	// read in test map
 	cv::Mat map = cv::imread("/home/florianj/git/care-o-bot-indigo/src/autopnp/ipa_room_exploration/maps/map.png", 0);
@@ -147,7 +147,7 @@ int main(int argc, char **argv)
 	fow_points[2] = fow_point_3;
 	fow_points[3] = fow_point_4;
 
-	ipa_room_exploration::RoomExplorationGoal goal;
+	ipa_building_msgs::RoomExplorationGoal goal;
 	goal.input_map = labeling;
 	goal.map_origin = map_origin;
 	goal.starting_position = starting_position;

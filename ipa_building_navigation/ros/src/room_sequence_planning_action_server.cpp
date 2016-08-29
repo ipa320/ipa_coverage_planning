@@ -67,11 +67,12 @@ RoomSequencePlanningServer::RoomSequencePlanningServer(ros::NodeHandle nh, std::
 	// start action server
 	room_sequence_with_checkpoints_server_.start();
 
+	// dynamic reconfigure
+	room_sequence_planning_dynamic_reconfigure_server_.setCallback(boost::bind(&RoomSequencePlanningServer::dynamic_reconfigure_callback, this, _1, _2));
+
 	// Parameters
-	std::cout << "\n--------------------------\nRoom Sequence Planner Parameters:\n--------------------------\n";
+	std::cout << "\n------------------------------------\nRoom Sequence Planner Parameters:\n------------------------------------\n";
 	node_handle_.param("tsp_solver", tsp_solver_, 3);
-	std::cout << "room_sequence_planning/tsp_solver = " << tsp_solver_ << std::endl;
-	node_handle_.param("planning_method", planning_method_, 3);
 	std::cout << "room_sequence_planning/tsp_solver = " << tsp_solver_ << std::endl;
 	if (tsp_solver_ == 1)
 		ROS_INFO("You have chosen the Nearest Neighbor TSP method.");
@@ -81,13 +82,62 @@ RoomSequencePlanningServer::RoomSequencePlanningServer(ros::NodeHandle nh, std::
 		ROS_INFO("You have chosen the Concorde TSP solver.");
 	else
 		ROS_INFO("Undefined TSP Solver.");
+	node_handle_.param("planning_method", planning_method_, 2);
+	std::cout << "room_sequence_planning/planning_method = " << planning_method_ << std::endl;
 	if (planning_method_ == 1)
 		ROS_INFO("You have chosen the Trolley dragging method method.");
 	else if (planning_method_ == 2)
-		ROS_INFO("You have chosen the roomgroup planning method.");
+		ROS_INFO("You have chosen the room group planning method.");
 	else
 		ROS_INFO("Undefined planning method.");
+	node_handle_.param("max_clique_path_length", max_clique_path_length_, 12.0);
+	std::cout << "room_sequence_planning/max_clique_path_length = " << max_clique_path_length_ << std::endl;
+	node_handle_.param("map_downsampling_factor", map_downsampling_factor_, 0.25);
+	std::cout << "room_sequence_planning/map_downsampling_factor = " << map_downsampling_factor_ << std::endl;
+	node_handle_.param("check_accessibility_of_rooms", check_accessibility_of_rooms_, true);
+	std::cout << "room_sequence_planning/check_accessibility_of_rooms = " << check_accessibility_of_rooms_ << std::endl;
+	node_handle_.param("return_sequence_map", return_sequence_map_, false);
+	std::cout << "room_sequence_planning/return_sequence_map = " << return_sequence_map_ << std::endl;
 	node_handle_.param("display_map", display_map_, false);
+	std::cout << "room_sequence_planning/display_map = " << display_map_ << std::endl;
+}
+
+// callback function for dynamic reconfigure
+void RoomSequencePlanningServer::dynamic_reconfigure_callback(ipa_building_navigation::BuildingNavigationConfig &config, uint32_t level)
+{
+	std::cout << "######################################################################################" << std::endl;
+	std::cout << "Dynamic reconfigure request:" << std::endl;
+
+	// set method from config
+	tsp_solver_ = config.tsp_solver;
+	std::cout << "room_sequence_planning/tsp_solver = " << tsp_solver_ << std::endl;
+	if (tsp_solver_ == 1)
+		ROS_INFO("You have chosen the Nearest Neighbor TSP method.");
+	else if (tsp_solver_ == 2)
+		ROS_INFO("You have chosen the Genetic TSP method.");
+	else if (tsp_solver_ == 3)
+		ROS_INFO("You have chosen the Concorde TSP solver.");
+	else
+		ROS_INFO("Undefined TSP Solver.");
+	planning_method_ = config.planning_method;
+	std::cout << "room_sequence_planning/planning_method = " << planning_method_ << std::endl;
+	if (planning_method_ == 1)
+		ROS_INFO("You have chosen the Trolley dragging method method.");
+	else if (planning_method_ == 2)
+		ROS_INFO("You have chosen the room group planning method.");
+	else
+		ROS_INFO("Undefined planning method.");
+
+	// set remaining parameters
+	max_clique_path_length_ = config.max_clique_path_length;
+	std::cout << "room_sequence_planning/max_clique_path_length = " << max_clique_path_length_ << std::endl;
+	map_downsampling_factor_ = config.map_downsampling_factor;
+	std::cout << "room_sequence_planning/map_downsampling_factor = " << map_downsampling_factor_ << std::endl;
+	check_accessibility_of_rooms_ = config.check_accessibility_of_rooms;
+	std::cout << "room_sequence_planning/check_accessibility_of_rooms = " << check_accessibility_of_rooms_ << std::endl;
+	return_sequence_map_ = config.return_sequence_map;
+	std::cout << "room_sequence_planning/return_sequence_map = " << return_sequence_map_ << std::endl;
+	display_map_ = config.display_map;
 	std::cout << "room_sequence_planning/display_map = " << display_map_ << std::endl;
 }
 
@@ -108,18 +158,18 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 
 	//get room center and check how many of them are reachable
 	cv::Mat downsampled_map_for_accessability_checking;
-	if(goal->check_accessibility_of_rooms == true)
+	if(check_accessibility_of_rooms_ == true)
 	{
-		a_star_path_planner.downsampleMap(floor_plan, downsampled_map_for_accessability_checking, goal->map_downsampling_factor, goal->robot_radius, goal->map_resolution);
+		a_star_path_planner.downsampleMap(floor_plan, downsampled_map_for_accessability_checking, map_downsampling_factor_, goal->robot_radius, goal->map_resolution);
 	}
 	std::vector<cv::Point> room_centers;
 	for (size_t i=0; i<goal->room_information_in_pixel.size(); ++i)
 	{
 		cv::Point current_center(goal->room_information_in_pixel[i].room_center.x, goal->room_information_in_pixel[i].room_center.y);
-		if(goal->check_accessibility_of_rooms == true)
+		if(check_accessibility_of_rooms_ == true)
 		{
 			std::cout << "checking for accessibility of rooms" << std::endl;
-			double length = a_star_path_planner.planPath(floor_plan, downsampled_map_for_accessability_checking, robot_start_coordinate, current_center, goal->map_downsampling_factor, 0., goal->map_resolution);
+			double length = a_star_path_planner.planPath(floor_plan, downsampled_map_for_accessability_checking, robot_start_coordinate, current_center, map_downsampling_factor_, 0., goal->map_resolution);
 			if(length < 1e9)
 				room_centers.push_back(current_center);
 			else
@@ -140,20 +190,16 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		return;
 	}
 
-	if(goal->planning_method > 0 && goal->planning_method < 3)
+	if(planning_method_ > 0 && planning_method_ < 3)
 	{
-		std::cout << "set planning method from goal" << std::endl;
-		planning_method_ = goal->planning_method;
 		if(planning_method_ == 1)
 			ROS_INFO("You have chosen the drag planning method.");
 		if(planning_method_ == 2)
 			ROS_INFO("You have chosen the grouping planning method.");
 	}
 
-	if(goal->tsp_solver > 0 && goal->tsp_solver < 4)
+	if(tsp_solver_ > 0 && tsp_solver_ < 4)
 	{
-		std::cout << "set tsp solver from goal" << std::endl;
-		tsp_solver_ = goal->tsp_solver;
 		if(tsp_solver_ == 1)
 			ROS_INFO("You have chosen the nearest neighbor solver.");
 		if(tsp_solver_ == 2)
@@ -172,27 +218,27 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 
 	if(planning_method_ == 1) //Drag Trolley if the next room is too far away
 	{
-		std::cout << "Maximal cliquedistance [m]: "<< goal->max_clique_path_length  << " Maximal cliquedistance [Pixel]: "<< goal->max_clique_path_length/goal->map_resolution << std::endl;
+		std::cout << "Maximal cliquedistance [m]: "<< max_clique_path_length_  << " Maximal cliquedistance [Pixel]: "<< max_clique_path_length_/goal->map_resolution << std::endl;
 
 		//calculate the index of the best starting position
-		size_t optimal_start_position = getNearestLocation(floor_plan, robot_start_coordinate, room_centers, goal->map_downsampling_factor, goal->robot_radius, goal->map_resolution);
+		size_t optimal_start_position = getNearestLocation(floor_plan, robot_start_coordinate, room_centers, map_downsampling_factor_, goal->robot_radius, goal->map_resolution);
 
 		//plan the optimal path trough all given rooms
 		std::vector<int> optimal_room_sequence;
 		if(tsp_solver_ == 1) //nearest neighbor TSP solver
 		{
 			NearestNeighborTSPSolver nearest_neighbor_tsp_solver;
-			optimal_room_sequence = nearest_neighbor_tsp_solver.solveNearestTSP(floor_plan, room_centers, goal->map_downsampling_factor, goal->robot_radius, goal->map_resolution, (int) optimal_start_position);
+			optimal_room_sequence = nearest_neighbor_tsp_solver.solveNearestTSP(floor_plan, room_centers, map_downsampling_factor_, goal->robot_radius, goal->map_resolution, (int) optimal_start_position);
 		}
 		if(tsp_solver_ == 2) //genetic TSP solver
 		{
 			GeneticTSPSolver genetic_tsp_solver;
-			optimal_room_sequence = genetic_tsp_solver.solveGeneticTSP(floor_plan, room_centers, goal->map_downsampling_factor, goal->robot_radius, goal->map_resolution, (int) optimal_start_position);
+			optimal_room_sequence = genetic_tsp_solver.solveGeneticTSP(floor_plan, room_centers, map_downsampling_factor_, goal->robot_radius, goal->map_resolution, (int) optimal_start_position);
 		}
 		if(tsp_solver_ == 3) //concorde TSP solver
 		{
 			ConcordeTSPSolver concorde_tsp_solver;
-			optimal_room_sequence = concorde_tsp_solver.solveConcordeTSP(floor_plan, room_centers, goal->map_downsampling_factor, goal->robot_radius, goal->map_resolution, (int) optimal_start_position);
+			optimal_room_sequence = concorde_tsp_solver.solveConcordeTSP(floor_plan, room_centers, map_downsampling_factor_, goal->robot_radius, goal->map_resolution, (int) optimal_start_position);
 		}
 
 		//put the rooms that are close enough together into the same clique, if a new clique is needed put the first roomcenter as a trolleyposition
@@ -200,12 +246,12 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		trolley_positions.push_back(robot_start_coordinate); //trolley stands close to robot on startup
 		//sample down map one time to reduce calculation time
 		cv::Mat downsampled_map;
-		a_star_path_planner.downsampleMap(floor_plan, downsampled_map, goal->map_downsampling_factor, goal->robot_radius, goal->map_resolution);
-		const double one_by_downsampling_factor = 1 / goal->map_downsampling_factor;
+		a_star_path_planner.downsampleMap(floor_plan, downsampled_map, map_downsampling_factor_, goal->robot_radius, goal->map_resolution);
+		const double one_by_downsampling_factor = 1 / map_downsampling_factor_;
 		for(size_t i=0; i<optimal_room_sequence.size(); ++i)
 		{
-			double distance_to_trolley = a_star_path_planner.planPath(floor_plan, downsampled_map, trolley_positions.back(), room_centers[optimal_room_sequence[i]], goal->map_downsampling_factor, 0, goal->map_resolution);
-			if (distance_to_trolley <= goal->max_clique_path_length/goal->map_resolution) //expand current clique by next roomcenter
+			double distance_to_trolley = a_star_path_planner.planPath(floor_plan, downsampled_map, trolley_positions.back(), room_centers[optimal_room_sequence[i]], map_downsampling_factor_, 0, goal->map_resolution);
+			if (distance_to_trolley <= max_clique_path_length_/goal->map_resolution) //expand current clique by next roomcenter
 			{
 				current_clique.push_back(optimal_room_sequence[i]);
 			}
@@ -231,7 +277,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 			room_cliques_as_points.push_back(current_clique);
 		}
 
-		if(goal->return_sequence_map == true)
+		if(return_sequence_map_ == true)
 		{
 			cv::cvtColor(floor_plan, display, CV_GRAY2BGR);
 
@@ -264,7 +310,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 			}
 		}
 		// display
-		if (display_map_ == true && goal->return_sequence_map == true)
+		if (display_map_ == true && return_sequence_map_ == true)
 		{
 			cv::imshow("sequence planning", display);
 			cv::waitKey();
@@ -272,23 +318,23 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 	}
 	else if(planning_method_ == 2) //calculate roomgroups and corresponding trolley positions
 	{
-		std::cout << "Maximal cliquedistance [m]: "<< goal->max_clique_path_length  << " Maximal cliquedistance [Pixel]: "<< goal->max_clique_path_length/goal->map_resolution << std::endl;
+		std::cout << "Maximal cliquedistance [m]: "<< max_clique_path_length_  << " Maximal cliquedistance [Pixel]: "<< max_clique_path_length_/goal->map_resolution << std::endl;
 
 		std::cout << "finding trolley positions" << std::endl;
 		// 1. determine cliques of rooms
 		SetCoverSolver set_cover_solver;
-		cliques = set_cover_solver.solveSetCover(floor_plan, room_centers, goal->map_downsampling_factor, goal->robot_radius, goal->map_resolution, goal->max_clique_path_length/goal->map_resolution);
+		cliques = set_cover_solver.solveSetCover(floor_plan, room_centers, map_downsampling_factor_, goal->robot_radius, goal->map_resolution, max_clique_path_length_/goal->map_resolution);
 
 		// 2. determine trolley position within each clique (same indexing as in cliques)
 		TrolleyPositionFinder trolley_position_finder;
-		trolley_positions = trolley_position_finder.findTrolleyPositions(floor_plan, cliques, room_centers, goal->map_downsampling_factor, goal->robot_radius, goal->map_resolution);
+		trolley_positions = trolley_position_finder.findTrolleyPositions(floor_plan, cliques, room_centers, map_downsampling_factor_, goal->robot_radius, goal->map_resolution);
 		std::cout << "Trolley positions within each clique computed" << std::endl;
 
 		// 3. determine optimal sequence of trolley positions (solve TSP problem)
 		//		a) find nearest trolley location to current robot location
 		//		b) solve the TSP for the trolley positions
 		// reduce image size already here to avoid resizing in the planner each time
-		size_t optimal_trolley_start_position = getNearestLocation(floor_plan, robot_start_coordinate, trolley_positions, goal->map_downsampling_factor, goal->robot_radius, goal->map_resolution);
+		size_t optimal_trolley_start_position = getNearestLocation(floor_plan, robot_start_coordinate, trolley_positions, map_downsampling_factor_, goal->robot_radius, goal->map_resolution);
 
 		//solve the TSP
 		std::vector<int> optimal_trolley_sequence;
@@ -296,17 +342,17 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		if(tsp_solver_ == 1) //nearest neighbor TSP solver
 		{
 			NearestNeighborTSPSolver nearest_neighbor_tsp_solver;
-			optimal_trolley_sequence = nearest_neighbor_tsp_solver.solveNearestTSP(floor_plan, trolley_positions, goal->map_downsampling_factor, goal->robot_radius, goal->map_resolution, (int) optimal_trolley_start_position);
+			optimal_trolley_sequence = nearest_neighbor_tsp_solver.solveNearestTSP(floor_plan, trolley_positions, map_downsampling_factor_, goal->robot_radius, goal->map_resolution, (int) optimal_trolley_start_position);
 		}
 		if(tsp_solver_ == 2) //genetic TSP solver
 		{
 			GeneticTSPSolver genetic_tsp_solver;
-			optimal_trolley_sequence = genetic_tsp_solver.solveGeneticTSP(floor_plan, trolley_positions, goal->map_downsampling_factor, goal->robot_radius, goal->map_resolution, (int) optimal_trolley_start_position);
+			optimal_trolley_sequence = genetic_tsp_solver.solveGeneticTSP(floor_plan, trolley_positions, map_downsampling_factor_, goal->robot_radius, goal->map_resolution, (int) optimal_trolley_start_position);
 		}
 		if(tsp_solver_ == 3) //concorde TSP solver
 		{
 			ConcordeTSPSolver concorde_tsp_solver;
-			optimal_trolley_sequence = concorde_tsp_solver.solveConcordeTSP(floor_plan, trolley_positions, goal->map_downsampling_factor, goal->robot_radius, goal->map_resolution, (int) optimal_trolley_start_position);
+			optimal_trolley_sequence = concorde_tsp_solver.solveConcordeTSP(floor_plan, trolley_positions, map_downsampling_factor_, goal->robot_radius, goal->map_resolution, (int) optimal_trolley_start_position);
 		}
 
 		// 4. determine optimal sequence of rooms with each clique (solve TSP problem)
@@ -349,7 +395,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		//find starting points
 		std::vector<size_t> clique_starting_points(cliques.size());
 		for(size_t i=0; i<cliques.size(); ++i)
-			clique_starting_points[i] = getNearestLocation(floor_plan, trolley_positions[i], room_cliques_as_points[i], goal->map_downsampling_factor, goal->robot_radius, goal->map_resolution);
+			clique_starting_points[i] = getNearestLocation(floor_plan, trolley_positions[i], room_cliques_as_points[i], map_downsampling_factor_, goal->robot_radius, goal->map_resolution);
 		//solve TSPs
 		std::vector< std::vector <int> > optimal_room_sequences(cliques.size());
 		// Create the TSP solver objects two times and not one time for the whole function because by this way only two objects has to be
@@ -359,7 +405,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 			NearestNeighborTSPSolver nearest_neighbor_tsp_solver;
 			for(size_t i=0; i<cliques.size(); ++i)
 			{
-				optimal_room_sequences[i] = nearest_neighbor_tsp_solver.solveNearestTSP(floor_plan, room_cliques_as_points[i], goal->map_downsampling_factor, goal->robot_radius, goal->map_resolution, clique_starting_points[i]);
+				optimal_room_sequences[i] = nearest_neighbor_tsp_solver.solveNearestTSP(floor_plan, room_cliques_as_points[i], map_downsampling_factor_, goal->robot_radius, goal->map_resolution, clique_starting_points[i]);
 				std::cout << "done one clique" << std::endl;
 			}
 		}
@@ -368,7 +414,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 			GeneticTSPSolver genetic_tsp_solver;
 			for(size_t i=0; i<cliques.size(); ++i)
 			{
-				optimal_room_sequences[i] = genetic_tsp_solver.solveGeneticTSP(floor_plan, room_cliques_as_points[i], goal->map_downsampling_factor, goal->robot_radius, goal->map_resolution, clique_starting_points[i]);
+				optimal_room_sequences[i] = genetic_tsp_solver.solveGeneticTSP(floor_plan, room_cliques_as_points[i], map_downsampling_factor_, goal->robot_radius, goal->map_resolution, clique_starting_points[i]);
 				std::cout << "done one clique" << std::endl;
 			}
 		}
@@ -377,12 +423,12 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 			ConcordeTSPSolver concorde_tsp_solver;
 			for(size_t i=0; i<cliques.size(); ++i)
 			{
-				optimal_room_sequences[i] = concorde_tsp_solver.solveConcordeTSP(floor_plan, room_cliques_as_points[i], goal->map_downsampling_factor, goal->robot_radius, goal->map_resolution, clique_starting_points[i]);
+				optimal_room_sequences[i] = concorde_tsp_solver.solveConcordeTSP(floor_plan, room_cliques_as_points[i], map_downsampling_factor_, goal->robot_radius, goal->map_resolution, clique_starting_points[i]);
 				std::cout << "done one clique" << std::endl;
 			}
 		}
 
-		if(goal->return_sequence_map == true)
+		if(return_sequence_map_ == true)
 		{
 			cv::cvtColor(floor_plan, display, CV_GRAY2BGR);
 
@@ -418,7 +464,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 			}
 		}
 		// display
-		if (display_map_ == true && goal->return_sequence_map == true)
+		if (display_map_ == true && return_sequence_map_ == true)
 		{
 			cv::imshow("sequence planning", display);
 			cv::waitKey();
@@ -459,7 +505,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		room_sequences[i].checkpoint_position_in_meter.y = convert_pixel_to_meter_for_y_coordinate(trolley_positions[i].y, goal->map_resolution, map_origin);
 	}
 	action_result.checkpoints = room_sequences;
-	if(goal->return_sequence_map == true)
+	if(return_sequence_map_ == true)
 	{
 		//converting the cv format in map msg format
 		cv_bridge::CvImage cv_image;
@@ -505,7 +551,7 @@ size_t RoomSequencePlanningServer::getNearestLocation(const cv::Mat& floor_plan,
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "room_sequence_planning_server");
-	ros::NodeHandle nh;
+	ros::NodeHandle nh("~");
 
 	RoomSequencePlanningServer sqp(nh, ros::this_node::getName());
 	ROS_INFO("Action server for room sequence planning has been initialized......");

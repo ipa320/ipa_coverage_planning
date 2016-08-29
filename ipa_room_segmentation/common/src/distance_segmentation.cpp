@@ -8,7 +8,7 @@ DistanceSegmentation::DistanceSegmentation()
 
 }
 
-void DistanceSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit)
+void DistanceSegmentation::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit)
 {
 	//variables for energy maximization
 	double optimal_room_area = 50; //variable that sets the desired optimal room area

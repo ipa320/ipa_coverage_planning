@@ -39,6 +39,7 @@ struct EvaluationConfig
 											// 2 = distance segmentation
 											// 3 = Voronoi segmentation
 											// 4 = semantic segmentation
+											// 5 = Voronoi random field segmentation
 	double max_clique_path_length_;		// max A* path length between two rooms that are assigned to the same clique, in [m]
 	int sequence_planning_method_;		// Method for sequence planning
 											// 1 = drag trolley if next room is too far away
@@ -103,6 +104,8 @@ struct EvaluationConfig
 			s = "Voronoi segmentation";
 		else if (room_segmentation_algorithm_ == 4)
 			s = "semantic segmentation";
+		else if (room_segmentation_algorithm_ == 5)
+			s = "Voronoi random field segmentation";
 		return s;
 	}
 };
@@ -202,6 +205,8 @@ public:
 	bool segmented_vor;
 	ipa_building_msgs::MapSegmentationResultConstPtr result_seg_semant;
 	bool segmented_semant;
+	ipa_building_msgs::MapSegmentationResultConstPtr result_seg_vrf;
+	bool segmented_vrf;
 
 	Evaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::string& data_storage_path, const double robot_radius)
 	: node_handle_(nh), robot_radius_(robot_radius)
@@ -210,6 +215,7 @@ public:
 		segmented_dist = false;
 		segmented_vor = false;
 		segmented_semant = false;
+		segmented_vrf = false;
 		// prepare relevant floor map data
 //		std::vector<std::string> map_names;
 ////	map_names.push_back("lab_ipa"); // done
@@ -229,32 +235,32 @@ public:
 //		map_names.push_back("lab_ipa_furnitures");
 
 		std::vector< std::string > map_names;
-//		map_names.push_back("lab_ipa");
-//		map_names.push_back("lab_c_scan");
-//		map_names.push_back("Freiburg52_scan");
-//		map_names.push_back("Freiburg79_scan");
-//		map_names.push_back("lab_b_scan");
-//		map_names.push_back("lab_intel");
-//		map_names.push_back("Freiburg101_scan");
-//		map_names.push_back("lab_d_scan");
-//		map_names.push_back("lab_f_scan");
-//		map_names.push_back("lab_a_scan");
-//		map_names.push_back("NLB");
-//		map_names.push_back("office_a");
-//		map_names.push_back("office_b");
-//		map_names.push_back("office_c");
-//		map_names.push_back("office_d");
-//		map_names.push_back("office_e");
-//		map_names.push_back("office_f");
-//		map_names.push_back("office_g");
-//		map_names.push_back("office_h");
-//		map_names.push_back("office_i");
-//		map_names.push_back("lab_ipa_furnitures");
-//		map_names.push_back("lab_c_scan_furnitures");
-//		map_names.push_back("Freiburg52_scan_furnitures");
-//		map_names.push_back("Freiburg79_scan_furnitures");
-//		map_names.push_back("lab_b_scan_furnitures");
-//		map_names.push_back("lab_intel_furnitures");
+		map_names.push_back("lab_ipa");
+		map_names.push_back("lab_c_scan");
+		map_names.push_back("Freiburg52_scan");
+		map_names.push_back("Freiburg79_scan");
+		map_names.push_back("lab_b_scan");
+		map_names.push_back("lab_intel");
+		map_names.push_back("Freiburg101_scan");
+		map_names.push_back("lab_d_scan");
+		map_names.push_back("lab_f_scan");
+		map_names.push_back("lab_a_scan");
+		map_names.push_back("NLB");
+		map_names.push_back("office_a");
+		map_names.push_back("office_b");
+		map_names.push_back("office_c");
+		map_names.push_back("office_d");
+		map_names.push_back("office_e");
+		map_names.push_back("office_f");
+		map_names.push_back("office_g");
+		map_names.push_back("office_h");
+		map_names.push_back("office_i");
+		map_names.push_back("lab_ipa_furnitures");
+		map_names.push_back("lab_c_scan_furnitures");
+		map_names.push_back("Freiburg52_scan_furnitures");
+		map_names.push_back("Freiburg79_scan_furnitures");
+		map_names.push_back("lab_b_scan_furnitures");
+		map_names.push_back("lab_intel_furnitures");
 		map_names.push_back("Freiburg101_scan_furnitures");
 		map_names.push_back("lab_d_scan_furnitures");
 		map_names.push_back("lab_f_scan_furnitures");
@@ -348,6 +354,7 @@ public:
 			segmented_dist = false;
 			segmented_vor = false;
 			segmented_semant = false;
+			segmented_vrf = false;
 		}
 		failed_maps.close();
 
@@ -540,7 +547,7 @@ public:
 			//define values to show how much different algorithms has been implemented
 			double max_clique_path_length = 4.0;
 			int number_of_cliquelenghts = 8;
-			int number_of_segmentation_algorithms = 4;
+			int number_of_segmentation_algorithms = 5;
 			int number_of_tsp_solver = 3;
 			for(size_t i = 0; i < map_names.size(); ++i)
 			{
@@ -617,7 +624,7 @@ public:
 	void setConfigurations(std::vector< EvaluationConfig >& evaluation_configurations)
 	{
 		evaluation_configurations.clear();
-		for (int room_segmentation_algorithm=1; room_segmentation_algorithm<=4; ++room_segmentation_algorithm)
+		for (int room_segmentation_algorithm=1; room_segmentation_algorithm<=5; ++room_segmentation_algorithm)
 		{
 			for(int sequence_planning_method = 1; sequence_planning_method <= 2; ++sequence_planning_method)
 			{
@@ -708,6 +715,18 @@ public:
 				else
 					std::cout << "map has already been segmented" << std::endl;
 				result_seg = result_seg_semant;
+			}
+			else if (evaluation_configuration_vector[config].room_segmentation_algorithm_ == 5)
+			{
+				if(segmented_vrf == false)
+				{
+					if (segmentFloorPlan(evaluation_data, evaluation_configuration_vector[config], result_seg_vrf, t0) == false)
+						return false;
+					segmented_vrf = true;
+				}
+				else
+					std::cout << "map has already been segmented" << std::endl;
+				result_seg = result_seg_vrf;
 			}
 			clock_gettime(CLOCK_MONOTONIC,  &t1); //set time stamp after the segmentation
 			std::cout << "Segmentation computed " << result_seg->room_information_in_pixel.size() << " rooms." << std::endl;
@@ -1019,6 +1038,7 @@ public:
 				drc.setConfig("max_area_for_merging", 12.5);
 				ROS_INFO("You have chosen the Voronoi random field segmentation.");
 			}
+			drc.setConfig("display_segmented_map", false);
 
 			// send a goal to the action
 			ipa_building_msgs::MapSegmentationGoal goal_seg;
@@ -1104,6 +1124,15 @@ public:
 			roomcenters_for_sequence_planning[room].room_center.y = reachable_roomcenters[room].y;
 		}
 
+		// set algorithm parameters
+		DynamicReconfigureClient drc(node_handle_, "/room_sequence_planning/room_sequence_planning_server/set_parameters", "/room_sequence_planning/room_sequence_planning_server/parameter_updates");
+		drc.setConfig("max_clique_path_length", 1e9);
+		drc.setConfig("map_downsampling_factor", evaluation_data.map_downsampling_factor_);
+		drc.setConfig("planning_method", 1);
+		drc.setConfig("tsp_solver", evaluation_configuration.tsp_solver_);
+		drc.setConfig("return_sequence_map", false);
+		drc.setConfig("check_accessibility_of_rooms", false);
+
 //		std::cout << "Action server started, sending goal_seq." << std::endl;
 		// send a goal_seg to the action
 		ipa_building_msgs::FindRoomSequenceWithCheckpointsGoal goal_seq;
@@ -1111,15 +1140,9 @@ public:
 		goal_seq.map_resolution = evaluation_data.map_resolution_;
 		goal_seq.map_origin = evaluation_data.map_origin_;
 		goal_seq.room_information_in_pixel = roomcenters_for_sequence_planning;
-		goal_seq.max_clique_path_length = 1e9;
-		goal_seq.map_downsampling_factor = evaluation_data.map_downsampling_factor_;
 		goal_seq.robot_radius = 0.;
 		goal_seq.robot_start_coordinate.position.x = robot_start_position.x*evaluation_data.map_resolution_ + evaluation_data.map_origin_.position.x;
 		goal_seq.robot_start_coordinate.position.y = robot_start_position.y*evaluation_data.map_resolution_ + evaluation_data.map_origin_.position.y;
-		goal_seq.planning_method = 1;
-		goal_seq.tsp_solver = evaluation_configuration.tsp_solver_;
-		goal_seq.return_sequence_map = false;
-		goal_seq.check_accessibility_of_rooms = false;
 		ac_seq.sendGoal(goal_seq);
 
 		//wait for the action to return
@@ -1162,6 +1185,15 @@ public:
 				roomcenters_for_sequence_planning[room].room_center.y = reachable_roomcenters[room].y;
 			}
 
+			// set algorithm parameters
+			DynamicReconfigureClient drc(node_handle_, "/room_sequence_planning/room_sequence_planning_server/set_parameters", "/room_sequence_planning/room_sequence_planning_server/parameter_updates");
+			drc.setConfig("max_clique_path_length", evaluation_configuration.max_clique_path_length_);
+			drc.setConfig("map_downsampling_factor", evaluation_data.map_downsampling_factor_);
+			drc.setConfig("planning_method", evaluation_configuration.sequence_planning_method_);
+			drc.setConfig("tsp_solver", evaluation_configuration.tsp_solver_);
+			drc.setConfig("return_sequence_map", true);
+			drc.setConfig("check_accessibility_of_rooms", false);
+
 			std::cout << "Action server started, sending goal_seq." << std::endl;
 			// send a goal_seg to the action
 			ipa_building_msgs::FindRoomSequenceWithCheckpointsGoal goal_seq;
@@ -1169,14 +1201,8 @@ public:
 			goal_seq.map_resolution = evaluation_data.map_resolution_;
 			goal_seq.map_origin = evaluation_data.map_origin_;
 			goal_seq.room_information_in_pixel = roomcenters_for_sequence_planning;
-			goal_seq.max_clique_path_length = evaluation_configuration.max_clique_path_length_;
-			goal_seq.map_downsampling_factor = evaluation_data.map_downsampling_factor_;
 			goal_seq.robot_radius = robot_radius_;
 			goal_seq.robot_start_coordinate = evaluation_data.robot_start_position_;
-			goal_seq.planning_method = evaluation_configuration.sequence_planning_method_;
-			goal_seq.tsp_solver = evaluation_configuration.tsp_solver_;
-			goal_seq.return_sequence_map = true;
-			goal_seq.check_accessibility_of_rooms = false;
 			ac_seq.sendGoal(goal_seq);
 
 			//wait for the action to return

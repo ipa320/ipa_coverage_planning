@@ -112,6 +112,11 @@ protected:
 	bool display_segmented_map_;	// displays the segmented map upon service call
 	std::vector<cv::Point> doorway_points_; // vector that saves the found doorway points, when using the 5th algorithm (vrf)
 
+	std::vector<std::string> vrf_original_maps_file_list_;	// list of files containing the original maps for training the VRF segmentation
+	std::vector<std::string> vrf_training_maps_file_list_;	// list of files containing the labeled maps for training the VRF segmentation
+	std::vector<std::string> vrf_voronoi_maps_file_list_;	// list of files containing the Voronoi maps for training the VRF segmentation - these files are optional for training and just yield a speedup
+	std::vector<std::string> vrf_voronoi_node_maps_file_list_;	// list of files containing the Voronoi node maps for training the VRF segmentation - these files are optional for training and just yield a speedup
+
 	//converter-> Pixel to meter for X coordinate
 	double convert_pixel_to_meter_for_x_coordinate(const int pixel_valued_object_x, const float map_resolution, const cv::Point2d map_origin)
 	{

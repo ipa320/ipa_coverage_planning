@@ -7,8 +7,6 @@ float32 map_resolution					# the resolution of the map in [meter/cell]
 geometry_msgs/Pose2D map_origin				# the origin of the map in [meter]
 float32 robot_radius					# in [meter]
 geometry_msgs/Point32[] field_of_view			# the points that define the field of view of the robot, relatively to the robot, [meter], counter-clock-wise starting from left, nearer to robot point
-int32 path_planning_algorithm				#  this variable selects the algorithm for path planning
-								# 1 = grid point explorator
 geometry_msgs/Pose2D starting_position			# Pose where the robot starts in the room coordinatesystem [meter]
 geometry_msgs/Polygon room_min_max			# first point provides the minimum (x,y)-coordinate values of the rooms, second point provides the maximum (x,y)-coordinate values of the rooms
 string map_frame					# string that carries the name of the map frame, used for tracking of the robot

@@ -15,6 +15,7 @@ set(catkin_RUN_PACKAGES
 set(catkin_BUILD_PACKAGES
 	${catkin_RUN_PACKAGES}
 	cmake_modules
+	dynamic_reconfigure
 )
 
 ## Find catkin macros and libraries
@@ -22,8 +23,12 @@ find_package(catkin REQUIRED COMPONENTS
 	${catkin_BUILD_PACKAGES}
 )
 
+generate_dynamic_reconfigure_options(
+  cfg/BuildingNavigation.cfg
+)
+
 find_package(OpenCV REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED COMPONENTS system thread)
 
 ###################################
 ## catkin specific configuration ##
@@ -73,9 +78,18 @@ add_executable(room_sequence_planning_server
 	common/src/maximal_clique_finder.cpp
 	common/src/contains.cpp
 	common/src/set_cover_solver.cpp
-	common/src/trolley_position_finder.cpp)
-target_link_libraries(room_sequence_planning_server ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES})
-add_dependencies(room_sequence_planning_server ${catkin_EXPORTED_TARGETS})
+	common/src/trolley_position_finder.cpp
+)
+target_link_libraries(room_sequence_planning_server
+	${catkin_LIBRARIES}
+	${OpenCV_LIBRARIES}
+	${Boost_LIBRARIES}
+)
+add_dependencies(room_sequence_planning_server
+	${catkin_EXPORTED_TARGETS} 
+	${${PROJECT_NAME}_EXPORTED_TARGETS}
+	${PROJECT_NAME}_gencfg
+)
 
 # client for testing purpose
 add_executable(room_sequence_planning_client ros/src/room_sequence_planning_action_client.cpp)
