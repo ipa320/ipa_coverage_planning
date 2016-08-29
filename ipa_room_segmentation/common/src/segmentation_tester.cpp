@@ -55,8 +55,8 @@ int main()
 	possible_labels[2] = 179;
 
 	// strings that stores the path to the saving files
-	std::string conditional_weights_path = package_path + "/common/files/training_results/conditional_field_weights.txt";
-	std::string boost_file_path = package_path + "/common/files/training_results/";
+	std::string conditional_weights_path = package_path + "/common/files/classifier_models/conditional_field_weights.txt";
+	std::string boost_file_path = package_path + "/common/files/classifier_models/";
 
 	// optimal result saving path
 	std::string conditional_weights_optimal_path = package_path + "/common/files/optimal_vrf_res/conditional_field_weights.txt";

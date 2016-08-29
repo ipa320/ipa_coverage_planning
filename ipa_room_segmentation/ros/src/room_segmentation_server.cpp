@@ -344,7 +344,8 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 	{
 		AdaboostClassifier semantic_segmentation; //semantic segmentation method
 		const std::string package_path = ros::package::getPath("ipa_room_segmentation");
-		const std::string classifier_path = package_path + "/common/files/training_results/";
+		const std::string classifier_default_path = package_path + "/common/files/classifier_models/";
+		const std::string classifier_path = "room_segmentation/classifier_models/";
 		if (train_the_algorithm_)
 		{
 			//load the training maps, change to your maps when you want to train different ones
@@ -386,14 +387,14 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 			semantic_segmentation.trainClassifiers(room_training_maps, hallway_training_maps, classifier_path);
 		}
 		semantic_segmentation.segmentMap(original_img, segmented_map, map_resolution, room_lower_limit_semantic_, room_upper_limit_semantic_,
-			classifier_path, display_segmented_map_);
+			classifier_path, classifier_default_path, display_segmented_map_);
 	}
 	else if (room_segmentation_algorithm_ == 5)
 	{
 		VoronoiRandomFieldSegmentation vrf_segmentation(false, false); //voronoi random field segmentation method
 		const std::string package_path = ros::package::getPath("ipa_room_segmentation");
-		std::string conditional_weights_path = package_path + "/common/files/training_results/conditional_field_weights.txt";
-		std::string boost_file_path = package_path + "/common/files/training_results/";
+		std::string conditional_weights_path = package_path + "/common/files/classifier_models/conditional_field_weights.txt";
+		std::string boost_file_path = package_path + "/common/files/classifier_models/";
 		// vector that stores the possible labels that are drawn in the training maps. Order: room - hallway - doorway
 		std::vector<uint> possible_labels(3);
 		possible_labels[0] = 77;

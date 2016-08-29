@@ -5,6 +5,8 @@
 
 #include <ipa_room_segmentation/timer.h>
 
+#include <boost/filesystem.hpp>
+
 AdaboostClassifier::AdaboostClassifier()
 {
 	//save the angles between the simulated beams, used in the following algorithm
@@ -132,11 +134,21 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 //	}
 //	fs.release();
 
+	boost::filesystem::path storage_path(classifier_storage_path);
+	if (boost::filesystem::exists(storage_path) == false)
+	{
+		if (boost::filesystem::create_directory(storage_path) == false)
+		{
+			std::cout << "Error: AdaboostClassifier::trainClassifiers: Could not create directory " << storage_path;
+			return;
+		}
+	}
+
 	//*********hallway***************
 	// Train a boost classifier
 	hallway_boost_.train(hallway_features_mat, CV_ROW_SAMPLE, hallway_labels_mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
 	//save the trained booster
-	std::string filename_hallway = classifier_storage_path + "trained_hallway_boost.xml";
+	std::string filename_hallway = classifier_storage_path + "semantic_hallway_boost.xml";
 	hallway_boost_.save(filename_hallway.c_str(), "boost");
 	ROS_INFO("Done hallway classifiers.");
 
@@ -144,7 +156,7 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 	// Train a boost classifier
 	room_boost_.train(room_features_mat, CV_ROW_SAMPLE, room_labels_mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
 	//save the trained booster
-	std::string filename_room = classifier_storage_path + "trained_room_boost.xml";
+	std::string filename_room = classifier_storage_path + "semantic_room_boost.xml";
 	room_boost_.save(filename_room.c_str(), "boost");
 	//set the trained-variabel true, so the labeling-algorithm knows the classifiers have been trained already
 	trained_ = true;
@@ -153,13 +165,14 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 }
 
 void AdaboostClassifier::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription,
-        double room_area_factor_lower_limit, double room_area_factor_upper_limit, const std::string& classifier_storage_path, bool display_results)
+        double room_area_factor_lower_limit, double room_area_factor_upper_limit, const std::string& classifier_storage_path,
+        const std::string& classifier_default_path, bool display_results)
 {
 	//******************Semantic-labeling function based on AdaBoost*****************************
 	//This function calculates single-valued features for every white Pixel in the given occupancy-gridmap and classifies it
 	//using the AdaBoost-algorithm from OpenCV. It does the following steps:
 	//	I. If the classifiers hasn't been trained before they should load the training-results saved in the
-	//	   training_results folder
+	//	   classifier_models folder
 	//	II. Go trough each Pixel of the given map. If this Pixel is white simulate the laser-beams for it and calculate each
 	//		of the implemented features.
 	//	III. Apply a median-Filter on the labeled map to smooth the output of it.
@@ -175,10 +188,28 @@ void AdaboostClassifier::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat& s
 	//***********************I. check if classifiers has already been trained*****************************
 	if (!trained_) //classifiers hasn't been trained before so they should be loaded
 	{
-		std::string filename_room = classifier_storage_path + "trained_room_boost.xml";
+		boost::filesystem::path storage_path(classifier_storage_path);
+		if (boost::filesystem::exists(storage_path) == false)
+		{
+			if (boost::filesystem::create_directory(storage_path) == false)
+			{
+				std::cout << "Error: AdaboostClassifier::segmentMap: Could not create directory " << storage_path;
+				return;
+			}
+		}
+
+		std::string filename_room = classifier_storage_path + "semantic_room_boost.xml";
+		std::string filename_room_default = classifier_default_path + "semantic_room_boost.xml";
+		if (boost::filesystem::exists(boost::filesystem::path(filename_room)) == false)
+			boost::filesystem::copy_file(filename_room_default, filename_room);
 		room_boost_.load(filename_room.c_str());
-		std::string filename_hallway = classifier_storage_path + "trained_hallway_boost.xml";
+
+		std::string filename_hallway = classifier_storage_path + "semantic_hallway_boost.xml";
+		std::string filename_hallway_default = classifier_default_path + "semantic_hallway_boost.xml";
+		if (boost::filesystem::exists(boost::filesystem::path(filename_hallway)) == false)
+			boost::filesystem::copy_file(filename_hallway_default, filename_hallway);
 		hallway_boost_.load(filename_hallway.c_str());
+
 		trained_ = true;
 		ROS_INFO("Loaded training results.");
 	}

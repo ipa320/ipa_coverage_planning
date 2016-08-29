@@ -536,7 +536,7 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 	// Train a boost classifier
 	room_boost_.train(features_Mat, CV_ROW_SAMPLE, room_labels_Mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
 	//save the trained booster
-	std::string filename_room = classifier_storage_path + "voronoi_room_boost.xml";
+	std::string filename_room = classifier_storage_path + "vrf_room_boost.xml";
 	room_boost_.save(filename_room.c_str(), "boost");
 	std::cout << "Trained room classifier" << std::endl;
 
@@ -549,7 +549,7 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 	// Train a boost classifier
 	hallway_boost_.train(features_Mat, CV_ROW_SAMPLE, hallway_labels_Mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
 	//save the trained booster
-	std::string filename_hallway = classifier_storage_path + "voronoi_hallway_boost.xml";
+	std::string filename_hallway = classifier_storage_path + "vrf_hallway_boost.xml";
 	hallway_boost_.save(filename_hallway.c_str(), "boost");
 	std::cout << "Trained hallway classifier" << std::endl;
 
@@ -562,7 +562,7 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 	// Train a boost classifier
 	doorway_boost_.train(features_Mat, CV_ROW_SAMPLE, doorway_labels_Mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
 	//save the trained booster
-	std::string filename_doorway = classifier_storage_path + "voronoi_doorway_boost.xml";
+	std::string filename_doorway = classifier_storage_path + "vrf_doorway_boost.xml";
 	doorway_boost_.save(filename_doorway.c_str(), "boost");
 	std::cout << "Trained doorway classifier" << std::endl;
 
@@ -1123,9 +1123,9 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 	cv::Mat original_image = original_map.clone();
 
 	// if the training results haven't been loaded or trained before load them
-	std::string filename_room = boost_storage_path + "voronoi_room_boost.xml";
-	std::string filename_hallway = boost_storage_path + "voronoi_hallway_boost.xml";
-	std::string filename_doorway = boost_storage_path + "voronoi_doorway_boost.xml";
+	std::string filename_room = boost_storage_path + "vrf_room_boost.xml";
+	std::string filename_hallway = boost_storage_path + "vrf_hallway_boost.xml";
+	std::string filename_doorway = boost_storage_path + "vrf_doorway_boost.xml";
 	if(trained_boost_ == false)
 	{
 		// load the AdaBoost-classifiers
@@ -1683,9 +1683,9 @@ void VoronoiRandomFieldSegmentation::testFunc(const cv::Mat& original_map)
 	std::cout << "testfunc" << std::endl;
 
 //	// if the training results haven't been loaded or trained before load them
-//	std::string filename_room = boost_storage_path + "voronoi_room_boost.xml";
-//	std::string filename_hallway = boost_storage_path + "voronoi_hallway_boost.xml";
-//	std::string filename_doorway = boost_storage_path + "voronoi_doorway_boost.xml";
+//	std::string filename_room = boost_storage_path + "vrf_room_boost.xml";
+//	std::string filename_hallway = boost_storage_path + "vrf_hallway_boost.xml";
+//	std::string filename_doorway = boost_storage_path + "vrf_doorway_boost.xml";
 //
 //	room_boost_.save(filename_room.c_str(), "boost");
 //	hallway_boost_.save(filename_hallway.c_str(), "boost");
