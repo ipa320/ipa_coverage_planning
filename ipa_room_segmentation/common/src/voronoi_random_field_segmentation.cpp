@@ -872,6 +872,7 @@ void VoronoiRandomFieldSegmentation::trainAlgorithms(const std::vector<cv::Mat>&
 	{
 		compute_voronoi_maps = true;
 		voronoi_maps.resize(original_maps.size());
+		std::cout << "Creating the voronoi graphs before training." << std::endl;
 	}
 	for(size_t current_map_index = 0; current_map_index < training_maps.size(); ++current_map_index)
 	{

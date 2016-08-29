@@ -429,7 +429,6 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 //			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/training_maps/training_lab_c_furnitures.png", 0);
 //			training_maps.push_back(training_map);
 
-			// todo: transfer file lists to launch file
 			// load the voronoi maps
 			std::vector<cv::Mat> voronoi_maps;
 			for (size_t i=0; i<vrf_voronoi_maps_file_list_.size(); ++i)
@@ -506,7 +505,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 //			training_map = cv::imread(package_path + "/common/files/training_maps/voronoi_random_field_training/original_maps/lab_c_furnitures_original.png", 0);
 //			original_maps.push_back(training_map);
 			//train the algorithm
-			vrf_segmentation.trainAlgorithms(training_maps, voronoi_maps, voronoi_node_maps, original_maps, possible_labels, classifier_storage_path,
+			vrf_segmentation.trainAlgorithms(original_maps, training_maps, voronoi_maps, voronoi_node_maps, possible_labels, classifier_storage_path,
 					voronoi_random_field_epsilon_for_neighborhood_, max_iterations_, min_neighborhood_size_, min_voronoi_random_field_node_distance_);
 		}
 		doorway_points_.clear();
