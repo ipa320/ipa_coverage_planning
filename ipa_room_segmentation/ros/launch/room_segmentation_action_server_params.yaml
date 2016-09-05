@@ -11,6 +11,10 @@ room_segmentation_algorithm: 3
 # bool
 display_segmented_map: false
 
+# train the semantic segmentation and the voronoi random field segmentation
+train_semantic: false
+train_vrf: false
+
 # room area factor-> Set the limitation of area of the room -------> in [m^2]
 #morphological segmentation: 47.0 - 0.8 (means the room area after eroding/shrinking s.t. too small/big contours are not treated as rooms)
 room_area_factor_upper_limit_morphological: 47.0

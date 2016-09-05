@@ -99,7 +99,7 @@ protected:
 										// 4 = semantic segmentation
 										// 5 = voronoi-random-field segmentation
 
-	bool train_the_algorithm_; //Boolean to say if the algorithm needs to be trained
+	bool train_semantic_, train_vrf_; //Boolean to say if the algorithm needs to be trained
 
 	int voronoi_neighborhood_index_; //Variable for the Voronoi method that specifies the neighborhood that is looked at for critical Point extraction
 	int voronoi_random_field_epsilon_for_neighborhood_; //Variable that specifies the neighborhood for the vrf-segmentation.
