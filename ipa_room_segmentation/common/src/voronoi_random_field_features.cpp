@@ -188,7 +188,7 @@ double voronoiRandomFieldFeatures::calcFeature3(const std::vector<double>& beams
 
 	double differences_sum = 0;
 	double val1, val2;
-	for (int b = 0; b < beams.size() - 1; b++)
+	for (int b = 0; b < beams.size()-1; b++)
 	{
 		//reset saved beamlenghts
 		val1 = maxval;
@@ -206,9 +206,9 @@ double voronoiRandomFieldFeatures::calcFeature3(const std::vector<double>& beams
 	//get the difference between the last and the first beam
 	val1 = maxval;
 	val2 = maxval;
-	if (beams[beams.size()] < maxval)
+	if (beams[beams.size()-1] < maxval)
 	{
-		val1 = beams[beams.size() - 1];
+		val1 = beams[beams.size()-1];
 	}
 	if (beams[0] < maxval)
 	{
@@ -253,9 +253,9 @@ double voronoiRandomFieldFeatures::calcFeature4(const std::vector<double>& beams
 	//add the difference from last to first point
 	v = maxval;
 	w = maxval;
-	if (beams[beams.size()] < maxval)
+	if (beams[beams.size()-1] < maxval)
 	{
-		v = beams[beams.size() - 1];
+		v = beams[beams.size()-1];
 	}
 	if (beams[0] < maxval)
 	{

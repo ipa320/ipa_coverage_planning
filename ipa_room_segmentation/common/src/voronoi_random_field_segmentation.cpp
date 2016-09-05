@@ -658,7 +658,6 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 
 	// copy the summed vector to the given feature-vector
 	feature_vector = temporary_feature_vector;
-
 }
 
 //
@@ -1338,7 +1337,6 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 	std::cout << "Created all possible label-configurations. Time: " << timer.getElapsedTimeInMilliSec() << "ms" << std::endl;
 
 	timer.start();
-
 	// Go trough each clique and define the function and factor for it.
 	for(std::vector<Clique>::iterator current_clique = conditional_random_field_cliques.begin(); current_clique != conditional_random_field_cliques.end(); ++current_clique)
 	{
@@ -1443,7 +1441,7 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 			cv::circle(resulting_map, *i, 3, cv::Scalar(possible_labels[best_labels[distance]]), CV_FILLED);
 		}
 
-//		cv::imshow("node-map", resulting_map);
+		cv::imshow("node-map", resulting_map);
 //		cv::waitKey();
 	}
 	std::cout << "complete Potential: " << belief_propagation.value() << std::endl;
@@ -1694,8 +1692,6 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 	// go trough the saved white points and make them white in the segmented map again
 	for(std::vector<cv::Point>::iterator point = white_points.begin(); point != white_points.end(); ++point)
 		segmented_map.at<int>(*point) = 255*256;
-
-	cv::imshow("before wavefront", segmented_map);
 
 	// color remaining white space
 	wavefrontRegionGrowing(segmented_map);
