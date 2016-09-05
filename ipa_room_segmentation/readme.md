@@ -29,6 +29,8 @@ Optionally one can also provide additional data to save computation time, the pr
 After you created your personal training files you also have to specify the path to them in room_segmentation_action_server.launch.
 
 
+
+
 ########### References ###########
 
 [1] Martinez Mozos, O., Rottmann, A., Triebel, R., Jensfelt, P., Burgard, W., et al. Semantic labeling of places using information extracted from laser and vision sensor data (2006)
