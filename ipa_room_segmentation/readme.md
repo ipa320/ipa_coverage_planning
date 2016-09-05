@@ -3,7 +3,9 @@
 1. Change the algorithm parameters in ros/launch/room_segmentation_action_server_params.yaml in ros/launch to the wanted algorithms and settings.
 	* The parameter room_segmentation_algorithm directly changes the used segmentation algorithm directly.
 	* The parameter display_segmented_map is used to specify if you want a window to pop up after the given map has been segmented, showing the results. To continue the program press any Button.
-	* Train_semantic and train_vrf are Booleans showing if the semantic or voronoi random field segmentation should be trained. For details of this training method see the further document.
+	* The parameters train_semantic and train_vrf are Booleans showing if the semantic or voronoi random field segmentation should be trained. For details of this training method see the further document.
+	* Every algorithm has its own specific range of allowed room areas. Segments that are out of this range will not be drawn and are going to be filled by the surrounding valid rooms. **Remark:** The upper border in the semantic segmentation method has a different meaning. If found segments are too big they become seperated by randomly putting centers in the segment and splitting it by using a wavefront algorithm. Its better to turn this off by setting the allowed maximal area very high.
+	* Some algorithms have specific parameters that change some functionality of it, which is described in detail in the .yaml file.
 2. Start the action server using the file /ros/launch/room_segmentation_action_server.launch, which executes the /ros/src/room_segmentation_server.cpp file
 3. Start an action client, which sends a goal to the segmentation action server, corresponding to the MapSegmentation.action message, which lies in ipa_building_msgs/action.
 
@@ -25,7 +27,6 @@ Examples for training data for this algorithm can be seen in common/files/traini
 	- 77: room
 	- 115: hallway
 	- 179: doorway
-
 Optionally one can also provide additional data to save computation time, the precomputed maps with a voronoi graph drawn in (color 127) and maps that show where nodes are in the given voronoi graph. If you provide one of it you also need to provide the other.
 After you created your personal training files you also have to specify the path to them in room_segmentation_action_server.launch.
 
