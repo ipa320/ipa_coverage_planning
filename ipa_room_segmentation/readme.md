@@ -14,9 +14,9 @@
     * input_map: The map that should be segmented, as sensor_msgs/Image. **Has to be a 8-Bit single channel image, with 0 as occupied space and 255 as free space**.
     * map_resolution: The resolution the map has been sampled with [meter/cell].
     * map_origin: The origin of the map in [meter] to bring the provided map coordinates in absolute coordinates, if wanted.
-    * return_format_in_pixel: Boolean to show if the results should be returned in pixel-coordinates.
-    * return_format_in_meter: Boolean to show if the results should be returned in absolute coordinates.
-    * robot_radius: The radius of your robot. If this is set a value greater than 0 the room centers are chosen at locally reachable areas.
+    * return_format_in_pixel: Boolean to indicate if the results should be returned in pixel-coordinates.
+    * return_format_in_meter: Boolean to indicate if the results should be returned in absolute coordinates.
+    * robot_radius: The radius of your robot. If this is set to a value greater than 0 the room centers are chosen at locally reachable areas.
 4. The action server returns a result, that has the following parts
     * segmented_map: The map with the N found segments drawn in. The value of a pixel indicates its ID, which can be used to find pixels belonging to one room. The IDs start at 1 and go up to N, the **return format is 32-Bit single channel**.
     * RoomInformation: For each found room the min/max x/y coordinate of points belonging to this room and the center is provided. See ipa_building_msgs/msg/RoomInformation.msg for details. This can be in pixel coordinates or absolute coordinates, depending on the booleans defined above.
@@ -26,7 +26,7 @@ A Client also can change the parameters of the server by using dynamic_reconfigu
 
 The algorithms are implemented in common/src, using the headers in common/include/ipa_room_segmentation. Each algorithm has its own class, so if you want to use it alone you have to include the header for the algorithm you want to use and make a new object. Then you have to execute the segmentMap() function, which segments the map.
 
-For large maps the algorithms can take a few minutes to complete the segmentation, especially the semantic and voronoi random field segmentation. If you want fast results, the morphological and distance segmentation are the fastest, but might return not the best results if you have wide open spaces. To see results on different maps, see [http://wiki.ros.org/ipa_room_segmentation](http://wiki.ros.org/ipa_room_segmentation).
+For large maps the algorithms can take a few minutes to complete the segmentation, especially the semantic and voronoi random field segmentation. If you want fast results, the morphological and distance segmentation are the fastest, but they might return not the best results if you have wide open spaces. To see results on different maps, see [http://wiki.ros.org/ipa_room_segmentation](http://wiki.ros.org/ipa_room_segmentation).
 
 # Available algorithms
 
