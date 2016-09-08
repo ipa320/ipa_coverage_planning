@@ -61,12 +61,9 @@ After you created your personal training files you also have to specify the path
 	
 # Provided test maps
 
-This package provides a database of 20 floor plans with and without furnitures, used to test the algorithms.Some of these are simulative mapped images, but most are simply drawn using graphics software. The floor maps lie in png format under common/files/test_maps. Relevant are the ones which are existing in several versions, shown by name extensions
+This package provides a database of 20 floor plans with and without furnitures, used to test the algorithms.Some of these are simulative mapped images, but most are simply drawn using graphics software. The floor maps lie in png format under common/files/test_maps. Relevant are the ones which are existing in a version with furnitures, shown by name extension _furniture. 
 
-1. furniture: The original map with furnitures drawn in.
-2. trashbins: The original map with trashbins as blue pixels drawn in.
-    
-Additionally there are ground-truth maps, that show how a human might intersect these maps, shown by the name extension _gt. If you want to color these ground-truth maps, to show the different segments, you can use a flood-fill algorithm for the white pixels to collect each pixel that belong to one segment, because the drawn lines seperates the white spaces from each other. Then you can color each of this found pixel with a color that is unique for this segment. This is done in the computePrecisionRecall() function of the EvaluationSegmentation class (common/src/evaluation_segmentation.cpp) if you want it.
+Additionally there are ground-truth maps, that show how a human might intersect these maps, shown by the name extension _gt. If you want to color these ground-truth maps, to show the different segments, you can use a flood-fill algorithm for the white pixels to collect each pixel that belong to one segment, because the drawn lines seperates the white spaces from each other. Then you can color each of this found pixel with a color that is unique for this segment. This is done in the computePrecisionRecall() function of the EvaluationSegmentation class (common/src/evaluation_segmentation.cpp) if you want it. 
 
 # References
 
