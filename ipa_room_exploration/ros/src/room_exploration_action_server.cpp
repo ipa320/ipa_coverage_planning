@@ -16,6 +16,8 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		grid_line_length_ = config.grid_line_length;
 		std::cout << "room_exploration/grid_line_length_ = " << grid_line_length_ << std::endl;
 	}
+
+	std::cout << "######################################################################################" << std::endl;
 }
 
 // constructor
@@ -389,7 +391,7 @@ int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "room_exploration_server");
 
-	ros::NodeHandle nh;
+	ros::NodeHandle nh("~");
 
 	RoomExplorationServer explorationObj(nh, ros::this_node::getName());
 	ROS_INFO("Action Server for room exploration has been initialized......");

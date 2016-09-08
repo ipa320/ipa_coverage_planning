@@ -17,6 +17,8 @@
 
 #include <ipa_building_msgs/RoomExplorationAction.h>
 
+#include <ipa_room_exploration/dynamic_reconfigure_client.h>
+
 #include <ipa_room_exploration/timer.h>
 
 #include <Eigen/Dense>
@@ -50,8 +52,9 @@ int pointInsidePolygonCheck(cv::Point P, std::vector<cv::Point> V)
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "room_exploration_client");
+	ros::NodeHandle nh;
 
-	actionlib::SimpleActionClient<ipa_building_msgs::RoomExplorationAction> ac("room_exploration/room_exploration_server", true);
+	actionlib::SimpleActionClient<ipa_building_msgs::RoomExplorationAction> ac("room_exploration_server", true);
 
 	// read in test map
 	cv::Mat map = cv::imread("/home/florianj/git/care-o-bot-indigo/src/autopnp/ipa_room_exploration/maps/map.png", 0);
@@ -90,6 +93,12 @@ int main(int argc, char **argv)
 	ac.waitForServer(); //will wait for infinite time
 
 	ROS_INFO("Action server started, sending goal.");
+
+	DynamicReconfigureClient drc_exp(nh, "room_exploration_server/set_parameters", "room_exploration_server/parameter_updates");
+	drc_exp.setConfig("grid_line_length", 25);
+	DynamicReconfigureClient drc_amcl(nh, "amcl/set_parameters", "amcl/parameter_updates");
+	drc_amcl.setConfig("update_min_d", 0.03);
+	drc_amcl.setConfig("update_min_a", 0.01);
 
 //	cv::Point2f src_center(map.cols/2.0F, map.rows/2.0F);
 //	cv::Mat rot_mat = getRotationMatrix2D(src_center, 180, 1.0);
