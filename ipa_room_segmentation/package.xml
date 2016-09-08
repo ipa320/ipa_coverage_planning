@@ -15,12 +15,12 @@
 			5. A mix of the semantic-labeling and the voronoi-based algorithm, called voronoi-random-fields. It creates a conditional-random-field out of a pruned generalized Voronoi-graph
 			   and uses the weak-responses of the AdaBoost classifiers to find the best labels for each node. Advantage of this over the semantic labeling is that it can take care of
 			   neighbor-relations, which allows to detect doorways, as well as rooms and hallways. (common/src/voronoi_random_field_segmentation.cpp)
-		For more detailed descriptions see the corresponding files. This algorithms often uses OpenCV, so it's very important for these algorithms. Feel free to mail the author if you have further 			questions, like "What the hell did he make there?" Also make sure everything in the CMakeList.txt is included, linked and installed (thanks to catkin :-) ).
+		For more detailed descriptions see the corresponding files. This algorithms often uses OpenCV, so it's very important for these algorithms.
 	</description>
 	<author email="florian.jordan@ipa.fraunhofer.de">Florian Jordan</author>
 	<maintainer email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</maintainer>
 	<license>LGPL</license>
-	<url>http://ros.org/wiki/ipa_room_segmentation</url>
+	<url>http://wiki.ros.org/ipa_room_segmentation</url>
 
 	<buildtool_depend>catkin</buildtool_depend>
 	
