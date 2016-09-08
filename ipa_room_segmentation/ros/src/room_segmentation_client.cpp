@@ -165,7 +165,7 @@ int main(int argc, char **argv)
 
 		// test dynamic reconfigure
 		DynamicReconfigureClient drc(nh, "room_segmentation_server/set_parameters", "room_segmentation_server/parameter_updates");
-		drc.setConfig("room_segmentation_algorithm", 4);
+		drc.setConfig("room_segmentation_algorithm", 3);
 //		drc.setConfig("display_segmented_map", true);
 		//drc.setConfig("room_area_factor_upper_limit_voronoi", 120.0);
 
@@ -221,10 +221,8 @@ int main(int argc, char **argv)
 				cv::circle(colour_segmented_map, current_center, 2, CV_RGB(0,0,255), CV_FILLED);
 			}
 
-//			cv::imshow("segmentation", colour_segmented_map);
-//			cv::waitKey();
-			std::string save_path = "/home/florianj/.ros/segmentation/" + map_names[image_index] + ".png";
-			cv::imwrite(save_path.c_str(), colour_segmented_map);
+			cv::imshow("segmentation", colour_segmented_map);
+			cv::waitKey();
 		}
 	}
 
