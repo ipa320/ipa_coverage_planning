@@ -5,10 +5,7 @@
 #include <ros/time.h>
 #include <cv_bridge/cv_bridge.h>
 
-#include <dynamic_reconfigure/server.h>
 #include <ipa_room_exploration/RoomExplorationConfig.h>
-
-#include <tf/transform_listener.h>
 
 #include <Eigen/Dense>
 
@@ -18,10 +15,15 @@
 #include <vector>
 
 #include <ipa_building_msgs/RoomExplorationAction.h>
+#include <cob_map_accessibility_analysis/CheckPerimeterAccessibility.h>
 
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>
 #include <geometry_msgs/Point32.h>
+
+#include <tf/transform_listener.h>
+
+#include <dynamic_reconfigure/server.h>
 
 #include <ipa_room_exploration/grid_point_explorator.h>
 
@@ -49,9 +51,6 @@ protected:
 	// function to publish a navigation goal, it returns true if the goal could be reached
 	bool publishNavigationGoal(const geometry_msgs::Pose2D& nav_goal, const std::string map_frame,
 			const std::string camera_frame, std::vector<geometry_msgs::Pose2D>& robot_poses);
-
-	// function to check if a point is inside a given polygon, using the crossing line algorithm
-	int pointInsidePolygonCheck(cv::Point P, std::vector<cv::Point> V);
 
 	// converter-> Pixel to meter for X coordinate
 	double convertPixelToMeterForXCoordinate(const int pixel_valued_object_x, const float map_resolution, const cv::Point2d map_origin)

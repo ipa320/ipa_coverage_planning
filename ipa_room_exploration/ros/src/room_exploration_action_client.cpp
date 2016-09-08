@@ -19,36 +19,9 @@
 
 #include <ipa_room_exploration/dynamic_reconfigure_client.h>
 
-#include <cob_map_accessibility_analysis/CheckPerimeterAccessibility.h>
-
 #include <ipa_room_exploration/timer.h>
 
 #include <Eigen/Dense>
-
-// crossing number test for a point in a polygon
-//      Input:   P = a point,
-//               V[] = vertex points of a polygon V[n+1] with V[n]=V[0]
-//      Return:  0 = outside, 1 = inside
-// This code is patterned after [Franklin, 2000]
-int pointInsidePolygonCheck(cv::Point P, std::vector<cv::Point> V)
-{
-    int    cn = 0;    // the  crossing number counter
-
-    // loop through all edges of the polygon
-    for (int i = 0; i < V.size(); i++)  // edge from V[i]  to V[i+1]
-    {
-       if (((V[i].y <= P.y) && (V[i+1].y > P.y))    // an upward crossing
-        || ((V[i].y > P.y) && (V[i+1].y <=  P.y))) 	// a downward crossing
-       {
-            // compute  the actual edge-ray intersect x-coordinate
-            float vt = (float)(P.y  - V[i].y) / (V[i+1].y - V[i].y);
-            if (P.x <  V[i].x + vt * (V[i+1].x - V[i].x)) // P.x < intersect
-                 ++cn;   // a valid crossing of y=P.y right of P.x
-        }
-    }
-    return (cn&1);    // 0 if even (out), and 1 if  odd (in)
-}
-
 
 
 int main(int argc, char **argv)
@@ -165,7 +138,7 @@ int main(int argc, char **argv)
 	goal.camera_frame = "/base_footprint";
 	goal.map_frame = "/map";
 	goal.field_of_view = fow_points;
-//	ac.sendGoal(goal);
+	ac.sendGoal(goal);
 
 ////	// testing
 //	std::vector<cv::Point> fow(5);

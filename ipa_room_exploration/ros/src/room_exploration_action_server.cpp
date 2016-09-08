@@ -126,30 +126,6 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 	}
 }
 
-// crossing number test for a point in a polygon
-//      Input:   P = a point,
-//               V[] = vertex points of a polygon V[n+1] with V[n]=V[0]
-//      Return:  0 = outside, 1 = inside
-// This code is patterned after [Franklin, 2000]
-int RoomExplorationServer::pointInsidePolygonCheck(cv::Point P, std::vector<cv::Point> V)
-{
-    int    cn = 0;    // the  crossing number counter
-
-    // loop through all edges of the polygon
-    for (int i = 0; i < V.size(); i++)  // edge from V[i]  to V[i+1]
-    {
-       if (((V[i].y <= P.y) && (V[i+1].y > P.y))    // an upward crossing
-        || ((V[i].y > P.y) && (V[i+1].y <=  P.y))) 	// a downward crossing
-       {
-            // compute  the actual edge-ray intersect x-coordinate
-            float vt = (float)(P.y  - V[i].y) / (V[i+1].y - V[i].y);
-            if (P.x <  V[i].x + vt * (V[i+1].x - V[i].x)) // P.x < intersect
-                 ++cn;   // a valid crossing of y=P.y right of P.x
-        }
-    }
-    return (cn&1);    // 0 if even (out), and 1 if  odd (in)
-}
-
 // Function to draw the seen points into the given map, that shows the positions the robot can actually reach. This is done by
 // going trough all given robot-poses and calculate where the field of view has been. The field of view is given in the relative
 // not rotated case, meaning to be in the robot-frame, where x_robot shows into the direction of the front and the y_robot axis
@@ -382,6 +358,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv::imshow("left area", black_map);
 	cv::resizeWindow("left area", 600, 600);
 	cv::waitKey();
+
+	//
 
 	room_exploration_server_.setSucceeded();
 }
