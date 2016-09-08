@@ -6,4 +6,7 @@
 		<rosparam command="load" file="$(find ipa_room_exploration)/ros/launch/room_exploration_action_server_params.yaml"/>
   </node>
 
+  <!-- run cob_map_accessibility_analysis_server-->
+  <include file="$(find cob_map_accessibility_analysis)/ros/launch/map_accessibility_analysis.launch" />
+
 </launch>

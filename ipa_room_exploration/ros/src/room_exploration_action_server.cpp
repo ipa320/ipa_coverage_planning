@@ -322,7 +322,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// lines: the line defined by the robot pose and the fow-point that spans the highest angle and a line parallel to the
 	// front side of the fow with an offset
 	Eigen::Matrix<float, 2, 1> corner_point_1, corner_point_2;
-	float border_distance = 5;
+	float border_distance = 7;
 	Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_1 = fow_vectors[0];
 	Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_2 = fow_vectors[1];
 	if(angle_1 > angle_2) // do a line crossing s.t. the corners are guaranteed to be after the fow
@@ -346,8 +346,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	else
 	{
 		// follow the lines to the farthest points and go a little longer, this ensures that the whole fow is covered
-		corner_point_1 = 1.2 * fow_vectors[2];
-		corner_point_2 = 1.2 * fow_vectors[3];
+		corner_point_1 = 1.3 * fow_vectors[2];
+		corner_point_2 = 1.3 * fow_vectors[3];
 	}
 
 //	std::cout << "relative corners: " << corner_point_1 << std::endl << corner_point_2 << std::endl;

@@ -19,6 +19,8 @@
 
 #include <ipa_room_exploration/dynamic_reconfigure_client.h>
 
+#include <cob_map_accessibility_analysis/CheckPerimeterAccessibility.h>
+
 #include <ipa_room_exploration/timer.h>
 
 #include <Eigen/Dense>
@@ -95,12 +97,9 @@ int main(int argc, char **argv)
 	ROS_INFO("Action server started, sending goal.");
 
 	DynamicReconfigureClient drc_exp(nh, "room_exploration_server/set_parameters", "room_exploration_server/parameter_updates");
-	drc_exp.setConfig("grid_line_length", 25);
-	DynamicReconfigureClient drc_amcl(nh, "amcl/set_parameters", "amcl/parameter_updates");
-	drc_amcl.setConfig("update_min_d", 0.03);
-	drc_amcl.setConfig("update_min_a", 0.01);
+	drc_exp.setConfig("grid_line_length", 5);
 
-//	cv::Point2f src_center(map.cols/2.0F, map.rows/2.0F);
+	//	cv::Point2f src_center(map.cols/2.0F, map.rows/2.0F);
 //	cv::Mat rot_mat = getRotationMatrix2D(src_center, 180, 1.0);
 //	cv::Mat dst;
 //	cv::warpAffine(map, dst, rot_mat, map.size());
@@ -166,7 +165,7 @@ int main(int argc, char **argv)
 	goal.camera_frame = "/base_footprint";
 	goal.map_frame = "/map";
 	goal.field_of_view = fow_points;
-	ac.sendGoal(goal);
+//	ac.sendGoal(goal);
 
 ////	// testing
 //	std::vector<cv::Point> fow(5);
