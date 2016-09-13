@@ -17,6 +17,9 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		std::cout << "room_exploration/grid_line_length_ = " << grid_line_length_ << std::endl;
 	}
 
+	left_sections_min_area_ = config.left_sections_min_area;
+	std::cout << "room_exploration/left_sections_min_area_ = " << left_sections_min_area_ << std::endl;
+
 	std::cout << "######################################################################################" << std::endl;
 }
 
@@ -44,6 +47,10 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		node_handle_.param("grid_line_length", grid_line_length_, 10);
 		std::cout << "room_exploration/grid_line_length = " << grid_line_length_ << std::endl;
 	}
+
+	// min area for revisiting left sections
+	node_handle_.param("left_sections_min_area", left_sections_min_area_, 10.0);
+	std::cout << "room_exploration/left_sections_min_area_ = " << left_sections_min_area_ << std::endl;
 }
 
 // Function to publish a navigation goal for move_base. It returns true, when the goal could be reached.
@@ -86,11 +93,11 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 		tf::TransformListener listener;
 		tf::StampedTransform transform;
 
-		// try to get the transformation from map_frame to base_frame, wait max. 5 seconds for this transform to come up
+		// try to get the transformation from map_frame to base_frame, wait max. 2 seconds for this transform to come up
 		try
 		{
 			ros::Time time = ros::Time(0);
-			listener.waitForTransform(map_frame, camera_frame, time, ros::Duration(5.0));
+			listener.waitForTransform(map_frame, camera_frame, time, ros::Duration(2.0)); // 5.0
 			listener.lookupTransform(map_frame, camera_frame, time, transform);
 
 			ROS_INFO("Got a transform! x = %f, y = %f", transform.getOrigin().x(), transform.getOrigin().y());
@@ -234,7 +241,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	ROS_INFO("*****Room Exploration action server*****");
 	ROS_INFO("map resolution is : %f", goal->map_resolution);
 
-	// read the given parameters out of the goal
+	// ***************** I. read the given parameters out of the goal *****************
 	cv::Point2d map_origin;
 	map_origin.x = goal->map_origin.x;
 	map_origin.y = goal->map_origin.y;
@@ -252,7 +259,11 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv::Mat room_map = cv_ptr_obj->image;
 	transformImageToRoomCordinates(room_map);
 
-	// plan the path using the wanted planner
+	// erode map so that not reachable areas are not considered
+	int number_of_erosions = (robot_radius / map_resolution);
+	cv::erode(room_map, room_map, cv::Mat(), cv::Point(-1, -1), number_of_erosions);
+
+	// ***************** II. plan the path using the wanted planner *****************
 	std::vector<geometry_msgs::Pose2D> exploration_path;
 	if(path_planning_algorithm_ == 1) // use grid point explorator
 	{
@@ -263,7 +274,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		grid_point_planner.getExplorationPath(room_map, exploration_path, robot_radius, map_resolution, starting_position, min_max_coordinates, map_origin);
 	}
 
-	// after planning a path, navigate trough all points and save the robot poses to check what regions have been seen
+	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
 	std::vector<geometry_msgs::Pose2D> robot_poses;
 	for(size_t nav_goal = 0; nav_goal < exploration_path.size(); ++nav_goal)
 	{
@@ -286,7 +297,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		fow_vectors.push_back(current_vector);
 	}
 
-	// get angles
+	// get angles between robot_pose and fow-corners in relative coordinates
 	float dot = fow_vectors[0].transpose()*fow_vectors[1];
 	float abs = fow_vectors[0].norm() * fow_vectors[1].norm();
 	float angle_1 = std::acos(dot/abs);
@@ -298,11 +309,12 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// lines: the line defined by the robot pose and the fow-point that spans the highest angle and a line parallel to the
 	// front side of the fow with an offset
 	Eigen::Matrix<float, 2, 1> corner_point_1, corner_point_2;
-	float border_distance = 7;
-	Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_1 = fow_vectors[0];
-	Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_2 = fow_vectors[1];
 	if(angle_1 > angle_2) // do a line crossing s.t. the corners are guaranteed to be after the fow
 	{
+		float border_distance = 7;
+		Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_1 = fow_vectors[0];
+		Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_2 = fow_vectors[1];
+
 		// get vectors showing the directions for for the lines from pose to edge of fow
 		Eigen::Matrix<float, 2, 1> normed_fow_vector_1 = fow_vectors[0]/fow_vectors[0].norm();
 		Eigen::Matrix<float, 2, 1> normed_fow_vector_2 = fow_vectors[1]/fow_vectors[1].norm();
@@ -334,10 +346,10 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	// testing purpose: print the listened robot positions
 	cv::Mat map_copy = room_map.clone();
-	for(size_t i = 0; i < robot_poses.size(); ++i)
-	{
-		cv::circle(seen_positions_map, cv::Point(robot_poses[i].x/map_resolution, robot_poses[i].y/map_resolution), 2, cv::Scalar(100), CV_FILLED);
-	}
+//	for(size_t i = 0; i < robot_poses.size(); ++i)
+//	{
+//		cv::circle(seen_positions_map, cv::Point(robot_poses[i].x/map_resolution, robot_poses[i].y/map_resolution), 2, cv::Scalar(100), CV_FILLED);
+//	}
 //	cv::imshow("listened positions", map_copy);
 	cv::namedWindow("seen area", cv::WINDOW_NORMAL);
 	cv::imshow("seen area", seen_positions_map);
@@ -347,19 +359,109 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// apply a binary filter on the image, making the drawn seen areas black
 	cv::threshold(seen_positions_map, seen_positions_map, 150, 255, cv::THRESH_BINARY);
 
-	// find regions with an area that is bigger than a defined value, which have not been seen by the fow
-	std::vector < std::vector<cv::Point> > left_areas;
-	cv::findContours(seen_positions_map, left_areas, CV_RETR_LIST, CV_CHAIN_APPROX_NONE);
+	// ***************** IV. Find left areas and lay a grid over it, then plan a path trough all grids s.t. they can be covered by the fow. *****************
+	// 1. find regions with an area that is bigger than a defined value, which have not been seen by the fow.
+	// 	  hierarchy[{0,1,2,3}]={next contour (same level), previous contour (same level), child contour, parent contour}
+	// 	  child-contour = 1 if it has one, = -1 if not, same for parent_contour
+	std::vector < std::vector<cv::Point> > left_areas, areas_to_revisit;
+	std::vector < cv::Vec4i > hierarchy;
+	cv::findContours(seen_positions_map, left_areas, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
 
+	for(size_t area = 0; area < left_areas.size(); ++area)
+	{
+		// don't look at hole contours
+		if (hierarchy[area][3] == -1)
+		{
+			double room_area = map_resolution * map_resolution * cv::contourArea(left_areas[area]);
+			//subtract the area from the hole contours inside the found contour, because the contour area grows extremly large if it is a closed loop
+			for(int hole = 0; hole < left_areas.size(); ++hole)
+			{
+				if(hierarchy[hole][3] == area)//check if the parent of the hole is the current looked at contour
+				{
+					room_area -= map_resolution * map_resolution * cv::contourArea(left_areas[hole]);
+				}
+			}
+
+			// save the contour if the area of it is larger than the defined value
+			if(room_area >= left_sections_min_area_)
+				areas_to_revisit.push_back(left_areas[area]);
+		}
+	}
+
+	// testing
 	cv::Mat black_map(room_map.cols, room_map.rows, room_map.type(), cv::Scalar(0));
 	cv::drawContours(black_map, left_areas, -1, cv::Scalar(255), CV_FILLED);
-
 	cv::namedWindow("left area", cv::WINDOW_NORMAL);
 	cv::imshow("left area", black_map);
 	cv::resizeWindow("left area", 600, 600);
-	cv::waitKey();
 
-	//
+	// draw found regions s.t. they can be intersected later
+	black_map = cv::Scalar(0);
+	cv::drawContours(black_map, areas_to_revisit, -1, cv::Scalar(255), CV_FILLED);
+	for(size_t contour = 0; contour < left_areas.size(); ++contour)
+		if(hierarchy[contour][3] != -1)
+			cv::drawContours(black_map, left_areas, contour, cv::Scalar(0), CV_FILLED);
+
+	// 2. Get the size of one grid s.t. the grid can be completely covered by the fow from all rotations around it. For this
+	//	  fit a circle in the fow, which gives the diagonal length of the sqaure. Then use Pytahgoras to get the
+	// get middle point of fow
+	Eigen::Matrix<float, 2, 1> middle_point;
+	middle_point = (fow_vectors[0] + fow_vectors[1] + fow_vectors[2] + fow_vectors[3]) / 4;
+//	std::cout << "middle point: " << middle_point << std::endl;
+
+	// get middle points of edges of the fow
+	Eigen::Matrix<float, 2, 1> middle_point_1, middle_point_2, middle_point_3, middle_point_4;
+	middle_point_1 = (fow_vectors[0] + fow_vectors[1]) / 2;
+	middle_point_2 = (fow_vectors[1] + fow_vectors[2]) / 2;
+	middle_point_3 = (fow_vectors[2] + fow_vectors[3]) / 2;
+	middle_point_4 = (fow_vectors[3] + fow_vectors[0]) / 2;
+//	std::cout << "middle-points: " << std::endl << middle_point_1 << " (" << middle_point - middle_point_1 << ")" << std::endl << middle_point_2 << " (" << middle_point - middle_point_2 << ")" << std::endl << middle_point_3 << " (" << middle_point - middle_point_3 << ")" << std::endl << middle_point_4 << " (" << middle_point - middle_point_4 << ")" << std::endl;
+
+	// get the radius of the circle in the fow as min distance from the fow-middle point to the edge middle points
+	float distance_1 = (middle_point - middle_point_1).norm();
+	float distance_2 = (middle_point - middle_point_2).norm();
+	float distance_3 = (middle_point - middle_point_3).norm();
+	float distance_4 = (middle_point - middle_point_4).norm();
+	float fitting_circle_radius = std::min(std::min(distance_1, distance_2), std::min(distance_3, distance_4));
+//	std::cout << "min distance: " << fitting_circle_radius << std::endl;
+
+	// get the edge length of the grid square as float and map it to an int in pixel coordinates, using floor method
+	double grid_length_as_float = std::sqrt(fitting_circle_radius);
+	int grid_length = std::floor(grid_length_as_float/map_resolution);
+	std::cout << "grid size: " << grid_length_as_float << ", as int: " << grid_length << std::endl;
+
+	// 3. Intersect the left areas with respect to the calculated grid length.
+	for(size_t i = 0; i < black_map.cols; i += grid_length)
+		cv::line(black_map, cv::Point(0, i), cv::Point(black_map.cols, i), cv::Scalar(0), 1);
+	for(size_t i = 0; i < black_map.rows; i += grid_length)
+		cv::line(black_map, cv::Point(i, 0), cv::Point(i, black_map.rows), cv::Scalar(0), 1);
+
+	// 4. find the centers of the grid areas
+	std::vector < std::vector<cv::Point> > grid_areas;
+	cv::Mat contour_map = black_map.clone();
+	cv::findContours(contour_map, grid_areas, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+	// get the moments
+	std::vector<cv::Moments> moments(grid_areas.size());
+	for( int i = 0; i < grid_areas.size(); i++)
+	 {
+		moments[i] = cv::moments(grid_areas[i], false);
+	 }
+
+	 // get the mass centers
+	 std::vector<cv::Point2f> area_centers(grid_areas.size());
+	 for( int i = 0; i < grid_areas.size(); i++ )
+	 {
+		 area_centers[i] = cv::Point2f( moments[i].m10/moments[i].m00 , moments[i].m01/moments[i].m00 );
+	 }
+
+	 // testing
+	 for(size_t i = 0; i < area_centers.size(); ++i)
+		 cv::circle(black_map, area_centers[i], 2, cv::Scalar(127), CV_FILLED);
+
+	cv::namedWindow("revisiting areas", cv::WINDOW_NORMAL);
+	cv::imshow("revisiting areas", black_map);
+	cv::resizeWindow("revisiting areas", 600, 600);
+	cv::waitKey();
 
 	room_exploration_server_.setSucceeded();
 }

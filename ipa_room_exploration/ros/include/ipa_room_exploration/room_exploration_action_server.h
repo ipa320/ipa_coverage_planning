@@ -13,6 +13,8 @@
 #include <list>
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <math.h>
 
 #include <ipa_building_msgs/RoomExplorationAction.h>
 #include <cob_map_accessibility_analysis/CheckPerimeterAccessibility.h>
@@ -36,6 +38,9 @@ protected:
 
 	int path_planning_algorithm_; // variable to specify which algorithm is going to be used to plan a path
 									// 1: grid point explorator
+
+	double left_sections_min_area_; // variable to determine the minimal area that not seen sections must have before they
+									// are revisited after one go trough the room
 
 	gridPointExplorator grid_point_planner; // object that uses the grid point method to plan a path trough a room
 
