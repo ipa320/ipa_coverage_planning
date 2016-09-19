@@ -396,11 +396,11 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv::resizeWindow("left area", 600, 600);
 
 	// draw found regions s.t. they can be intersected later
-	black_map = cv::Scalar(0);
-	cv::drawContours(black_map, areas_to_revisit, -1, cv::Scalar(255), CV_FILLED);
+	black_map = cv::Scalar(255);
+	cv::drawContours(black_map, areas_to_revisit, -1, cv::Scalar(150), CV_FILLED);
 	for(size_t contour = 0; contour < left_areas.size(); ++contour)
 		if(hierarchy[contour][3] != -1)
-			cv::drawContours(black_map, left_areas, contour, cv::Scalar(0), CV_FILLED);
+			cv::drawContours(black_map, left_areas, contour, cv::Scalar(255), CV_FILLED);
 
 	// 2. Get the size of one grid s.t. the grid can be completely covered by the fow from all rotations around it. For this
 	//	  fit a circle in the fow, which gives the diagonal length of the sqaure. Then use Pytahgoras to get the
@@ -432,14 +432,38 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	// 3. Intersect the left areas with respect to the calculated grid length.
 	for(size_t i = 0; i < black_map.cols; i += grid_length)
-		cv::line(black_map, cv::Point(0, i), cv::Point(black_map.cols, i), cv::Scalar(0), 1);
+		cv::line(black_map, cv::Point(0, i), cv::Point(black_map.cols, i), cv::Scalar(255), 1);
 	for(size_t i = 0; i < black_map.rows; i += grid_length)
-		cv::line(black_map, cv::Point(i, 0), cv::Point(i, black_map.rows), cv::Scalar(0), 1);
+		cv::line(black_map, cv::Point(i, 0), cv::Point(i, black_map.rows), cv::Scalar(255), 1);
 
 	// 4. find the centers of the grid areas
 	std::vector < std::vector<cv::Point> > grid_areas;
 	cv::Mat contour_map = black_map.clone();
-	cv::findContours(contour_map, grid_areas, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+//	cv::findContours(contour_map, grid_areas, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+
+	// Setup SimpleBlobDetector parameters.
+	cv::SimpleBlobDetector::Params params;
+
+	// Change thresholds
+	params.minThreshold = 100;
+	params.maxThreshold = 255;
+
+	// Filter by Area.
+	params.filterByArea = true;
+	params.minArea = 5;
+
+	// Set up the detector with default parameters.
+	cv::SimpleBlobDetector detector(params);
+
+	// Detect blobs.
+	std::vector<cv::KeyPoint> keypoints;
+	detector.detect(contour_map, keypoints);
+
+	std::cout << "found " << keypoints.size() << " keypoints" << std::endl;
+
+//	black_map = cv::Scalar(0);
+	cv::drawKeypoints(black_map, keypoints, black_map, cv::Scalar(255), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+
 	// get the moments
 	std::vector<cv::Moments> moments(grid_areas.size());
 	for( int i = 0; i < grid_areas.size(); i++)
@@ -455,8 +479,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	 }
 
 	 // testing
-	 for(size_t i = 0; i < area_centers.size(); ++i)
-		 cv::circle(black_map, area_centers[i], 2, cv::Scalar(127), CV_FILLED);
+//	 for(size_t i = 0; i < area_centers.size(); ++i)
+//		 cv::circle(black_map, area_centers[i], 2, cv::Scalar(127), CV_FILLED);
 
 	cv::namedWindow("revisiting areas", cv::WINDOW_NORMAL);
 	cv::imshow("revisiting areas", black_map);
