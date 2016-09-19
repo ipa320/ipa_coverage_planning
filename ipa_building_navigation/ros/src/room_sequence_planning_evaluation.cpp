@@ -1388,6 +1388,343 @@ public:
 			return true;
 		}
 
+	// variation 2: use trashbins to plan cliques and limit the size of the cliques to a defined value
+	bool evaluateAllConfigsVar2(const std::vector<EvaluationConfig>& evaluation_configuration_vector, const EvaluationData& evaluation_data, const std::string& data_storage_path)
+		{
+			// go through each configuration for the given map
+			for(size_t config = 0; config < evaluation_configuration_vector.size(); ++config)
+			{
+				// prepare folders for storing results
+				const std::string upper_folder_name = evaluation_configuration_vector[config].generateUpperConfigurationFolderString() + "/";
+				const std::string path = data_storage_path + upper_folder_name;
+				const std::string upper_command = "mkdir -p " + path;
+				int return_value = system(upper_command.c_str());
+
+				const std::string lower_folder_name = evaluation_configuration_vector[config].generateLowerConfigurationFolderString() + "/";
+				const std::string lower_path = path + lower_folder_name;
+				const std::string lower_command = "mkdir -p " + lower_path;
+				return_value = system(lower_command.c_str());
+
+				std::cout << "\nCurrent Configuration:" << std::endl << "map: " << evaluation_data.map_name_ << "\tsegmentation algorithm: "
+					<< evaluation_configuration_vector[config].room_segmentation_algorithm_
+					<< "\tplanning method: " << evaluation_configuration_vector[config].sequence_planning_method_
+					<< "\tTSP solver: " << evaluation_configuration_vector[config].tsp_solver_
+					<< "\tmaximal clique length: " << evaluation_configuration_vector[config].max_clique_path_length_ << std::endl;
+
+				AStarPlanner planner;
+				//variables for time measurement
+				struct timespec t0, t1, t2, t3;
+
+				// 1. retrieve segmentation and check if the map has already been segmented
+				ipa_building_msgs::MapSegmentationResultConstPtr result_seg;
+				clock_gettime(CLOCK_MONOTONIC,  &t0); //set time stamp before the segmentation
+				if(evaluation_configuration_vector[config].room_segmentation_algorithm_ == 1)
+				{
+					if(segmented_morph == false)
+					{
+						if (segmentFloorPlan(evaluation_data, evaluation_configuration_vector[config], result_seg_morph, t0) == false)
+							return false;
+						segmented_morph = true;
+					}
+					else
+						std::cout << "map has already been segmented" << std::endl;
+					result_seg = result_seg_morph;
+				}
+				else if (evaluation_configuration_vector[config].room_segmentation_algorithm_ == 2)
+				{
+					if(segmented_dist == false)
+					{
+						if (segmentFloorPlan(evaluation_data, evaluation_configuration_vector[config], result_seg_dist, t0) == false)
+							return false;
+						segmented_dist = true;
+					}
+					else
+						std::cout << "map has already been segmented" << std::endl;
+					result_seg = result_seg_dist;
+				}
+				else if (evaluation_configuration_vector[config].room_segmentation_algorithm_ == 3)
+				{
+					if(segmented_vor == false)
+					{
+						if (segmentFloorPlan(evaluation_data, evaluation_configuration_vector[config], result_seg_vor, t0) == false)
+							return false;
+						segmented_vor = true;
+					}
+					else
+						std::cout << "map has already been segmented" << std::endl;
+					result_seg = result_seg_vor;
+				}
+				else if (evaluation_configuration_vector[config].room_segmentation_algorithm_ == 4)
+				{
+					if(segmented_semant == false)
+					{
+						if (segmentFloorPlan(evaluation_data, evaluation_configuration_vector[config], result_seg_semant, t0) == false)
+							return false;
+						segmented_semant = true;
+					}
+					else
+						std::cout << "map has already been segmented" << std::endl;
+					result_seg = result_seg_semant;
+				}
+				else if (evaluation_configuration_vector[config].room_segmentation_algorithm_ == 5)
+				{
+					if(segmented_vrf == false)
+					{
+						if (segmentFloorPlan(evaluation_data, evaluation_configuration_vector[config], result_seg_vrf, t0) == false)
+							return false;
+						segmented_vrf = true;
+					}
+					else
+						std::cout << "map has already been segmented" << std::endl;
+					result_seg = result_seg_vrf;
+				}
+				clock_gettime(CLOCK_MONOTONIC,  &t1); //set time stamp after the segmentation
+				std::cout << "Segmentation computed " << result_seg->room_information_in_pixel.size() << " rooms." << std::endl;
+
+				//check for accessibility of the room centers from start position
+				cv::Mat downsampled_map;
+				Timer tim;
+				planner.downsampleMap(evaluation_data.floor_plan_, downsampled_map, evaluation_data.map_downsampling_factor_, evaluation_data.robot_radius_, evaluation_data.map_resolution_);
+				std::cout << "downsampling map: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
+				cv::Point robot_start_position((evaluation_data.robot_start_position_.position.x - evaluation_data.map_origin_.position.x)/evaluation_data.map_resolution_,
+												(evaluation_data.robot_start_position_.position.y - evaluation_data.map_origin_.position.y)/evaluation_data.map_resolution_);
+
+				// get the reachable room centers as cv::Point
+				tim.start();
+				std::vector<cv::Point> room_centers;
+				for(size_t i = 0; i < result_seg->room_information_in_pixel.size(); ++i)
+				{
+					cv::Point current_center(result_seg->room_information_in_pixel[i].room_center.x, result_seg->room_information_in_pixel[i].room_center.y);
+					double length = planner.planPath(evaluation_data.floor_plan_, downsampled_map, robot_start_position, current_center, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_);
+					if(length < 1e9)
+						room_centers.push_back(current_center);
+					else
+						std::cout << "room " << i << " not accessible, center: " << current_center << std::endl;
+				}
+				std::cout << "room centers computed: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
+
+				if(room_centers.size() == 0) //no room center is reachable for the given start position --> needs to be looked at separately
+				{
+					std::cout << "++++++++++ no roomcenter reachable from given startposition ++++++++++++" << std::endl;
+					return false;
+				}
+
+				// 2. solve sequence problem
+				std::cout << "Starting to solve sequence problem." << std::endl;
+				tim.start();
+				ipa_building_msgs::FindRoomSequenceWithCheckpointsResultConstPtr result_seq;
+				clock_gettime(CLOCK_MONOTONIC,  &t2); //set time stamp before the sequence planning
+				if (computeRoomSequence(evaluation_data, evaluation_configuration_vector[config], evaluation_data.trash_bin_locations_, result_seq, t2) == false)
+				{
+					std::cout << "++++++++++ computeRoomSequence failed ++++++++++++" << std::endl;
+					return false;
+				}
+				std::cout << "sequence problem solved: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
+				clock_gettime(CLOCK_MONOTONIC,  &t3); //set time stamp after the sequence planning
+
+				// 3. assign trash bins to rooms of the respective segmentation
+				std::vector< std::vector<cv::Point> > room_trash_bins(result_seg->room_information_in_pixel.size());
+				// converting the map msg in cv format
+				cv_bridge::CvImagePtr cv_ptr_obj;
+				cv_ptr_obj = cv_bridge::toCvCopy(result_seg->segmented_map, sensor_msgs::image_encodings::TYPE_32SC1);
+				cv::Mat segmented_map = cv_ptr_obj->image;
+				for (size_t i=0; i<evaluation_data.trash_bin_locations_.size(); ++i)
+				{
+					int trash_bin_index = segmented_map.at<int>(evaluation_data.trash_bin_locations_[i]); //labeling started from 1 --> 0 is for obstacles
+					int room_index = -1;
+					for (size_t r=0; r<room_centers.size(); ++r)
+					{
+						if (segmented_map.at<int>(room_centers[r]) == trash_bin_index)
+						{
+							room_index = r;
+							break;
+						}
+					}
+					if (room_index != -1)
+					{
+						room_trash_bins[room_index].push_back(evaluation_data.trash_bin_locations_[i]);
+						std::cout << "trash bin " << evaluation_data.trash_bin_locations_[i] << "   at room center[" << room_index << "] " << room_centers[room_index] << std::endl;
+					}
+					else
+						std::cout << "########## trash bin " << evaluation_data.trash_bin_locations_[i] << " does not match any room." << std::endl;
+				}
+
+				// from the previously computed trashbin sequence get the room sequence
+				std::vector<std::vector<cv::Point> > room_sequence;
+				for(size_t trolley = 0; trolley < result_seq->checkpoints.size(); ++trolley)
+				{
+					for(size_t trash = 0; trash < result_seq->checkpoints[trolley].room_indices.size(); ++trash)
+					{
+						cv::Point current_trashbin = evaluation_data.trash_bin_locations_[result_seq->checkpoints[trolley].room_indices[trash]];
+
+					}
+				}
+
+				// 4. do the movements
+				cv::Mat draw_path_map, draw_path_map2;
+				cv::cvtColor(evaluation_data.floor_plan_, draw_path_map, CV_GRAY2BGR);
+				draw_path_map2 = draw_path_map.clone();
+				double path_length_robot = 0.;
+				double path_length_trolley = 0.;
+				double path_length_trash_bins = 0.;
+	//			const double max_clique_path_length_in_pixel = evaluation_configuration.max_clique_path_length_ / evaluation_data.map_resolution_;
+				cv::Point robot_position = robot_start_position;
+				cv::Point trolley_position((evaluation_data.robot_start_position_.position.x - evaluation_data.map_origin_.position.x)/evaluation_data.map_resolution_,
+						(evaluation_data.robot_start_position_.position.y - evaluation_data.map_origin_.position.y)/evaluation_data.map_resolution_);
+				cv::circle(draw_path_map, robot_position, 3, CV_RGB(0,255,0), -1);
+				cv::circle(draw_path_map, trolley_position, 5, CV_RGB(0,0,255), -1);
+				cv::circle(draw_path_map2, trolley_position, 5, CV_RGB(0,0,255), -1);
+
+				std::stringstream screenoutput;
+				std::vector<int> done_rooms;
+				for (size_t clique_index = 0; clique_index<result_seq->checkpoints.size(); ++clique_index)
+				{
+					std::cout << "cleaning new clique" << std::endl; screenoutput << "cleaning new clique" << std::endl;
+					// move trolley
+					//		i) robot to trolley
+					path_length_robot += planner.planPath(evaluation_data.floor_plan_, downsampled_map, robot_position, trolley_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_, 1, &draw_path_map);
+					// 		ii) trolley to next trolley goal
+					cv::Point trolley_goal_position(result_seq->checkpoints[clique_index].checkpoint_position_in_pixel.x, result_seq->checkpoints[clique_index].checkpoint_position_in_pixel.y);
+					path_length_trolley += planner.planPath(evaluation_data.floor_plan_, downsampled_map, trolley_position, trolley_goal_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_, 1, &draw_path_map);
+					trolley_position = trolley_goal_position;
+					robot_position = trolley_goal_position;
+					cv::circle(draw_path_map, robot_position, 3, CV_RGB(0,255,0), -1);
+					cv::circle(draw_path_map, trolley_position, 5, CV_RGB(0,0,255), -1);
+					cv::circle(draw_path_map2, trolley_position, 5, CV_RGB(0,0,255), -1);
+					std::cout << "moved trolley to " << trolley_position << std::endl; screenoutput << "moved trolley to " << trolley_position << std::endl;
+
+					// move robot to rooms that correspond to the optimal trashbin sequence
+					for(size_t trash = 0; trash < result_seq->checkpoints[clique_index].room_indices.size(); ++trash)
+					{
+						cv::Point current_trashbin = evaluation_data.trash_bin_locations_[result_seq->checkpoints[clique_index].room_indices[trash]];
+
+						// find room that contains this trashbin
+						int room_index = segmented_map.at<int>(current_trashbin);
+
+						// check if room has been visited already
+						if(contains(done_rooms, room_index) == false)
+						{
+							// room has not been cleaned yet
+							cv::Point current_roomcenter = room_centers[room_index];
+
+							// drive to room center
+							path_length_robot += planner.planPath(evaluation_data.floor_plan_, downsampled_map, robot_position, current_roomcenter, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_, 1, &draw_path_map);
+							robot_position = current_roomcenter;
+							cv::circle(draw_path_map, robot_position, 3, CV_RGB(0,255,0), -1);
+
+							// mark room as cleaned
+							done_rooms.push_back(room_index);
+						}
+
+						// empty trashbin
+						path_length_robot += planner.planPath(evaluation_data.floor_plan_, downsampled_map, robot_position, current_trashbin, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_, 1, &draw_path_map);
+						path_length_trash_bins += 2.0 * planner.planPath(evaluation_data.floor_plan_, downsampled_map, current_trashbin, trolley_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_, 1, &draw_path_map);
+						robot_position = current_trashbin;
+						cv::circle(draw_path_map, current_trashbin, 2, CV_RGB(128,0,255), -1);
+					}
+					std::cout << " cleaned all rooms and trash bins in current clique" << std::endl; screenoutput << " cleaned all rooms and trash bins in current clique";
+				}
+				// finally go back to trolley
+				path_length_robot += planner.planPath(evaluation_data.floor_plan_, downsampled_map, robot_position, trolley_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_, 1, &draw_path_map);
+				// and back to start position
+				path_length_trolley += planner.planPath(evaluation_data.floor_plan_, downsampled_map, trolley_position, robot_start_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_, 1, &draw_path_map);
+
+				// evaluation
+				double path_length_robot_in_meter = path_length_robot * evaluation_data.map_resolution_;
+				double path_length_trolley_in_meter = path_length_trolley * evaluation_data.map_resolution_;
+				double path_length_total_in_meter = path_length_robot_in_meter + path_length_trolley_in_meter;
+				double path_length_trash_bins_in_meter = path_length_trash_bins * evaluation_data.map_resolution_;
+				double robot_speed_without_trolley = 0.3;		// [m/s]			// todo:parameters
+				double robot_speed_with_trolley = 0.2;			// [m/s]
+				double time_for_trashbin_manipulation = 150;	// [s], without driving
+				double time_for_trolley_manipulation = 90;		// [s], without driving
+				double time = path_length_robot_in_meter / robot_speed_without_trolley
+							+ path_length_trolley_in_meter / robot_speed_with_trolley
+							+ time_for_trashbin_manipulation * evaluation_data.trash_bin_locations_.size()
+							+ time_for_trolley_manipulation * (result_seq->checkpoints.size()+1);
+
+				//get the runtimes for the segmentation and the sequence planner
+				double segmentation_time = (t1.tv_sec - t0.tv_sec) + (double) (t1.tv_nsec - t0.tv_nsec) * 1e-9;
+				double sequence_time = (t3.tv_sec - t2.tv_sec) + (double) (t3.tv_nsec - t2.tv_nsec) * 1e-9;
+
+				// write log file
+				std::stringstream output;
+				// header
+				output << evaluation_configuration_vector[config].getConfigurationString();
+				output << "robot_speed_without_trolley" << "\t" << "robot_speed_with_trolley" << "\t" << "time_for_trashbin_manipulation" << "\t"
+						<< "time_for_trolley_manipulation" << "\t" << "number_of_trash_bins" << "\t" << "number_trolley_movements" << "\t"
+						<< "path_length_robot_in_meter" << "\t" << "path_length_trolley_in_meter" << "\t" << "path_length_trash_bins_in_meter\t"
+						<< "pathlength [m]" << "\t"
+						<< "cleaning time [s]" << "\t" << "calculation time segmentation [s]" << "\t" << "calculation time sequencer [s]" << "\t" << std::endl;
+				output << robot_speed_without_trolley << "\t" << robot_speed_with_trolley << "\t" << time_for_trashbin_manipulation << "\t" << time_for_trolley_manipulation << "\t"
+						<< evaluation_data.trash_bin_locations_.size() << "\t"
+						<< (result_seq->checkpoints.size()+1) << "\t" << path_length_robot_in_meter << "\t" << path_length_trolley_in_meter << "\t" << path_length_trash_bins_in_meter << "\t"
+						<< path_length_total_in_meter << "\t"
+						<< time << "\t" << segmentation_time << "\t" << sequence_time;
+				output << "\n\n\n" << screenoutput.str() << std::endl;
+
+				std::string log_filename = lower_path + evaluation_data.map_name_ + "_results.txt";
+				std::ofstream file(log_filename.c_str(), std::ios::out);
+				if (file.is_open()==true)
+					file << output.str();
+				else
+					ROS_ERROR("Error on writing file '%s'", log_filename.c_str());
+				file.close();
+
+				// images: segmented_map, sequence_map
+				std::string segmented_map_filename = lower_path + evaluation_data.map_name_ + "_segmented.png";
+				cv::Mat colour_segmented_map = segmented_map.clone();
+				colour_segmented_map.convertTo(colour_segmented_map, CV_8U);
+				cv::cvtColor(colour_segmented_map, colour_segmented_map, CV_GRAY2BGR);
+				for(size_t i = 1; i <= result_seg->room_information_in_pixel.size(); ++i)
+				{
+					// choose random color for each room
+					int blue = (rand() % 250) + 1;
+					int green = (rand() % 250) + 1;
+					int red = (rand() % 250) + 1;
+					for(size_t u = 0; u < segmented_map.rows; ++u)
+					{
+						for(size_t v = 0; v < segmented_map.cols; ++v)
+						{
+							if(segmented_map.at<int>(u,v) == i)
+							{
+								colour_segmented_map.at<cv::Vec3b>(u,v)[0] = blue;
+								colour_segmented_map.at<cv::Vec3b>(u,v)[1] = green;
+								colour_segmented_map.at<cv::Vec3b>(u,v)[2] = red;
+							}
+						}
+					}
+				}
+				// draw the room centers into the map
+				for(size_t i = 0; i < result_seg->room_information_in_pixel.size(); ++i)
+				{
+					cv::Point current_center (result_seg->room_information_in_pixel[i].room_center.x, result_seg->room_information_in_pixel[i].room_center.y);
+					cv::circle(colour_segmented_map, current_center, 2, CV_RGB(0,0,255), CV_FILLED);
+				}
+				// color image in unique colour to show the segmentation
+				if (cv::imwrite(segmented_map_filename.c_str(), colour_segmented_map) == false)
+					ROS_ERROR("Error on writing file '%s'", segmented_map_filename.c_str());
+
+				std::string sequence_map_filename = lower_path + evaluation_data.map_name_ + "_sequence.png";
+				cv_bridge::CvImagePtr cv_ptr_seq;
+				cv_ptr_seq = cv_bridge::toCvCopy(result_seq->sequence_map, sensor_msgs::image_encodings::BGR8);
+				cv::Mat sequence_map = cv_ptr_seq->image;
+				// draw in trash bins
+				for (size_t i=0; i<evaluation_data.trash_bin_locations_.size(); ++i)
+					cv::circle(sequence_map, evaluation_data.trash_bin_locations_[i], 2, CV_RGB(128,0,255), CV_FILLED);
+				if (cv::imwrite(sequence_map_filename.c_str(), sequence_map) == false)
+					ROS_ERROR("Error on writing file '%s'", sequence_map_filename.c_str());
+				std::string sequence_detail_map_filename = lower_path + evaluation_data.map_name_ + "_sequence_detail.png";
+				if (cv::imwrite(sequence_detail_map_filename.c_str(), draw_path_map) == false)
+					ROS_ERROR("Error on writing file '%s'", sequence_detail_map_filename.c_str());
+				sequence_detail_map_filename = lower_path + evaluation_data.map_name_ + "_sequence_detail2.png";
+				if (cv::imwrite(sequence_detail_map_filename.c_str(), draw_path_map2) == false)
+					ROS_ERROR("Error on writing file '%s'", sequence_detail_map_filename.c_str());
+			}
+
+			return true;
+		}
+
 	bool segmentFloorPlan(const EvaluationData& evaluation_data, const EvaluationConfig& evaluation_configuration,
 			ipa_building_msgs::MapSegmentationResultConstPtr& result_seg, struct timespec& t0)
 	{
