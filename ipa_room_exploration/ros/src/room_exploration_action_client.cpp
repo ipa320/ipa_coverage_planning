@@ -17,41 +17,18 @@
 
 #include <ipa_building_msgs/RoomExplorationAction.h>
 
+#include <ipa_room_exploration/dynamic_reconfigure_client.h>
+
 #include <ipa_room_exploration/timer.h>
 
 #include <Eigen/Dense>
 
-// crossing number test for a point in a polygon
-//      Input:   P = a point,
-//               V[] = vertex points of a polygon V[n+1] with V[n]=V[0]
-//      Return:  0 = outside, 1 = inside
-// This code is patterned after [Franklin, 2000]
-int pointInsidePolygonCheck(cv::Point P, std::vector<cv::Point> V)
-{
-    int    cn = 0;    // the  crossing number counter
-
-    // loop through all edges of the polygon
-    for (int i = 0; i < V.size(); i++)  // edge from V[i]  to V[i+1]
-    {
-       if (((V[i].y <= P.y) && (V[i+1].y > P.y))    // an upward crossing
-        || ((V[i].y > P.y) && (V[i+1].y <=  P.y))) 	// a downward crossing
-       {
-            // compute  the actual edge-ray intersect x-coordinate
-            float vt = (float)(P.y  - V[i].y) / (V[i+1].y - V[i].y);
-            if (P.x <  V[i].x + vt * (V[i+1].x - V[i].x)) // P.x < intersect
-                 ++cn;   // a valid crossing of y=P.y right of P.x
-        }
-    }
-    return (cn&1);    // 0 if even (out), and 1 if  odd (in)
-}
-
-
-
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "room_exploration_client");
+	ros::NodeHandle nh;
 
-	actionlib::SimpleActionClient<ipa_building_msgs::RoomExplorationAction> ac("room_exploration/room_exploration_server", true);
+	actionlib::SimpleActionClient<ipa_building_msgs::RoomExplorationAction> ac("room_exploration_server", true);
 
 	// read in test map
 	cv::Mat map = cv::imread("/home/florianj/git/care-o-bot-indigo/src/autopnp/ipa_room_exploration/maps/map.png", 0);
@@ -91,7 +68,10 @@ int main(int argc, char **argv)
 
 	ROS_INFO("Action server started, sending goal.");
 
-//	cv::Point2f src_center(map.cols/2.0F, map.rows/2.0F);
+	DynamicReconfigureClient drc_exp(nh, "room_exploration_server/set_parameters", "room_exploration_server/parameter_updates");
+	drc_exp.setConfig("grid_line_length", 25);
+
+	//	cv::Point2f src_center(map.cols/2.0F, map.rows/2.0F);
 //	cv::Mat rot_mat = getRotationMatrix2D(src_center, 180, 1.0);
 //	cv::Mat dst;
 //	cv::warpAffine(map, dst, rot_mat, map.size());

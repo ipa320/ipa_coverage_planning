@@ -14,6 +14,7 @@
 	
 	<depend>boost</depend>
 	<depend>cmake_modules</depend>
+	<depend>cob_map_accessibility_analysis</depend>
 	<depend>cv_bridge</depend>
 	<depend>dynamic_reconfigure</depend>
 	<depend>geometry_msgs</depend>

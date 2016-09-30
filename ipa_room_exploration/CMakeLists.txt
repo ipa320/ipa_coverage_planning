@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(ipa_room_exploration)
 
 set(catkin_RUN_PACKAGES
+	cob_map_accessibility_analysis
 	cv_bridge
 	geometry_msgs
 	ipa_building_msgs

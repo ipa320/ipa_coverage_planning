@@ -24,9 +24,9 @@ void gridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	std::vector<cv::Point> grid_points;
 
 	// erode map so points that are too near to obstacels don't get chosen
-	cv::Mat eroded_map;
-	int number_of_erosions = (robot_radius / map_resolution);
-	cv::erode(room_map, eroded_map, cv::Mat(), cv::Point(-1, -1), number_of_erosions);
+//	cv::Mat eroded_map;
+//	int number_of_erosions = (robot_radius / map_resolution);
+//	cv::erode(room_map, eroded_map, cv::Mat(), cv::Point(-1, -1), number_of_erosions);
 
 	// iterate trough the columns and rows with stepsize as the grid_size, start at the upper left point
 	//		the given min/max-Polygon stores the min/max coordinates in two points: the first showing the min and the other
@@ -37,7 +37,7 @@ void gridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		for(unsigned int v = room_min_max_coordinates.points[0].x; v < room_min_max_coordinates.points[1].x; v += grid_line_length_)
 		{
 			// check if point is in the free space
-			if(eroded_map.at<unsigned char>(u, v) == 255)
+			if(room_map.at<unsigned char>(u, v) == 255)
 			{
 				grid_points.push_back(cv::Point(v, u));
 			}
