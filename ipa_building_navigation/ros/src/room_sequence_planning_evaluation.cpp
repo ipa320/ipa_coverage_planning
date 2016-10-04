@@ -1248,7 +1248,7 @@ public:
 						robot_position = current_roomcenter;
 						cv::circle(draw_path_map, robot_position, 3, CV_RGB(0,255,0), -1);
 						// clear all trash bins: go to trash bin, go back to trolley to empty trash and then drive back to trash bin
-						std::cout << " arrived in room " << current_roomcenter << "\n starting to clean the trash bins" << std::endl; screenoutput << " arrived in room " << current_roomcenter << "\n starting to clean the trash bins" << std::endl;
+						std::cout << " arrived in room " << current_roomcenter << "\n starting to plan the trash bins" << std::endl; screenoutput << " arrived in room " << current_roomcenter << "\n starting to clean the trash bins" << std::endl;
 						ipa_building_msgs::FindRoomSequenceWithCheckpointsResultConstPtr result_trash_bin_seq;
 						std::vector<cv::Point> trash_bin_sequence_in_this_room;
 						if (room_trash_bins[room_index].size()>1 && computeTrashBinSequence(evaluation_data, evaluation_configuration_vector[config], room_trash_bins[room_index], robot_position, result_trash_bin_seq) == true)
@@ -1261,11 +1261,13 @@ public:
 						{
 							trash_bin_sequence_in_this_room = room_trash_bins[room_index];
 						}
+						std::cout << "starting to clean the trashbins. Size of sequence: " << trash_bin_sequence_in_this_room.size() << std::endl;
 						for (size_t t=0; t<trash_bin_sequence_in_this_room.size(); ++t)
 						{
 							// check if the trolley needs to be changed
-							if(current_emptied_trashbins == evaluation_configuration_vector[config].trashbins_per_trolley_)
+							if(current_emptied_trashbins >= evaluation_configuration_vector[config].trashbins_per_trolley_)
 							{
+								std::cout << "changing trolley " << std::endl;
 								// if so drive the robot to the trolley and the trolley back to the park and the other way around
 								path_length_robot += planner.planPath(evaluation_data.floor_plan_, downsampled_map, robot_position, trolley_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_, 1, &draw_path_map);
 								path_length_trolley += 2.0 * planner.planPath(evaluation_data.floor_plan_, downsampled_map, trolley_position, evaluation_data.central_trolley_park_, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_, 1, &draw_path_map);
@@ -1274,12 +1276,14 @@ public:
 								switching_trolley_handling += 2;
 								// reset number of emptied trashbins
 								current_emptied_trashbins = 0;
+								std::cout << "changed trolley" << std::endl;
 							}
 							// drive robot to trash bin
 							double trash_bin_dist1 = planner.planPath(evaluation_data.floor_plan_, downsampled_map, robot_position, trash_bin_sequence_in_this_room[t], evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_, 1, &draw_path_map);
 							path_length_robot += trash_bin_dist1;
 							cv::circle(draw_path_map, trash_bin_sequence_in_this_room[t], 2, CV_RGB(128,0,255), -1);
 							cv::circle(draw_path_map2, trash_bin_sequence_in_this_room[t], 2, CV_RGB(128,0,255), -1);
+							std::cout << "driven robot to trashbin" << std::endl;
 							// drive trash bin to trolley and back
 							double trash_bin_dist2 = 2. * planner.planPath(evaluation_data.floor_plan_, downsampled_map, trash_bin_sequence_in_this_room[t], trolley_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_, 1, &draw_path_map2);
 							path_length_robot += trash_bin_dist2;
