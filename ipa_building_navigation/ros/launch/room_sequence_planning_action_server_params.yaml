@@ -29,6 +29,10 @@ check_accessibility_of_rooms: true
 # bool
 return_sequence_map: false
 
+# maximal nodes in one clique for one trolley position
+# int
+maximum_clique_size: 9001
+
 # displays the map with paths upon service call (only if return_sequence_map=true)
 # bool
 display_map: false

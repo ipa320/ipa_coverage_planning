@@ -103,7 +103,8 @@ add_dependencies(room_sequence_planning_client ${catkin_EXPORTED_TARGETS})
 add_executable(room_sequence_planning_evaluation 
 	ros/src/room_sequence_planning_evaluation.cpp
 	common/src/A_star_pathplanner.cpp
-	common/src/node.cpp)
+	common/src/node.cpp
+	common/src/contains.cpp)
 target_link_libraries(room_sequence_planning_evaluation
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBRARIES}

@@ -6,6 +6,7 @@
 #include <ctime>
 #include <cstdlib>
 #include <stdio.h>
+#include <algorithm>
 
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
@@ -58,12 +59,14 @@ public:
 	//		3. The distance matrix has to be computed and may be returned
 
 	//cliques are given
-	std::vector<std::vector<int> > solveSetCover(std::vector<std::vector<int> >& given_cliques, const int number_of_nodes);
+	std::vector<std::vector<int> > solveSetCover(std::vector<std::vector<int> >& given_cliques, const int number_of_nodes,
+			const int max_number_of_clique_members, const cv::Mat& distance_matrix);
 
 	//the distance matrix is given
-	std::vector<std::vector<int> > solveSetCover(const cv::Mat& distance_matrix, const int number_of_nodes, double maximal_pathlength);
+	std::vector<std::vector<int> > solveSetCover(const cv::Mat& distance_matrix, const std::vector<cv::Point>& points,
+			const int number_of_nodes, double maximal_pathlength, const int max_number_of_clique_members);
 
 	//the distance matrix has to be computed and may be returned
 	std::vector<std::vector<int> > solveSetCover(const cv::Mat& original_map, const std::vector<cv::Point>& points,
-		double downsampling_factor, double robot_radius, double map_resolution, double maximal_pathlength, cv::Mat* distance_matrix=0);
+		double downsampling_factor, double robot_radius, double map_resolution, double maximal_pathlength, const int max_number_of_clique_members, cv::Mat* distance_matrix=0);
 };

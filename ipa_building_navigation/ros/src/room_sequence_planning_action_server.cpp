@@ -98,6 +98,8 @@ RoomSequencePlanningServer::RoomSequencePlanningServer(ros::NodeHandle nh, std::
 	std::cout << "room_sequence_planning/check_accessibility_of_rooms = " << check_accessibility_of_rooms_ << std::endl;
 	node_handle_.param("return_sequence_map", return_sequence_map_, false);
 	std::cout << "room_sequence_planning/return_sequence_map = " << return_sequence_map_ << std::endl;
+	node_handle_.param("maximum_clique_size", max_clique_size_, 9001);
+	std::cout << "room_sequence_planning/maximum_clique_size = " << max_clique_size_ << std::endl;
 	node_handle_.param("display_map", display_map_, false);
 	std::cout << "room_sequence_planning/display_map = " << display_map_ << std::endl;
 }
@@ -137,6 +139,8 @@ void RoomSequencePlanningServer::dynamic_reconfigure_callback(ipa_building_navig
 	std::cout << "room_sequence_planning/check_accessibility_of_rooms = " << check_accessibility_of_rooms_ << std::endl;
 	return_sequence_map_ = config.return_sequence_map;
 	std::cout << "room_sequence_planning/return_sequence_map = " << return_sequence_map_ << std::endl;
+	max_clique_size_ = config.maximum_clique_size;
+	std::cout << "room_sequence_planning/maximum_clique_size = " << max_clique_size_ << std::endl;
 	display_map_ = config.display_map;
 	std::cout << "room_sequence_planning/display_map = " << display_map_ << std::endl;
 }
@@ -251,7 +255,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		for(size_t i=0; i<optimal_room_sequence.size(); ++i)
 		{
 			double distance_to_trolley = a_star_path_planner.planPath(floor_plan, downsampled_map, trolley_positions.back(), room_centers[optimal_room_sequence[i]], map_downsampling_factor_, 0, goal->map_resolution);
-			if (distance_to_trolley <= max_clique_path_length_/goal->map_resolution) //expand current clique by next roomcenter
+			if (distance_to_trolley <= max_clique_path_length_/goal->map_resolution || current_clique.size() >= max_clique_size_) //expand current clique by next roomcenter
 			{
 				current_clique.push_back(optimal_room_sequence[i]);
 			}
@@ -323,7 +327,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		std::cout << "finding trolley positions" << std::endl;
 		// 1. determine cliques of rooms
 		SetCoverSolver set_cover_solver;
-		cliques = set_cover_solver.solveSetCover(floor_plan, room_centers, map_downsampling_factor_, goal->robot_radius, goal->map_resolution, max_clique_path_length_/goal->map_resolution);
+		cliques = set_cover_solver.solveSetCover(floor_plan, room_centers, map_downsampling_factor_, goal->robot_radius, goal->map_resolution, max_clique_path_length_/goal->map_resolution, max_clique_size_);
 
 		// 2. determine trolley position within each clique (same indexing as in cliques)
 		TrolleyPositionFinder trolley_position_finder;

@@ -88,11 +88,10 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 
 	// wait until goal is reached or the goal is aborted
 //	ros::Duration sleep_rate(0.1);
+	tf::TransformListener listener;
+	tf::StampedTransform transform;
 	do
 	{
-		tf::TransformListener listener;
-		tf::StampedTransform transform;
-
 		// try to get the transformation from map_frame to base_frame, wait max. 2 seconds for this transform to come up
 		try
 		{
@@ -439,30 +438,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// 4. find the centers of the grid areas
 	std::vector < std::vector<cv::Point> > grid_areas;
 	cv::Mat contour_map = black_map.clone();
-//	cv::findContours(contour_map, grid_areas, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
-
-	// Setup SimpleBlobDetector parameters.
-	cv::SimpleBlobDetector::Params params;
-
-	// Change thresholds
-	params.minThreshold = 100;
-	params.maxThreshold = 255;
-
-	// Filter by Area.
-	params.filterByArea = true;
-	params.minArea = 5;
-
-	// Set up the detector with default parameters.
-	cv::SimpleBlobDetector detector(params);
-
-	// Detect blobs.
-	std::vector<cv::KeyPoint> keypoints;
-	detector.detect(contour_map, keypoints);
-
-	std::cout << "found " << keypoints.size() << " keypoints" << std::endl;
-
-//	black_map = cv::Scalar(0);
-	cv::drawKeypoints(black_map, keypoints, black_map, cv::Scalar(255), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+	cv::Size enlargement(contour_map.cols*2, contour_map.rows*2);
+	cv::resize(contour_map, contour_map, enlargement);
+	cv::findContours(contour_map, grid_areas, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 
 	// get the moments
 	std::vector<cv::Moments> moments(grid_areas.size());
@@ -479,8 +457,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	 }
 
 	 // testing
-//	 for(size_t i = 0; i < area_centers.size(); ++i)
-//		 cv::circle(black_map, area_centers[i], 2, cv::Scalar(127), CV_FILLED);
+	 for(size_t i = 0; i < area_centers.size(); ++i)
+		 cv::circle(black_map, 0.5*area_centers[i], 2, cv::Scalar(127), CV_FILLED);
 
 	cv::namedWindow("revisiting areas", cv::WINDOW_NORMAL);
 	cv::imshow("revisiting areas", black_map);
