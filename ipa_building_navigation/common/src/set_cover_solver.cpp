@@ -112,7 +112,7 @@ std::vector<std::vector<int> > SetCoverSolver::mergeGroups(const std::vector<std
 
 //the cliques are given
 std::vector<std::vector<int> > SetCoverSolver::solveSetCover(std::vector<std::vector<int> >& given_cliques,
-		const int number_of_nodes, const cv::Mat& distance_matrix, const int max_number_of_clique_members)
+		const int number_of_nodes, const int max_number_of_clique_members, const cv::Mat& distance_matrix)
 {
 	std::vector < std::vector<int> > minimal_set;
 
@@ -287,12 +287,12 @@ std::vector<std::vector<int> > SetCoverSolver::solveSetCover(const cv::Mat& dist
 		maximal_cliques.push_back(temp);
 	}
 
-	return (solveSetCover(maximal_cliques, number_of_nodes, distance_matrix, max_number_of_clique_members));
+	return (solveSetCover(maximal_cliques, number_of_nodes, max_number_of_clique_members, distance_matrix));
 }
 
 //the distance matrix and cliques aren't given and the matrix should not be returned
 std::vector<std::vector<int> > SetCoverSolver::solveSetCover(const cv::Mat& original_map, const std::vector<cv::Point>& points,
-		double downsampling_factor, double robot_radius, double map_resolution, double maximal_pathlength, cv::Mat* distance_matrix, const int max_number_of_clique_members)
+		double downsampling_factor, double robot_radius, double map_resolution, double maximal_pathlength, const int max_number_of_clique_members, cv::Mat* distance_matrix)
 {
 	//calculate the distance matrix
 	cv::Mat distance_matrix_ref;

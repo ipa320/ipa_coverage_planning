@@ -23,6 +23,7 @@
 
 #include <ipa_building_navigation/timer.h>
 #include <ipa_building_navigation/dynamic_reconfigure_client.h>
+#include <ipa_building_navigation/contains.h>
 
 #include <geometry_msgs/Pose.h>
 #include <sensor_msgs/image_encodings.h>
@@ -378,6 +379,12 @@ public:
 				if(failed_maps.is_open())
 					failed_maps << evaluation_data_[i].map_name_ << std::endl;
 			}
+//			if (evaluateAllConfigsVer2(evaluation_configurations, evaluation_data_[i], data_storage_path) == false)
+//			{
+//				std::cout << "failed to simulate map " << evaluation_data_[i].map_name_ << std::endl;
+//				if(failed_maps.is_open())
+//					failed_maps << evaluation_data_[i].map_name_ << std::endl;
+//			}
 			//reset booleans to segment the new map
 			segmented_morph = false;
 			segmented_dist = false;
@@ -1389,7 +1396,7 @@ public:
 		}
 
 	// variation 2: use trashbins to plan cliques and limit the size of the cliques to a defined value
-	bool evaluateAllConfigsVar2(const std::vector<EvaluationConfig>& evaluation_configuration_vector, const EvaluationData& evaluation_data, const std::string& data_storage_path)
+	bool evaluateAllConfigsVer2(const std::vector<EvaluationConfig>& evaluation_configuration_vector, const EvaluationData& evaluation_data, const std::string& data_storage_path)
 		{
 			// go through each configuration for the given map
 			for(size_t config = 0; config < evaluation_configuration_vector.size(); ++config)
@@ -1410,6 +1417,9 @@ public:
 					<< "\tplanning method: " << evaluation_configuration_vector[config].sequence_planning_method_
 					<< "\tTSP solver: " << evaluation_configuration_vector[config].tsp_solver_
 					<< "\tmaximal clique length: " << evaluation_configuration_vector[config].max_clique_path_length_ << std::endl;
+
+				DynamicReconfigureClient drc(node_handle_, "/room_sequence_planning/room_sequence_planning_server/set_parameters", "/room_sequence_planning/room_sequence_planning_server/parameter_updates");
+				drc.setConfig("maximum_clique_size", 10);
 
 				AStarPlanner planner;
 				//variables for time measurement
@@ -1600,12 +1610,14 @@ public:
 
 						// find room that contains this trashbin
 						int room_index = segmented_map.at<int>(current_trashbin);
+						std::cout << "room index: " << room_index << std::endl;
 
 						// check if room has been visited already
 						if(contains(done_rooms, room_index) == false)
 						{
 							// room has not been cleaned yet
-							cv::Point current_roomcenter = room_centers[room_index];
+							cv::Point current_roomcenter = room_centers[room_index-1];
+							std::cout << "roomcenter: " << current_roomcenter << std::endl;
 
 							// drive to room center
 							path_length_robot += planner.planPath(evaluation_data.floor_plan_, downsampled_map, robot_position, current_roomcenter, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_, 1, &draw_path_map);
