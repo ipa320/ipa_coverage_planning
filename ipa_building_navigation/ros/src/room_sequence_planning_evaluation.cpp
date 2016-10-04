@@ -1267,6 +1267,7 @@ public:
 							// check if the trolley needs to be changed
 							if(current_emptied_trashbins >= evaluation_configuration_vector[config].trashbins_per_trolley_)
 							{
+								// todo: check why evaluation freezes
 								std::cout << "changing trolley " << std::endl;
 								// if so drive the robot to the trolley and the trolley back to the park and the other way around
 								path_length_robot += planner.planPath(evaluation_data.floor_plan_, downsampled_map, robot_position, trolley_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_, 1, &draw_path_map);
@@ -1536,45 +1537,77 @@ public:
 				std::cout << "sequence problem solved: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;
 				clock_gettime(CLOCK_MONOTONIC,  &t3); //set time stamp after the sequence planning
 
-				// 3. assign trash bins to rooms of the respective segmentation
-				std::vector< std::vector<cv::Point> > room_trash_bins(result_seg->room_information_in_pixel.size());
 				// converting the map msg in cv format
 				cv_bridge::CvImagePtr cv_ptr_obj;
 				cv_ptr_obj = cv_bridge::toCvCopy(result_seg->segmented_map, sensor_msgs::image_encodings::TYPE_32SC1);
 				cv::Mat segmented_map = cv_ptr_obj->image;
-				for (size_t i=0; i<evaluation_data.trash_bin_locations_.size(); ++i)
+
+				// 3. find rooms that belonging to a trolley position
+				std::vector<int> assigned_rooms;
+				std::vector<std::vector<cv::Point> > rooms_for_trolley_position(result_seq->checkpoints.size());
+
+				for(size_t checkpoint = 0; checkpoint < result_seq->checkpoints.size(); ++checkpoint)
 				{
-					int trash_bin_index = segmented_map.at<int>(evaluation_data.trash_bin_locations_[i]); //labeling started from 1 --> 0 is for obstacles
-					int room_index = -1;
-					for (size_t r=0; r<room_centers.size(); ++r)
+					std::vector<uint> current_trashbins = result_seq->checkpoints[checkpoint].room_indices;
+
+					for(size_t trash = 0; trash < current_trashbins.size(); ++trash)
 					{
-						if (segmented_map.at<int>(room_centers[r]) == trash_bin_index)
+						int current_room_index = segmented_map.at<int>(evaluation_data.trash_bin_locations_[current_trashbins[trash]]);
+
+						// find romm center that is assigned with this room index
+						int room_vector_index = -1;
+						for(size_t room = 0; room < room_centers.size(); ++room)
 						{
-							room_index = r;
-							break;
+							if (segmented_map.at<int>(room_centers[room]) == current_room_index)
+							{
+								room_vector_index = room;
+								break;
+							}
+						}
+
+						// only save room centers that are reachable and haven't been saved yet
+						if(room_vector_index != -1)
+						{
+							if(contains(rooms_for_trolley_position[checkpoint], room_centers[room_vector_index]) == false)
+								rooms_for_trolley_position[checkpoint].push_back(room_centers[room_vector_index]);
+
+							// save room as assigned, segmented map starts with index 1 for rooms
+							if(contains(assigned_rooms, current_room_index) == false)
+								assigned_rooms.push_back(current_room_index);
 						}
 					}
-					if (room_index != -1)
-					{
-						room_trash_bins[room_index].push_back(evaluation_data.trash_bin_locations_[i]);
-						std::cout << "trash bin " << evaluation_data.trash_bin_locations_[i] << "   at room center[" << room_index << "] " << room_centers[room_index] << std::endl;
-					}
-					else
-						std::cout << "########## trash bin " << evaluation_data.trash_bin_locations_[i] << " does not match any room." << std::endl;
 				}
 
-				// from the previously computed trashbin sequence get the room sequence
-				std::vector<std::vector<cv::Point> > room_sequence;
-				for(size_t trolley = 0; trolley < result_seq->checkpoints.size(); ++trolley)
+				// 4. check if a room has no trashbins in it, if so it hasn't been assigned to a trolley position yet and needs
+				//	  to be assigned now
+				for(size_t room = 0; room < room_centers.size(); ++room)
 				{
-					for(size_t trash = 0; trash < result_seq->checkpoints[trolley].room_indices.size(); ++trash)
-					{
-						cv::Point current_trashbin = evaluation_data.trash_bin_locations_[result_seq->checkpoints[trolley].room_indices[trash]];
+					int current_room_index = segmented_map.at<int>(room_centers[room]);
 
+					if(contains(assigned_rooms, current_room_index) == false)
+					{
+						// find the trolley which is nearest to this center and assign the room to this trolley position
+						double smallest_distance = 1e6;
+						size_t trolley_index = 0;
+						for(size_t checkpoint = 0; checkpoint < result_seq->checkpoints.size(); ++checkpoint)
+						{
+							cv::Point trolley_position = result_seq->checkpoints[checkpoint].checkpoint_position_in_pixel;
+							double current_distance = planner.planPath(evaluation_data.floor_plan_, downsampled_map, room_centers[room], trolley_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_);;
+
+							if(current_distance < smallest_distance)
+							{
+								smallest_distance = current_distance;
+								trolley_index = checkpoint;
+							}
+						}
+
+						// assign the room to the trolley
+						rooms_for_trolley_position[trolley_index].push_back(room_centers[room]);
 					}
 				}
 
-				// 4. do the movements
+				// 5. do the movements
+				drc.setConfig("maximum_clique_size", 9001);
 				cv::Mat draw_path_map, draw_path_map2;
 				cv::cvtColor(evaluation_data.floor_plan_, draw_path_map, CV_GRAY2BGR);
 				draw_path_map2 = draw_path_map.clone();
@@ -1606,6 +1639,8 @@ public:
 					cv::circle(draw_path_map, trolley_position, 5, CV_RGB(0,0,255), -1);
 					cv::circle(draw_path_map2, trolley_position, 5, CV_RGB(0,0,255), -1);
 					std::cout << "moved trolley to " << trolley_position << std::endl; screenoutput << "moved trolley to " << trolley_position << std::endl;
+
+					// compute optimal room visiting order
 
 					// move robot to rooms that correspond to the optimal trashbin sequence
 					for(size_t trash = 0; trash < result_seq->checkpoints[clique_index].room_indices.size(); ++trash)
