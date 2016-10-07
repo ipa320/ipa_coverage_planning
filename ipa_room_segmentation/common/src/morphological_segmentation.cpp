@@ -8,7 +8,7 @@ MorphologicalSegmentation::MorphologicalSegmentation()
 
 }
 
-void MorphologicalSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription,
+void MorphologicalSegmentation::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription,
         double room_area_factor_lower_limit, double room_area_factor_upper_limit)
 {
 	/*This segmentation algorithm does:
@@ -100,7 +100,6 @@ void MorphologicalSegmentation::segmentationAlgorithm(const cv::Mat& map_to_be_l
 	//*************************obstacles***********************
 	//get obstacle informations and draw them into the new map
 	ROS_INFO("starting getting obstacle information");
-	// todo: why is this necessary? it seems like this should not alter any data.
 	for (int row = 0; row < map_to_be_labeled.rows; ++row)
 	{
 		for (int col = 0; col < map_to_be_labeled.cols; ++col)

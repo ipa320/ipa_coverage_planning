@@ -66,6 +66,8 @@
 #include <sensor_msgs/image_encodings.h>
 #include <actionlib/server/simple_action_server.h>
 
+#include <dynamic_reconfigure/server.h>
+#include <ipa_room_segmentation/RoomSegmentationConfig.h>
 
 #include <iostream>
 #include <list>
@@ -73,16 +75,13 @@
 #include <vector>
 
 
-#include <ipa_room_segmentation/MapSegmentationAction.h>
+#include <ipa_building_msgs/MapSegmentationAction.h>
+#include <ipa_building_msgs/RoomInformation.h>
 
 #include <ipa_room_segmentation/distance_segmentation.h>
-
 #include <ipa_room_segmentation/morphological_segmentation.h>
-
 #include <ipa_room_segmentation/voronoi_segmentation.h>
-
 #include <ipa_room_segmentation/adaboost_classifier.h>
-
 #include <ipa_room_segmentation/voronoi_random_field_segmentation.h>
 
 class RoomSegmentationServer
@@ -90,7 +89,6 @@ class RoomSegmentationServer
 protected:
 
 	// parameters
-	double map_sampling_factor_check_;	//sampling-factor of the map
 	//limits for the room-areas
 	double room_upper_limit_morphological_, room_upper_limit_distance_, room_upper_limit_voronoi_, room_upper_limit_semantic_, room_upper_limit_voronoi_random_;
 	double room_lower_limit_morphological_, room_lower_limit_distance_, room_lower_limit_voronoi_, room_lower_limit_semantic_, room_lower_limit_voronoi_random_;
@@ -101,7 +99,7 @@ protected:
 										// 4 = semantic segmentation
 										// 5 = voronoi-random-field segmentation
 
-	bool train_the_algorithm_; //Boolean to say if the algorithm needs to be trained
+	bool train_semantic_, train_vrf_; //Boolean to say if the algorithm needs to be trained
 
 	int voronoi_neighborhood_index_; //Variable for the Voronoi method that specifies the neighborhood that is looked at for critical Point extraction
 	int voronoi_random_field_epsilon_for_neighborhood_; //Variable that specifies the neighborhood for the vrf-segmentation.
@@ -113,6 +111,13 @@ protected:
 	double max_area_for_merging_; //Variable that shows the maximal area of a room that should be merged with its surrounding rooms
 	bool display_segmented_map_;	// displays the segmented map upon service call
 	std::vector<cv::Point> doorway_points_; // vector that saves the found doorway points, when using the 5th algorithm (vrf)
+
+	std::vector<std::string> semantic_training_maps_room_file_list_;	// list of files containing maps with room labels for training the semantic segmentation
+	std::vector<std::string> semantic_training_maps_hallway_file_list_;	// list of files containing maps with hallway labels for training the semantic segmentation
+	std::vector<std::string> vrf_original_maps_file_list_;	// list of files containing the original maps for training the VRF segmentation
+	std::vector<std::string> vrf_training_maps_file_list_;	// list of files containing the labeled maps for training the VRF segmentation
+	std::vector<std::string> vrf_voronoi_maps_file_list_;	// list of files containing the Voronoi maps for training the VRF segmentation - these files are optional for training and just yield a speedup
+	std::vector<std::string> vrf_voronoi_node_maps_file_list_;	// list of files containing the Voronoi node maps for training the VRF segmentation - these files are optional for training and just yield a speedup
 
 	//converter-> Pixel to meter for X coordinate
 	double convert_pixel_to_meter_for_x_coordinate(const int pixel_valued_object_x, const float map_resolution, const cv::Point2d map_origin)
@@ -128,14 +133,17 @@ protected:
 	}
 
 	//This is the execution function used by action server
-	void execute_segmentation_server(const ipa_room_segmentation::MapSegmentationGoalConstPtr &goal);
+	void execute_segmentation_server(const ipa_building_msgs::MapSegmentationGoalConstPtr &goal);
 
+	//Callback for dynamic reconfigure server
+	void dynamic_reconfigure_callback(ipa_room_segmentation::RoomSegmentationConfig &config, uint32_t level);
 
 	//!!Important!!
 	// define the Nodehandle before the action server, or else the server won't start
 	//
 	ros::NodeHandle node_handle_;
-	actionlib::SimpleActionServer<ipa_room_segmentation::MapSegmentationAction> room_segmentation_server_;
+	actionlib::SimpleActionServer<ipa_building_msgs::MapSegmentationAction> room_segmentation_server_;
+	dynamic_reconfigure::Server<ipa_room_segmentation::RoomSegmentationConfig> room_segmentation_dynamic_reconfigure_server_;
 
 public:
 	//initialize the action-server

@@ -1,0 +1,13 @@
+# this variable selects the algorithm for room exploration
+# 1 = grid point explorator
+# int
+room_exploration_algorithm: 1
+
+# minimal area of not seen sections that they are revisited after the first go trough the room
+# double
+# [m^2]
+left_sections_min_area: 0.01
+
+# line length of one cell in the grid, when using the grid point exploration method
+# [pixel]
+grid_line_length: 10

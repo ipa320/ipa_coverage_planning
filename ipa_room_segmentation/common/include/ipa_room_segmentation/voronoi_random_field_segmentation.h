@@ -90,18 +90,10 @@
 #include <ipa_room_segmentation/wavefront_region_growing.h>
 #include <ipa_room_segmentation/clique_class.h>
 #include <ipa_room_segmentation/room_class.h>
+#include <ipa_room_segmentation/abstract_voronoi_segmentation.h>
 
 #pragma once
 
-// Struct that compares two given points and returns if the y-coordinate of the first is smaller or if they are equal if the
-// x-coordinate of the first is smaller. This is used for sets to easily store cv::Point objects and search for specific objects.
-struct cv_Point_comp
-{
-	bool operator()(const cv::Point& lhs, const cv::Point& rhs) const
-	{
-		return ((lhs.y < rhs.y) || (lhs.y == rhs.y && lhs.x < rhs.x));
-	}
-};
 
 // Typedef used for the dlib optimization. This Type stores n times 1 elements in a matirx --> represents a column-vector.
 typedef dlib::matrix<double,0,1> column_vector;
@@ -155,7 +147,7 @@ std::vector<T>& operator+=(std::vector<T>& a, const std::vector<T>& b)
     return a;
 }
 
-class VoronoiRandomFieldSegmentation
+class VoronoiRandomFieldSegmentation : public AbstractVoronoiSegmentation
 {
 protected:
 
@@ -179,17 +171,6 @@ protected:
 
 	std::vector<double> raycasting(const cv::Mat& map, const cv::Point& location);
 
-	// Function to get the ID of a room, when given an index in the storing vector.
-	bool determineRoomIndexFromRoomID(const std::vector<Room>& rooms, const int room_id, size_t& room_index);
-
-	// Function to merge two rooms together on the given already segmented map.
-	void mergeRoomPair(std::vector<Room>& rooms, const int target_index, const int room_to_merge_index,
-			cv::Mat& segmented_map, const double map_resolution);
-
-	// Function that goes trough each given room and checks if it should be merged together wit another bigger room, if it
-	// is too small.
-	void mergeRooms(cv::Mat& map_to_merge_rooms, std::vector<Room>& rooms, double map_resolution_from_subscription, double max_area_for_merging, bool display_map);
-
 	// Function to get all possible configurations for n variables that each can have m labels. E.g. with 2 variables and 3 possible
 	// labels for each variable there are 9 different configurations.
 	void getPossibleConfigurations(std::vector<std::vector<uint> >& possible_configurations, const std::vector<uint>& possible_labels,
@@ -199,19 +180,18 @@ protected:
 	// to use OpenGM for inference later.
 	void swapConfigsRegardingNodeIndices(std::vector<std::vector<uint> >& configurations, size_t point_indices[]);
 
-	// Function to draw the approximated voronoi graph into a given map. It doesn't draw lines of the graph that start or end
-	// in a black region. This is necessary because the voronoi graph gets approximated by diskretizing the maps contour and
-	// using these points as centers for the graph. It gets wrong lines, that are eliminated in this function. See the .cpp
-	// files for further information.
-	void drawVoronoi(cv::Mat &img, const std::vector<std::vector<cv::Point2f> >& facets_of_voronoi, const cv::Scalar voronoi_color,
-			const cv::Mat& eroded_map);
-
 	// Function to calculate the feature vector for a given clique, using the trained AdaBoost classifiers.
 	void getAdaBoostFeatureVector(std::vector<double>& feature_vector, Clique& clique,
 			 std::vector<uint>& given_labels, std::vector<unsigned int>& possible_labels);
 
 	// Function that takes a map and draws a pruned voronoi graph in it.
 	void createPrunedVoronoiGraph(cv::Mat& map_for_voronoi_generation, std::set<cv::Point, cv_Point_comp>& node_points);
+
+	// Function to find the Nodes for the conditional random field, given a voronoi-graph.
+	void findConditonalNodes(std::set<cv::Point, cv_Point_comp>&  conditional_nodes, const cv::Mat& voronoi_map,
+			const cv::Mat& distance_map, const std::set<cv::Point, cv_Point_comp>& voronoi_nodes,
+			const int epsilon_for_neighborhood, const int max_iterations, const int min_neighborhood_size,
+			const double min_node_distance);
 
 	// Function to create a conditional random field out of given points. It needs
 	// the voronoi-map extracted from the original map to find the neighbors for each point
@@ -230,19 +210,21 @@ protected:
 	// Function to find the weights used to calculate the clique potentials.
 	void findConditionalWeights(std::vector< std::vector<Clique> >& conditional_random_field_cliques,
 			std::vector<std::set<cv::Point, cv_Point_comp> >& random_field_node_points, const std::vector<cv::Mat>& training_maps,
-			const size_t number_of_training_maps, std::vector<uint>& possible_labels, const std::string weights_filepath);
+			std::vector<uint>& possible_labels, const std::string weights_filepath);
 
 
 public:
 	// Constructor
-	VoronoiRandomFieldSegmentation(bool trained_boost = true, bool trained_conditional_field = true);
+	VoronoiRandomFieldSegmentation();
 
 	// This function is used to train the algorithm. The above defined functions separately train the AdaBoost-classifiers and
 	// the conditional random field. By calling this function the training is done in the right order, because the AdaBoost-classifiers
 	// need to be trained to calculate features for the conditional random field.
-	void trainAlgorithms(const std::vector<cv::Mat>& training_maps, const std::vector<cv::Mat>& voronoi_maps,
-			const std::vector<cv::Mat>& voronoi_node_maps, std::vector<cv::Mat>& original_maps,
-			std::vector<unsigned int>& possible_labels, const std::string weights_filepath, const std::string boost_filepath);
+	void trainAlgorithms(const std::vector<cv::Mat>& original_maps, const std::vector<cv::Mat>& training_maps,
+			std::vector<cv::Mat>& voronoi_maps, const std::vector<cv::Mat>& voronoi_node_maps,
+			std::vector<unsigned int>& possible_labels, const std::string storage_path,
+			const int epsilon_for_neighborhood, const int max_iterations, const int min_neighborhood_size,
+			const double min_node_distance);
 
 	// This function is called to find minimal values of a defined log-likelihood-function using the library Dlib.
 	// This log-likelihood-function is made over all training data to get a likelihood-estimation linear in the weights.
@@ -260,9 +242,9 @@ public:
 	void segmentMap(const cv::Mat& original_map, cv::Mat& segmented_map, const int epsilon_for_neighborhood,
 			const int max_iterations, const int min_neighborhood_size, std::vector<uint>& possible_labels,
 			const double min_node_distance, bool show_results,
-			std::string crf_storage_path, std::string boost_storage_path, const int max_inference_iterations,
-			 double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit,
-			 double max_area_for_merging, std::vector<cv::Point>* door_points = NULL);
+			const std::string classifier_storage_path, const std::string classifier_default_path, const int max_inference_iterations,
+			double map_resolution_from_subscription, double room_area_factor_lower_limit, double room_area_factor_upper_limit,
+			double max_area_for_merging, std::vector<cv::Point>* door_points = NULL);
 
 	// Function used to test several features separately. Not relevant.
 	void testFunc(const cv::Mat& original_map);
