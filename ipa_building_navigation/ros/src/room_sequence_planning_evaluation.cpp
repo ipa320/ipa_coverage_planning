@@ -1591,7 +1591,7 @@ public:
 						size_t trolley_index = 0;
 						for(size_t checkpoint = 0; checkpoint < result_seq->checkpoints.size(); ++checkpoint)
 						{
-							cv::Point trolley_position = result_seq->checkpoints[checkpoint].checkpoint_position_in_pixel;
+							cv::Point trolley_position = cv::Point(result_seq->checkpoints[checkpoint].checkpoint_position_in_pixel.x, result_seq->checkpoints[checkpoint].checkpoint_position_in_pixel.y);
 							double current_distance = planner.planPath(evaluation_data.floor_plan_, downsampled_map, room_centers[room], trolley_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_);;
 
 							if(current_distance < smallest_distance)
@@ -1912,7 +1912,7 @@ public:
 		cv_image.toImageMsg(map_msg);
 
 		actionlib::SimpleActionClient<ipa_building_msgs::FindRoomSequenceWithCheckpointsAction> ac_seq("/room_sequence_planning/room_sequence_planning_server", true);
-//		ROS_INFO("Waiting for action server '/room_sequence_planning/room_sequence_planning_server' to start.");
+		ROS_INFO("Waiting for action server '/room_sequence_planning/room_sequence_planning_server' to start.");
 		// wait for the action server to start
 		ac_seq.waitForServer(ros::Duration(60)); //will wait for infinite time
 
@@ -1976,6 +1976,7 @@ public:
 			ROS_INFO("Waiting for action server '/room_sequence_planning/room_sequence_planning_server' to start.");
 			// wait for the action server to start
 			ac_seq.waitForServer(ros::Duration(60)); //will wait for infinite time
+			ROS_INFO("Action server for trashbin sequence planning found.");
 
 			//put the vector<Point> format in the msg format
 			std::vector<ipa_building_msgs::RoomInformation> roomcenters_for_sequence_planning(reachable_roomcenters.size());
