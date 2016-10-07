@@ -1737,7 +1737,7 @@ public:
 					travel_distance_human += 2.0 * planner.planPath(evaluation_data.floor_plan_, downsampled_map, trolley_placing_position, robot_start_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_, 1);
 				}
 				travel_distance_human = travel_distance_human * evaluation_data.map_resolution_;
-				std::string storage_path_human = data_storage_path + "human_way/" + upper_folder_name;
+				std::string storage_path_human = data_storage_path + "human_way/" + upper_folder_name + evaluation_configuration_vector[config].generateLowerConfigurationFolderString() + "/";
 				const std::string upper_human_command = "mkdir -p " + storage_path_human;
 				return_value = system(upper_human_command.c_str());
 				storage_path_human = storage_path_human + evaluation_data.map_name_ + "_human.txt";
