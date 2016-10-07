@@ -1622,7 +1622,7 @@ public:
 				cv::Point robot_position = robot_start_position;
 				cv::Point trolley_position((evaluation_data.robot_start_position_.position.x - evaluation_data.map_origin_.position.x)/evaluation_data.map_resolution_,
 						(evaluation_data.robot_start_position_.position.y - evaluation_data.map_origin_.position.y)/evaluation_data.map_resolution_);
-				cv::circle(draw_path_map, robot_position, 3, CV_RGB(0,255,0), -1);
+				cv::circle(draw_path_map, robot_position, 3, CV_RGB(0,0,255), -1);
 
 				std::stringstream screenoutput;
 				std::vector<int> done_rooms;
@@ -1631,6 +1631,7 @@ public:
 					std::cout << "cleaning new clique" << std::endl; screenoutput << "cleaning new clique" << std::endl;
 					// mark new trolley position to empty the trashbins
 					trolley_position = cv::Point(result_seq->checkpoints[clique_index].checkpoint_position_in_pixel.x, result_seq->checkpoints[clique_index].checkpoint_position_in_pixel.y);
+					cv::circle(draw_path_map, trolley_position, 3, CV_RGB(0,0,255), -1);
 					// todo: test, add human movement time
 					// compute optimal room visiting order
 					std::vector<cv::Point> current_room_order;
