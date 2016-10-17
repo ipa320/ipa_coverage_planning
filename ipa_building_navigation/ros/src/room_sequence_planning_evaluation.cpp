@@ -1253,7 +1253,6 @@ public:
 						std::vector<cv::Point> trash_bin_sequence_in_this_room;
 						if (room_trash_bins[room_index].size()>1)
 						{
-							// todo: check why waitForServer freezes
 							bool result_trash = computeTrashBinSequence(evaluation_data, evaluation_configuration_vector[config], room_trash_bins[room_index], robot_position, result_trash_bin_seq);
 							if(result_trash == true)
 							{
@@ -1622,7 +1621,7 @@ public:
 				cv::Point robot_position = robot_start_position;
 				cv::Point trolley_position((evaluation_data.robot_start_position_.position.x - evaluation_data.map_origin_.position.x)/evaluation_data.map_resolution_,
 						(evaluation_data.robot_start_position_.position.y - evaluation_data.map_origin_.position.y)/evaluation_data.map_resolution_);
-				cv::circle(draw_path_map, robot_position, 3, CV_RGB(0,255,0), -1);
+				cv::circle(draw_path_map, robot_position, 3, CV_RGB(0,0,255), -1);
 
 				std::stringstream screenoutput;
 				std::vector<int> done_rooms;
@@ -1631,7 +1630,7 @@ public:
 					std::cout << "cleaning new clique" << std::endl; screenoutput << "cleaning new clique" << std::endl;
 					// mark new trolley position to empty the trashbins
 					trolley_position = cv::Point(result_seq->checkpoints[clique_index].checkpoint_position_in_pixel.x, result_seq->checkpoints[clique_index].checkpoint_position_in_pixel.y);
-					// todo: test, add human movement time
+					cv::circle(draw_path_map, trolley_position, 3, CV_RGB(0,0,255), -1);
 					// compute optimal room visiting order
 					std::vector<cv::Point> current_room_order;
 					ipa_building_msgs::FindRoomSequenceWithCheckpointsResultConstPtr result_room_seq;
@@ -1729,6 +1728,27 @@ public:
 				else
 					ROS_ERROR("Error on writing file '%s'", log_filename.c_str());
 				file.close();
+
+				// compute travel distance for humans and save them
+				double travel_distance_human = 0.0;
+				for(size_t pos = 0; pos < result_seq->checkpoints.size(); ++pos)
+				{
+					cv::Point trolley_placing_position = cv::Point(result_seq->checkpoints[pos].checkpoint_position_in_pixel.x, result_seq->checkpoints[pos].checkpoint_position_in_pixel.y);
+					travel_distance_human += 2.0 * planner.planPath(evaluation_data.floor_plan_, downsampled_map, trolley_placing_position, robot_start_position, evaluation_data.map_downsampling_factor_, 0., evaluation_data.map_resolution_, 1);
+				}
+				travel_distance_human = travel_distance_human * evaluation_data.map_resolution_;
+				std::string storage_path_human = data_storage_path + "human_way/" + upper_folder_name + evaluation_configuration_vector[config].generateLowerConfigurationFolderString() + "/";
+				const std::string upper_human_command = "mkdir -p " + storage_path_human;
+				return_value = system(upper_human_command.c_str());
+				storage_path_human = storage_path_human + evaluation_data.map_name_ + "_human.txt";
+				std::stringstream human_distance_output;
+				human_distance_output << "dist to place all trolleys [m]: " << std::endl << travel_distance_human;
+				std::ofstream human_file(storage_path_human.c_str(), std::ios::out);
+				if (human_file.is_open()==true)
+					human_file << human_distance_output.str();
+				else
+					ROS_ERROR("Error on writing file '%s'", storage_path_human.c_str());
+				human_file.close();
 
 				// images: segmented_map, sequence_map
 				std::string segmented_map_filename = lower_path + evaluation_data.map_name_ + "_segmented.png";

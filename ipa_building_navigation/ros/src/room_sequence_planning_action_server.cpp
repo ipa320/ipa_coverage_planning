@@ -255,7 +255,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		for(size_t i=0; i<optimal_room_sequence.size(); ++i)
 		{
 			double distance_to_trolley = a_star_path_planner.planPath(floor_plan, downsampled_map, trolley_positions.back(), room_centers[optimal_room_sequence[i]], map_downsampling_factor_, 0, goal->map_resolution);
-			if (distance_to_trolley <= max_clique_path_length_/goal->map_resolution || current_clique.size() >= max_clique_size_) //expand current clique by next roomcenter
+			if (distance_to_trolley <= max_clique_path_length_/goal->map_resolution && current_clique.size() < max_clique_size_) //expand current clique by next roomcenter
 			{
 				current_clique.push_back(optimal_room_sequence[i]);
 			}
