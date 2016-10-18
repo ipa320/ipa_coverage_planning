@@ -1821,6 +1821,8 @@ public:
 			ROS_INFO("Waiting for action server '/room_segmentation/room_segmentation_server' to start.");
 			ac_seg.waitForServer(ros::Duration(60)); // wait for the action server to start, will wait for infinite time
 			std::cout << "Action server started, sending goal_seg." << std::endl;
+			ros::Duration s(0.5);
+			s.sleep();
 
 			// send dynamic reconfigure config
 			DynamicReconfigureClient drc(node_handle_, "/room_segmentation/room_segmentation_server/set_parameters", "/room_segmentation/room_segmentation_server/parameter_updates");
@@ -1944,6 +1946,8 @@ public:
 		// wait for the action server to start
 		ac_seq.waitForServer(ros::Duration(3.0)); //will wait for infinite time
 		ROS_INFO("Action server for trashbin sequence planning found.");
+		ros::Duration s(0.5);
+		s.sleep();
 
 		//put the vector<Point> format in the msg format
 		std::vector<ipa_building_msgs::RoomInformation> roomcenters_for_sequence_planning(reachable_roomcenters.size());
@@ -2005,6 +2009,8 @@ public:
 			ROS_INFO("Waiting for action server '/room_sequence_planning/room_sequence_planning_server' to start.");
 			// wait for the action server to start
 			ac_seq.waitForServer(ros::Duration(60)); //will wait for infinite time
+			ros::Duration s(0.5);
+			s.sleep();
 
 			//put the vector<Point> format in the msg format
 			std::vector<ipa_building_msgs::RoomInformation> roomcenters_for_sequence_planning(reachable_roomcenters.size());
