@@ -285,6 +285,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->camera_frame, robot_poses);
 	}
 
+	std::cout << "published all navigation goals, starting to check seen area" << std::endl;
+
 	// find the points that are used to raycast the field of view
 	// find points that span biggest angle
 	std::vector<Eigen::Matrix<float, 2, 1> > fow_vectors;
@@ -440,7 +442,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv::Mat contour_map = black_map.clone();
 	cv::Size enlargement(contour_map.cols*2, contour_map.rows*2);
 	cv::resize(contour_map, contour_map, enlargement);
-	cv::findContours(contour_map, grid_areas, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+	cv::findContours(contour_map, grid_areas, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 
 	// get the moments
 	std::vector<cv::Moments> moments(grid_areas.size());

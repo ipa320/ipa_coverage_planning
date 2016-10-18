@@ -31,7 +31,7 @@ int main(int argc, char **argv)
 	actionlib::SimpleActionClient<ipa_building_msgs::RoomExplorationAction> ac("room_exploration_server", true);
 
 	// read in test map
-	cv::Mat map = cv::imread("/home/florianj/git/care-o-bot-indigo/src/autopnp/ipa_room_exploration/maps/map.png", 0);
+	cv::Mat map = cv::imread("/home/rmbce/git/care-o-bot-indigo/src/autopnp/ipa_room_exploration/maps/map.png", 0);
 	//make non-white pixels black
 	int min_y = 1e5, max_y = 0, min_x = 1e5, max_x = 0;
 	for (int y = 0; y < map.rows; y++)
