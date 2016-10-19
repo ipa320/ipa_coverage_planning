@@ -317,6 +317,11 @@ double AStarPlanner::planPath(const cv::Mat& map, const cv::Mat& downsampled_map
 {
 	route_ = "";
 	double step_length = 1./downsampling_factor;
+//	cv::Mat debug = map.clone();
+//	cv::circle(debug, start_point, 2, cv::Scalar(127), CV_FILLED);
+//	cv::circle(debug, end_point, 2, cv::Scalar(127), CV_FILLED);
+//	cv::imshow("debug", debug);
+//	cv::waitKey();
 	double pathlength = step_length * planPath(downsampled_map, downsampling_factor*start_point, downsampling_factor*end_point, 1., 0., map_resolution, end_point_valid_neighborhood_radius);
 	if(pathlength > 1e9) //if no path can be found try with the original map
 	{

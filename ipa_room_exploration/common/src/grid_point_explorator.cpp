@@ -71,8 +71,8 @@ void gridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	// solve the Traveling Salesman Problem
 	std::cout << "Finding optimal order of the found points. Start-index: " << min_index << std::endl;
 	ConcordeTSPSolver tsp_solver;
-	double map_downsampling_factor = 0.25;
-	std::vector<int> optimal_order = tsp_solver.solveConcordeTSP(room_map, grid_points, map_downsampling_factor, robot_radius, map_resolution, min_index, 0);
+//	double map_downsampling_factor = 0.25;
+	std::vector<int> optimal_order = tsp_solver.solveConcordeTSP(room_map, grid_points, 0.25, 0.0, map_resolution, min_index, 0);
 
 	// resave the found points in the optimal order and convert them to the right format
 	for(unsigned int point_index = 0; point_index < optimal_order.size(); ++point_index)

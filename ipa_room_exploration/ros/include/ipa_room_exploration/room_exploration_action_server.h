@@ -18,6 +18,7 @@
 
 #include <ipa_building_msgs/RoomExplorationAction.h>
 #include <cob_map_accessibility_analysis/CheckPerimeterAccessibility.h>
+#include <ipa_room_exploration/concorde_TSP.h>
 
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>
@@ -29,8 +30,11 @@
 
 #include <ipa_room_exploration/grid_point_explorator.h>
 
+#define PI 3.14159265359
 
 typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
+
+#pragma once
 
 class RoomExplorationServer
 {

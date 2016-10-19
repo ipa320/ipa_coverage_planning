@@ -34,7 +34,6 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	// dynamic reconfigure
 	room_exploration_dynamic_reconfigure_server_.setCallback(boost::bind(&RoomExplorationServer::dynamic_reconfigure_callback, this, _1, _2));
 
-
 	// Parameters
 	std::cout << "\n--------------------------\nRoom Exploration Parameters:\n--------------------------\n";
 	node_handle_.param("room_exploration_algorithm", path_planning_algorithm_, 1);
@@ -90,6 +89,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 //	ros::Duration sleep_rate(0.1);
 	tf::TransformListener listener;
 	tf::StampedTransform transform;
+	ros::Duration sleep_duration(0.2); // todo: param!!!!
 	do
 	{
 		// try to get the transformation from map_frame to base_frame, wait max. 2 seconds for this transform to come up
@@ -100,6 +100,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 			listener.lookupTransform(map_frame, camera_frame, time, transform);
 
 			ROS_INFO("Got a transform! x = %f, y = %f", transform.getOrigin().x(), transform.getOrigin().y());
+			sleep_duration.sleep();
 
 			// save the current pose if a transform could be found
 			geometry_msgs::Pose2D current_pose;
@@ -249,6 +250,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	float robot_radius = goal->robot_radius;
 
+	std::cout << "******************* robot radius ********************" << robot_radius << std::endl;
+
 	geometry_msgs::Pose2D starting_position = goal->starting_position;
 	geometry_msgs::Polygon min_max_coordinates = goal->room_min_max;
 
@@ -256,6 +259,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv_bridge::CvImagePtr cv_ptr_obj;
 	cv_ptr_obj = cv_bridge::toCvCopy(goal->input_map, sensor_msgs::image_encodings::MONO8);
 	cv::Mat room_map = cv_ptr_obj->image;
+	cv::Mat original_map = room_map.clone();
 	transformImageToRoomCordinates(room_map);
 
 	// erode map so that not reachable areas are not considered
@@ -352,9 +356,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 //		cv::circle(seen_positions_map, cv::Point(robot_poses[i].x/map_resolution, robot_poses[i].y/map_resolution), 2, cv::Scalar(100), CV_FILLED);
 //	}
 //	cv::imshow("listened positions", map_copy);
-	cv::namedWindow("seen area", cv::WINDOW_NORMAL);
-	cv::imshow("seen area", seen_positions_map);
-	cv::resizeWindow("seen area", 600, 600);
+//	cv::namedWindow("seen area", cv::WINDOW_NORMAL);
+//	cv::imshow("seen area", seen_positions_map);
+//	cv::resizeWindow("seen area", 600, 600);
 //	cv::waitKey();
 
 	// apply a binary filter on the image, making the drawn seen areas black
@@ -366,6 +370,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// 	  child-contour = 1 if it has one, = -1 if not, same for parent_contour
 	std::vector < std::vector<cv::Point> > left_areas, areas_to_revisit;
 	std::vector < cv::Vec4i > hierarchy;
+	cv::Mat copy = seen_positions_map.clone();
 	cv::findContours(seen_positions_map, left_areas, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
 
 	for(size_t area = 0; area < left_areas.size(); ++area)
@@ -391,17 +396,17 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	// testing
 	cv::Mat black_map(room_map.cols, room_map.rows, room_map.type(), cv::Scalar(0));
-	cv::drawContours(black_map, left_areas, -1, cv::Scalar(255), CV_FILLED);
-	cv::namedWindow("left area", cv::WINDOW_NORMAL);
-	cv::imshow("left area", black_map);
-	cv::resizeWindow("left area", 600, 600);
+//	cv::drawContours(black_map, left_areas, -1, cv::Scalar(255), CV_FILLED);
+//	cv::namedWindow("left area", cv::WINDOW_NORMAL);
+//	cv::imshow("left area", black_map);
+//	cv::resizeWindow("left area", 600, 600);
 
 	// draw found regions s.t. they can be intersected later
-	black_map = cv::Scalar(255);
-	cv::drawContours(black_map, areas_to_revisit, -1, cv::Scalar(150), CV_FILLED);
+	black_map = cv::Scalar(0);
+	cv::drawContours(black_map, areas_to_revisit, -1, cv::Scalar(255), CV_FILLED);
 	for(size_t contour = 0; contour < left_areas.size(); ++contour)
 		if(hierarchy[contour][3] != -1)
-			cv::drawContours(black_map, left_areas, contour, cv::Scalar(255), CV_FILLED);
+			cv::drawContours(black_map, left_areas, contour, cv::Scalar(0), CV_FILLED);
 
 	// 2. Get the size of one grid s.t. the grid can be completely covered by the fow from all rotations around it. For this
 	//	  fit a circle in the fow, which gives the diagonal length of the sqaure. Then use Pytahgoras to get the
@@ -427,21 +432,19 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 //	std::cout << "min distance: " << fitting_circle_radius << std::endl;
 
 	// get the edge length of the grid square as float and map it to an int in pixel coordinates, using floor method
-	double grid_length_as_float = std::sqrt(fitting_circle_radius);
-	int grid_length = std::floor(grid_length_as_float/map_resolution);
-	std::cout << "grid size: " << grid_length_as_float << ", as int: " << grid_length << std::endl;
+	double grid_length_as_double = std::sqrt(fitting_circle_radius);
+	int grid_length = std::floor(grid_length_as_double/map_resolution);
+	std::cout << "grid size: " << grid_length_as_double << ", as int: " << grid_length << std::endl;
 
 	// 3. Intersect the left areas with respect to the calculated grid length.
 	for(size_t i = 0; i < black_map.cols; i += grid_length)
-		cv::line(black_map, cv::Point(0, i), cv::Point(black_map.cols, i), cv::Scalar(255), 1);
+		cv::line(black_map, cv::Point(0, i), cv::Point(black_map.cols, i), cv::Scalar(0), 1);
 	for(size_t i = 0; i < black_map.rows; i += grid_length)
-		cv::line(black_map, cv::Point(i, 0), cv::Point(i, black_map.rows), cv::Scalar(255), 1);
+		cv::line(black_map, cv::Point(i, 0), cv::Point(i, black_map.rows), cv::Scalar(0), 1);
 
 	// 4. find the centers of the grid areas
 	std::vector < std::vector<cv::Point> > grid_areas;
 	cv::Mat contour_map = black_map.clone();
-	cv::Size enlargement(contour_map.cols*2, contour_map.rows*2);
-	cv::resize(contour_map, contour_map, enlargement);
 	cv::findContours(contour_map, grid_areas, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 
 	// get the moments
@@ -452,19 +455,86 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	 }
 
 	 // get the mass centers
-	 std::vector<cv::Point2f> area_centers(grid_areas.size());
+	 std::vector<cv::Point> area_centers(grid_areas.size());
 	 for( int i = 0; i < grid_areas.size(); i++ )
 	 {
-		 area_centers[i] = cv::Point2f( moments[i].m10/moments[i].m00 , moments[i].m01/moments[i].m00 );
+		 // check if the current contour has an area and isn't just a few pixels
+		 if(moments[i].m10 != 0 && moments[i].m01 != 0)
+		 {
+			 area_centers[i] = cv::Point( moments[i].m10/moments[i].m00 , moments[i].m01/moments[i].m00 );
+		 }
+		 // if contour is too small for moment calculation, take one point on this contour and use it as center
+		 else
+		 {
+			 area_centers[i] = grid_areas[i][0];
+		 }
 	 }
 
 	 // testing
+	 black_map = room_map.clone();
 	 for(size_t i = 0; i < area_centers.size(); ++i)
-		 cv::circle(black_map, 0.5*area_centers[i], 2, cv::Scalar(127), CV_FILLED);
+	 {
+		 cv::circle(black_map, area_centers[i], 2, cv::Scalar(127), CV_FILLED);
+		 std::cout << area_centers[i] << std::endl;
+	 }
 
-	cv::namedWindow("revisiting areas", cv::WINDOW_NORMAL);
-	cv::imshow("revisiting areas", black_map);
-	cv::resizeWindow("revisiting areas", 600, 600);
+//	cv::namedWindow("revisiting areas", cv::WINDOW_NORMAL);
+//	cv::imshow("revisiting areas", black_map);
+//	cv::resizeWindow("revisiting areas", 600, 600);
+//	cv::waitKey();
+
+	// 5. plan a tsp path trough the centers of the left areas
+	ConcordeTSPSolver tsp_solver;
+	std::vector<int> revisiting_order = tsp_solver.solveConcordeTSP(room_map, area_centers, 0.25, 0.0, map_resolution, 0, 0);
+
+	// 6. go to each center and use the map_accessability_server to find a robot pose around it s.t. it can be covered
+	//	  by the fow
+	// todo: complete
+	double distance_robot_fow_middlepoint = middle_point.norm();
+	double pi_8 = PI/8;
+	std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";
+	robot_poses.clear();
+	for(size_t center = 0; center < revisiting_order.size(); ++center)
+	{
+		geometry_msgs::Pose2D current_center;
+		current_center.x = (area_centers[revisiting_order[center]].x * map_resolution) + map_origin.x;
+		current_center.y = (area_centers[revisiting_order[center]].y * map_resolution) + map_origin.y;
+
+		// define request
+		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
+		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Response response;
+		check_request.center = current_center;
+		check_request.radius = distance_robot_fow_middlepoint * map_resolution;
+		check_request.rotational_sampling_step = pi_8;
+
+		std::cout << "checking center: " << std::endl << current_center << "radius: " << check_request.radius << std::endl;
+
+		// send request
+		if(ros::service::call(perimeter_service_name, check_request, response) == true)
+		{
+			std::cout << "successful check of accessiblity" << std::endl;
+			// go trough the found accessible positions and try to reach one of them
+			for(std::vector<geometry_msgs::Pose2D>::iterator pose = response.accessible_poses_on_perimeter.begin(); pose != response.accessible_poses_on_perimeter.end(); ++pose)
+			{
+				// calculate the navigation goal on the checked perimeter
+				geometry_msgs::Pose2D nav_goal;
+				nav_goal.x = pose->x + std::cos(pose->theta) * check_request.radius;
+				nav_goal.y = pose->y + std::sin(pose->theta) * check_request.radius;
+				// todo: angle!!
+				if(publishNavigationGoal(nav_goal, goal->map_frame, goal->camera_frame, robot_poses) == true)
+					break;
+			}
+		}
+		else
+		{
+			std::cout << "center not reachable on perimeter" << std::endl;
+		}
+	}
+
+	drawSeenPoints(copy, robot_poses, goal->field_of_view, corner_point_1, corner_point_2, map_resolution, map_origin);
+	cv::namedWindow("seen areas", cv::WINDOW_NORMAL);
+	cv::imshow("seen areas", copy);
+	cv::resizeWindow("seen areas", 600, 600);
 	cv::waitKey();
 
 	room_exploration_server_.setSucceeded();
