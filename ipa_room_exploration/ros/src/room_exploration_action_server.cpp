@@ -348,6 +348,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// draw the seen positions so the server can check what points haven't been seen
 	cv::Mat seen_positions_map = room_map.clone();
 	drawSeenPoints(seen_positions_map, robot_poses, goal->field_of_view, corner_point_1, corner_point_2, map_resolution, map_origin);
+	cv::Mat copy = seen_positions_map.clone();
 
 	// testing purpose: print the listened robot positions
 	cv::Mat map_copy = room_map.clone();
@@ -370,7 +371,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// 	  child-contour = 1 if it has one, = -1 if not, same for parent_contour
 	std::vector < std::vector<cv::Point> > left_areas, areas_to_revisit;
 	std::vector < cv::Vec4i > hierarchy;
-	cv::Mat copy = seen_positions_map.clone();
 	cv::findContours(seen_positions_map, left_areas, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
 
 	for(size_t area = 0; area < left_areas.size(); ++area)
@@ -478,9 +478,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		 std::cout << area_centers[i] << std::endl;
 	 }
 
-//	cv::namedWindow("revisiting areas", cv::WINDOW_NORMAL);
-//	cv::imshow("revisiting areas", black_map);
-//	cv::resizeWindow("revisiting areas", 600, 600);
+	cv::namedWindow("revisiting areas", cv::WINDOW_NORMAL);
+	cv::imshow("revisiting areas", black_map);
+	cv::resizeWindow("revisiting areas", 600, 600);
 //	cv::waitKey();
 
 	// 5. plan a tsp path trough the centers of the left areas
@@ -504,7 +504,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
 		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Response response;
 		check_request.center = current_center;
-		check_request.radius = distance_robot_fow_middlepoint * map_resolution;
+		check_request.radius = distance_robot_fow_middlepoint;
 		check_request.rotational_sampling_step = pi_8;
 
 		std::cout << "checking center: " << std::endl << current_center << "radius: " << check_request.radius << std::endl;
@@ -521,7 +521,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 				nav_goal.x = pose->x + std::cos(pose->theta) * check_request.radius;
 				nav_goal.y = pose->y + std::sin(pose->theta) * check_request.radius;
 				// todo: angle!!
-				if(publishNavigationGoal(nav_goal, goal->map_frame, goal->camera_frame, robot_poses) == true)
+				if(publishNavigationGoal(*pose, goal->map_frame, goal->camera_frame, robot_poses) == true)
 					break;
 			}
 		}
