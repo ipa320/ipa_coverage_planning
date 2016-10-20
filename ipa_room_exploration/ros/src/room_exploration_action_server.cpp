@@ -57,7 +57,8 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 // because it allows to calculate where the robot field of view has theoretically been and identify positions of the map that
 // the robot hasn't seen.
 bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& nav_goal, const std::string map_frame,
-		const std::string camera_frame, std::vector<geometry_msgs::Pose2D>& robot_poses)
+		const std::string camera_frame, std::vector<geometry_msgs::Pose2D>& robot_poses,
+		const double eps_x, const double eps_y)
 {
 	// move base client, that sends navigation goals to a move_base action server
 	MoveBaseClient mv_base_client("/move_base", true);
@@ -90,8 +91,10 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 	tf::TransformListener listener;
 	tf::StampedTransform transform;
 	ros::Duration sleep_duration(0.2); // todo: param!!!!
+	bool near_pos;
 	do
 	{
+		near_pos = false;
 		// try to get the transformation from map_frame to base_frame, wait max. 2 seconds for this transform to come up
 		try
 		{
@@ -111,6 +114,9 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 			transform.getBasis().getRPY(roll, pitch, yaw);
 			current_pose.theta = yaw;
 
+			if(std::abs(current_pose.x - nav_goal.x) <= eps_x && std::abs(current_pose.y - nav_goal.y) <= eps_y )
+				near_pos = true;
+
 			robot_poses.push_back(current_pose);
 		}
 		catch(tf::TransformException &ex)
@@ -118,7 +124,8 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 			ROS_INFO("Couldn't get transform!");// %s", ex.what());
 		}
 
-	}while(mv_base_client.getState() != actionlib::SimpleClientGoalState::ABORTED && mv_base_client.getState() != actionlib::SimpleClientGoalState::SUCCEEDED);
+	}while(mv_base_client.getState() != actionlib::SimpleClientGoalState::ABORTED && mv_base_client.getState() != actionlib::SimpleClientGoalState::SUCCEEDED
+			&& near_pos == false);
 
 	// check if point could be reached or not
 	if(mv_base_client.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
@@ -286,7 +293,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 //		cv::imshow("current_goal", map_copy);
 //		cv::waitKey();
 
-		publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->camera_frame, robot_poses);
+		publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->camera_frame, robot_poses, 0.4, 0.4);
 	}
 
 	std::cout << "published all navigation goals, starting to check seen area" << std::endl;
