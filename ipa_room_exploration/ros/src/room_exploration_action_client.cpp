@@ -69,7 +69,7 @@ int main(int argc, char **argv)
 	ROS_INFO("Action server started, sending goal.");
 
 	DynamicReconfigureClient drc_exp(nh, "room_exploration_server/set_parameters", "room_exploration_server/parameter_updates");
-	drc_exp.setConfig("grid_line_length", 20);
+	drc_exp.setConfig("grid_line_length", 15);
 
 	//	cv::Point2f src_center(map.cols/2.0F, map.rows/2.0F);
 //	cv::Mat rot_mat = getRotationMatrix2D(src_center, 180, 1.0);
@@ -88,7 +88,7 @@ int main(int argc, char **argv)
 
 	geometry_msgs::Polygon min_max_points;
 	geometry_msgs::Point32 min_point, max_point;
-	min_point.x = min_x+9;
+	min_point.x = min_x;
 	min_point.y = min_y;
 	max_point.x = max_x;
 	max_point.y = max_y;

@@ -58,13 +58,13 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 // the robot hasn't seen.
 bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& nav_goal, const std::string map_frame,
 		const std::string camera_frame, std::vector<geometry_msgs::Pose2D>& robot_poses,
-		const double eps_x, const double eps_y)
+		const double eps)
 {
 	// move base client, that sends navigation goals to a move_base action server
 	MoveBaseClient mv_base_client("/move_base", true);
 
 	// wait for the action server to come up
-	while(!mv_base_client.waitForServer(ros::Duration(5.0)))
+	while(mv_base_client.waitForServer(ros::Duration(5.0)) == false)
 	{
 	  ROS_INFO("Waiting for the move_base action server to come up");
 	}
@@ -102,7 +102,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 			listener.waitForTransform(map_frame, camera_frame, time, ros::Duration(2.0)); // 5.0
 			listener.lookupTransform(map_frame, camera_frame, time, transform);
 
-			ROS_INFO("Got a transform! x = %f, y = %f", transform.getOrigin().x(), transform.getOrigin().y());
+//			ROS_INFO("Got a transform! x = %f, y = %f", transform.getOrigin().x(), transform.getOrigin().y());
 			sleep_duration.sleep();
 
 			// save the current pose if a transform could be found
@@ -114,7 +114,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 			transform.getBasis().getRPY(roll, pitch, yaw);
 			current_pose.theta = yaw;
 
-			if(std::abs(current_pose.x - nav_goal.x) <= eps_x && std::abs(current_pose.y - nav_goal.y) <= eps_y )
+			if(std::pow(current_pose.x - nav_goal.x, 2.0) + std::pow(current_pose.y - nav_goal.y, 2.0) <= eps*eps)
 				near_pos = true;
 
 			robot_poses.push_back(current_pose);
@@ -128,7 +128,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 			&& near_pos == false);
 
 	// check if point could be reached or not
-	if(mv_base_client.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+	if(mv_base_client.getState() == actionlib::SimpleClientGoalState::SUCCEEDED || near_pos == true)
 	{
 		ROS_INFO("Hooray, the base moved to the goal");
 		return true;
@@ -293,7 +293,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 //		cv::imshow("current_goal", map_copy);
 //		cv::waitKey();
 
-		publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->camera_frame, robot_poses, 0.4, 0.4);
+		publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->camera_frame, robot_poses, 0.35);
 	}
 
 	std::cout << "published all navigation goals, starting to check seen area" << std::endl;
@@ -444,9 +444,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	std::cout << "grid size: " << grid_length_as_double << ", as int: " << grid_length << std::endl;
 
 	// 3. Intersect the left areas with respect to the calculated grid length.
-	for(size_t i = 0; i < black_map.cols; i += grid_length)
+	for(size_t i =  min_max_coordinates.points[0].y; i < black_map.cols; i += grid_length)
 		cv::line(black_map, cv::Point(0, i), cv::Point(black_map.cols, i), cv::Scalar(0), 1);
-	for(size_t i = 0; i < black_map.rows; i += grid_length)
+	for(size_t i =  min_max_coordinates.points[0].x; i < black_map.rows; i += grid_length)
 		cv::line(black_map, cv::Point(i, 0), cv::Point(i, black_map.rows), cv::Scalar(0), 1);
 
 	// 4. find the centers of the grid areas
@@ -491,12 +491,27 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 //	cv::waitKey();
 
 	// 5. plan a tsp path trough the centers of the left areas
+	// find the center that is neares to the current robot position, which becomes the start node for the tsp
+	geometry_msgs::Pose2D current_robot_pose = robot_poses.back();
+	cv::Point current_robot_point(current_robot_pose.x, current_robot_pose.y);
+	double min_dist = 9001;
+	int min_index = 0;
+	for(size_t current_center_index = 0; current_center_index < area_centers.size(); ++current_center_index)
+	{
+		cv::Point current_center = area_centers[current_center_index];
+		double current_squared_distance = std::pow(current_center.x - current_robot_point.x, 2.0) + std::pow(current_center.y - current_robot_point.y, 2.0);
+
+		if(current_squared_distance <= min_dist)
+		{
+			min_dist = current_squared_distance;
+			min_index = current_center_index;
+		}
+	}
 	ConcordeTSPSolver tsp_solver;
-	std::vector<int> revisiting_order = tsp_solver.solveConcordeTSP(room_map, area_centers, 0.25, 0.0, map_resolution, 0, 0);
+	std::vector<int> revisiting_order = tsp_solver.solveConcordeTSP(room_map, area_centers, 0.25, 0.0, map_resolution, min_index, 0);
 
 	// 6. go to each center and use the map_accessability_server to find a robot pose around it s.t. it can be covered
 	//	  by the fow
-	// todo: complete
 	double distance_robot_fow_middlepoint = middle_point.norm();
 	double pi_8 = PI/8;
 	std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";
@@ -527,7 +542,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 				geometry_msgs::Pose2D nav_goal;
 				nav_goal.x = pose->x + std::cos(pose->theta) * check_request.radius;
 				nav_goal.y = pose->y + std::sin(pose->theta) * check_request.radius;
-				// todo: angle!!
 				if(publishNavigationGoal(*pose, goal->map_frame, goal->camera_frame, robot_poses) == true)
 					break;
 			}
