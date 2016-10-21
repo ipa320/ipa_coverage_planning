@@ -249,9 +249,10 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	ROS_INFO("map resolution is : %f", goal->map_resolution);
 
 	// ***************** I. read the given parameters out of the goal *****************
+	// todo: test for adding right coordinates!!
 	cv::Point2d map_origin;
-	map_origin.x = goal->map_origin.x;
-	map_origin.y = goal->map_origin.y;
+	map_origin.x = goal->map_origin.x + goal->region_of_interest_coordinates.points[0].x;
+	map_origin.y = goal->map_origin.y + goal->region_of_interest_coordinates.points[0].y;
 
 	float map_resolution = goal->map_resolution;
 
@@ -265,9 +266,16 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// converting the map msg in cv format
 	cv_bridge::CvImagePtr cv_ptr_obj;
 	cv_ptr_obj = cv_bridge::toCvCopy(goal->input_map, sensor_msgs::image_encodings::MONO8);
-	cv::Mat room_map = cv_ptr_obj->image;
-	cv::Mat original_map = room_map.clone();
-	transformImageToRoomCordinates(room_map);
+	cv::Mat global_map = cv_ptr_obj->image;
+	transformImageToRoomCordinates(global_map);
+
+	// extract the subregion of the given map that should be explored
+	int roi_x_start = goal->region_of_interest_coordinates.points[0].x;
+	int roi_y_start = goal->region_of_interest_coordinates.points[0].y;
+	int roi_x_end = goal->region_of_interest_coordinates.points[1].x;
+	int roi_y_end = goal->region_of_interest_coordinates.points[1].y;
+
+	cv::Mat room_map = global_map(cv::Range(roi_y_start, roi_y_end), cv::Range(roi_x_start, roi_x_end));
 
 	// erode map so that not reachable areas are not considered
 	int number_of_erosions = (robot_radius / map_resolution);
@@ -287,14 +295,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
 	std::vector<geometry_msgs::Pose2D> robot_poses;
 	for(size_t nav_goal = 0; nav_goal < exploration_path.size(); ++nav_goal)
-	{
-//		cv::Mat map_copy = room_map.clone();
-//		cv::circle(map_copy, cv::Point(exploration_path[nav_goal].y / map_resolution, exploration_path[nav_goal].x / map_resolution), 3, cv::Scalar(127), CV_FILLED);
-//		cv::imshow("current_goal", map_copy);
-//		cv::waitKey();
-
-		publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->camera_frame, robot_poses, 0.35);
-	}
+		bool res = publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->camera_frame, robot_poses, 0.35);
 
 	std::cout << "published all navigation goals, starting to check seen area" << std::endl;
 
@@ -350,7 +351,30 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		corner_point_2 = 1.3 * fow_vectors[3];
 	}
 
-//	std::cout << "relative corners: " << corner_point_1 << std::endl << corner_point_2 << std::endl;
+	// get the global costmap, that has initially not known objects in to check what regions have been seen
+	const std::string costmap_topic = "/move_base/global_costmap/costmap";
+	nav_msgs::OccupancyGrid global_costmap;
+	global_costmap = *(ros::topic::waitForMessage<nav_msgs::OccupancyGrid>(costmap_topic));
+	ROS_INFO("Found global gridmap.");
+
+	std::vector<signed char> pixel_values;
+	pixel_values = global_costmap.data;
+
+	cv::Mat costmap_as_mat = cv::Mat(global_map.cols, global_map.rows, global_map.type());
+
+	for(size_t u = 0; u < costmap_as_mat.cols; ++u)
+	{
+		for(size_t v = 0; v < costmap_as_mat.rows; ++v)
+		{
+			costmap_as_mat.at<uchar>(u,v) = (uchar) pixel_values[v+u*global_map.rows];
+		}
+	}
+
+	// 70% probability of being an obstacle
+	cv::threshold(costmap_as_mat, costmap_as_mat, 70, 255, cv::THRESH_BINARY_INV);
+
+	cv::imshow("test", costmap_as_mat);
+	cv::waitKey();
 
 	// draw the seen positions so the server can check what points haven't been seen
 	cv::Mat seen_positions_map = room_map.clone();
@@ -359,15 +383,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	// testing purpose: print the listened robot positions
 	cv::Mat map_copy = room_map.clone();
-//	for(size_t i = 0; i < robot_poses.size(); ++i)
-//	{
-//		cv::circle(seen_positions_map, cv::Point(robot_poses[i].x/map_resolution, robot_poses[i].y/map_resolution), 2, cv::Scalar(100), CV_FILLED);
-//	}
-//	cv::imshow("listened positions", map_copy);
-//	cv::namedWindow("seen area", cv::WINDOW_NORMAL);
-//	cv::imshow("seen area", seen_positions_map);
-//	cv::resizeWindow("seen area", 600, 600);
-//	cv::waitKey();
 
 	// apply a binary filter on the image, making the drawn seen areas black
 	cv::threshold(seen_positions_map, seen_positions_map, 150, 255, cv::THRESH_BINARY);
@@ -403,10 +418,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	// testing
 	cv::Mat black_map(room_map.cols, room_map.rows, room_map.type(), cv::Scalar(0));
-//	cv::drawContours(black_map, left_areas, -1, cv::Scalar(255), CV_FILLED);
-//	cv::namedWindow("left area", cv::WINDOW_NORMAL);
-//	cv::imshow("left area", black_map);
-//	cv::resizeWindow("left area", 600, 600);
 
 	// draw found regions s.t. they can be intersected later
 	black_map = cv::Scalar(0);
@@ -449,7 +460,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	for(size_t i =  min_max_coordinates.points[0].x; i < black_map.rows; i += grid_length)
 		cv::line(black_map, cv::Point(i, 0), cv::Point(i, black_map.rows), cv::Scalar(0), 1);
 
-	// 4. find the centers of the grid areas
+	// 4. find the centers of the global_costmap areas
 	std::vector < std::vector<cv::Point> > grid_areas;
 	cv::Mat contour_map = black_map.clone();
 	cv::findContours(contour_map, grid_areas, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
@@ -537,14 +548,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			std::cout << "successful check of accessiblity" << std::endl;
 			// go trough the found accessible positions and try to reach one of them
 			for(std::vector<geometry_msgs::Pose2D>::iterator pose = response.accessible_poses_on_perimeter.begin(); pose != response.accessible_poses_on_perimeter.end(); ++pose)
-			{
-				// calculate the navigation goal on the checked perimeter
-				geometry_msgs::Pose2D nav_goal;
-				nav_goal.x = pose->x + std::cos(pose->theta) * check_request.radius;
-				nav_goal.y = pose->y + std::sin(pose->theta) * check_request.radius;
 				if(publishNavigationGoal(*pose, goal->map_frame, goal->camera_frame, robot_poses) == true)
 					break;
-			}
 		}
 		else
 		{

@@ -9,6 +9,7 @@ set(catkin_RUN_PACKAGES
 	ipa_building_navigation
 	libconcorde_tsp_solver
 	move_base_msgs
+	nav_msgs
 	roscpp
 	roslib
 	sensor_msgs

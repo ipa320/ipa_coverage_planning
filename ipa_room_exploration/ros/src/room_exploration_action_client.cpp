@@ -14,6 +14,7 @@
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>
 #include <geometry_msgs/Point32.h>
+#include <nav_msgs/OccupancyGrid.h>
 
 #include <ipa_building_msgs/RoomExplorationAction.h>
 
@@ -62,6 +63,29 @@ int main(int argc, char **argv)
 
 	std::cout << "map-size: " << map.rows << "x" << map.cols << std::endl;
 
+//	const std::string topic = "/move_base/global_costmap/costmap";
+//	nav_msgs::OccupancyGrid grid;
+//	grid = *(ros::topic::waitForMessage<nav_msgs::OccupancyGrid>(topic, nh));
+//	ROS_INFO("got grid");
+//
+//	std::vector<signed char> dats;
+//	dats = grid.data;
+//
+//	std::cout << dats.size() << std::endl;
+//	int s = 200;
+//	cv::Mat test_map = cv::Mat(s, s, map.type());
+//
+//	for(size_t u = 0; u < test_map.cols; ++u)
+//	{
+//		for(size_t v = 0; v < test_map.rows; ++v)
+//		{
+//			test_map.at<uchar>(u,v) = (uchar) dats[v+u*s];
+//		}
+//	}
+//
+//	cv::imshow("testtt", test_map);
+//	cv::waitKey();
+
 	ROS_INFO("Waiting for action server to start.");
 	// wait for the action server to start
 	ac.waitForServer(); //will wait for infinite time
@@ -86,6 +110,7 @@ int main(int argc, char **argv)
 	cv_image.image = map;
 	cv_image.toImageMsg(labeling);
 
+	// todo: necessary?
 	geometry_msgs::Polygon min_max_points;
 	geometry_msgs::Point32 min_point, max_point;
 	min_point.x = min_x;
@@ -96,8 +121,16 @@ int main(int argc, char **argv)
 	min_max_points.points.push_back(min_point);
 	min_max_points.points.push_back(max_point);
 
-	std::cout << min_max_points.points[0] << " " << min_max_points.points[1] << std::endl;
+	geometry_msgs::Polygon region_of_interest;
+	geometry_msgs::Point32 edge_point;
+	edge_point.x = 0;
+	edge_point.y = 0;
+	region_of_interest.points.push_back(edge_point);
+	edge_point.x = 200;
+	edge_point.y = 200;
+	region_of_interest.points.push_back(edge_point);
 
+	std::cout << min_max_points.points[0] << " " << min_max_points.points[1] << std::endl;
 
 	geometry_msgs::Pose2D map_origin;
 	map_origin.x = 0.0;
@@ -137,6 +170,7 @@ int main(int argc, char **argv)
 	goal.camera_frame = "/base_footprint";
 	goal.map_frame = "/map";
 	goal.field_of_view = fow_points;
+	goal.region_of_interest_coordinates = region_of_interest;
 	ac.sendGoal(goal);
 
 ////	// testing

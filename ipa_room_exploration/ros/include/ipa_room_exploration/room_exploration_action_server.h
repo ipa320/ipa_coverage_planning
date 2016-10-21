@@ -23,6 +23,7 @@
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>
 #include <geometry_msgs/Point32.h>
+#include <nav_msgs/OccupancyGrid.h>
 
 #include <tf/transform_listener.h>
 
