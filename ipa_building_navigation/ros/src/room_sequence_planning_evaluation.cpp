@@ -250,28 +250,28 @@ public:
 //		map_names.push_back("lab_ipa_furnitures");
 
 		std::vector< std::string > map_names;
-		map_names.push_back("lab_ipa");
-		map_names.push_back("lab_c_scan");
-		map_names.push_back("Freiburg52_scan");
-		map_names.push_back("Freiburg79_scan");
-		map_names.push_back("lab_b_scan");
-		map_names.push_back("lab_intel");
-		map_names.push_back("Freiburg101_scan");
-		map_names.push_back("lab_d_scan");
-		map_names.push_back("lab_f_scan");
-		map_names.push_back("lab_a_scan");
-		map_names.push_back("NLB");
-		map_names.push_back("office_a");
-		map_names.push_back("office_b");
-		map_names.push_back("office_c");
-		map_names.push_back("office_d");
-		map_names.push_back("office_e");
-		map_names.push_back("office_f");
-		map_names.push_back("office_g");
-		map_names.push_back("office_h");
-		map_names.push_back("office_i");
-		map_names.push_back("lab_ipa_furnitures");
-		map_names.push_back("lab_c_scan_furnitures");
+//		map_names.push_back("lab_ipa");
+//		map_names.push_back("lab_c_scan");
+//		map_names.push_back("Freiburg52_scan");
+//		map_names.push_back("Freiburg79_scan");
+//		map_names.push_back("lab_b_scan");
+//		map_names.push_back("lab_intel");
+//		map_names.push_back("Freiburg101_scan");
+//		map_names.push_back("lab_d_scan");
+//		map_names.push_back("lab_f_scan");
+//		map_names.push_back("lab_a_scan");
+//		map_names.push_back("NLB");
+//		map_names.push_back("office_a");
+//		map_names.push_back("office_b");
+//		map_names.push_back("office_c");
+//		map_names.push_back("office_d");
+//		map_names.push_back("office_e");
+//		map_names.push_back("office_f");
+//		map_names.push_back("office_g");
+//		map_names.push_back("office_h");
+//		map_names.push_back("office_i");
+//		map_names.push_back("lab_ipa_furnitures");
+//		map_names.push_back("lab_c_scan_furnitures");
 		map_names.push_back("Freiburg52_scan_furnitures");
 		map_names.push_back("Freiburg79_scan_furnitures");
 		map_names.push_back("lab_b_scan_furnitures");
@@ -662,7 +662,7 @@ public:
 		evaluation_configurations.clear();
 		for (int room_segmentation_algorithm=1; room_segmentation_algorithm<=5; ++room_segmentation_algorithm)
 		{
-			for(int sequence_planning_method = 1; sequence_planning_method <= 2; ++sequence_planning_method)
+			for(int sequence_planning_method = 2; sequence_planning_method <= 2; ++sequence_planning_method)
 			{
 				for(int tsp_solver = 1; tsp_solver <= 3; ++tsp_solver)
 				{
@@ -1825,7 +1825,9 @@ public:
 			s.sleep();
 
 			// send dynamic reconfigure config
+			ROS_INFO("Trying to connect to dynamic reconfigure server.");
 			DynamicReconfigureClient drc(node_handle_, "/room_segmentation/room_segmentation_server/set_parameters", "/room_segmentation/room_segmentation_server/parameter_updates");
+			ROS_INFO("Done connecting to the dynamic reconfigure server.");
 			const int room_segmentation_algorithm = evaluation_configuration.room_segmentation_algorithm_;
 			drc.setConfig("room_segmentation_algorithm", room_segmentation_algorithm);
 			if(room_segmentation_algorithm == 1) //morpho
@@ -1958,7 +1960,9 @@ public:
 		}
 
 		// set algorithm parameters
+		ROS_INFO("Trying to connect to dynamic reconfigure server.");
 		DynamicReconfigureClient drc(node_handle_, "/room_sequence_planning/room_sequence_planning_server/set_parameters", "/room_sequence_planning/room_sequence_planning_server/parameter_updates");
+		ROS_INFO("Done connecting to the dynamic reconfigure server.");
 		drc.setConfig("max_clique_path_length", 1e9);
 		drc.setConfig("map_downsampling_factor", evaluation_data.map_downsampling_factor_);
 		drc.setConfig("planning_method", 1);
@@ -2021,7 +2025,9 @@ public:
 			}
 
 			// set algorithm parameters
+			ROS_INFO("Trying to connect to dynamic reconfigure server.");
 			DynamicReconfigureClient drc(node_handle_, "/room_sequence_planning/room_sequence_planning_server/set_parameters", "/room_sequence_planning/room_sequence_planning_server/parameter_updates");
+			ROS_INFO("Done conencting to the dynamic reconfigure server.");
 			drc.setConfig("max_clique_path_length", evaluation_configuration.max_clique_path_length_);
 			drc.setConfig("map_downsampling_factor", evaluation_data.map_downsampling_factor_);
 			drc.setConfig("planning_method", evaluation_configuration.sequence_planning_method_);

@@ -371,18 +371,12 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	}
 
 	// 70% probability of being an obstacle
-	cv::threshold(costmap_as_mat, costmap_as_mat, 70, 255, cv::THRESH_BINARY_INV);
-
-	cv::imshow("test", costmap_as_mat);
-	cv::waitKey();
+	cv::threshold(costmap_as_mat, costmap_as_mat, 75, 255, cv::THRESH_BINARY_INV);
 
 	// draw the seen positions so the server can check what points haven't been seen
-	cv::Mat seen_positions_map = room_map.clone();
+	cv::Mat seen_positions_map = costmap_as_mat.clone();
 	drawSeenPoints(seen_positions_map, robot_poses, goal->field_of_view, corner_point_1, corner_point_2, map_resolution, map_origin);
-	cv::Mat copy = seen_positions_map.clone();
-
-	// testing purpose: print the listened robot positions
-	cv::Mat map_copy = room_map.clone();
+	cv::Mat copy = room_map.clone();
 
 	// apply a binary filter on the image, making the drawn seen areas black
 	cv::threshold(seen_positions_map, seen_positions_map, 150, 255, cv::THRESH_BINARY);
@@ -417,7 +411,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	}
 
 	// testing
-	cv::Mat black_map(room_map.cols, room_map.rows, room_map.type(), cv::Scalar(0));
+	cv::Mat black_map(costmap_as_mat.cols, costmap_as_mat.rows, costmap_as_mat.type(), cv::Scalar(0));
 
 	// draw found regions s.t. they can be intersected later
 	black_map = cv::Scalar(0);
@@ -502,7 +496,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 //	cv::waitKey();
 
 	// 5. plan a tsp path trough the centers of the left areas
-	// find the center that is neares to the current robot position, which becomes the start node for the tsp
+	// find the center that is nearest to the current robot position, which becomes the start node for the tsp
 	geometry_msgs::Pose2D current_robot_pose = robot_poses.back();
 	cv::Point current_robot_point(current_robot_pose.x, current_robot_pose.y);
 	double min_dist = 9001;
@@ -519,14 +513,14 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		}
 	}
 	ConcordeTSPSolver tsp_solver;
-	std::vector<int> revisiting_order = tsp_solver.solveConcordeTSP(room_map, area_centers, 0.25, 0.0, map_resolution, min_index, 0);
+	std::vector<int> revisiting_order = tsp_solver.solveConcordeTSP(costmap_as_mat, area_centers, 0.25, 0.0, map_resolution, min_index, 0);
 
 	// 6. go to each center and use the map_accessability_server to find a robot pose around it s.t. it can be covered
 	//	  by the fow
 	double distance_robot_fow_middlepoint = middle_point.norm();
 	double pi_8 = PI/8;
 	std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";
-	robot_poses.clear();
+//	robot_poses.clear();
 	for(size_t center = 0; center < revisiting_order.size(); ++center)
 	{
 		geometry_msgs::Pose2D current_center;
@@ -561,7 +555,12 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv::namedWindow("seen areas", cv::WINDOW_NORMAL);
 	cv::imshow("seen areas", copy);
 	cv::resizeWindow("seen areas", 600, 600);
+	cv::namedWindow("costmap", cv::WINDOW_NORMAL);
+	cv::imshow("costmap", costmap_as_mat);
+	cv::resizeWindow("costmap", 600, 600);
 	cv::waitKey();
+
+	ROS_INFO("Explored room.");
 
 	room_exploration_server_.setSucceeded();
 }

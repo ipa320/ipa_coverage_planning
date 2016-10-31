@@ -79,8 +79,12 @@ public:
 		dynamic_reconfigure_sub_ = node_handle_.subscribe(parameter_updates_topic, 1, &DynamicReconfigureClient::dynamic_reconfigure_current_config_callback, this);
 
 		// receive current configuration
+		ros::Duration sleep_rate(0.5);
 		while (dynamic_reconfigure_current_config_received_ == false)
+		{
 			ros::spinOnce();
+			sleep_rate.sleep();
+		}
 	}
 
 	dynamic_reconfigure::Config& getConfig()
