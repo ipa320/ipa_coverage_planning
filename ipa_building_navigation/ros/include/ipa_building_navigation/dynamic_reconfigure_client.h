@@ -89,14 +89,12 @@ public:
 
 	dynamic_reconfigure::Config& getConfig()
 	{
-		ROS_INFO("Mutex 1");
 		boost::mutex::scoped_lock lock(dynamic_reconfigure_lock_);
 		return dynamic_reconfigure_config_;
 	}
 
 	bool setConfig(const std::string& param_name, const bool param_value)
 	{
-		ROS_INFO("Mutex 2");
 		boost::mutex::scoped_lock lock(dynamic_reconfigure_lock_);
 
 		if (dynamic_reconfigure_current_config_received_ == false)
@@ -128,7 +126,6 @@ public:
 
 	bool setConfig(const std::string& param_name, const double param_value)
 	{
-		ROS_INFO("Mutex 3");
 		boost::mutex::scoped_lock lock(dynamic_reconfigure_lock_);
 
 		if (dynamic_reconfigure_current_config_received_ == false)
@@ -160,7 +157,6 @@ public:
 
 	bool setConfig(const std::string& param_name, const int param_value)
 	{
-		ROS_INFO("Mutex 4");
 		boost::mutex::scoped_lock lock(dynamic_reconfigure_lock_);
 
 		if (dynamic_reconfigure_current_config_received_ == false)
@@ -192,7 +188,6 @@ public:
 
 	bool setConfig(const std::string& param_name, const std::string& param_value)
 	{
-		ROS_INFO("Mutex 5");
 		boost::mutex::scoped_lock lock(dynamic_reconfigure_lock_);
 
 		if (dynamic_reconfigure_current_config_received_ == false)
@@ -225,7 +220,6 @@ public:
 private:
 	void dynamic_reconfigure_current_config_callback(const dynamic_reconfigure::ConfigConstPtr& current_config)
 	{
-		ROS_INFO("Mutex 6");
 		boost::mutex::scoped_lock lock(dynamic_reconfigure_lock_);
 
 		dynamic_reconfigure_config_ = *current_config;
