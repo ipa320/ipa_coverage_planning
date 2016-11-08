@@ -116,8 +116,12 @@ public:
 	}
 };
 
-// Class that generates a room exploration path by using the cellular decomposition method, proposed by
-// "Choset, H., & Pignon, P. (1998). Coverage path planning: The boustrophedon cellular decomposition. In Field and Service Robotics (pp. 203-209). Springer London."
+// Class that generates a room exploration path by using the morse cellular decomposition method, proposed by
+//
+// "H. Choset, E. Acar, A. A. Rizzi and J. Luntz,
+// "Exact cellular decompositions in terms of critical points of Morse functions," Robotics and Automation, 2000. Proceedings.
+// ICRA '00. IEEE International Conference on, San Francisco, CA, 2000, pp. 2270-2277 vol.3."
+//
 // This method decomposes the given environment into several cells which don't have any obstacle in it. For each of this
 // cell the boustrophedon path is generated, which goes up and down in each cell, see the upper paper for reference.
 // This class only produces a static path, regarding the given map in form of a point series. To react on dynamic
@@ -126,10 +130,6 @@ public:
 class boustrophedonExplorer
 {
 protected:
-	// Function to resample the map, such that obstacles can be represented as a set of points and vectors, where the
-	// vertexes are stored as points and the edges as vectors in a counter-clockwise manner.
-	void resampleMap(const cv::Mat& original_map, std::vector<generalizedPolygon>& obstacles, const float min_point_dist,
-			cv::Mat* resampled_map = 0);
 
 public:
 	// constructor
