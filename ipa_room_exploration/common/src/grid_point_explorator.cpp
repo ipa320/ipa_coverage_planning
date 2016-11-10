@@ -16,7 +16,7 @@ gridPointExplorator::gridPointExplorator(int grid_line_length)
 //			Poses are computed, by calculating a vector from the old node to the next and using the angle of this with the x-axis
 //			as angle for the Poses.
 void gridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
-		const float robot_radius, const float map_resolution, const geometry_msgs::Pose2D starting_position,
+		const float map_resolution, const geometry_msgs::Pose2D starting_position,
 		const geometry_msgs::Polygon room_min_max_coordinates, const cv::Point2d map_origin)
 {
 	//******************* I. Get grid points *************************

@@ -1,16 +1,3 @@
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
-#include <iostream>
-#include <vector>
-#include <math.h>
-#include <string>
-
-#include <ipa_room_exploration/concorde_TSP.h>
-
-#include <geometry_msgs/Pose2D.h>
-#include <geometry_msgs/Polygon.h>
-#include <geometry_msgs/Point32.h>
-
 /*!
  *****************************************************************
  * \file
@@ -27,14 +14,14 @@
  * \note
  * ROS stack name: autopnp
  * \note
- * ROS package name: ipa_room_exploration
+ * ROS package name: ipa_room_segmentation
  *
  * \author
- * Author: Florian Jordan
+ * Author: Richard Bormann
  * \author
- * Supervised by: Richard Bormann
+ * Supervised by:
  *
- * \date Date of creation: 03.2016
+ * \date Date of creation: 22.07.2015
  *
  * \brief
  *
@@ -70,31 +57,20 @@
  *
  ****************************************************************/
 
+#include <vector>
 
-// Class that generates a room exploration path by laying a small grid over the given map and then planning the best path trough
-// all points, by defining an traveling salesman problem (TSP). This class only produces a static path, regarding the given map
-// in form of a point series. To react on dynamic obstacles, one has to do this in upper algorithms.
-//
-class gridPointExplorator
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
+
+class MeanShift2D
 {
-protected:
-	// length of the grid cell lines [pixel]
-	int grid_line_length_;
-
 public:
-	// constructor
-	gridPointExplorator(int grid_line_length = 5);
+	MeanShift2D(void) {};
 
-	// Function that creates an exploration path for a given room. The room has to be drawn in a cv::Mat (filled with Bit-uchar),
-	// with free space drawn white (255) and obstacles as black (0). It returns a series of 2D poses that show to which positions
-	// the robot should drive at.
-	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
-			const float map_resolution, const geometry_msgs::Pose2D starting_position,
-			const geometry_msgs::Polygon room_min_max_coordinates, const cv::Point2d map_origin);
+	void filter(const std::vector<cv::Vec2d>& data, std::vector<cv::Vec2d>& filtered_data, const double bandwidth, const int maximumIterations=100);
 
-	// function to set the grid size
-	void setGridLineLength(int new_line_length)
-	{
-		grid_line_length_ = new_line_length;
-	}
+	void computeConvergencePoints(const std::vector<cv::Vec2d>& filtered_data, std::vector<cv::Vec2d>& convergence_points, std::vector< std::vector<int> >& convergence_sets, const double sensitivity);
+
+	// map_resolution in [m/cell]
+	cv::Vec2d findRoomCenter(const cv::Mat& room_image, const std::vector<cv::Vec2d>& room_cells, double map_resolution);
 };

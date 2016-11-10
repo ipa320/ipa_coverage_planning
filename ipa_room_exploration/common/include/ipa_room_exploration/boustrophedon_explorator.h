@@ -6,6 +6,7 @@
 #include <string>
 
 #include <ipa_room_exploration/concorde_TSP.h>
+#include <ipa_room_exploration/meanshift2d.h>
 
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>
@@ -72,47 +73,110 @@
 
 // Class that is used to store cells and obstacles in a certain manner. For this the vertexes are stored as points and
 // the edges are stored as vectors in a counter-clockwise manner. The constructor becomes a set of respectively sorted
-// points and computes the vectors out of them. Additionally the weighted center of all points gets computed, to
-// simplify the visiting order later.
+// points and computes the vectors out of them. Additionally the visible center of the polygon gets computed, to
+// simplify the visiting order later, by using a meanshift algorithm.
 class generalizedPolygon
 {
 protected:
 	// vertexes
-	std::vector<geometry_msgs::Point32> vertexes_;
+	std::vector<cv::Point> vertexes_;
 
 	// edges
-	std::vector<geometry_msgs::Point32> edges_;
+	std::vector<cv::Point> edges_;
 
 	// center
-	geometry_msgs::Point32 center_;
+	cv::Point center_;
 public:
 	// constructor
-	generalizedPolygon(std::vector<geometry_msgs::Point32> vertexes)
+	generalizedPolygon(std::vector<cv::Point> vertexes)
 	{
 		// save given vertexes
 		vertexes_ = vertexes;
 
 		// compute vector to represent edges and compute sum of coordinates
-		float sum_x = 0, sum_y = 0;
 		for(size_t point = 0; point < vertexes.size()-1; ++point)
 		{
-			geometry_msgs::Point32 current_vector;
+			cv::Point current_vector;
 			current_vector.x = vertexes[point+1].x - vertexes[point].x;
 			current_vector.y= vertexes[point+1].y - vertexes[point].y;
-			sum_x += vertexes[point].x;
-			sum_y += vertexes[point].y;
 			edges_.push_back(current_vector);
 		}
-		geometry_msgs::Point32 last_vector;
+		cv::Point last_vector;
 		last_vector.x = vertexes[0].x - vertexes.back().x;
 		last_vector.y = vertexes[0].y - vertexes.back().y;
-		sum_x += vertexes.back().x;
-		sum_y += vertexes.back().y;
 		edges_.push_back(last_vector);
 
-		// compute weighted center
-		center_.x = sum_x/vertexes.size();
-		center_.y = sum_y/vertexes.size();
+		// get max x/y coordinates
+		int max_x = 0, max_y = 0;
+		for(size_t i=0; i<vertexes.size(); ++i)
+		{
+			if(vertexes[i].x > max_x)
+				max_x = vertexes[i].x;
+			if(vertexes[i].y > max_y)
+				max_y = vertexes[i].y;
+		}
+
+		// compute visible center
+		MeanShift2D ms;
+		cv::Mat room = cv::Mat::zeros(max_y+10, max_x+10, CV_8UC1);
+		cv::drawContours(room, std::vector<std::vector<cv::Point> >(1,vertexes), -1, cv::Scalar(255), CV_FILLED);
+		cv::Mat distance_map; //variable for the distance-transformed map, type: CV_32FC1
+		cv::distanceTransform(room, distance_map, CV_DIST_L2, 5);
+		// find point set with largest distance to obstacles
+		double min_val = 0., max_val = 0.;
+		cv::minMaxLoc(distance_map, &min_val, &max_val);
+		std::vector<cv::Vec2d> room_cells;
+		for (int v = 0; v < distance_map.rows; ++v)
+			for (int u = 0; u < distance_map.cols; ++u)
+				if (distance_map.at<float>(v, u) > max_val * 0.95f)
+					room_cells.push_back(cv::Vec2d(u, v));
+		// use meanshift to find the modes in that set
+		cv::Vec2d room_center = ms.findRoomCenter(room, room_cells, 0.05);
+		// save found center
+		center_.x = room_center[0];
+		center_.y = room_center[1];
+	}
+
+	cv::Point getCenter()
+	{
+		return center_;
+	}
+
+	void drawPolygon(cv::Mat& image, const cv::Scalar& color)
+	{
+		// get needed size of the image
+		int max_x=0, max_y=0;
+		for(size_t point=0; point<vertexes_.size(); ++point)
+		{
+			if(vertexes_[point].x > max_x)
+				max_x = vertexes_[point].x;
+			if(vertexes_[point].y > max_y)
+				max_y = vertexes_[point].y;
+		}
+
+		// draw polygon in an black image with necessary size
+		cv::Mat black_image = cv::Mat(max_y+10, max_x+10, CV_8UC1, cv::Scalar(0));
+		cv::drawContours(black_image, std::vector<std::vector<cv::Point> >(1,vertexes_), -1, color, CV_FILLED);
+
+		// assign drawn map
+		image = black_image.clone();
+	}
+
+	void getMinMaxCoordinates(int& min_x, int& max_x, int& min_y, int& max_y)
+	{
+		max_x=0, max_y=0, min_x=1e3, min_y=1e3;
+		for(size_t point=0; point<vertexes_.size(); ++point)
+		{
+			if(vertexes_[point].x > max_x)
+				max_x = vertexes_[point].x;
+			if(vertexes_[point].y > max_y)
+				max_y = vertexes_[point].y;
+			if(vertexes_[point].x < min_x)
+				min_x = vertexes_[point].x;
+			if(vertexes_[point].y < min_y)
+				min_y = vertexes_[point].y;
+
+		}
 	}
 };
 
@@ -141,5 +205,5 @@ public:
 	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float robot_radius,
 				const float map_resolution, const geometry_msgs::Pose2D starting_position,
 				const geometry_msgs::Polygon room_min_max_coordinates, const cv::Point2d map_origin,
-				const float fow_fitting_circle_radius, const float min_resample_dist);
+				const float fow_fitting_circle_radius, const int path_eps);
 };

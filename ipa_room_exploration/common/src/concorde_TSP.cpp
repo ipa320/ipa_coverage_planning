@@ -47,7 +47,7 @@ void ConcordeTSPSolver::writeToFile(const cv::Mat& pathlength_matrix)
 	if (saving_file.is_open()) {
 		std::cout << "Starting to create the TSPlib file." << std::endl;
 		//specify name of the Problem, Type (TSP = symmetrical TSP) and add a comment to the file. Name and Type are neccessary, comment is for better understanding when you open the file.
-		saving_file << "NAME: ipa-building-navigation" << std::endl
+		saving_file << "NAME: ipa-room_exploration" << std::endl
 				<< "TYPE: TSP" << std::endl
 				<< "COMMENT: This is the TSPlib file for using concorde. See http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/ for documentation."
 				<< std::endl;
