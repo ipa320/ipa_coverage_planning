@@ -180,6 +180,13 @@ public:
 	}
 };
 
+// Structure to save edges of a path on one row, that allows to easily get the order of the edges when planning the
+// boustrophedon path.
+struct boustrophedonHorizontalLine
+{
+	cv::Point left_edge_, right_edge_;
+};
+
 // Class that generates a room exploration path by using the morse cellular decomposition method, proposed by
 //
 // "H. Choset, E. Acar, A. A. Rizzi and J. Luntz,
@@ -194,7 +201,8 @@ public:
 class boustrophedonExplorer
 {
 protected:
-
+	// pathplanner to check for the next nearest loocations
+	AStarPlanner path_planner_;
 public:
 	// constructor
 	boustrophedonExplorer();

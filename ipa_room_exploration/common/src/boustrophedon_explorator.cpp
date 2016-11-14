@@ -243,10 +243,11 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	// go trough the cells and determine the boustrophedon paths
 	int fow_radius_as_int = (int) std::floor(fow_fitting_circle_radius); // convert fow-radius to int
 	cv::Point robot_pos = starting_point; // Point that keeps track of the last point after the boustrophedon path in each cell
+	std::vector<cv::Point> fow_middlepoint_path;
 	for(size_t cell=0; cell<polygon_centers.size(); ++cell)
 	{
 		// access current cell
-		generalizedPolygon current_cell = cell_polygons[cell];
+		generalizedPolygon current_cell = cell_polygons[optimal_order[cell]];
 
 		// get a map that has only the current cell drawn in
 		cv::Mat current_cell_map;
@@ -257,10 +258,18 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		current_cell.getMinMaxCoordinates(min_x, max_x, min_y, max_y);
 
 		// get the left and right edges of the path
-		std::vector<cv::Point> edge_points;
-		int y = min_y, dx;
+		std::vector<boustrophedonHorizontalLine> path_lines;
+		int y, dx;
+
+		// check where to start the planning of the path (if the cell is smaller that the fow_diameter start in the middle of it)
+		if((max_y - min_y) <= 2.0*fow_radius_as_int)
+			y = min_y + 0.5 * (max_y - min_y);
+		else
+			y = (min_y-1) + fow_radius_as_int;
 		do
 		{
+			boustrophedonHorizontalLine current_line;
+			cv::Point left_edge, right_edge;
 			// check the for the current row to the right/left for the first white pixel (valid position), starting from
 			// the minimal/maximal x value
 			dx = min_x;
@@ -270,7 +279,7 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 			{
 				if(room_map.at<uchar>(y, dx) == 255)
 				{
-					edge_points.push_back(cv::Point(dx, y));
+					left_edge = cv::Point(dx, y);
 					found = true;
 				}
 				else
@@ -284,27 +293,200 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 			{
 				if(room_map.at<uchar>(y, dx) == 255)
 				{
-					edge_points.push_back(cv::Point(dx, y));
+					right_edge = cv::Point(dx, y);
 					found = true;
 				}
 				else
 					--dx;
 			}while(dx > 0 && found == false);
 
+			// save found horizontal line
+			current_line.left_edge_ = left_edge;
+			current_line.right_edge_ = right_edge;
+			path_lines.push_back(current_line);
+
 			// increase y by given fow-radius value
 			y += fow_radius_as_int;
 		}while(y <= max_y);
 
 //		testing
-//		for(size_t i=0; i<edge_points.size(); ++i)
-//			cv::circle(current_cell_map, edge_points[i], 2, cv::Scalar(200), CV_FILLED);
+//		for(size_t i=0; i<path_lines.size(); ++i)
+//		{
+//			cv::line(current_cell_map, path_lines[i].left_edge_, path_lines[i].right_edge_, cv::Scalar(200), 1);
+//			cv::circle(current_cell_map, path_lines[i].left_edge_, 2, cv::Scalar(200), CV_FILLED);
+//			cv::circle(current_cell_map, path_lines[i].right_edge_, 2, cv::Scalar(200), CV_FILLED);
+//		}
 //		cv::imshow("path edges", current_cell_map);
 //		cv::waitKey();
 
-		// TODO: get nearest point
-		// get the edge nearest to the current robot position to start the boustrophedon path at
+		// get the edge nearest to the current robot position to start the boustrophedon path at by looking at the
+		// upper and lower horizontal path (possible nearest locations)
+		bool start_from_upper_path = true;
+		bool left = true; // Boolean to determine on which side the path should start and to check where the path ended
+		double dist1 = path_planner_.planPath(room_map, robot_pos, path_lines[0].left_edge_, 1.0, 0.0, map_resolution);
+		double dist2 = path_planner_.planPath(room_map, robot_pos, path_lines[0].right_edge_, 1.0, 0.0, map_resolution);
+		double dist3= path_planner_.planPath(room_map, robot_pos, path_lines.back().left_edge_, 1.0, 0.0, map_resolution);
+		double dist4 = path_planner_.planPath(room_map, robot_pos, path_lines.back().right_edge_, 1.0, 0.0, map_resolution);
 
-		// TODO: calculate boustrophedon path --> check if left or right and go in other direction until out of cell
+		if(dist3 < dist1 || dist3 < dist2 || dist4 < dist1 || dist4 < dist2) // start on lower line
+		{
+			start_from_upper_path = false;
+			if(dist4 < dist3)
+				left = false;
+		}
+		else
+			if(dist2 < dist1)
+				left = false;
+
 		// calculate the points between the edge points and create the boustrophedon path with this
+		bool start = true;
+//		std::cout << "planning boustrophedon path" << std::endl;
+		if(start_from_upper_path == true) // plan the path starting from upper horizontal line
+		{
+			for(std::vector<boustrophedonHorizontalLine>::iterator line = path_lines.begin(); line != path_lines.end(); ++line)
+			{
+				if(start == true) // at the beginning of path planning start at first horizontal line --> no vertical points between lines
+				{
+					robot_pos = line->left_edge_;
+					start = false;
+				}
+
+				if(left == true) // plan path to left and then to right edge
+				{
+					// get points between horizontal lines by using the Astar-path
+					std::vector<cv::Point> astar_path;
+					path_planner_.planPath(room_map, robot_pos, line->left_edge_, 1.0, 0.0, map_resolution, 0, &astar_path);
+					for(size_t path_point=0; path_point<astar_path.size(); ++path_point)
+					{
+						if(cv::norm(robot_pos - astar_path[path_point]) >= path_eps)
+						{
+							fow_middlepoint_path.push_back(astar_path[path_point]);
+							robot_pos = astar_path[path_point];
+						}
+					}
+					fow_middlepoint_path.push_back(line->left_edge_);
+
+					// get points between left and right edge
+					int dx = path_eps;
+					while((line->left_edge_.x+dx) < line->right_edge_.x)
+					{
+						fow_middlepoint_path.push_back(cv::Point(line->left_edge_.x+dx, line->left_edge_.y));
+						dx += path_eps;
+					}
+					fow_middlepoint_path.push_back(line->right_edge_);
+
+					// set robot position to right
+					robot_pos = line->right_edge_;
+					left = false;
+				}
+				else // plan path to right then to left edge
+				{
+					// get points between horizontal lines
+					std::vector<cv::Point> astar_path;
+					path_planner_.planPath(room_map, robot_pos, line->right_edge_, 1.0, 0.0, map_resolution, 0, &astar_path);
+					for(size_t path_point=0; path_point<astar_path.size(); ++path_point)
+					{
+						if(cv::norm(robot_pos - astar_path[path_point]) >= path_eps)
+						{
+							fow_middlepoint_path.push_back(astar_path[path_point]);
+							robot_pos = astar_path[path_point];
+						}
+					}
+					fow_middlepoint_path.push_back(line->right_edge_);
+
+					// get points between left and right edge
+					int dx = -path_eps;
+					while((line->right_edge_.x+dx) > line->left_edge_.x)
+					{
+						fow_middlepoint_path.push_back(cv::Point(line->right_edge_.x+dx, line->right_edge_.y));
+						dx -= path_eps;
+					}
+					fow_middlepoint_path.push_back(line->left_edge_);
+
+					// set robot position to right
+					robot_pos = line->left_edge_;
+					left = true;
+				}
+			}
+		}
+		else // plan the path from the lower horizontal line
+		{
+			for(std::vector<boustrophedonHorizontalLine>::reverse_iterator line = path_lines.rbegin(); line != path_lines.rend(); ++line)
+			{
+				if(start == true) // at the beginning of path planning start at first horizontal line --> no vertical points between lines
+				{
+					robot_pos = line->left_edge_;
+					start = false;
+				}
+
+				if(left == true) // plan path to left and then to right edge
+				{
+					// get points between horizontal lines
+					std::vector<cv::Point> astar_path;
+					path_planner_.planPath(room_map, robot_pos, line->left_edge_, 1.0, 0.0, map_resolution, 0, &astar_path);
+					for(size_t path_point=0; path_point<astar_path.size(); ++path_point)
+					{
+						if(cv::norm(robot_pos - astar_path[path_point]) >= path_eps)
+						{
+							fow_middlepoint_path.push_back(astar_path[path_point]);
+							robot_pos = astar_path[path_point];
+						}
+					}
+					fow_middlepoint_path.push_back(line->left_edge_);
+
+					// get points between left and right edge
+					int dx = path_eps;
+					while((line->left_edge_.x+dx) < line->right_edge_.x)
+					{
+						fow_middlepoint_path.push_back(cv::Point(line->left_edge_.x+dx, line->left_edge_.y));
+						dx += path_eps;
+					}
+					fow_middlepoint_path.push_back(line->right_edge_);
+
+					// set robot position to right
+					robot_pos = line->right_edge_;
+					left = false;
+				}
+				else // plan path to right then to left edge
+				{
+					// get points between horizontal lines
+					std::vector<cv::Point> astar_path;
+					path_planner_.planPath(room_map, robot_pos, line->right_edge_, 1.0, 0.0, map_resolution, 0, &astar_path);
+					for(size_t path_point=0; path_point<astar_path.size(); ++path_point)
+					{
+						if(cv::norm(robot_pos - astar_path[path_point]) >= path_eps)
+						{
+							fow_middlepoint_path.push_back(astar_path[path_point]);
+							robot_pos = astar_path[path_point];
+						}
+					}
+					fow_middlepoint_path.push_back(line->right_edge_);
+
+					// get points between left and right edge
+					int dx = -path_eps;
+					while((line->right_edge_.x+dx) > line->left_edge_.x)
+					{
+						fow_middlepoint_path.push_back(cv::Point(line->right_edge_.x+dx, line->right_edge_.y));
+						dx -= path_eps;
+					}
+					fow_middlepoint_path.push_back(line->left_edge_);
+
+					// set robot position to right
+					robot_pos = line->left_edge_;
+					left = true;
+				}
+			}
+		}
 	}
+//		testing
+//		std::cout << "printing path" << std::endl;
+//		cv::Mat fow_path_map = room_map.clone();
+//		for(size_t i=0; i<fow_middlepoint_path.size(); ++i)
+//			cv::circle(fow_path_map, fow_middlepoint_path[i], 2, cv::Scalar(200), CV_FILLED);
+//		cv::imshow("cell path", fow_path_map);
+//		cv::waitKey();
+
+		// TODO: calculate pose for fow --> get angle
+
+		// TODO: remap from fow path to robot path --> check accessibility, if not reachable get another point
 }

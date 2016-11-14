@@ -95,6 +95,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 	do
 	{
 		near_pos = false;
+		double roll, pitch, yaw;
 		// try to get the transformation from map_frame to base_frame, wait max. 2 seconds for this transform to come up
 		try
 		{
@@ -110,7 +111,6 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 
 			current_pose.x = transform.getOrigin().x();
 			current_pose.y = transform.getOrigin().y();
-			double roll, pitch, yaw;
 			transform.getBasis().getRPY(roll, pitch, yaw);
 			current_pose.theta = yaw;
 
@@ -283,7 +283,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	// ***************** II. plan the path using the wanted planner *****************
 	std::vector<geometry_msgs::Pose2D> exploration_path;
-	boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, robot_radius, map_resolution, starting_position, min_max_coordinates, map_origin, 10.0, 5);
+	boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, robot_radius, map_resolution, starting_position, min_max_coordinates, map_origin, 7.0, 3);
 	if(path_planning_algorithm_ == 1) // use grid point explorator
 	{
 		// set wanted grid size

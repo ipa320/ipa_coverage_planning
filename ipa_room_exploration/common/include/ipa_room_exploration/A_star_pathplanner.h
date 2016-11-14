@@ -45,9 +45,12 @@ public:
 
 	void drawRoute(cv::Mat& map, const cv::Point start_point, const std::string& route, double step_length);
 
+	void getRoute(const cv::Point start_point, const std::string& route, double step_length, std::vector<cv::Point>& route_points);
+
 	// computes the path length between start point and end point
 	double planPath(const cv::Mat& map, const cv::Point& start_point, const cv::Point& end_point,
-			const double downsampling_factor, const double robot_radius, const double map_resolution, const int end_point_valid_neighborhood_radius=0);
+			const double downsampling_factor, const double robot_radius, const double map_resolution,
+			const int end_point_valid_neighborhood_radius=0, std::vector<cv::Point>* route=NULL);
 
 	// computes the path length between start point and end point, tries first with a downsampled map for fast computation and uses the original map if the first try was not successful
 	// if end_point_valid_neighborhood_radius [measured in cell size of downsampled_map] is set greater than 0, then it is sufficient to find a path to a cell within that neighborhood radius to end_point for a success
