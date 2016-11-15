@@ -5,6 +5,8 @@
 #include <math.h>
 #include <string>
 
+#include <Eigen/Dense>
+
 #include <ipa_room_exploration/concorde_TSP.h>
 #include <ipa_room_exploration/meanshift2d.h>
 
@@ -86,6 +88,10 @@ protected:
 
 	// center
 	cv::Point center_;
+
+	// min/max coordinates
+	int max_x_, min_x_, max_y_, min_y_;
+
 public:
 	// constructor
 	generalizedPolygon(std::vector<cv::Point> vertexes)
@@ -94,31 +100,34 @@ public:
 		vertexes_ = vertexes;
 
 		// compute vector to represent edges and compute sum of coordinates
-		for(size_t point = 0; point < vertexes.size()-1; ++point)
+		for(unsigned int point = 0; point < vertexes.size(); ++point)
 		{
 			cv::Point current_vector;
-			current_vector.x = vertexes[point+1].x - vertexes[point].x;
-			current_vector.y= vertexes[point+1].y - vertexes[point].y;
+			current_vector.x = vertexes[(point+1)%vertexes.size()].x - vertexes[point].x;
+			current_vector.y= vertexes[(point+1)%vertexes.size()].y - vertexes[point].y;
 			edges_.push_back(current_vector);
 		}
-		cv::Point last_vector;
-		last_vector.x = vertexes[0].x - vertexes.back().x;
-		last_vector.y = vertexes[0].y - vertexes.back().y;
-		edges_.push_back(last_vector);
 
-		// get max x/y coordinates
-		int max_x = 0, max_y = 0;
-		for(size_t i=0; i<vertexes.size(); ++i)
+		// get max/min x/y coordinates
+		max_x_ = 0;
+		min_x_ = 1e3;
+		max_y_ = 0;
+		min_y_ = 1e3;
+		for(size_t point=0; point<vertexes_.size(); ++point)
 		{
-			if(vertexes[i].x > max_x)
-				max_x = vertexes[i].x;
-			if(vertexes[i].y > max_y)
-				max_y = vertexes[i].y;
+			if(vertexes_[point].x > max_x_)
+				max_x_ = vertexes_[point].x;
+			if(vertexes_[point].y > max_y_)
+				max_y_ = vertexes_[point].y;
+			if(vertexes_[point].x < min_x_)
+				min_x_ = vertexes_[point].x;
+			if(vertexes_[point].y < min_y_)
+				min_y_ = vertexes_[point].y;
 		}
 
 		// compute visible center
 		MeanShift2D ms;
-		cv::Mat room = cv::Mat::zeros(max_y+10, max_x+10, CV_8UC1);
+		cv::Mat room = cv::Mat::zeros(max_y_+10, max_x_+10, CV_8UC1);
 		cv::drawContours(room, std::vector<std::vector<cv::Point> >(1,vertexes), -1, cv::Scalar(255), CV_FILLED);
 		cv::Mat distance_map; //variable for the distance-transformed map, type: CV_32FC1
 		cv::distanceTransform(room, distance_map, CV_DIST_L2, 5);
@@ -142,20 +151,15 @@ public:
 		return center_;
 	}
 
+	std::vector<cv::Point> getVertexes()
+	{
+		return vertexes_;
+	}
+
 	void drawPolygon(cv::Mat& image, const cv::Scalar& color)
 	{
-		// get needed size of the image
-		int max_x=0, max_y=0;
-		for(size_t point=0; point<vertexes_.size(); ++point)
-		{
-			if(vertexes_[point].x > max_x)
-				max_x = vertexes_[point].x;
-			if(vertexes_[point].y > max_y)
-				max_y = vertexes_[point].y;
-		}
-
 		// draw polygon in an black image with necessary size
-		cv::Mat black_image = cv::Mat(max_y+10, max_x+10, CV_8UC1, cv::Scalar(0));
+		cv::Mat black_image = cv::Mat(max_y_+10, max_x_+10, CV_8UC1, cv::Scalar(0));
 		cv::drawContours(black_image, std::vector<std::vector<cv::Point> >(1,vertexes_), -1, color, CV_FILLED);
 
 		// assign drawn map
@@ -164,19 +168,10 @@ public:
 
 	void getMinMaxCoordinates(int& min_x, int& max_x, int& min_y, int& max_y)
 	{
-		max_x=0, max_y=0, min_x=1e3, min_y=1e3;
-		for(size_t point=0; point<vertexes_.size(); ++point)
-		{
-			if(vertexes_[point].x > max_x)
-				max_x = vertexes_[point].x;
-			if(vertexes_[point].y > max_y)
-				max_y = vertexes_[point].y;
-			if(vertexes_[point].x < min_x)
-				min_x = vertexes_[point].x;
-			if(vertexes_[point].y < min_y)
-				min_y = vertexes_[point].y;
-
-		}
+		min_x = min_x_;
+		max_x = max_x_;
+		min_y = min_y_;
+		max_y = max_y_;
 	}
 };
 
@@ -211,7 +206,7 @@ public:
 	// with free space drawn white (255) and obstacles as black (0). It returns a series of 2D poses that show to which positions
 	// the robot should drive at.
 	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float robot_radius,
-				const float map_resolution, const geometry_msgs::Pose2D starting_position,
-				const geometry_msgs::Polygon room_min_max_coordinates, const cv::Point2d map_origin,
-				const float fow_fitting_circle_radius, const int path_eps);
+				const float map_resolution, const geometry_msgs::Pose2D starting_position, const cv::Point2d map_origin,
+				const float fow_fitting_circle_radius, const int path_eps, const bool plan_for_footprint,
+				const Eigen::Matrix<float, 2, 1> robot_to_fow_vector);
 };

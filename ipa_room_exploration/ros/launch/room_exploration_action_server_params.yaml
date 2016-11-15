@@ -1,7 +1,11 @@
 # this variable selects the algorithm for room exploration
 # 1 = grid point explorator
+# 2 = boustrophedon explorator
 # int
 room_exploration_algorithm: 1
+
+# this variable sets if the path should be generated such that the robot footprint has to cover everything instead of the field of view
+plan_for_footprint: false
 
 # minimal area of not seen sections that they are revisited after the first go trough the room
 # double
@@ -11,3 +15,7 @@ left_sections_min_area: 0.01
 # line length of one cell in the grid, when using the grid point exploration method
 # [pixel]
 grid_line_length: 10
+
+# distance between two points when generating the path with the boustrophedon explorator
+# [pixel]
+path_eps: 5

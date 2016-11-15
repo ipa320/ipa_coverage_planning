@@ -7,6 +7,9 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 	std::cout << "######################################################################################" << std::endl;
 	std::cout << "Dynamic reconfigure request:" << std::endl;
 
+	plan_for_footprint_ = config.plan_for_footprint;
+	std::cout << "room_exploration/plan_for_footprint_ = " << plan_for_footprint_ << std::endl;
+
 	path_planning_algorithm_ = config.room_exploration_algorithm;
 	std::cout << "room_exploration/path_planning_algorithm_ = " << path_planning_algorithm_ << std::endl;
 
@@ -15,6 +18,11 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 	{
 		grid_line_length_ = config.grid_line_length;
 		std::cout << "room_exploration/grid_line_length_ = " << grid_line_length_ << std::endl;
+	}
+	else if(path_planning_algorithm_ == 2) // set boustrophedon exploration parameters
+	{
+		path_eps_ = config.path_eps;
+		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
 	}
 
 	left_sections_min_area_ = config.left_sections_min_area;
@@ -36,15 +44,26 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 
 	// Parameters
 	std::cout << "\n--------------------------\nRoom Exploration Parameters:\n--------------------------\n";
+	node_handle_.param("plan_for_footprint", plan_for_footprint_, false);
+	std::cout << "room_exploration/plan_for_footprint_ = " << plan_for_footprint_ << std::endl;
+
 	node_handle_.param("room_exploration_algorithm", path_planning_algorithm_, 1);
 	std::cout << "room_exploration/room_exploration_algorithm = " << path_planning_algorithm_ << std::endl << std::endl;
+
 	if (path_planning_algorithm_ == 1)
 		ROS_INFO("You have chosen the grid exploration method.");
+	else if(path_planning_algorithm_ == 2)
+		ROS_INFO("You have chosen the boustrophedon exploration method.");
 
 	if (path_planning_algorithm_ == 1) // get grid point exploration parameters
 	{
 		node_handle_.param("grid_line_length", grid_line_length_, 10);
 		std::cout << "room_exploration/grid_line_length = " << grid_line_length_ << std::endl;
+	}
+	else if(path_planning_algorithm_ == 2) // set boustrophedon exploration parameters
+	{
+		node_handle_.param("path_eps", path_eps_, 3);
+		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
 	}
 
 	// min area for revisiting left sections
@@ -260,7 +279,10 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	std::cout << "******************* robot radius ********************" << robot_radius << std::endl;
 
-	geometry_msgs::Pose2D starting_position = goal->starting_position;
+	geometry_msgs::Pose2D starting_position;
+	starting_position.x = (goal->starting_position.x - map_origin.x)/map_resolution;
+	starting_position.y = (goal->starting_position.y - map_origin.y)/map_resolution;
+	std::cout << "starting point: " << starting_position << std::endl;
 	geometry_msgs::Polygon min_max_coordinates = goal->room_min_max;
 
 	// converting the map msg in cv format
@@ -281,27 +303,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	int number_of_erosions = (robot_radius / map_resolution);
 	cv::erode(room_map, room_map, cv::Mat(), cv::Point(-1, -1), number_of_erosions);
 
-	// ***************** II. plan the path using the wanted planner *****************
-	std::vector<geometry_msgs::Pose2D> exploration_path;
-	boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, robot_radius, map_resolution, starting_position, min_max_coordinates, map_origin, 7.0, 3);
-	if(path_planning_algorithm_ == 1) // use grid point explorator
-	{
-		// set wanted grid size
-		grid_point_planner.setGridLineLength(grid_line_length_);
-
-		// plan path
-		grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, min_max_coordinates, map_origin);
-	}
-
-	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
-	std::vector<geometry_msgs::Pose2D> robot_poses;
-	for(size_t nav_goal = 0; nav_goal < exploration_path.size(); ++nav_goal)
-		bool res = publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->camera_frame, robot_poses, 0.35);
-
-	std::cout << "published all navigation goals, starting to check seen area" << std::endl;
-
-	// find the points that are used to raycast the field of view
-	// find points that span biggest angle
+	// read out the given fow-vectors
 	std::vector<Eigen::Matrix<float, 2, 1> > fow_vectors;
 	for(int i = 0; i < 4; ++i)
 	{
@@ -310,7 +312,59 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 		fow_vectors.push_back(current_vector);
 	}
+	// Get the size of one grid s.t. the grid can be completely covered by the fow from all rotations around it. For this
+	// fit a circle in the fow, which gives the diagonal length of the sqaure. Then use Pytahgoras to get the
+	// get middle point of fow
+	Eigen::Matrix<float, 2, 1> middle_point;
+	middle_point = (fow_vectors[0] + fow_vectors[1] + fow_vectors[2] + fow_vectors[3]) / 4;
+//	std::cout << "middle point: " << middle_point << std::endl;
 
+	// get middle points of edges of the fow
+	Eigen::Matrix<float, 2, 1> middle_point_1, middle_point_2, middle_point_3, middle_point_4;
+	middle_point_1 = (fow_vectors[0] + fow_vectors[1]) / 2;
+	middle_point_2 = (fow_vectors[1] + fow_vectors[2]) / 2;
+	middle_point_3 = (fow_vectors[2] + fow_vectors[3]) / 2;
+	middle_point_4 = (fow_vectors[3] + fow_vectors[0]) / 2;
+//	std::cout << "middle-points: " << std::endl << middle_point_1 << " (" << middle_point - middle_point_1 << ")" << std::endl << middle_point_2 << " (" << middle_point - middle_point_2 << ")" << std::endl << middle_point_3 << " (" << middle_point - middle_point_3 << ")" << std::endl << middle_point_4 << " (" << middle_point - middle_point_4 << ")" << std::endl;
+
+	// get the radius of the circle in the fow as min distance from the fow-middle point to the edge middle points
+	float distance_1 = (middle_point - middle_point_1).norm();
+	float distance_2 = (middle_point - middle_point_2).norm();
+	float distance_3 = (middle_point - middle_point_3).norm();
+	float distance_4 = (middle_point - middle_point_4).norm();
+	float fitting_circle_radius = std::min(std::min(distance_1, distance_2), std::min(distance_3, distance_4));
+//	std::cout << "min distance: " << fitting_circle_radius << std::endl;
+
+	// get the edge length of the grid square as float and map it to an int in pixel coordinates, using floor method
+	double grid_length_as_double = std::sqrt(fitting_circle_radius);
+	int grid_length = std::floor(grid_length_as_double/map_resolution);
+	std::cout << "grid size: " << grid_length_as_double << ", as int: " << grid_length << std::endl;
+
+	// ***************** II. plan the path using the wanted planner *****************
+	std::vector<geometry_msgs::Pose2D> exploration_path;
+	if(path_planning_algorithm_ == 1) // use grid point explorator
+	{
+		// set wanted grid size
+		grid_point_planner.setGridLineLength(grid_line_length_);
+
+		// plan path
+		grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, min_max_coordinates, map_origin);
+	}
+	else if(path_planning_algorithm_ == 2) // use boustrophedon explorator
+	{
+		// plan path
+		boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, robot_radius, map_resolution, starting_position, map_origin, fitting_circle_radius, path_eps_, plan_for_footprint_, middle_point);
+	}
+
+	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
+	// 1. publish navigation goals
+	std::vector<geometry_msgs::Pose2D> robot_poses;
+	for(size_t nav_goal = 0; nav_goal < exploration_path.size(); ++nav_goal)
+		bool res = publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->camera_frame, robot_poses, 0.35);
+
+	std::cout << "published all navigation goals, starting to check seen area" << std::endl;
+
+	// 2. find the points that are used to raycast the field of view
 	// get angles between robot_pose and fow-corners in relative coordinates
 	float dot = fow_vectors[0].transpose()*fow_vectors[1];
 	float abs = fow_vectors[0].norm() * fow_vectors[1].norm();
@@ -352,7 +406,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		corner_point_2 = 1.3 * fow_vectors[3];
 	}
 
-	// get the global costmap, that has initially not known objects in to check what regions have been seen
+	// 3. get the global costmap, that has initially not known objects in to check what regions have been seen
 	const std::string costmap_topic = "/move_base/global_costmap/costmap";
 	nav_msgs::OccupancyGrid global_costmap;
 	global_costmap = *(ros::topic::waitForMessage<nav_msgs::OccupancyGrid>(costmap_topic));
@@ -361,8 +415,10 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	std::vector<signed char> pixel_values;
 	pixel_values = global_costmap.data;
 
+	// save the costmap as Mat of the same type as the given map (8UC1)
 	cv::Mat costmap_as_mat = cv::Mat(global_map.cols, global_map.rows, global_map.type());
 
+	// fill one row and then go to the next one (storing method of ros)
 	for(size_t u = 0; u < costmap_as_mat.cols; ++u)
 	{
 		for(size_t v = 0; v < costmap_as_mat.rows; ++v)
@@ -374,7 +430,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// 70% probability of being an obstacle
 	cv::threshold(costmap_as_mat, costmap_as_mat, 75, 255, cv::THRESH_BINARY_INV);
 
-	// draw the seen positions so the server can check what points haven't been seen
+	// 4. draw the seen positions so the server can check what points haven't been seen
 	cv::Mat seen_positions_map = costmap_as_mat.clone();
 	drawSeenPoints(seen_positions_map, robot_poses, goal->field_of_view, corner_point_1, corner_point_2, map_resolution, map_origin);
 	cv::Mat copy = room_map.clone();
@@ -421,41 +477,13 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		if(hierarchy[contour][3] != -1)
 			cv::drawContours(black_map, left_areas, contour, cv::Scalar(0), CV_FILLED);
 
-	// 2. Get the size of one grid s.t. the grid can be completely covered by the fow from all rotations around it. For this
-	//	  fit a circle in the fow, which gives the diagonal length of the sqaure. Then use Pytahgoras to get the
-	// get middle point of fow
-	Eigen::Matrix<float, 2, 1> middle_point;
-	middle_point = (fow_vectors[0] + fow_vectors[1] + fow_vectors[2] + fow_vectors[3]) / 4;
-//	std::cout << "middle point: " << middle_point << std::endl;
-
-	// get middle points of edges of the fow
-	Eigen::Matrix<float, 2, 1> middle_point_1, middle_point_2, middle_point_3, middle_point_4;
-	middle_point_1 = (fow_vectors[0] + fow_vectors[1]) / 2;
-	middle_point_2 = (fow_vectors[1] + fow_vectors[2]) / 2;
-	middle_point_3 = (fow_vectors[2] + fow_vectors[3]) / 2;
-	middle_point_4 = (fow_vectors[3] + fow_vectors[0]) / 2;
-//	std::cout << "middle-points: " << std::endl << middle_point_1 << " (" << middle_point - middle_point_1 << ")" << std::endl << middle_point_2 << " (" << middle_point - middle_point_2 << ")" << std::endl << middle_point_3 << " (" << middle_point - middle_point_3 << ")" << std::endl << middle_point_4 << " (" << middle_point - middle_point_4 << ")" << std::endl;
-
-	// get the radius of the circle in the fow as min distance from the fow-middle point to the edge middle points
-	float distance_1 = (middle_point - middle_point_1).norm();
-	float distance_2 = (middle_point - middle_point_2).norm();
-	float distance_3 = (middle_point - middle_point_3).norm();
-	float distance_4 = (middle_point - middle_point_4).norm();
-	float fitting_circle_radius = std::min(std::min(distance_1, distance_2), std::min(distance_3, distance_4));
-//	std::cout << "min distance: " << fitting_circle_radius << std::endl;
-
-	// get the edge length of the grid square as float and map it to an int in pixel coordinates, using floor method
-	double grid_length_as_double = std::sqrt(fitting_circle_radius);
-	int grid_length = std::floor(grid_length_as_double/map_resolution);
-	std::cout << "grid size: " << grid_length_as_double << ", as int: " << grid_length << std::endl;
-
-	// 3. Intersect the left areas with respect to the calculated grid length.
+	// 2. Intersect the left areas with respect to the calculated grid length.
 	for(size_t i =  min_max_coordinates.points[0].y; i < black_map.cols; i += grid_length)
 		cv::line(black_map, cv::Point(0, i), cv::Point(black_map.cols, i), cv::Scalar(0), 1);
 	for(size_t i =  min_max_coordinates.points[0].x; i < black_map.rows; i += grid_length)
 		cv::line(black_map, cv::Point(i, 0), cv::Point(i, black_map.rows), cv::Scalar(0), 1);
 
-	// 4. find the centers of the global_costmap areas
+	// 3. find the centers of the global_costmap areas
 	std::vector < std::vector<cv::Point> > grid_areas;
 	cv::Mat contour_map = black_map.clone();
 	cv::findContours(contour_map, grid_areas, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
@@ -496,7 +524,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv::resizeWindow("revisiting areas", 600, 600);
 //	cv::waitKey();
 
-	// 5. plan a tsp path trough the centers of the left areas
+	// 4. plan a tsp path trough the centers of the left areas
 	// find the center that is nearest to the current robot position, which becomes the start node for the tsp
 	geometry_msgs::Pose2D current_robot_pose = robot_poses.back();
 	cv::Point current_robot_point(current_robot_pose.x, current_robot_pose.y);
@@ -516,7 +544,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	ConcordeTSPSolver tsp_solver;
 	std::vector<int> revisiting_order = tsp_solver.solveConcordeTSP(costmap_as_mat, area_centers, 0.25, 0.0, map_resolution, min_index, 0);
 
-	// 6. go to each center and use the map_accessability_server to find a robot pose around it s.t. it can be covered
+	// 5. go to each center and use the map_accessability_server to find a robot pose around it s.t. it can be covered
 	//	  by the fow
 	double distance_robot_fow_middlepoint = middle_point.norm();
 	double pi_8 = PI/8;

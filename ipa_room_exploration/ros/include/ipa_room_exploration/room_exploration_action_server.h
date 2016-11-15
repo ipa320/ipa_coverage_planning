@@ -113,6 +113,9 @@ protected:
 
 	// parameters for the different planners
 	int grid_line_length_; // size of the grid-lines that the grid-point-explorator lays over the map
+	int path_eps_; // the distance between points when generating a path with the boustrophedon exploration method
+	bool plan_for_footprint_; // boolean that implies if the path should be planned for the footprint and not for the field of view
+
 
 	// callback function for dynamic reconfigure
 	void dynamic_reconfigure_callback(ipa_room_exploration::RoomExplorationConfig &config, uint32_t level);

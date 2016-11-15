@@ -77,13 +77,7 @@ void gridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		cv::Point next_point = grid_points[optimal_order[(point_index+1)%(optimal_order.size())]];
 		cv::Point vector = next_point - current_point;
 
-		float quotient = vector.x / (sqrtf(vector.x * vector.x + vector.y * vector.y));
-
-		float angle = std::acos(quotient);
-
-		// correct angle if robot moves in negative y-direction
-		if(vector.y < 0 && vector.x >= 0)
-			angle -= 3.14159;
+		float angle = std::atan2(vector.y, vector.x);//std::acos(quotient);
 
 		// add the next navigation goal to the path
 		geometry_msgs::Pose2D navigation_goal;
@@ -92,10 +86,6 @@ void gridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		navigation_goal.theta = angle;
 
 		path.push_back(navigation_goal);
-
-//		std::cout << "angle: " << angle << ", vector: " << vector << std::endl;
-
-		cv::line(point_map, current_point, next_point, cv::Scalar(127), 1);
 	}
 
 //	cv::imshow("grid", point_map);
