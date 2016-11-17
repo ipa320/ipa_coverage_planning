@@ -20,6 +20,8 @@
 #include <cob_map_accessibility_analysis/CheckPerimeterAccessibility.h>
 #include <ipa_room_exploration/concorde_TSP.h>
 
+#include <ipa_room_exploration/neuron_class.h>
+
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>
 #include <geometry_msgs/Point32.h>
