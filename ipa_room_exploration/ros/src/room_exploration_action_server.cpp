@@ -175,7 +175,6 @@ void RoomExplorationServer::drawSeenPoints(cv::Mat& reachable_areas_map, const s
 		// get the rotation matrix
 		float sin_theta = std::sin(current_pose->theta);
 		float cos_theta = std::cos(current_pose->theta);
-//		cv::Mat R = (cv::Mat_<float>(2, 2) << cos_theta, -sin_theta, sin_theta, cos_theta); // template initialization
 		Eigen::Matrix<float, 2, 2> R;
 		R << cos_theta, -sin_theta, sin_theta, cos_theta;
 
@@ -260,6 +259,56 @@ void RoomExplorationServer::drawSeenPoints(cv::Mat& reachable_areas_map, const s
 	}
 }
 
+// Function that takes the given robot poses and draws the footprint at these positions into the given map. Used when
+// the server should plan a coverage path for the robot footprint.
+void RoomExplorationServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std::vector<geometry_msgs::Pose2D>& robot_poses,
+			const std::vector<geometry_msgs::Point32>& robot_footprint, const float map_resolution,
+			const cv::Point2d map_origin)
+{
+	cv::Mat map_copy = reachable_areas_map.clone(); // copy to draw positions that get later drawn into free space of the original map
+	// iterate trough all poses and draw them into the given map
+	for(std::vector<geometry_msgs::Pose2D>::const_iterator pose=robot_poses.begin(); pose!=robot_poses.end(); ++pose)
+	{
+		// get the rotation matrix
+		float sin_theta = std::sin(pose->theta);
+		float cos_theta = std::cos(pose->theta);
+		Eigen::Matrix<float, 2, 2> R;
+		R << cos_theta, -sin_theta, sin_theta, cos_theta;
+
+		// transform field of view points
+		std::vector<cv::Point> transformed_footprint_points;
+		Eigen::Matrix<float, 2, 1> pose_as_matrix;
+		pose_as_matrix << pose->x, pose->y;
+		for(size_t point = 0; point < robot_footprint.size(); ++point)
+		{
+			// transform fow-point from geometry_msgs::Point32 to Eigen::Matrix
+			Eigen::Matrix<float, 2, 1> footprint_point;
+			footprint_point << robot_footprint[point].x, robot_footprint[point].y;
+
+			// linear transformation
+			Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R * footprint_point;
+
+			// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
+			// values
+			cv::Point current_point = cv::Point((transformed_vector(0, 0) - map_origin.x)/map_resolution, (transformed_vector(1, 0) - map_origin.y)/map_resolution);
+			current_point.x = std::max(current_point.x, 0);
+			current_point.y = std::max(current_point.y, 0);
+			current_point.x = std::min(current_point.x, map_copy.cols);
+			current_point.y = std::min(current_point.y, map_copy.rows);
+			transformed_footprint_points.push_back(current_point);
+		}
+
+		// draw the transformed robot footprint
+		cv::fillConvexPoly(map_copy, transformed_footprint_points, cv::Scalar(127));
+	}
+
+	// draw visited areas into free space of the original map
+	for(size_t y=0; y<map_copy.rows; ++y)
+		for(size_t x=0; x<map_copy.cols; ++x)
+			if(reachable_areas_map.at<uchar>(y, x) == 255)
+				reachable_areas_map.at<uchar>(y, x) = map_copy.at<uchar>(y, x);
+}
+
 // Function executed by Call.
 void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExplorationGoalConstPtr &goal)
 {
@@ -300,45 +349,53 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv::Mat room_map = global_map(cv::Range(roi_y_start, roi_y_end), cv::Range(roi_x_start, roi_x_end));
 
 	// erode map so that not reachable areas are not considered
-	int number_of_erosions = (robot_radius / map_resolution);
-	cv::erode(room_map, room_map, cv::Mat(), cv::Point(-1, -1), number_of_erosions);
+	int robot_radius_in_pixel = (robot_radius / map_resolution);
+	cv::erode(room_map, room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
 
-	// read out the given fow-vectors
-	std::vector<Eigen::Matrix<float, 2, 1> > fow_vectors;
-	for(int i = 0; i < 4; ++i)
-	{
-		Eigen::Matrix<float, 2, 1> current_vector;
-		current_vector << goal->field_of_view[i].x, goal->field_of_view[i].y;
-
-		fow_vectors.push_back(current_vector);
-	}
-	// Get the size of one grid s.t. the grid can be completely covered by the fow from all rotations around it. For this
-	// fit a circle in the fow, which gives the diagonal length of the sqaure. Then use Pytahgoras to get the
-	// get middle point of fow
+	// get the grid size, to check the areas that should be revisited later
+	int grid_length;
+	float fitting_circle_radius;
 	Eigen::Matrix<float, 2, 1> middle_point;
-	middle_point = (fow_vectors[0] + fow_vectors[1] + fow_vectors[2] + fow_vectors[3]) / 4;
-//	std::cout << "middle point: " << middle_point << std::endl;
+	std::vector<Eigen::Matrix<float, 2, 1> > fow_vectors;
+	if(plan_for_footprint_ == false) // read out the given fow-vectors, if needed
+	{
+		for(int i = 0; i < 4; ++i)
+		{
+			Eigen::Matrix<float, 2, 1> current_vector;
+			current_vector << goal->field_of_view[i].x, goal->field_of_view[i].y;
+			fow_vectors.push_back(current_vector);
+		}
+		// Get the size of one grid s.t. the grid can be completely covered by the fow from all rotations around it. For this
+		// fit a circle in the fow, which gives the diagonal length of the sqaure. Then use Pytahgoras to get the
+		// get middle point of fow
+		middle_point = (fow_vectors[0] + fow_vectors[1] + fow_vectors[2] + fow_vectors[3]) / 4;
+//		std::cout << "middle point: " << middle_point << std::endl;
 
-	// get middle points of edges of the fow
-	Eigen::Matrix<float, 2, 1> middle_point_1, middle_point_2, middle_point_3, middle_point_4;
-	middle_point_1 = (fow_vectors[0] + fow_vectors[1]) / 2;
-	middle_point_2 = (fow_vectors[1] + fow_vectors[2]) / 2;
-	middle_point_3 = (fow_vectors[2] + fow_vectors[3]) / 2;
-	middle_point_4 = (fow_vectors[3] + fow_vectors[0]) / 2;
-//	std::cout << "middle-points: " << std::endl << middle_point_1 << " (" << middle_point - middle_point_1 << ")" << std::endl << middle_point_2 << " (" << middle_point - middle_point_2 << ")" << std::endl << middle_point_3 << " (" << middle_point - middle_point_3 << ")" << std::endl << middle_point_4 << " (" << middle_point - middle_point_4 << ")" << std::endl;
+		// get middle points of edges of the fow
+		Eigen::Matrix<float, 2, 1> middle_point_1, middle_point_2, middle_point_3, middle_point_4;
+		middle_point_1 = (fow_vectors[0] + fow_vectors[1]) / 2;
+		middle_point_2 = (fow_vectors[1] + fow_vectors[2]) / 2;
+		middle_point_3 = (fow_vectors[2] + fow_vectors[3]) / 2;
+		middle_point_4 = (fow_vectors[3] + fow_vectors[0]) / 2;
+//		std::cout << "middle-points: " << std::endl << middle_point_1 << " (" << middle_point - middle_point_1 << ")" << std::endl << middle_point_2 << " (" << middle_point - middle_point_2 << ")" << std::endl << middle_point_3 << " (" << middle_point - middle_point_3 << ")" << std::endl << middle_point_4 << " (" << middle_point - middle_point_4 << ")" << std::endl;
 
-	// get the radius of the circle in the fow as min distance from the fow-middle point to the edge middle points
-	float distance_1 = (middle_point - middle_point_1).norm();
-	float distance_2 = (middle_point - middle_point_2).norm();
-	float distance_3 = (middle_point - middle_point_3).norm();
-	float distance_4 = (middle_point - middle_point_4).norm();
-	float fitting_circle_radius = std::min(std::min(distance_1, distance_2), std::min(distance_3, distance_4));
-//	std::cout << "min distance: " << fitting_circle_radius << std::endl;
+		// get the radius of the circle in the fow as min distance from the fow-middle point to the edge middle points
+		float distance_1 = (middle_point - middle_point_1).norm();
+		float distance_2 = (middle_point - middle_point_2).norm();
+		float distance_3 = (middle_point - middle_point_3).norm();
+		float distance_4 = (middle_point - middle_point_4).norm();
+		fitting_circle_radius = std::min(std::min(distance_1, distance_2), std::min(distance_3, distance_4));
+		std::cout << "min distance: " << fitting_circle_radius << std::endl;
 
-	// get the edge length of the grid square as float and map it to an int in pixel coordinates, using floor method
-	double grid_length_as_double = std::sqrt(fitting_circle_radius);
-	int grid_length = std::floor(grid_length_as_double/map_resolution);
-	std::cout << "grid size: " << grid_length_as_double << ", as int: " << grid_length << std::endl;
+		// get the edge length of the grid square as float and map it to an int in pixel coordinates, using floor method
+		double grid_length_as_double = std::sqrt(fitting_circle_radius);
+		grid_length = std::floor(grid_length_as_double/map_resolution);
+		std::cout << "grid size: " << grid_length_as_double << ", as int: " << grid_length << std::endl;
+	}
+	else
+	{
+		grid_length = std::floor(goal->coverage_radius/map_resolution);
+	}
 
 	// ***************** II. plan the path using the wanted planner *****************
 	std::vector<geometry_msgs::Pose2D> exploration_path;
@@ -353,7 +410,14 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	else if(path_planning_algorithm_ == 2) // use boustrophedon explorator
 	{
 		// plan path
-		boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, robot_radius, map_resolution, starting_position, map_origin, fitting_circle_radius, path_eps_, plan_for_footprint_, middle_point);
+		if(plan_for_footprint_ == false)
+			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, path_eps_, plan_for_footprint_, middle_point);
+		else
+		{
+			Eigen::Matrix<float, 2, 1> zero_vector;
+			zero_vector << 0, 0;
+			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, goal->coverage_radius/map_resolution, path_eps_, plan_for_footprint_, zero_vector);
+		}
 	}
 
 	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
@@ -365,45 +429,48 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	std::cout << "published all navigation goals, starting to check seen area" << std::endl;
 
 	// 2. find the points that are used to raycast the field of view
-	// get angles between robot_pose and fow-corners in relative coordinates
-	float dot = fow_vectors[0].transpose()*fow_vectors[1];
-	float abs = fow_vectors[0].norm() * fow_vectors[1].norm();
-	float angle_1 = std::acos(dot/abs);
-	dot = fow_vectors[2].transpose()*fow_vectors[3];
-	abs = fow_vectors[2].norm() * fow_vectors[3].norm();
-	float angle_2 = std::acos(dot/abs);
-
 	// get points that define the edge-points of the line the raycasting should go to, by computing the intersection of two
 	// lines: the line defined by the robot pose and the fow-point that spans the highest angle and a line parallel to the
 	// front side of the fow with an offset
 	Eigen::Matrix<float, 2, 1> corner_point_1, corner_point_2;
-	if(angle_1 > angle_2) // do a line crossing s.t. the corners are guaranteed to be after the fow
+	if(plan_for_footprint_ == false)
 	{
-		float border_distance = 7;
-		Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_1 = fow_vectors[0];
-		Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_2 = fow_vectors[1];
+		// get angles between robot_pose and fow-corners in relative coordinates
+		float dot = fow_vectors[0].transpose()*fow_vectors[1];
+		float abs = fow_vectors[0].norm() * fow_vectors[1].norm();
+		float angle_1 = std::acos(dot/abs);
+		dot = fow_vectors[2].transpose()*fow_vectors[3];
+		abs = fow_vectors[2].norm() * fow_vectors[3].norm();
+		float angle_2 = std::acos(dot/abs);
 
-		// get vectors showing the directions for for the lines from pose to edge of fow
-		Eigen::Matrix<float, 2, 1> normed_fow_vector_1 = fow_vectors[0]/fow_vectors[0].norm();
-		Eigen::Matrix<float, 2, 1> normed_fow_vector_2 = fow_vectors[1]/fow_vectors[1].norm();
+		if(angle_1 > angle_2) // do a line crossing s.t. the corners are guaranteed to be after the fow
+		{
+			float border_distance = 7;
+			Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_1 = fow_vectors[0];
+			Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_2 = fow_vectors[1];
 
-		// get the offset point after the end of the fow
-		Eigen::Matrix<float, 2, 1> offset_point_after_fow = fow_vectors[2];
-		offset_point_after_fow(1, 0) = offset_point_after_fow(1, 0) + border_distance;
+			// get vectors showing the directions for for the lines from pose to edge of fow
+			Eigen::Matrix<float, 2, 1> normed_fow_vector_1 = fow_vectors[0]/fow_vectors[0].norm();
+			Eigen::Matrix<float, 2, 1> normed_fow_vector_2 = fow_vectors[1]/fow_vectors[1].norm();
 
-		// find the parameters for the two different intersections (for each corner point)
-		float first_edge_parameter = (pose_to_fow_edge_vector_1(1, 0)/pose_to_fow_edge_vector_1(0, 0) * (fow_vectors[0](0, 0) - offset_point_after_fow(0, 0)) + offset_point_after_fow(1, 0) - fow_vectors[0](1, 0))/( pose_to_fow_edge_vector_1(1, 0)/pose_to_fow_edge_vector_1(0, 0) * (fow_vectors[3](0, 0) - fow_vectors[2](0, 0)) - (fow_vectors[3](1, 0) - fow_vectors[2](1, 0)) );
-		float second_edge_parameter = (pose_to_fow_edge_vector_2(1, 0)/pose_to_fow_edge_vector_2(0, 0) * (fow_vectors[1](0, 0) - offset_point_after_fow(0, 0)) + offset_point_after_fow(1, 0) - fow_vectors[1](1, 0))/( pose_to_fow_edge_vector_2(1, 0)/pose_to_fow_edge_vector_2(0, 0) * (fow_vectors[3](0, 0) - fow_vectors[2](0, 0)) - (fow_vectors[3](1, 0) - fow_vectors[2](1, 0)) );
+			// get the offset point after the end of the fow
+			Eigen::Matrix<float, 2, 1> offset_point_after_fow = fow_vectors[2];
+			offset_point_after_fow(1, 0) = offset_point_after_fow(1, 0) + border_distance;
 
-		// use the line equation and found parameters to actually find the corners
-		corner_point_1 = first_edge_parameter * (fow_vectors[3] - fow_vectors[2]) + offset_point_after_fow;
-		corner_point_2 = second_edge_parameter * (fow_vectors[3] - fow_vectors[2]) + offset_point_after_fow;
-	}
-	else
-	{
-		// follow the lines to the farthest points and go a little longer, this ensures that the whole fow is covered
-		corner_point_1 = 1.3 * fow_vectors[2];
-		corner_point_2 = 1.3 * fow_vectors[3];
+			// find the parameters for the two different intersections (for each corner point)
+			float first_edge_parameter = (pose_to_fow_edge_vector_1(1, 0)/pose_to_fow_edge_vector_1(0, 0) * (fow_vectors[0](0, 0) - offset_point_after_fow(0, 0)) + offset_point_after_fow(1, 0) - fow_vectors[0](1, 0))/( pose_to_fow_edge_vector_1(1, 0)/pose_to_fow_edge_vector_1(0, 0) * (fow_vectors[3](0, 0) - fow_vectors[2](0, 0)) - (fow_vectors[3](1, 0) - fow_vectors[2](1, 0)) );
+			float second_edge_parameter = (pose_to_fow_edge_vector_2(1, 0)/pose_to_fow_edge_vector_2(0, 0) * (fow_vectors[1](0, 0) - offset_point_after_fow(0, 0)) + offset_point_after_fow(1, 0) - fow_vectors[1](1, 0))/( pose_to_fow_edge_vector_2(1, 0)/pose_to_fow_edge_vector_2(0, 0) * (fow_vectors[3](0, 0) - fow_vectors[2](0, 0)) - (fow_vectors[3](1, 0) - fow_vectors[2](1, 0)) );
+
+			// use the line equation and found parameters to actually find the corners
+			corner_point_1 = first_edge_parameter * (fow_vectors[3] - fow_vectors[2]) + offset_point_after_fow;
+			corner_point_2 = second_edge_parameter * (fow_vectors[3] - fow_vectors[2]) + offset_point_after_fow;
+		}
+		else
+		{
+			// follow the lines to the farthest points and go a little longer, this ensures that the whole fow is covered
+			corner_point_1 = 1.3 * fow_vectors[2];
+			corner_point_2 = 1.3 * fow_vectors[3];
+		}
 	}
 
 	// 3. get the global costmap, that has initially not known objects in to check what regions have been seen
@@ -432,8 +499,17 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	// 4. draw the seen positions so the server can check what points haven't been seen
 	cv::Mat seen_positions_map = costmap_as_mat.clone();
-	drawSeenPoints(seen_positions_map, robot_poses, goal->field_of_view, corner_point_1, corner_point_2, map_resolution, map_origin);
+	if(plan_for_footprint_ == false)
+		drawSeenPoints(seen_positions_map, robot_poses, goal->field_of_view, corner_point_1, corner_point_2, map_resolution, map_origin);
+	else
+		drawSeenPoints(seen_positions_map, robot_poses, goal->footprint, map_resolution, map_origin);
 	cv::Mat copy = room_map.clone();
+
+	// testing
+	cv::namedWindow("initially seen areas", cv::WINDOW_NORMAL);
+	cv::imshow("initially seen areas", seen_positions_map);
+	cv::resizeWindow("initially seen areas", 600, 600);
+	cv::waitKey();
 
 	// apply a binary filter on the image, making the drawn seen areas black
 	cv::threshold(seen_positions_map, seen_positions_map, 150, 255, cv::THRESH_BINARY);
@@ -518,7 +594,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		 cv::circle(black_map, area_centers[i], 2, cv::Scalar(127), CV_FILLED);
 		 std::cout << area_centers[i] << std::endl;
 	 }
-
 	cv::namedWindow("revisiting areas", cv::WINDOW_NORMAL);
 	cv::imshow("revisiting areas", black_map);
 	cv::resizeWindow("revisiting areas", 600, 600);
@@ -560,8 +635,17 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
 		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Response response;
 		check_request.center = current_center;
-		check_request.radius = distance_robot_fow_middlepoint;
-		check_request.rotational_sampling_step = pi_8;
+		if(plan_for_footprint_ == false)
+		{
+			check_request.radius = distance_robot_fow_middlepoint;
+			check_request.rotational_sampling_step = pi_8;
+		}
+		else
+		{
+			check_request.radius = 0.0;
+			check_request.rotational_sampling_step = 2.0*PI;
+		}
+
 
 		std::cout << "checking center: " << std::endl << current_center << "radius: " << check_request.radius << std::endl;
 
@@ -584,9 +668,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv::namedWindow("seen areas", cv::WINDOW_NORMAL);
 	cv::imshow("seen areas", copy);
 	cv::resizeWindow("seen areas", 600, 600);
-	cv::namedWindow("costmap", cv::WINDOW_NORMAL);
-	cv::imshow("costmap", costmap_as_mat);
-	cv::resizeWindow("costmap", 600, 600);
 	cv::waitKey();
 
 	ROS_INFO("Explored room.");

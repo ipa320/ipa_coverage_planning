@@ -5,8 +5,10 @@
 sensor_msgs/Image input_map				# the action server needs a map as a input image to segment it, IMPORTANT: The algorithm needs a black and white 8bit single-channel image, which is 0 (black) for obstacles and 256 (white) for free space
 float32 map_resolution					# the resolution of the map in [meter/cell]
 geometry_msgs/Pose2D map_origin				# the origin of the map in [meter]
-float32 robot_radius					# in [meter]
+float32 robot_radius					# effective robot radius, taking the enlargement of the costmap into account, in [meter]
+float32 coverage_radius					# radius that is used to plan the coverage planning for the robot and not the field of view, assuming that the part that needs to cover everything (e.g. the cleaning part) can be represented by a fitting circle (e.g. smaller than the actual part to ensure coverage), in [meter]
 geometry_msgs/Point32[] field_of_view			# the points that define the field of view of the robot, relatively to the robot, [meter], counter-clock-wise starting from left, nearer to robot point
+geometry_msgs/Point32[] footprint			# footprint of the interesting part of the robot, for which a coverage path planning should be done (e.g. the cleaning part), relatively to the robot [meter]
 geometry_msgs/Pose2D starting_position			# Pose where the robot starts in the room coordinatesystem [meter]
 geometry_msgs/Polygon room_min_max			# first point provides the minimum (x,y)-coordinate values of the rooms, second point provides the maximum (x,y)-coordinate values of the rooms
 geometry_msgs/Polygon region_of_interest_coordinates	# define the region of interest, for which a path should be planned, by giving the start x/y and end x/y
@@ -14,6 +16,5 @@ string map_frame					# string that carries the name of the map frame, used for t
 string camera_frame					# string that carries the name of the camera frame, that is in the same kinematic chain as the map_frame and shows the camera pose
 ---
 # result definition
-bool inspected_room
 ---
 # feedback definition

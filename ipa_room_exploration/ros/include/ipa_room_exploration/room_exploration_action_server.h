@@ -160,6 +160,11 @@ protected:
 			const std::vector<geometry_msgs::Point32>& field_of_view_points, const Eigen::Matrix<float, 2, 1> raycasting_corner_1,
 			const Eigen::Matrix<float, 2, 1> raycasting_corner_2, const float map_resolution, const cv::Point2d map_origin);
 
+	// function to draw the robot footprint into the given map, when coverage for the robot is wanted
+	void drawSeenPoints(cv::Mat& reachable_areas_map, const std::vector<geometry_msgs::Pose2D>& robot_poses,
+				const std::vector<geometry_msgs::Point32>& robot_footprint, const float map_resolution,
+				const cv::Point2d map_origin);
+
 	// !!Important!!
 	//  define the Nodehandle before the action server, or else the server won't start
 	//

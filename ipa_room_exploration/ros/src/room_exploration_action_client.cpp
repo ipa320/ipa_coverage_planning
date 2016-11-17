@@ -162,6 +162,19 @@ int main(int argc, char **argv)
 	fow_points[1] = fow_point_2;
 	fow_points[2] = fow_point_3;
 	fow_points[3] = fow_point_4;
+	std::vector<geometry_msgs::Point32> footprint_points(4);
+	fow_point_1.x = -0.4;
+	fow_point_1.y = 0.4;
+	footprint_points[0] = fow_point_1;
+	fow_point_2.x = -0.4;
+	fow_point_2.y = -0.4;
+	footprint_points[1] = fow_point_2;
+	fow_point_3.x = 0.4;
+	fow_point_3.y = -0.4;
+	footprint_points[2] = fow_point_3;
+	fow_point_4.x = 0.4;
+	fow_point_4.y = 0.4;
+	footprint_points[3] = fow_point_4;
 
 	ipa_building_msgs::RoomExplorationGoal goal;
 	goal.input_map = labeling;
@@ -173,6 +186,8 @@ int main(int argc, char **argv)
 	goal.camera_frame = "/base_footprint";
 	goal.map_frame = "/map";
 	goal.field_of_view = fow_points;
+	goal.footprint = footprint_points;
+	goal.coverage_radius = 0.5;
 	goal.region_of_interest_coordinates = region_of_interest;
 	ac.sendGoal(goal);
 
