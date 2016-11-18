@@ -91,6 +91,7 @@ include_directories(
 add_executable(room_exploration_server ros/src/room_exploration_action_server.cpp
 					common/src/grid_point_explorator.cpp
 					common/src/boustrophedon_explorator.cpp
+					common/src/neural_network_explorator.cpp
 					common/src/meanshift2d.cpp
 					common/src/A_star_pathplanner.cpp common/src/node.cpp
 					common/src/concorde_TSP.cpp)

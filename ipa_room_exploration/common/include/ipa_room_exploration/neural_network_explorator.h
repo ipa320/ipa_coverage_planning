@@ -7,6 +7,12 @@
 
 #include <opencv/cv.h>
 
+#include <geometry_msgs/Pose2D.h>
+#include <geometry_msgs/Polygon.h>
+#include <Eigen/Dense>
+
+#include <ipa_room_exploration/neuron_class.h>
+
 /*!
  *****************************************************************
  * \file
@@ -68,8 +74,8 @@
 
 #pragma once
 
-// This class provides a neuron for an artificial neural network. This network is used to compute a coverage path s.t.
-// the whole environment is visited at least once. The used method is stated in:
+// This class provides a room explorator based on an artificial neural network. This network is used to compute a
+// coverage path s.t. the whole environment is visited at least once. The used method is stated in:
 //
 // Yang, Simon X., and Chaomin Luo. "A neural network approach to complete coverage path planning." IEEE Transactions on Systems, Man, and Cybernetics, Part B (Cybernetics) 34.1 (2004): 718-724.
 //
@@ -77,108 +83,51 @@
 // neuron then needs to be visited once to clean it. Each neuron has a state that is used later to determine the next
 // neuron that needs to be visited. Going then trough the space over time produces a path that covers all neurons, see
 // the stated paper for reference.
-// This class additionally contains the position of the neuron, the parameters used to update the state of it and
-// booleans to mark if this neuron has already been cleaned or not. The function I() provides an "external input" to the
-// neuron, see the paper for reference.
+// This class provides the functionality to provide a room map and discretize it into several neurons, based on the given
+// sampling distance and the radius of the robot/field-of-view (assuming that the footprint/fow gets approximated by a
+// inner circle). After this the coverage path gets computed based on the stated paper. This implementation only provides
+// a static path, any reaction to unexpected behavior (e.g. sudden obstacles) need to be done in an upper program.
 //
-class Neuron
+class neuralNetworkExplorator
 {
 protected:
 
-	// vector that stores the direct neighbors of this neuron
-	std::vector<Neuron*> neighbors_;
+	// vector that stores the neurons of the given map
+	std::vector<Neuron> neurons_;
 
-	// vector that stores the weights to the neighbors --> used for updating the state
-	std::vector<double> weights_;
-
-	// position of the neuron
-	cv::Point position_;
-
-	// booleans to check if this neuron is cleaned or an obstacle
-	bool cleaned_, obstacle_;
-
-	// state (activity) of this neuron at current time step and last
-	double state_, previous_state_;
-
-	// parameters used to update the state
-	double A_, B_, D_, E_, mu_;
-
-	// step size for updating the state
+	// step size used for integrating the states of the neurons
 	double step_size_;
 
-	// function to generate the external input
-	double I()
-	{
-		if(obstacle_ == true)
-			return -1.0*E_;
-		else if(cleaned_ == false)
-			return E_;
-		else
-			return 0.0;
-	}
+	// parameters for the neural network
+	double A_, B_, D_, E_, mu_;
 
 public:
 
 	// constructor
-	Neuron(cv::Point position, double A, double B, double D, double E, double mu, double step_size, bool obstacle, bool cleaned=false)
+	neuralNetworkExplorator();
+
+	// function to set the step size to a certain value
+	void setStepSize(double step_size)
 	{
-		state_ = 0;
-		previous_state_ = 0;
-		position_ = position;
+		step_size_ = step_size;
+	}
+
+	// function to set the parameters needed for the neural network
+	void setParameters(double A, double B, double D, double E, double mu, double step_size)
+	{
 		A_ = A;
 		B_ = B;
 		D_ = D;
 		E_ = E;
 		mu_ = mu;
 		step_size_ = step_size;
-		obstacle_ = obstacle;
-		cleaned_ = cleaned;
 	}
 
-	// function to insert a neighbor
-	void addNeighbor(Neuron* new_neighbor)
-	{
-		// save pointer to neighbor
-		neighbors_.push_back(new_neighbor);
-
-		// calculate distance and corresponding weight to it
-		cv::Point difference = position_ - new_neighbor->position_;
-		float distance = cv::norm(difference);
-		weights_.push_back(mu_/distance);
-	}
-
-	// function to get the position of the neuron
-	cv::Point getPosition()
-	{
-		return position_;
-	}
-
-	// function to get the state of the neuron, return the previous state if wanted
-	double getState(bool previous=false)
-	{
-		if(previous == true)
-			return previous_state_;
-		return state_;
-	}
-
-	// function to update the state of the neuron using euler discretization
-	void updateState()
-	{
-		// save previous state to allow neighbors to update in the right manner
-		previous_state_ = state_;
-
-		// get external input
-		double input = I();
-
-		// get the current sum of weights times the state of the neighbor
-		double weight_sum = 0;
-		for(size_t neighbor=0; neighbor<neighbors_.size(); ++neighbor)
-			weight_sum += weights_[neighbor]*std::max(neighbors_[neighbor]->getState(true), 0.0);
-
-		// calculate current gradient --> see stated paper from the beginning
-		float gradient = -A_*state_ + (B_-state_)*(std::max(input, 0.0) + weight_sum) - (D_+state_)*std::max(-1.0*input, 0.0);
-
-		// update state using euler method
-		state_ += step_size_*gradient;
-	}
+	// Function that creates an exploration path for a given room. The room has to be drawn in a cv::Mat (filled with Bit-uchar),
+	// with free space drawn white (255) and obstacles as black (0). It returns a series of 2D poses that show to which positions
+	// the robot should drive at.
+	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
+					 const geometry_msgs::Pose2D starting_position, const cv::Point2d map_origin, const float fitting_circle_radius,
+					 const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fow_vector,
+					 const geometry_msgs::Polygon room_min_max_coordinates);
 };

@@ -373,18 +373,18 @@ public:
 //				if(failed_maps.is_open())
 //					failed_maps << evaluation_data_[i].map_name_ << std::endl;
 //			}
-			if (evaluateAllConfigsVer1(evaluation_configurations, evaluation_data_[i], data_storage_path) == false)
-			{
-				std::cout << "failed to simulate map " << evaluation_data_[i].map_name_ << std::endl;
-				if(failed_maps.is_open())
-					failed_maps << evaluation_data_[i].map_name_ << std::endl;
-			}
-//			if (evaluateAllConfigsVer2(evaluation_configurations, evaluation_data_[i], data_storage_path) == false)
+//			if (evaluateAllConfigsVer1(evaluation_configurations, evaluation_data_[i], data_storage_path) == false)
 //			{
 //				std::cout << "failed to simulate map " << evaluation_data_[i].map_name_ << std::endl;
 //				if(failed_maps.is_open())
 //					failed_maps << evaluation_data_[i].map_name_ << std::endl;
 //			}
+			if (evaluateAllConfigsVer2(evaluation_configurations, evaluation_data_[i], data_storage_path) == false)
+			{
+				std::cout << "failed to simulate map " << evaluation_data_[i].map_name_ << std::endl;
+				if(failed_maps.is_open())
+					failed_maps << evaluation_data_[i].map_name_ << std::endl;
+			}
 			//reset booleans to segment the new map
 			segmented_morph = false;
 			segmented_dist = false;
@@ -662,7 +662,7 @@ public:
 		evaluation_configurations.clear();
 		for (int room_segmentation_algorithm=1; room_segmentation_algorithm<=5; ++room_segmentation_algorithm)
 		{
-			for(int sequence_planning_method = 1; sequence_planning_method <= 2; ++sequence_planning_method)
+			for(int sequence_planning_method = 2; sequence_planning_method <= 2; ++sequence_planning_method)
 			{
 				for(int tsp_solver = 1; tsp_solver <= 3; ++tsp_solver)
 				{

@@ -36,7 +36,7 @@ boustrophedonExplorer::boustrophedonExplorer()
 //		corresponding Boolean to false (shows that the path planning should be done for the robot footprint).
 void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
 		const float map_resolution, const geometry_msgs::Pose2D starting_position, const cv::Point2d map_origin,
-		const float fow_fitting_circle_radius, const int path_eps, const bool plan_for_footprint,
+		const float fitting_circle_radius, const int path_eps, const bool plan_for_footprint,
 		const Eigen::Matrix<float, 2, 1> robot_to_fow_vector)
 {
 	ROS_INFO("Planning the boustrophedon path trough the room.");
@@ -244,7 +244,7 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 
 	// go trough the cells and determine the boustrophedon paths
 	ROS_INFO("Starting to get the paths for each cell, number of cells: %d", (int)cell_polygons.size());
-	int fow_radius_as_int = (int) std::floor(fow_fitting_circle_radius); // convert fow-radius to int
+	int fow_radius_as_int = (int) std::floor(fitting_circle_radius); // convert fow-radius to int
 	cv::Point robot_pos = starting_point; // Point that keeps track of the last point after the boustrophedon path in each cell
 	std::vector<cv::Point> fow_middlepoint_path;
 	for(size_t cell=0; cell<cell_polygons.size(); ++cell)

@@ -19,7 +19,7 @@
  * \file
  *
  * \note
- * Copyright (c) 2015 \n
+ * Copyright (c) 2016 \n
  * Fraunhofer Institute for Manufacturing Engineering
  * and Automation (IPA) \n\n
  *
@@ -207,6 +207,6 @@ public:
 	// the robot should drive at.
 	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
 				 const geometry_msgs::Pose2D starting_position, const cv::Point2d map_origin,
-				const float fow_fitting_circle_radius, const int path_eps, const bool plan_for_footprint,
+				const float fitting_circle_radius, const int path_eps, const bool plan_for_footprint,
 				const Eigen::Matrix<float, 2, 1> robot_to_fow_vector);
 };

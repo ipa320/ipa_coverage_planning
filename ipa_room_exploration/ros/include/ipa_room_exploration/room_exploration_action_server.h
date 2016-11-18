@@ -20,8 +20,6 @@
 #include <cob_map_accessibility_analysis/CheckPerimeterAccessibility.h>
 #include <ipa_room_exploration/concorde_TSP.h>
 
-#include <ipa_room_exploration/neuron_class.h>
-
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>
 #include <geometry_msgs/Point32.h>
@@ -33,13 +31,14 @@
 
 #include <ipa_room_exploration/grid_point_explorator.h>
 #include <ipa_room_exploration/boustrophedon_explorator.h>
+#include <ipa_room_exploration/neural_network_explorator.h>
 
 /*!
  *****************************************************************
  * \file
  *
  * \note
- * Copyright (c) 2015 \n
+ * Copyright (c) 2016 \n
  * Fraunhofer Institute for Manufacturing Engineering
  * and Automation (IPA) \n\n
  *
