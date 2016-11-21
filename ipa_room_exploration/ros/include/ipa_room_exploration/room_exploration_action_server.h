@@ -111,6 +111,7 @@ protected:
 
 	gridPointExplorator grid_point_planner; // object that uses the grid point method to plan a path trough a room
 	boustrophedonExplorer boustrophedon_explorer_; // object that uses the boustrophedon exploration method to plan a path trough the room
+	neuralNetworkExplorator neural_network_explorator_; // object that uses the neural network method to create an exploration path
 
 	// parameters for the different planners
 	int grid_line_length_; // size of the grid-lines that the grid-point-explorator lays over the map

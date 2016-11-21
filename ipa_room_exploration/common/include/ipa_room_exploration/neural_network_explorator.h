@@ -6,6 +6,7 @@
 #include <math.h>
 
 #include <opencv/cv.h>
+#include <opencv/highgui.h>
 
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>
@@ -74,6 +75,8 @@
 
 #pragma once
 
+#define PI 3.14159265359
+
 // This class provides a room explorator based on an artificial neural network. This network is used to compute a
 // coverage path s.t. the whole environment is visited at least once. The used method is stated in:
 //
@@ -93,13 +96,13 @@ class neuralNetworkExplorator
 protected:
 
 	// vector that stores the neurons of the given map
-	std::vector<Neuron> neurons_;
+	std::vector<std::vector<Neuron> > neurons_;
 
 	// step size used for integrating the states of the neurons
 	double step_size_;
 
 	// parameters for the neural network
-	double A_, B_, D_, E_, mu_;
+	double A_, B_, D_, E_, mu_, delta_theta_weight_;
 
 public:
 
@@ -113,7 +116,7 @@ public:
 	}
 
 	// function to set the parameters needed for the neural network
-	void setParameters(double A, double B, double D, double E, double mu, double step_size)
+	void setParameters(double A, double B, double D, double E, double mu, double step_size, double delta_theta_weight)
 	{
 		A_ = A;
 		B_ = B;
@@ -121,6 +124,7 @@ public:
 		E_ = E;
 		mu_ = mu;
 		step_size_ = step_size;
+		delta_theta_weight_ = delta_theta_weight;
 	}
 
 	// Function that creates an exploration path for a given room. The room has to be drawn in a cv::Mat (filled with Bit-uchar),

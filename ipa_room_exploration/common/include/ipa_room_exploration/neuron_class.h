@@ -95,7 +95,7 @@ protected:
 	cv::Point position_;
 
 	// booleans to check if this neuron is cleaned or an obstacle
-	bool cleaned_, obstacle_;
+	bool visited_, obstacle_;
 
 	// state (activity) of this neuron at current time step and last
 	double state_, previous_state_;
@@ -111,7 +111,7 @@ protected:
 	{
 		if(obstacle_ == true)
 			return -1.0*E_;
-		else if(cleaned_ == false)
+		else if(visited_ == false)
 			return E_;
 		else
 			return 0.0;
@@ -120,7 +120,7 @@ protected:
 public:
 
 	// constructor
-	Neuron(cv::Point position, double A, double B, double D, double E, double mu, double step_size, bool obstacle, bool cleaned=false)
+	Neuron(cv::Point position, double A, double B, double D, double E, double mu, double step_size, bool visited, bool cleaned=false)
 	{
 		state_ = 0;
 		previous_state_ = 0;
@@ -131,8 +131,8 @@ public:
 		E_ = E;
 		mu_ = mu;
 		step_size_ = step_size;
-		obstacle_ = obstacle;
-		cleaned_ = cleaned;
+		obstacle_ = visited;
+		visited_ = cleaned;
 	}
 
 	// function to insert a neighbor
@@ -161,12 +161,33 @@ public:
 		return state_;
 	}
 
+	// function to save the current state as previous state
+	void saveState()
+	{
+		previous_state_ = state_;
+	}
+
+	// function to get the neighbors
+	void getNeighbors(std::vector<Neuron*>& neighbors)
+	{
+		neighbors = neighbors_;
+	}
+
+	// function to mark the neuron as cleaned
+	void markAsVisited()
+	{
+		visited_ = true;
+	}
+
+	// function to check if the current neuron is an obstacle or not
+	bool isObstacle()
+	{
+		return obstacle_;
+	}
+
 	// function to update the state of the neuron using euler discretization
 	void updateState()
 	{
-		// save previous state to allow neighbors to update in the right manner
-		previous_state_ = state_;
-
 		// get external input
 		double input = I();
 
