@@ -207,7 +207,7 @@ public:
 	// with free space drawn white (255) and obstacles as black (0). It returns a series of 2D poses that show to which positions
 	// the robot should drive at.
 	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
-				 const geometry_msgs::Pose2D starting_position, const cv::Point2d map_origin,
+				const cv::Point starting_position, const cv::Point2d map_origin,
 				const float fitting_circle_radius, const int path_eps, const bool plan_for_footprint,
 				const Eigen::Matrix<float, 2, 1> robot_to_fow_vector);
 };

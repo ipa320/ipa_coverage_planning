@@ -1,6 +1,7 @@
 # this variable selects the algorithm for room exploration
 # 1 = grid point explorator
 # 2 = boustrophedon explorator
+# 3 = neural network explorator
 # int
 room_exploration_algorithm: 1
 
@@ -18,4 +19,20 @@ grid_line_length: 10
 
 # distance between two points when generating the path with the boustrophedon explorator
 # [pixel]
-path_eps: 5
+path_eps: 10
+
+# parameters specific for the neural network explorator, see "A Neural Network Approach to Complete Coverage Path Planning" from Simon X. Yang and Chaomin Luo
+# step size for integrating the state dynamics
+step_size: 0.008
+# decaying parameter that pulls the activity of a neuron closer to zero, larger value means faster decreasing
+A: 17
+# increasing parameter that tries to increase the activity of a neuron when it's not too big already, higher value means a higher desired value and a faster increasing at the beginning
+B: 5
+# decreasing parameter when the neuron is labeled as obstacle, higher value means faster decreasing
+D: 7
+# external input parameter of one neuron that is used in the dynamics corresponding to if it is an obstacle or uncleaned/cleaned, E>>B
+E: 80
+# parameter to set the importance of the states of neighboring neurons to the dynamics, higher value means higher influence
+mu: 1.03
+# parameter to set the importance of the traveleing direction from the previous step and the next step, a higher value means that the robot should turn less
+delta_theta_weight: 0.15

@@ -32,7 +32,7 @@ neuralNetworkExplorator::neuralNetworkExplorator()
 //		the distance to the last robot position is minimized. If this is not wanted one has to set the corresponding
 //		Boolean to false (shows that the path planning should be done for the robot footprint).
 void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
-					 const geometry_msgs::Pose2D starting_position, const cv::Point2d map_origin, const float fitting_circle_radius,
+					 const cv::Point starting_position, const cv::Point2d map_origin, const float fitting_circle_radius,
 					 const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fow_vector,
 					 const geometry_msgs::Polygon room_min_max_coordinates, bool show_path_computation)
 {
@@ -209,7 +209,6 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 		geometry_msgs::Pose2D current_pose;
 		current_pose.x = next_neuron->getPosition().x;
 		current_pose.y = next_neuron->getPosition().y;
-//		current_pose.theta = travel_angle;
 		fow_path.push_back(current_pose);
 
 		// update the states of the network
@@ -261,6 +260,5 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 	}
 
 	// ****************** III. Map the found fow path to the robot path ******************
-	cv::Point starting_point(starting_position.x, starting_position.y);
-	mapPath(room_map, path, fow_path, robot_to_fow_vector, map_resolution, map_origin, starting_point);
+	mapPath(room_map, path, fow_path, robot_to_fow_vector, map_resolution, map_origin, starting_position);
 }

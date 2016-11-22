@@ -93,12 +93,12 @@ int main(int argc, char **argv)
 	ROS_INFO("Action server started, sending goal.");
 
 	DynamicReconfigureClient drc_exp(nh, "room_exploration_server/set_parameters", "room_exploration_server/parameter_updates");
-	drc_exp.setConfig("room_exploration_algorithm", 2);
+	drc_exp.setConfig("room_exploration_algorithm", 3);
 //	drc_exp.setConfig("grid_line_length", 15);
-	drc_exp.setConfig("path_eps", 10);
+//	drc_exp.setConfig("path_eps", 10);
 	drc_exp.setConfig("plan_for_footprint", false);
 
-	//	cv::Point2f src_center(map.cols/2.0F, map.rows/2.0F);
+//	cv::Point2f src_center(map.cols/2.0F, map.rows/2.0F);
 //	cv::Mat rot_mat = getRotationMatrix2D(src_center, 180, 1.0);
 //	cv::Mat dst;
 //	cv::warpAffine(map, dst, rot_mat, map.size());

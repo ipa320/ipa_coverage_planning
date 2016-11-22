@@ -16,7 +16,7 @@ gridPointExplorator::gridPointExplorator(int grid_line_length)
 //			Poses are computed, by calculating a vector from the old node to the next and using the angle of this with the x-axis
 //			as angle for the Poses.
 void gridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
-		const float map_resolution, const geometry_msgs::Pose2D starting_position,
+		const float map_resolution, const cv::Point starting_position,
 		const geometry_msgs::Polygon room_min_max_coordinates, const cv::Point2d map_origin)
 {
 	//******************* I. Get grid points *************************
@@ -49,11 +49,10 @@ void gridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	// find the index of the point, which is closest to the starting position
 	int min_index = 0;
 	double min_distance = 1e7;
-	cv::Point starting_point(starting_position.x, starting_position.y); // conversion of Pose2D to cv::Point for convenience
 
 	for(std::vector<cv::Point>::iterator point = grid_points.begin(); point != grid_points.end(); ++point)
 	{
-		double distance = cv::norm(starting_point - *point);
+		double distance = cv::norm(starting_position - *point);
 
 		if(distance <= min_distance)
 		{

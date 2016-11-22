@@ -24,6 +24,23 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		path_eps_ = config.path_eps;
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
 	}
+	else if(path_planning_algorithm_ == 3) // set neural network explorator parameters
+	{
+		step_size_ = config.step_size;
+		std::cout << "room_exploration/step_size_ = " << step_size_ << std::endl;
+		A_ = config.A;
+		std::cout << "room_exploration/A_ = " << A_ << std::endl;
+		B_ = config.B;
+		std::cout << "room_exploration/B_ = " << B_ << std::endl;
+		D_ = config.D;
+		std::cout << "room_exploration/D_ = " << D_ << std::endl;
+		E_ = config.E;
+		std::cout << "room_exploration/E_ = " << E_ << std::endl;
+		mu_ = config.mu;
+		std::cout << "room_exploration/mu_ = " << mu_ << std::endl;
+		delta_theta_weight_ = config.delta_theta_weight;
+		std::cout << "room_exploration/delta_theta_weight_ = " << delta_theta_weight_ << std::endl;
+	}
 
 	left_sections_min_area_ = config.left_sections_min_area;
 	std::cout << "room_exploration/left_sections_min_area_ = " << left_sections_min_area_ << std::endl;
@@ -54,6 +71,8 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		ROS_INFO("You have chosen the grid exploration method.");
 	else if(path_planning_algorithm_ == 2)
 		ROS_INFO("You have chosen the boustrophedon exploration method.");
+	else if(path_planning_algorithm_ == 3)
+		ROS_INFO("You have chosen the neural network exploration method.");
 
 	if (path_planning_algorithm_ == 1) // get grid point exploration parameters
 	{
@@ -64,6 +83,23 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	{
 		node_handle_.param("path_eps", path_eps_, 3);
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
+	}
+	else if(path_planning_algorithm_ == 3) // set neural network explorator parameters
+	{
+		node_handle_.param("step_size", step_size_, 0.008);
+		std::cout << "room_exploration/step_size_ = " << step_size_ << std::endl;
+		node_handle_.param("A", A_, 17);
+		std::cout << "room_exploration/A_ = " << A_ << std::endl;
+		node_handle_.param("B", B_, 5);
+		std::cout << "room_exploration/B_ = " << B_ << std::endl;
+		node_handle_.param("D", D_, 7);
+		std::cout << "room_exploration/D_ = " << D_ << std::endl;
+		node_handle_.param("E", E_, 80);
+		std::cout << "room_exploration/E_ = " << E_ << std::endl;
+		node_handle_.param("mu", mu_, 1.03);
+		std::cout << "room_exploration/mu_ = " << mu_ << std::endl;
+		node_handle_.param("delta_theta_weight", delta_theta_weight_, 0.15);
+		std::cout << "room_exploration/delta_theta_weight_ = " << delta_theta_weight_ << std::endl;
 	}
 
 	// min area for revisiting left sections
@@ -328,7 +364,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	std::cout << "******************* robot radius ********************" << robot_radius << std::endl;
 
-	geometry_msgs::Pose2D starting_position;
+	cv::Point starting_position;
 	starting_position.x = (goal->starting_position.x - map_origin.x)/map_resolution;
 	starting_position.y = (goal->starting_position.y - map_origin.y)/map_resolution;
 	std::cout << "starting point: " << starting_position << std::endl;
@@ -399,7 +435,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	// ***************** II. plan the path using the wanted planner *****************
 	std::vector<geometry_msgs::Pose2D> exploration_path;
-	neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, false, middle_point, min_max_coordinates, false);
 	if(path_planning_algorithm_ == 1) // use grid point explorator
 	{
 		// set wanted grid size
@@ -418,6 +453,18 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			Eigen::Matrix<float, 2, 1> zero_vector;
 			zero_vector << 0, 0;
 			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, goal->coverage_radius/map_resolution, path_eps_, plan_for_footprint_, zero_vector);
+		}
+	}
+	else if(path_planning_algorithm_ == 3) // use neural network explorator
+	{
+		// plan path
+		if(plan_for_footprint_ == false)
+			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, plan_for_footprint_, middle_point, min_max_coordinates, false);
+		else
+		{
+			Eigen::Matrix<float, 2, 1> zero_vector;
+			zero_vector << 0, 0;
+			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, goal->coverage_radius/map_resolution, plan_for_footprint_, zero_vector, min_max_coordinates, false);
 		}
 	}
 

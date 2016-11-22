@@ -118,6 +118,14 @@ protected:
 	int path_eps_; // the distance between points when generating a path with the boustrophedon exploration method
 	bool plan_for_footprint_; // boolean that implies if the path should be planned for the footprint and not for the field of view
 
+	// neural network explorator specific parameters
+	double step_size_; // step size for integrating the state dynamics
+	int A_; // decaying parameter that pulls the activity of a neuron closer to zero, larger value means faster decreasing
+	int B_; // increasing parameter that tries to increase the activity of a neuron when it's not too big already, higher value means a higher desired value and a faster increasing at the beginning
+	int D_; // decreasing parameter when the neuron is labeled as obstacle, higher value means faster decreasing
+	int E_; // external input parameter of one neuron that is used in the dynamics corresponding to if it is an obstacle or uncleaned/cleaned, E>>B
+	double mu_; // parameter to set the importance of the states of neighboring neurons to the dynamics, higher value means higher influence
+	double delta_theta_weight_; // parameter to set the importance of the traveleing direction from the previous step and the next step, a higher value means that the robot should turn less
 
 	// callback function for dynamic reconfigure
 	void dynamic_reconfigure_callback(ipa_room_exploration::RoomExplorationConfig &config, uint32_t level);
