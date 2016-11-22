@@ -93,6 +93,7 @@ add_executable(room_exploration_server ros/src/room_exploration_action_server.cp
 					common/src/boustrophedon_explorator.cpp
 					common/src/neural_network_explorator.cpp
 					common/src/meanshift2d.cpp
+					common/src/fow_to_robot_mapper.cpp
 					common/src/A_star_pathplanner.cpp common/src/node.cpp
 					common/src/concorde_TSP.cpp)
 add_dependencies(room_exploration_server

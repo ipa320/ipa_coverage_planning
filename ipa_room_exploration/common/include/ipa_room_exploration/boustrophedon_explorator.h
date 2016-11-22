@@ -9,6 +9,7 @@
 
 #include <ipa_room_exploration/concorde_TSP.h>
 #include <ipa_room_exploration/meanshift2d.h>
+#include <ipa_room_exploration/fow_to_robot_mapper.h>
 
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>

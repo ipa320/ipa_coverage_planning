@@ -505,8 +505,6 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		cv::Point next_point = fow_middlepoint_path[(point_index+1)%(fow_middlepoint_path.size())];
 		cv::Point vector = next_point - current_point;
 
-		float quotient = vector.x / (sqrtf(vector.x * vector.x + vector.y * vector.y));
-
 		float angle = std::atan2(vector.y, vector.x);
 
 		// add the next navigation goal to the path
@@ -537,62 +535,63 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	// *********************** IV. Get the robot path out of the fow path. ***********************
 	// go trough all computed fow poses and compute the corresponding robot pose
 	ROS_INFO("Starting to map from field of view pose to robot pose");
-	robot_pos = starting_point; // reset current robot position
-	for(std::vector<geometry_msgs::Pose2D>::iterator pose=fow_poses.begin(); pose!=fow_poses.end(); ++pose)
-	{
-		geometry_msgs::Pose2D current_pose;
-
-		// get the rotation matrix
-		float sin_theta = std::sin(pose->theta);
-		float cos_theta = std::cos(pose->theta);
-		Eigen::Matrix<float, 2, 2> R;
-		R << cos_theta, -sin_theta, sin_theta, cos_theta;
-
-		// calculate the resulting rotated relative vector and the corresponding robot position
-		Eigen::Matrix<float, 2, 1> v_rel_rot = R * robot_to_fow_vector;
-		Eigen::Matrix<float, 2, 1> robot_position;
-		robot_position << pose->x-v_rel_rot(0,0), pose->y-v_rel_rot(1,0);
-
-		// check the accessibility of the found point
-		if(room_map.at<uchar>((int)robot_position(1,0), (int)robot_position(0,0)) == 255) // position accessible
-		{
-			current_pose.x = (robot_position(0,0) * map_resolution) + map_origin.x;
-			current_pose.y = (robot_position(1,0) * map_resolution) + map_origin.y;
-			current_pose.theta = pose->theta;
-			path.push_back(current_pose);
-
-			// set robot position to computed pose s.t. further planning is possible
-			robot_pos = cv::Point(robot_position(0,0), robot_position(1,0));
-		}
-		else // position not accessible, find another valid pose
-		{
-			// get current fow position
-			cv::Point fow_position(pose->x, pose->y);
-
-			// get vector from current position to desired fow position
-			std::vector<cv::Point> astar_path;
-			path_planner_.planPath(room_map, robot_pos, fow_position, 1.0, 0.0, map_resolution, 0, &astar_path);
-
-			// find the point on the astar path that is on the viewing circle around the fow middlepoint
-			cv::Point accessible_position;
-			for(std::vector<cv::Point>::iterator point=astar_path.begin(); point!=astar_path.end(); ++point)
-			{
-				if(cv::norm(*point-fow_position) <= robot_to_fow_vector.norm())
-				{
-					accessible_position = *point;
-					break;
-				}
-			}
-
-			// get the angle s.t. the pose points to the fow middlepoint and save it
-			current_pose.x = (accessible_position.x * map_resolution) + map_origin.x;
-			current_pose.y = (accessible_position.y * map_resolution) + map_origin.y;
-			current_pose.theta = std::atan2(pose->y-accessible_position.y, pose->x-accessible_position.x);
-			path.push_back(current_pose);
-
-			// set robot position to computed pose s.t. further planning is possible
-			robot_pos = accessible_position;
-		}
+	mapPath(room_map, path, fow_poses, robot_to_fow_vector, map_resolution, map_origin, starting_point);
+//	robot_pos = starting_point; // reset current robot position
+//	for(std::vector<geometry_msgs::Pose2D>::iterator pose=fow_poses.begin(); pose!=fow_poses.end(); ++pose)
+//	{
+//		geometry_msgs::Pose2D current_pose;
+//
+//		// get the rotation matrix
+//		float sin_theta = std::sin(pose->theta);
+//		float cos_theta = std::cos(pose->theta);
+//		Eigen::Matrix<float, 2, 2> R;
+//		R << cos_theta, -sin_theta, sin_theta, cos_theta;
+//
+//		// calculate the resulting rotated relative vector and the corresponding robot position
+//		Eigen::Matrix<float, 2, 1> v_rel_rot = R * robot_to_fow_vector;
+//		Eigen::Matrix<float, 2, 1> robot_position;
+//		robot_position << pose->x-v_rel_rot(0,0), pose->y-v_rel_rot(1,0);
+//
+//		// check the accessibility of the found point
+//		if(room_map.at<uchar>((int)robot_position(1,0), (int)robot_position(0,0)) == 255) // position accessible
+//		{
+//			current_pose.x = (robot_position(0,0) * map_resolution) + map_origin.x;
+//			current_pose.y = (robot_position(1,0) * map_resolution) + map_origin.y;
+//			current_pose.theta = pose->theta;
+//			path.push_back(current_pose);
+//
+//			// set robot position to computed pose s.t. further planning is possible
+//			robot_pos = cv::Point(robot_position(0,0), robot_position(1,0));
+//		}
+//		else // position not accessible, find another valid pose
+//		{
+//			// get current fow position
+//			cv::Point fow_position(pose->x, pose->y);
+//
+//			// get vector from current position to desired fow position
+//			std::vector<cv::Point> astar_path;
+//			path_planner_.planPath(room_map, robot_pos, fow_position, 1.0, 0.0, map_resolution, 0, &astar_path);
+//
+//			// find the point on the astar path that is on the viewing circle around the fow middlepoint
+//			cv::Point accessible_position;
+//			for(std::vector<cv::Point>::iterator point=astar_path.begin(); point!=astar_path.end(); ++point)
+//			{
+//				if(cv::norm(*point-fow_position) <= robot_to_fow_vector.norm())
+//				{
+//					accessible_position = *point;
+//					break;
+//				}
+//			}
+//
+//			// get the angle s.t. the pose points to the fow middlepoint and save it
+//			current_pose.x = (accessible_position.x * map_resolution) + map_origin.x;
+//			current_pose.y = (accessible_position.y * map_resolution) + map_origin.y;
+//			current_pose.theta = std::atan2(pose->y-accessible_position.y, pose->x-accessible_position.x);
+//			path.push_back(current_pose);
+//
+//			// set robot position to computed pose s.t. further planning is possible
+//			robot_pos = accessible_position;
+//		}
 
 //		testing
 //		cv::Mat room_copy = room_map.clone();
@@ -600,5 +599,5 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 //		cv::circle(room_copy, robot_pos, 3, cv::Scalar(100), CV_FILLED);
 //		cv::imshow("pose", room_copy);
 //		cv::waitKey();
-	}
+//	}
 }

@@ -13,6 +13,7 @@
 #include <Eigen/Dense>
 
 #include <ipa_room_exploration/neuron_class.h>
+#include <ipa_room_exploration/fow_to_robot_mapper.h>
 
 /*!
  *****************************************************************
@@ -133,5 +134,5 @@ public:
 	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
 					 const geometry_msgs::Pose2D starting_position, const cv::Point2d map_origin, const float fitting_circle_radius,
 					 const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fow_vector,
-					 const geometry_msgs::Polygon room_min_max_coordinates);
+					 const geometry_msgs::Polygon room_min_max_coordinates, bool show_path_evolution=false);
 };

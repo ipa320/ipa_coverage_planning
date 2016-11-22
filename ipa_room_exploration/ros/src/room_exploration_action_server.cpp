@@ -399,7 +399,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	// ***************** II. plan the path using the wanted planner *****************
 	std::vector<geometry_msgs::Pose2D> exploration_path;
-	neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, false, middle_point, min_max_coordinates);
+	neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, false, middle_point, min_max_coordinates, false);
 	if(path_planning_algorithm_ == 1) // use grid point explorator
 	{
 		// set wanted grid size
