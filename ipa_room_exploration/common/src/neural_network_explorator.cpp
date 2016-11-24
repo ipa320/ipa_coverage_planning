@@ -60,7 +60,6 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 			{
 				Neuron current_neuron(cv::Point(x,y), A_, B_, D_, E_, mu_, step_size_, true);
 				current_network_row.push_back(current_neuron);
-				++number_of_neurons;
 			}
 		}
 
@@ -160,8 +159,10 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 //	cv::resizeWindow("states", 600, 600);
 //	cv::waitKey();
 
-	// iteratively choose the next neuron until all neurons have been visited
+	// iteratively choose the next neuron until all neurons have been visited or the algorithm is stuck in a
+	// limit cycle like path (i.e. the same neurons get visited over and over)
 	int visited_neurons = 1;
+	bool stuck_in_cycle = false;
 	std::vector<geometry_msgs::Pose2D> fow_path; // vector that stores the computed path, that is generated for the field of view (fow)
 	geometry_msgs::Pose2D initial_pose;
 	initial_pose.x = starting_neuron->getPosition().x;
@@ -200,9 +201,12 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 			}
 		}
 
+		// if the next neuron was previously uncleaned, increase number of visited neurons
+		if(next_neuron->visitedNeuron() == false)
+			++visited_neurons;
+
 		// mark next neuron as visited
 		next_neuron->markAsVisited();
-		++visited_neurons;
 		previous_traveling_angle = best_angle;
 
 		// add neuron to path
@@ -210,6 +214,34 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 		current_pose.x = next_neuron->getPosition().x;
 		current_pose.y = next_neuron->getPosition().y;
 		fow_path.push_back(current_pose);
+
+		// check the fow path for a limit cycle by searching the path for the next neuron, if it occurs too often
+		// and the previous/after neuron is always the same the algorithm probably is stuck in a cycle
+		int number_of_neuron_in_path = 0;
+		for(std::vector<geometry_msgs::Pose2D>::iterator pose=fow_path.begin(); pose!=fow_path.end(); ++pose)
+			if(*pose==current_pose)
+				++number_of_neuron_in_path;
+
+		if(number_of_neuron_in_path >= 20)
+		{
+			// check number of previous neuron
+			geometry_msgs::Pose2D previous_pose = fow_path[fow_path.size()-2];
+			int number_of_previous_neuron_in_path = 0;
+			for(std::vector<geometry_msgs::Pose2D>::iterator pose=fow_path.begin(); pose!=fow_path.end()-1; ++pose)
+			{
+				// check if the the previous pose always has the current pose as neighbor
+				if(*pose==previous_pose)
+				{
+					if(*(pose+1)==current_pose)
+						++number_of_previous_neuron_in_path;
+					else if(*(pose-1)==current_pose)
+						++number_of_previous_neuron_in_path;
+				}
+			}
+
+			if(number_of_previous_neuron_in_path >= number_of_neuron_in_path)
+				stuck_in_cycle = true;
+		}
 
 		// update the states of the network
 		for(size_t row=0; row<neurons_.size(); ++row)
@@ -230,7 +262,7 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 			cv::waitKey(20);
 		}
 
-	}while(visited_neurons < number_of_neurons); //TODO: find better terminal condition
+	}while(visited_neurons < number_of_neurons && stuck_in_cycle == false); //TODO: test terminal condition
 
 	// go trough the found fow-path and compute the angles of the poses s.t. it points to the next pose that should be visited
 	for(unsigned int point_index=0; point_index<fow_path.size(); ++point_index)

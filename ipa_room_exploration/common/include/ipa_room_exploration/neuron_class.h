@@ -185,6 +185,12 @@ public:
 		return obstacle_;
 	}
 
+	// function to check if the neuron has been visited or not
+	bool visitedNeuron()
+	{
+		return visited_;
+	}
+
 	// function to update the state of the neuron using euler discretization
 	void updateState()
 	{

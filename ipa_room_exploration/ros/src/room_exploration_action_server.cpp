@@ -459,7 +459,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	{
 		// plan path
 		if(plan_for_footprint_ == false)
-			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, plan_for_footprint_, middle_point, min_max_coordinates, false);
+			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, plan_for_footprint_, middle_point, min_max_coordinates, true);
 		else
 		{
 			Eigen::Matrix<float, 2, 1> zero_vector;

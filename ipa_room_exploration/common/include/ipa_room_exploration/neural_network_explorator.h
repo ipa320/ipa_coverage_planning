@@ -78,6 +78,15 @@
 
 #define PI 3.14159265359
 
+// Definition if the operator == for geometry_msgs::Pose2D for checking how often a specific pose is in the so far calculated
+// path.
+inline bool operator==(const geometry_msgs::Pose2D& A, const geometry_msgs::Pose2D& B)
+{
+	if(A.x == B.x && A.y == B.y)
+		return true;
+	return false;
+}
+
 // This class provides a room explorator based on an artificial neural network. This network is used to compute a
 // coverage path s.t. the whole environment is visited at least once. The used method is stated in:
 //
