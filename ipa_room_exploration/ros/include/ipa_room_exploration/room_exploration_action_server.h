@@ -32,6 +32,7 @@
 #include <ipa_room_exploration/grid_point_explorator.h>
 #include <ipa_room_exploration/boustrophedon_explorator.h>
 #include <ipa_room_exploration/neural_network_explorator.h>
+#include <ipa_room_exploration/convex_sensor_placement_explorator.h>
 
 /*!
  *****************************************************************
@@ -109,9 +110,13 @@ protected:
 	double left_sections_min_area_; // variable to determine the minimal area that not seen sections must have before they
 									// are revisited after one go trough the room
 
+	double goal_eps_;				// distance between the published navigation goal and the robot to publish the next
+									// navigation goal in the path.
+
 	gridPointExplorator grid_point_planner; // object that uses the grid point method to plan a path trough a room
 	boustrophedonExplorer boustrophedon_explorer_; // object that uses the boustrophedon exploration method to plan a path trough the room
 	neuralNetworkExplorator neural_network_explorator_; // object that uses the neural network method to create an exploration path
+	convexSPPExplorator convex_SPP_explorator_; // object that uses the convex spp exploration methd to create an exploration path
 
 	// parameters for the different planners
 	int grid_line_length_; // size of the grid-lines that the grid-point-explorator lays over the map

@@ -13,6 +13,9 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 	path_planning_algorithm_ = config.room_exploration_algorithm;
 	std::cout << "room_exploration/path_planning_algorithm_ = " << path_planning_algorithm_ << std::endl;
 
+	goal_eps_ = config.goal_eps;
+	std::cout << "room_exploration/goal_eps_ = " << goal_eps_ << std::endl;
+
 	// set parameters regarding the chosen algorithm
 	if (path_planning_algorithm_ == 1) // set grid point exploration parameters
 	{
@@ -66,6 +69,9 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 
 	node_handle_.param("room_exploration_algorithm", path_planning_algorithm_, 1);
 	std::cout << "room_exploration/room_exploration_algorithm = " << path_planning_algorithm_ << std::endl << std::endl;
+
+	node_handle_.param("goal_eps", goal_eps_, 0.35);
+	std::cout << "room_exploration/goal_eps_ = " << goal_eps_ << std::endl;
 
 	if (path_planning_algorithm_ == 1)
 		ROS_INFO("You have chosen the grid exploration method.");
@@ -145,7 +151,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 //	ros::Duration sleep_rate(0.1);
 	tf::TransformListener listener;
 	tf::StampedTransform transform;
-	ros::Duration sleep_duration(0.2); // todo: param!!!!
+	ros::Duration sleep_duration(0.15); // todo: param!!!!
 	bool near_pos;
 	do
 	{
@@ -283,7 +289,7 @@ void RoomExplorationServer::drawSeenPoints(cv::Mat& reachable_areas_map, const s
 					break;
 				}
 
-				if (reachable_areas_map.at<uchar>(ray_points.pos()) > 0 && cv::pointPolygonTest(transformed_fow_points, ray_points.pos(), false) >= 0)//pointInsidePolygonCheck(ray_points.pos(), transformed_fow_points) == 1)
+				if (reachable_areas_map.at<uchar>(ray_points.pos()) > 0 && cv::pointPolygonTest(transformed_fow_points, ray_points.pos(), false) >= 0)
 				{
 					reachable_areas_map.at<uchar>(ray_points.pos()) = 127;
 				}
@@ -393,6 +399,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	float fitting_circle_radius;
 	Eigen::Matrix<float, 2, 1> middle_point;
 	std::vector<Eigen::Matrix<float, 2, 1> > fow_vectors;
+	Eigen::Matrix<float, 2, 1> middle_point_1, middle_point_2, middle_point_3, middle_point_4;
 	if(plan_for_footprint_ == false) // read out the given fow-vectors, if needed
 	{
 		for(int i = 0; i < 4; ++i)
@@ -402,13 +409,12 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			fow_vectors.push_back(current_vector);
 		}
 		// Get the size of one grid s.t. the grid can be completely covered by the fow from all rotations around it. For this
-		// fit a circle in the fow, which gives the diagonal length of the sqaure. Then use Pytahgoras to get the
-		// get middle point of fow
+		// fit a circle in the fow, which gives the diagonal length of the square. Then use Pythagoras to get the
+		// fow middle point
 		middle_point = (fow_vectors[0] + fow_vectors[1] + fow_vectors[2] + fow_vectors[3]) / 4;
 //		std::cout << "middle point: " << middle_point << std::endl;
 
 		// get middle points of edges of the fow
-		Eigen::Matrix<float, 2, 1> middle_point_1, middle_point_2, middle_point_3, middle_point_4;
 		middle_point_1 = (fow_vectors[0] + fow_vectors[1]) / 2;
 		middle_point_2 = (fow_vectors[1] + fow_vectors[2]) / 2;
 		middle_point_3 = (fow_vectors[2] + fow_vectors[3]) / 2;
@@ -433,8 +439,71 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		grid_length = std::floor(goal->coverage_radius/map_resolution);
 	}
 
+	// find the points that are used to raycast the field of view
+	// get points that define the edge-points of the line the raycasting should go to, by computing the intersection of two
+	// lines: the line defined by the robot pose and the fow-point that spans the highest angle and a line parallel to the
+	// front side of the fow with an offset
+	Eigen::Matrix<float, 2, 1> corner_point_1, corner_point_2;
+	float max_angle = 0.0;
+	if(plan_for_footprint_ == false)
+	{
+		// get angles between robot_pose and fow-corners in relative coordinates
+		float dot = fow_vectors[0].transpose()*fow_vectors[1];
+		float abs = fow_vectors[0].norm()*fow_vectors[1].norm();
+		float quotient = dot/abs;
+		if(quotient > 1) // prevent errors resulting from round errors
+			quotient = 1;
+		else if(quotient < -1)
+			quotient = -1;
+		float angle_1 = std::acos(quotient);
+		dot = fow_vectors[2].transpose()*fow_vectors[3];
+		abs = fow_vectors[2].norm()*fow_vectors[3].norm();
+		quotient = dot/abs;
+		if(quotient > 1) // prevent errors resulting from round errors
+			quotient = 1;
+		else if(quotient < -1)
+			quotient = -1;
+		float angle_2 = std::acos(dot/abs);
+
+		if(angle_1 > angle_2) // do a line crossing s.t. the corners are guaranteed to be after the fow
+		{
+			// save fond max angle
+			max_angle = angle_1;
+
+			float border_distance = 7;
+			Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_1 = fow_vectors[0];
+			Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_2 = fow_vectors[1];
+
+			// get vectors showing the directions for for the lines from pose to edge of fow
+			Eigen::Matrix<float, 2, 1> normed_fow_vector_1 = fow_vectors[0]/fow_vectors[0].norm();
+			Eigen::Matrix<float, 2, 1> normed_fow_vector_2 = fow_vectors[1]/fow_vectors[1].norm();
+
+			// get the offset point after the end of the fow
+			Eigen::Matrix<float, 2, 1> offset_point_after_fow = fow_vectors[2];
+			offset_point_after_fow(1, 0) = offset_point_after_fow(1, 0) + border_distance;
+
+			// find the parameters for the two different intersections (for each corner point)
+			float first_edge_parameter = (pose_to_fow_edge_vector_1(1, 0)/pose_to_fow_edge_vector_1(0, 0) * (fow_vectors[0](0, 0) - offset_point_after_fow(0, 0)) + offset_point_after_fow(1, 0) - fow_vectors[0](1, 0))/( pose_to_fow_edge_vector_1(1, 0)/pose_to_fow_edge_vector_1(0, 0) * (fow_vectors[3](0, 0) - fow_vectors[2](0, 0)) - (fow_vectors[3](1, 0) - fow_vectors[2](1, 0)) );
+			float second_edge_parameter = (pose_to_fow_edge_vector_2(1, 0)/pose_to_fow_edge_vector_2(0, 0) * (fow_vectors[1](0, 0) - offset_point_after_fow(0, 0)) + offset_point_after_fow(1, 0) - fow_vectors[1](1, 0))/( pose_to_fow_edge_vector_2(1, 0)/pose_to_fow_edge_vector_2(0, 0) * (fow_vectors[3](0, 0) - fow_vectors[2](0, 0)) - (fow_vectors[3](1, 0) - fow_vectors[2](1, 0)) );
+
+			// use the line equation and found parameters to actually find the corners
+			corner_point_1 = first_edge_parameter * (fow_vectors[3] - fow_vectors[2]) + offset_point_after_fow;
+			corner_point_2 = second_edge_parameter * (fow_vectors[3] - fow_vectors[2]) + offset_point_after_fow;
+		}
+		else
+		{
+			// save found max angle
+			max_angle = angle_2;
+
+			// follow the lines to the farthest points and go a little longer, this ensures that the whole fow is covered
+			corner_point_1 = 1.3 * fow_vectors[2];
+			corner_point_2 = 1.3 * fow_vectors[3];
+		}
+	}
+
 	// ***************** II. plan the path using the wanted planner *****************
 	std::vector<geometry_msgs::Pose2D> exploration_path;
+	convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, 5, (double) PI/4, min_max_coordinates, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fow_vectors[3].norm());
 	if(path_planning_algorithm_ == 1) // use grid point explorator
 	{
 		// set wanted grid size
@@ -459,7 +528,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	{
 		// plan path
 		if(plan_for_footprint_ == false)
-			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, plan_for_footprint_, middle_point, min_max_coordinates, true);
+			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, plan_for_footprint_, middle_point, min_max_coordinates, false);
 		else
 		{
 			Eigen::Matrix<float, 2, 1> zero_vector;
@@ -472,56 +541,11 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// 1. publish navigation goals
 	std::vector<geometry_msgs::Pose2D> robot_poses;
 	for(size_t nav_goal = 0; nav_goal < exploration_path.size(); ++nav_goal)
-		bool res = publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->camera_frame, robot_poses, 0.35);
+		bool res = publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->camera_frame, robot_poses, goal_eps_); // eps = 0.35
 
 	std::cout << "published all navigation goals, starting to check seen area" << std::endl;
 
-	// 2. find the points that are used to raycast the field of view
-	// get points that define the edge-points of the line the raycasting should go to, by computing the intersection of two
-	// lines: the line defined by the robot pose and the fow-point that spans the highest angle and a line parallel to the
-	// front side of the fow with an offset
-	Eigen::Matrix<float, 2, 1> corner_point_1, corner_point_2;
-	if(plan_for_footprint_ == false)
-	{
-		// get angles between robot_pose and fow-corners in relative coordinates
-		float dot = fow_vectors[0].transpose()*fow_vectors[1];
-		float abs = fow_vectors[0].norm() * fow_vectors[1].norm();
-		float angle_1 = std::acos(dot/abs);
-		dot = fow_vectors[2].transpose()*fow_vectors[3];
-		abs = fow_vectors[2].norm() * fow_vectors[3].norm();
-		float angle_2 = std::acos(dot/abs);
-
-		if(angle_1 > angle_2) // do a line crossing s.t. the corners are guaranteed to be after the fow
-		{
-			float border_distance = 7;
-			Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_1 = fow_vectors[0];
-			Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_2 = fow_vectors[1];
-
-			// get vectors showing the directions for for the lines from pose to edge of fow
-			Eigen::Matrix<float, 2, 1> normed_fow_vector_1 = fow_vectors[0]/fow_vectors[0].norm();
-			Eigen::Matrix<float, 2, 1> normed_fow_vector_2 = fow_vectors[1]/fow_vectors[1].norm();
-
-			// get the offset point after the end of the fow
-			Eigen::Matrix<float, 2, 1> offset_point_after_fow = fow_vectors[2];
-			offset_point_after_fow(1, 0) = offset_point_after_fow(1, 0) + border_distance;
-
-			// find the parameters for the two different intersections (for each corner point)
-			float first_edge_parameter = (pose_to_fow_edge_vector_1(1, 0)/pose_to_fow_edge_vector_1(0, 0) * (fow_vectors[0](0, 0) - offset_point_after_fow(0, 0)) + offset_point_after_fow(1, 0) - fow_vectors[0](1, 0))/( pose_to_fow_edge_vector_1(1, 0)/pose_to_fow_edge_vector_1(0, 0) * (fow_vectors[3](0, 0) - fow_vectors[2](0, 0)) - (fow_vectors[3](1, 0) - fow_vectors[2](1, 0)) );
-			float second_edge_parameter = (pose_to_fow_edge_vector_2(1, 0)/pose_to_fow_edge_vector_2(0, 0) * (fow_vectors[1](0, 0) - offset_point_after_fow(0, 0)) + offset_point_after_fow(1, 0) - fow_vectors[1](1, 0))/( pose_to_fow_edge_vector_2(1, 0)/pose_to_fow_edge_vector_2(0, 0) * (fow_vectors[3](0, 0) - fow_vectors[2](0, 0)) - (fow_vectors[3](1, 0) - fow_vectors[2](1, 0)) );
-
-			// use the line equation and found parameters to actually find the corners
-			corner_point_1 = first_edge_parameter * (fow_vectors[3] - fow_vectors[2]) + offset_point_after_fow;
-			corner_point_2 = second_edge_parameter * (fow_vectors[3] - fow_vectors[2]) + offset_point_after_fow;
-		}
-		else
-		{
-			// follow the lines to the farthest points and go a little longer, this ensures that the whole fow is covered
-			corner_point_1 = 1.3 * fow_vectors[2];
-			corner_point_2 = 1.3 * fow_vectors[3];
-		}
-	}
-
-	// 3. get the global costmap, that has initially not known objects in to check what regions have been seen
+	// 2. get the global costmap, that has initially not known objects in to check what regions have been seen
 	const std::string costmap_topic = "/move_base/global_costmap/costmap";
 	nav_msgs::OccupancyGrid global_costmap;
 	global_costmap = *(ros::topic::waitForMessage<nav_msgs::OccupancyGrid>(costmap_topic));
@@ -545,7 +569,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// 70% probability of being an obstacle
 	cv::threshold(costmap_as_mat, costmap_as_mat, 75, 255, cv::THRESH_BINARY_INV);
 
-	// 4. draw the seen positions so the server can check what points haven't been seen
+	// 3. draw the seen positions so the server can check what points haven't been seen
 	cv::Mat seen_positions_map = costmap_as_mat.clone();
 	if(plan_for_footprint_ == false)
 		drawSeenPoints(seen_positions_map, robot_poses, goal->field_of_view, corner_point_1, corner_point_2, map_resolution, map_origin);
@@ -591,10 +615,18 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		}
 	}
 
-	// testing
-	cv::Mat black_map(costmap_as_mat.cols, costmap_as_mat.rows, costmap_as_mat.type(), cv::Scalar(0));
+	// check if areas need to be visited again, if not cancel here
+	if(areas_to_revisit.size() == 0)
+	{
+		ROS_INFO("Explored room.");
+
+		room_exploration_server_.setSucceeded();
+
+		return;
+	}
 
 	// draw found regions s.t. they can be intersected later
+	cv::Mat black_map(costmap_as_mat.cols, costmap_as_mat.rows, costmap_as_mat.type(), cv::Scalar(0));
 	black_map = cv::Scalar(0);
 	cv::drawContours(black_map, areas_to_revisit, -1, cv::Scalar(255), CV_FILLED);
 	for(size_t contour = 0; contour < left_areas.size(); ++contour)
@@ -721,6 +753,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	ROS_INFO("Explored room.");
 
 	room_exploration_server_.setSucceeded();
+
+	return;
 }
 
 // main, initializing server

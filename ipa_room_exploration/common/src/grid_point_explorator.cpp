@@ -27,9 +27,9 @@ void gridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	//		the given min/max-Polygon stores the min/max coordinates in two points: the first showing the min and the other
 	//		showing the max coordinates
 	std::cout << "size of one grid line: " << grid_line_length_ << std::endl;
-	for(unsigned int u = room_min_max_coordinates.points[0].y+10; u < room_min_max_coordinates.points[1].y; u += grid_line_length_)
+	for(unsigned int u=room_min_max_coordinates.points[0].y+grid_line_length_; u<=room_min_max_coordinates.points[1].y; u+=grid_line_length_)
 	{
-		for(unsigned int v = room_min_max_coordinates.points[0].x+10; v < room_min_max_coordinates.points[1].x; v += grid_line_length_)
+		for(unsigned int v=room_min_max_coordinates.points[0].x+grid_line_length_; v<=room_min_max_coordinates.points[1].x; v+=grid_line_length_)
 		{
 			// check if point is in the free space
 			if(room_map.at<unsigned char>(u, v) == 255)

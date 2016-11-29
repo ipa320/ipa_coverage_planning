@@ -13,6 +13,10 @@ plan_for_footprint: false
 # [m^2]
 left_sections_min_area: 0.01
 
+# min distance between the robot and the published navigation goal before the next goal in the path gets published
+# double
+goal_eps: 0.35
+
 # line length of one cell in the grid, when using the grid point exploration method
 # [pixel]
 grid_line_length: 10

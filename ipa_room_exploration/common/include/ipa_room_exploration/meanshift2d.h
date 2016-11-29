@@ -62,6 +62,8 @@
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
 
+#pragma once
+
 class MeanShift2D
 {
 public:

@@ -74,6 +74,8 @@
  *
  ****************************************************************/
 
+#pragma once
+
 // Class that is used to store cells and obstacles in a certain manner. For this the vertexes are stored as points and
 // the edges are stored as vectors in a counter-clockwise manner. The constructor becomes a set of respectively sorted
 // points and computes the vectors out of them. Additionally the visible center of the polygon gets computed, to

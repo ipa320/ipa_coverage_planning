@@ -43,11 +43,11 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 	// go trough the map and create the neurons
 	int fitting_radius_as_int = (int) std::floor(fitting_circle_radius);
 	int number_of_neurons = 0;
-	for(size_t y=room_min_max_coordinates.points[0].y+fitting_radius_as_int; y<room_min_max_coordinates.points[1].y-fitting_radius_as_int; y+=fitting_radius_as_int)
+	for(size_t y=room_min_max_coordinates.points[0].y+fitting_radius_as_int; y<room_min_max_coordinates.points[1].y-fitting_radius_as_int; y+=2.0*fitting_radius_as_int)
 	{
 		// for the current row create a new set of neurons to span the network over time
 		std::vector<Neuron> current_network_row;
-		for(size_t x=room_min_max_coordinates.points[0].x+fitting_radius_as_int; x<room_min_max_coordinates.points[1].x-fitting_radius_as_int; x+=fitting_radius_as_int)
+		for(size_t x=room_min_max_coordinates.points[0].x+fitting_radius_as_int; x<room_min_max_coordinates.points[1].x-fitting_radius_as_int; x+=2.0*fitting_radius_as_int)
 		{
 			// create free neuron
 			if(room_map.at<uchar>(y,x) == 255)
