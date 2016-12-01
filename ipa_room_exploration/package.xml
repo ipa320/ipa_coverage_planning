@@ -22,6 +22,7 @@
 	<depend>ipa_building_navigation</depend>
 	<depend>libconcorde_tsp_solver</depend>
 	<depend>libopencv-dev</depend>
+	<depend>libqsopt</depend>
 	<depend>move_base_msgs</depend>
 	<depend>nav_msgs</depend>
 	<depend>roscpp</depend>

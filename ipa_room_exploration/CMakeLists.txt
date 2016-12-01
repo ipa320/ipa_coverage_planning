@@ -8,7 +8,7 @@ set(catkin_RUN_PACKAGES
 	ipa_building_msgs
 	ipa_building_navigation
 	libconcorde_tsp_solver
-	#libopencv-dev
+	libqsopt
 	move_base_msgs
 	nav_msgs
 	roscpp
@@ -36,9 +36,7 @@ generate_dynamic_reconfigure_options(
 find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(Eigen REQUIRED)
-
-
-
+find_package(libqsopt REQUIRED)
 
 ###################################
 ## catkin specific configuration ##
@@ -73,21 +71,13 @@ DEPENDS
 include_directories(
 	common/include
 	ros/include
-	${include_INCLUDE_DIRS}
+	${catkin_INCLUDE_DIRS}
 	${OpenCV_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIRS}
 	${Eigen_INCLUDE_DIRS}
 )
 
-# turtlebot mover --> simulation, not relevant
-#add_executable(turtlebot_mover ros/src/turtlebot_mover.cpp) 
-#target_link_libraries(turtlebot_mover
-#	${catkin_LIBRARIES} 
-#	${OpenCV_LIBRARIES}
-#)
-#add_dependencies(turtlebot_mover ${catkin_EXPORTED_TARGETS} ${ipa_room_exploration_EXPORTED_TARGETS} ${Boost_LIBRARIES})
-
-# room exploration action server
+# room exploration action server, note: qsopt is a static library --> need an absolut path to it
 add_executable(room_exploration_server ros/src/room_exploration_action_server.cpp
 					common/src/grid_point_explorator.cpp
 					common/src/boustrophedon_explorator.cpp
@@ -99,13 +89,13 @@ add_executable(room_exploration_server ros/src/room_exploration_action_server.cp
 					common/src/concorde_TSP.cpp)
 add_dependencies(room_exploration_server
 	${catkin_EXPORTED_TARGETS}
-	${${PROJECT_NAME}_EXPORTED_TARGETS}
 	${PROJECT_NAME}_gencfg)
 target_link_libraries(room_exploration_server
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBRARIES}
 	${Boost_LIBRARIES}
 	${Eigen_LIBRARIES}
+	${libqsopt_INCLUDE_DIRS}/libqsopt/qsopt.a
 )
 
 # room exploration client

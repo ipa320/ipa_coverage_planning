@@ -6,6 +6,86 @@ convexSPPExplorator::convexSPPExplorator()
 
 }
 
+// Function that creates a Qsopt optimization problem and solves it, using the given matrices and vectors.
+void convexSPPExplorator::solveOptimizationProblem(std::vector<double>& C, const cv::Mat& V, const std::vector<double>* W)
+{
+	// initialize the problem
+	QSprob problem;
+	problem = QScreate_prob("conv-SPP", QS_MIN);
+
+	ROS_INFO("Creating and solving linear program.");
+
+	// add the optimization variables to the problem
+	if(W != NULL) // if a weight-vector is provided, use it to set the weights for the variables
+	{
+		std::cout << "creating problem with weights" << std::endl;
+
+		int rval;
+		// variables, which are constrained to 0<=v<=1
+		for(size_t variable=0; variable<C.size(); ++variable)
+		{
+			rval = QSnew_col(problem, W->operator[](variable), 0.0, 1.0, (const char *) NULL);
+
+			if(rval)
+				std::cout << "!!!!! failed to add variable !!!!!" << std::endl;
+		}
+
+		// equality constraints to ensure that every position has been seen at least once
+		for(size_t row=0; row<V.rows; ++row)
+		{
+			// gather the indices of the variables that are used in this constraint (row), i.e. where V[row][column] == 1
+			std::vector<int> variable_indices;
+			for(size_t col=0; col<V.cols; ++col)
+				if(V.at<uchar>(row, col) == 1)
+					variable_indices.push_back((int) col);
+
+			// all indices are 1 in this constraint
+			std::vector<double> variable_coefficients(variable_indices.size(), 1.0);
+
+			// add the constraint
+			rval = QSadd_row(problem, (int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 1.0, 'L', (const char *) NULL);
+
+			if(rval)
+				std::cout << "!!!!! failed to add constraint !!!!!" << std::endl;
+		}
+
+		// solve the optimization problem
+		int status=0;
+		rval = QSopt_dual(problem, &status);
+
+		if (rval)
+		{
+		    fprintf (stderr, "QSopt_dual failed with return code %d\n", rval);
+		}
+		else
+		{
+		    switch (status)
+		    {
+		    case QS_LP_OPTIMAL:
+		        printf ("Found optimal solution to LP\n");
+		        break;
+		    case QS_LP_INFEASIBLE:
+		        printf ("No feasible solution exists for the LP\n");
+		        break;
+		    case QS_LP_UNBOUNDED:
+		        printf ("The LP objective is unbounded\n");
+		        break;
+		    default:
+		        printf ("LP could not be solved, status = %d\n", status);
+		        break;
+		    }
+		}
+
+		// retrieve solution
+		int ncols = QSget_colcount(problem);
+		double* result;
+		result  = (double *) malloc(ncols * sizeof (double));
+		QSget_solution(problem, NULL, result, NULL, NULL, NULL);
+		for(size_t i=0; i<ncols; ++i)
+			std::cout << result[i] << std::endl;
+	}
+}
+
 // Function that is used to get a coverage path that covers the free space of the given map. It is programmed after
 //
 // Arain, M. A., Cirillo, M., Bennetts, V. H., Schaffernicht, E., Trincavelli, M., & Lilienthal, A. J. (2015, May). Efficient measurement planning for remote gas sensing with mobile robots. In 2015 IEEE International Conference on Robotics and Automation (ICRA) (pp. 3428-3434). IEEE.
@@ -51,7 +131,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	// ************* II. Construct the matrices needed in the linear program. *************
 	// construct W
 	int number_of_candidates=candidate_sensing_poses.size();
-	std::vector<double> W(number_of_candidates, 1); // initial weights
+	std::vector<double> W(number_of_candidates, 1.0); // initial weights
 
 	// construct V
 	cv::Mat V = cv::Mat(cell_centers.size(), number_of_candidates, CV_8U); // binary variables
@@ -155,7 +235,25 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 //		cv::waitKey();
 	}
 
+//	testing
+//	for(size_t i=0; i<cell_centers.size(); ++i)
+//	{
+//		cv::Mat black_map = cv::Mat(room_map.rows, room_map.cols, room_map.type(), cv::Scalar(0));
+//		cv::circle(black_map, cell_centers[i], 2, cv::Scalar(127), CV_FILLED);
+//		for(size_t j=0; j<V.cols; ++j)
+//		{
+//			if(V.at<uchar>(i, j) == 1)
+//			{
+//				cv::circle(black_map, cv::Point(candidate_sensing_poses[j].x, candidate_sensing_poses[j].y), 2, cv::Scalar(100), CV_FILLED);
+//				cv::imshow("candidates", black_map);
+//				cv::waitKey();
+//			}
+//		}
+//	}
+
 	// TODO: create Qsopt problem and solve it iteratively, adapting W
+	std::vector<double> C(W.size());
+	solveOptimizationProblem(C, V, &W);
 
 //	testing
 //	std::cout << "number of free cells: " << cell_centers.size() << ", number of candidates: " << number_of_candidates << std::endl;

@@ -6,6 +6,7 @@
 #include <string>
 
 #include <Eigen/Dense>
+#include <libqsopt/qsopt.h>
 
 #include <ipa_room_exploration/concorde_TSP.h>
 #include <ipa_room_exploration/meanshift2d.h>
@@ -103,6 +104,8 @@
 class convexSPPExplorator
 {
 protected:
+	// function that is used to create and solve a Qsopt optimization problem out of the given matrices and vectors
+	void solveOptimizationProblem(std::vector<double>& C, const cv::Mat& V, const std::vector<double>* W);
 
 public:
 	// constructor
