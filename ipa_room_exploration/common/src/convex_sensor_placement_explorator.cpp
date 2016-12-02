@@ -16,74 +16,77 @@ void convexSPPExplorator::solveOptimizationProblem(std::vector<double>& C, const
 	ROS_INFO("Creating and solving linear program.");
 
 	// add the optimization variables to the problem
-	if(W != NULL) // if a weight-vector is provided, use it to set the weights for the variables
+	int rval;
+	for(size_t variable=0; variable<C.size(); ++variable)
 	{
-		std::cout << "creating problem with weights" << std::endl;
-
-		int rval;
-		// variables, which are constrained to 0<=v<=1
-		for(size_t variable=0; variable<C.size(); ++variable)
-		{
+		if(W != NULL) // if a weight-vector is provided, use it to set the weights for the variables
 			rval = QSnew_col(problem, W->operator[](variable), 0.0, 1.0, (const char *) NULL);
-
-			if(rval)
-				std::cout << "!!!!! failed to add variable !!!!!" << std::endl;
-		}
-
-		// equality constraints to ensure that every position has been seen at least once
-		for(size_t row=0; row<V.rows; ++row)
-		{
-			// gather the indices of the variables that are used in this constraint (row), i.e. where V[row][column] == 1
-			std::vector<int> variable_indices;
-			for(size_t col=0; col<V.cols; ++col)
-				if(V.at<uchar>(row, col) == 1)
-					variable_indices.push_back((int) col);
-
-			// all indices are 1 in this constraint
-			std::vector<double> variable_coefficients(variable_indices.size(), 1.0);
-
-			// add the constraint
-			rval = QSadd_row(problem, (int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 1.0, 'L', (const char *) NULL);
-
-			if(rval)
-				std::cout << "!!!!! failed to add constraint !!!!!" << std::endl;
-		}
-
-		// solve the optimization problem
-		int status=0;
-		rval = QSopt_dual(problem, &status);
-
-		if (rval)
-		{
-		    fprintf (stderr, "QSopt_dual failed with return code %d\n", rval);
-		}
 		else
-		{
-		    switch (status)
-		    {
-		    case QS_LP_OPTIMAL:
-		        printf ("Found optimal solution to LP\n");
-		        break;
-		    case QS_LP_INFEASIBLE:
-		        printf ("No feasible solution exists for the LP\n");
-		        break;
-		    case QS_LP_UNBOUNDED:
-		        printf ("The LP objective is unbounded\n");
-		        break;
-		    default:
-		        printf ("LP could not be solved, status = %d\n", status);
-		        break;
-		    }
-		}
+			rval = QSnew_col(problem, 1.0, 0.0, 1.0, (const char *) NULL);
 
-		// retrieve solution
-		int ncols = QSget_colcount(problem);
-		double* result;
-		result  = (double *) malloc(ncols * sizeof (double));
-		QSget_solution(problem, NULL, result, NULL, NULL, NULL);
-		for(size_t i=0; i<ncols; ++i)
-			std::cout << result[i] << std::endl;
+		if(rval)
+			std::cout << "!!!!! failed to add variable !!!!!" << std::endl;
 	}
+
+	// equality constraints to ensure that every position has been seen at least once
+	for(size_t row=0; row<V.rows; ++row)
+	{
+		// gather the indices of the variables that are used in this constraint (row), i.e. where V[row][column] == 1
+		std::vector<int> variable_indices;
+		for(size_t col=0; col<V.cols; ++col)
+			if(V.at<uchar>(row, col) == 1)
+				variable_indices.push_back((int) col);
+
+		// all indices are 1 in this constraint
+		std::vector<double> variable_coefficients(variable_indices.size(), 1.0);
+
+		// add the constraint
+		rval = QSadd_row(problem, (int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 1.0, 'G', (const char *) NULL);
+
+		if(rval)
+			std::cout << "!!!!! failed to add constraint !!!!!" << std::endl;
+	}
+
+	// solve the optimization problem
+	int status=0;
+	rval = QSopt_dual(problem, &status);
+
+	if (rval)
+	{
+	    fprintf (stderr, "QSopt_dual failed with return code %d\n", rval);
+	}
+	else
+	{
+	    switch (status)
+	    {
+	    	case QS_LP_OPTIMAL:
+	    		printf ("Found optimal solution to LP\n");
+	    		break;
+	    	case QS_LP_INFEASIBLE:
+	    		printf ("No feasible solution exists for the LP\n");
+	    		break;
+	    	case QS_LP_UNBOUNDED:
+	    		printf ("The LP objective is unbounded\n");
+	    		break;
+	    	default:
+	    		printf ("LP could not be solved, status = %d\n", status);
+	    		break;
+	    }
+	}
+
+	// retrieve solution
+	int ncols = QSget_colcount(problem);
+	double* result;
+	result  = (double *) malloc(ncols * sizeof (double));
+	QSget_solution(problem, NULL, result, NULL, NULL, NULL);
+	for(size_t variable=0; variable<ncols; ++variable)
+	{
+		C[variable] = result[variable];
+//		std::cout << result[variable] << std::endl;
+	}
+
+//	testing
+//	QSwrite_prob_file (problem, stdout, "LP"); // print problem to std output
 }
 
 // Function that is used to get a coverage path that covers the free space of the given map. It is programmed after
@@ -103,7 +106,8 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		const float map_resolution, const cv::Point starting_position, const cv::Point2d map_origin,
 		const int cell_size, const double delta_theta, const geometry_msgs::Polygon& room_min_max_coordinates,
 		const std::vector<geometry_msgs::Point32>& footprint, const Eigen::Matrix<float, 2, 1>& robot_to_fow_middlepoint_vector,
-		const double max_fow_angle, const double smallest_robot_to_fow_distance, const double largest_robot_to_fow_distance)
+		const double max_fow_angle, const double smallest_robot_to_fow_distance, const double largest_robot_to_fow_distance,
+		const uint sparsity_check_range)
 {
 	// ************* I. Go trough the map and discretize it. *************
 	// get cells
@@ -251,9 +255,48 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 //		}
 //	}
 
-	// TODO: create Qsopt problem and solve it iteratively, adapting W
-	std::vector<double> C(W.size());
-	solveOptimizationProblem(C, V, &W);
+	std::vector<double> C(W.size()); //initialize the objective vector
+	bool sparsity_converged = false; // boolean to check, if the sparsity of C has converged to a certain value
+	double weight_epsilon = 0.0; // parameter that is used to update the weights after one solution has been obtained
+	uint number_of_iterations = 0;
+	std::vector<uint> sparsity_measures;
+	double euler_constant = std::exp(1.0);
+	do
+	{
+		// increase number of iterations
+		++number_of_iterations;
+
+		// solve optimization of the current step
+		solveOptimizationProblem(C, V, &W);
+
+		// update epsilon and W
+		int exponent = 1 + (number_of_iterations - 1)*0.1;
+		weight_epsilon = std::pow(1/(euler_constant-1), exponent);
+		for(size_t weight=0; weight<W.size(); ++weight)
+			W[weight] = weight_epsilon/(weight_epsilon + C[weight]);
+
+		// measure sparsity of C to check terminal condition
+		uint sparsity_measure = 0;
+		for(size_t variable=0; variable<C.size(); ++variable)
+			if(C[variable]<=0.01)
+				++sparsity_measure;
+		sparsity_measures.push_back(sparsity_measure);
+
+		// check terminal condition, i.e. if the sparsity hasn't improved in the last n steps using l^0_eps measure,
+		// if enough iterations have been done yet
+		if(sparsity_measures.size() >= sparsity_check_range)
+		{
+			uint number_of_last_measure = 0;
+			for(std::vector<uint>::reverse_iterator measure=sparsity_measures.rbegin(); measure!=sparsity_measures.rbegin()+sparsity_check_range && measure!=sparsity_measures.rend(); ++measure)
+				if(*measure == sparsity_measures.back())
+					++number_of_last_measure;
+
+			if(number_of_last_measure == sparsity_check_range)
+				sparsity_converged = true;
+		}
+
+		std::cout << "Iteration: " << number_of_iterations << ", sparsity: " << sparsity_measures.back() << std::endl;
+	}while(sparsity_converged == false && number_of_iterations <= 200); // TODO: param
 
 //	testing
 //	std::cout << "number of free cells: " << cell_centers.size() << ", number of candidates: " << number_of_candidates << std::endl;
