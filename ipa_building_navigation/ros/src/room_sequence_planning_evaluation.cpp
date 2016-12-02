@@ -188,6 +188,7 @@ struct StatisticsItem
 	double cleaning_time;	// in [s]
 	double calculation_time_segmentation;	// in [s]
 	double calculation_time_sequencer;	// in [s]
+	double human_way; // in [m]
 
 	StatisticsItem()
 	{
@@ -204,6 +205,7 @@ struct StatisticsItem
 		cleaning_time=1e10;	// in [s]
 		calculation_time_segmentation=0.;	// in [s]
 		calculation_time_sequencer=0.;
+		human_way=0.;
 	}
 };
 
@@ -446,6 +448,19 @@ public:
 				{
 					std::cout << "missing data: " << log_filename << std::endl;
 				}
+
+				std::string human_filename = data_storage_path + "human_way/" + upper_folder_name + lower_folder_name + map_names[map_index] + "_human.txt";
+				std::ifstream human_file(human_filename.c_str());
+
+				if(human_file.is_open())
+				{
+					std::string line;
+					getline(human_file, line); // first line is text
+					getline(human_file, line);
+					std::istringstream iss(line);
+					iss >> stats.human_way; // in [m]
+					human_file.close();
+				}
 				results[map_names[map_index]].push_back(stats);
 			}
 		}
@@ -470,6 +485,7 @@ public:
 		filenames.push_back("path_length_robot");
 		filenames.push_back("path_length_trolley");
 		filenames.push_back("path_length_trash_bins");
+		filenames.push_back("human_way");
 
 		for (std::vector<std::string>::iterator it_filename=filenames.begin(); it_filename!=filenames.end(); ++it_filename)
 		{
@@ -525,6 +541,8 @@ public:
 							sss << results[*it][base_index+k].path_length_trolley;
 						else if (it_filename->compare("path_length_trash_bins") == 0)
 							sss << results[*it][base_index+k].path_length_trash_bins;
+						else if (it_filename->compare("human_way") == 0)
+							sss << results[*it][base_index+k].human_way;
 						output_matrix[1+i][1+k] = sss.str();
 					}
 				}
@@ -1690,16 +1708,14 @@ public:
 				// evaluation
 				double path_length_robot_in_meter = path_length_robot * evaluation_data.map_resolution_;
 				double path_length_trolley_in_meter = path_length_trolley * evaluation_data.map_resolution_;
-				double path_length_total_in_meter = path_length_robot_in_meter + path_length_trolley_in_meter;
+				double path_length_total_in_meter = path_length_robot_in_meter;
 				double path_length_trash_bins_in_meter = path_length_trash_bins * evaluation_data.map_resolution_;
 				double robot_speed_without_trolley = 0.3;		// [m/s]
 				double robot_speed_with_trolley = 0.2;			// [m/s]
 				double time_for_trashbin_manipulation = 150;	// [s], without driving
 				double time_for_trolley_manipulation = 90;		// [s], without driving
 				double time = path_length_robot_in_meter / robot_speed_without_trolley
-							+ path_length_trolley_in_meter / robot_speed_with_trolley
-							+ time_for_trashbin_manipulation * evaluation_data.trash_bin_locations_.size()
-							+ time_for_trolley_manipulation * (result_seq->checkpoints.size()+1);
+							+ time_for_trashbin_manipulation * evaluation_data.trash_bin_locations_.size();
 
 				//get the runtimes for the segmentation and the sequence planner
 				double segmentation_time = (t1.tv_sec - t0.tv_sec) + (double) (t1.tv_nsec - t0.tv_nsec) * 1e-9;
@@ -1716,7 +1732,7 @@ public:
 						<< "cleaning time [s]" << "\t" << "calculation time segmentation [s]" << "\t" << "calculation time sequencer [s]" << "\t" << std::endl;
 				output << robot_speed_without_trolley << "\t" << robot_speed_with_trolley << "\t" << time_for_trashbin_manipulation << "\t" << time_for_trolley_manipulation << "\t"
 						<< evaluation_data.trash_bin_locations_.size() << "\t"
-						<< (result_seq->checkpoints.size()+1) << "\t" << path_length_robot_in_meter << "\t" << path_length_trolley_in_meter << "\t" << path_length_trash_bins_in_meter << "\t"
+						<< 0 << "\t" << path_length_robot_in_meter << "\t" << path_length_trolley_in_meter << "\t" << path_length_trash_bins_in_meter << "\t"
 						<< path_length_total_in_meter << "\t"
 						<< time << "\t" << segmentation_time << "\t" << sequence_time;
 				output << "\n\n\n" << screenoutput.str() << std::endl;
