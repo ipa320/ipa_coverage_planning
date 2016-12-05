@@ -2,7 +2,7 @@
 #include <opencv/highgui.h>
 #include <iostream>
 #include <vector>
-#include <math.h>
+#include <cmath>
 #include <string>
 
 #include <ipa_room_exploration/concorde_TSP.h>

@@ -2,7 +2,7 @@
 #include <opencv/highgui.h>
 #include <iostream>
 #include <vector>
-#include <math.h>
+#include <cmath>
 #include <string>
 
 #include <Eigen/Dense>

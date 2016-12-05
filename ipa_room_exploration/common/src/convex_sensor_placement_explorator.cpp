@@ -7,7 +7,8 @@ convexSPPExplorator::convexSPPExplorator()
 }
 
 // Function that creates a Qsopt optimization problem and solves it, using the given matrices and vectors.
-void convexSPPExplorator::solveOptimizationProblem(std::vector<double>& C, const cv::Mat& V, const std::vector<double>* W)
+template<typename T>
+void convexSPPExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<double>* W)
 {
 	// initialize the problem
 	QSprob problem;
@@ -45,6 +46,54 @@ void convexSPPExplorator::solveOptimizationProblem(std::vector<double>& C, const
 
 		if(rval)
 			std::cout << "!!!!! failed to add constraint !!!!!" << std::endl;
+	}
+
+	// if no weights are given an integer linear program should be solved, so the problem needs to be changed to this
+	// by saving it to a file and reloading it (no better way available from Qsopt)
+	if(W == NULL)
+	{
+		// save problem
+		QSwrite_prob(problem, "lin_prog.lp", "LP"); // print problem to std output
+
+		// read in the original problem, without "End" that provides the end of the problem file
+		std::ifstream original_problem;
+		original_problem.open("lin_prog.lp");
+		std::ofstream new_problem;
+		new_problem.open("int_lin_prog.lp");
+		std::string deleteline = "End";
+		std::string line;
+		while (getline(original_problem,line))
+		{
+			if (line != deleteline)
+			{
+				new_problem << line << std::endl;
+			}
+		}
+		original_problem.close();
+
+		// add the definition of the variables as integer to the problem
+		new_problem << "Integer" << std::endl;
+		for(size_t variable=1; variable<=C.size(); ++variable)
+		{
+			new_problem << " x" << variable;
+
+			// new line for reading convenience after 5 variables
+			if(variable%5 == 0)
+			{
+				new_problem << std::endl;
+			}
+		}
+
+		// add End at the end of the problem
+		new_problem << std::endl <<  "End";
+		new_problem.close();
+
+		// reload the problem
+		problem = QSread_prob("int_lin_prog.lp", "LP");
+		if(problem == (QSprob) NULL)
+		{
+		    fprintf (stderr, "Unable to read and load the LP\n");
+		}
 	}
 
 	// solve the optimization problem
@@ -86,7 +135,7 @@ void convexSPPExplorator::solveOptimizationProblem(std::vector<double>& C, const
 	}
 
 //	testing
-//	QSwrite_prob_file (problem, stdout, "LP"); // print problem to std output
+	QSwrite_prob(problem, "lin_prog.lp", "LP"); // print problem to std output
 }
 
 // Function that is used to get a coverage path that covers the free space of the given map. It is programmed after
@@ -102,6 +151,15 @@ void convexSPPExplorator::solveOptimizationProblem(std::vector<double>& C, const
 //	II.	Construct the matrices that are used in the linear program. These are:
 //			W: weight matrix for the re-weighted convex relaxation method
 //			V: visibility matrix that stores 1 if cell i can be observed from candidate pose j (V[i,j] = 1) or 0 else
+// III.	Solve the optimization problems in the following order
+//		1. 	Iteratively solve the weighted optimization problem to approximate the problem by a convex optimization. This
+//			speeds up the solution and is done until the sparsity of the optimization variables doesn't change anymore,
+//			i.e. converged, or a specific number of iterations is reached. To measure the sparsity a l^0_eps measure is
+//			used, that checks |{i: c[i] <= eps}|. In each step the weights are adapted with respect to the previous solution.
+//		2.	After the convex relaxation procedure is finished the candidate poses that are not chosen previously, i.e.
+//			those that have an corresponding optimization variable equal to 0, are discarded and the matrices of the
+//			optimization problem are updated. With the reduced problem the original unweighted problem is solved to get
+//			the final solution, that shows which candidate poses should be visited to observe/visit the whole free space.
 void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
 		const float map_resolution, const cv::Point starting_position, const cv::Point2d map_origin,
 		const int cell_size, const double delta_theta, const geometry_msgs::Polygon& room_min_max_coordinates,
@@ -140,7 +198,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	// construct V
 	cv::Mat V = cv::Mat(cell_centers.size(), number_of_candidates, CV_8U); // binary variables
 
-	// transpose vector here s.t. it doesn't has to be done in every step new
+	// check observable cells from each candidate pose
 	for(std::vector<geometry_msgs::Pose2D>::iterator pose=candidate_sensing_poses.begin(); pose!=candidate_sensing_poses.end(); ++pose)
 	{
 		// get the transformed field of view
@@ -238,6 +296,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 //		cv::imshow("observable cells", black_map);
 //		cv::waitKey();
 	}
+	std::cout << "number of optimization variables: " << W.size() << std::endl;
 
 //	testing
 //	for(size_t i=0; i<cell_centers.size(); ++i)
@@ -255,11 +314,14 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 //		}
 //	}
 
+	// ************* III. Solve the different linear problems. *************
+	// 1. solve the weighted optimization problem until a convergence in the sparsity is reached or a defined number of
+	// 	  iterations is reached
 	std::vector<double> C(W.size()); //initialize the objective vector
 	bool sparsity_converged = false; // boolean to check, if the sparsity of C has converged to a certain value
 	double weight_epsilon = 0.0; // parameter that is used to update the weights after one solution has been obtained
 	uint number_of_iterations = 0;
-	std::vector<uint> sparsity_measures;
+	std::vector<uint> sparsity_measures; // vector that stores the computed sparsity measures to check convergence
 	double euler_constant = std::exp(1.0);
 	do
 	{
@@ -275,7 +337,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		for(size_t weight=0; weight<W.size(); ++weight)
 			W[weight] = weight_epsilon/(weight_epsilon + C[weight]);
 
-		// measure sparsity of C to check terminal condition
+		// measure sparsity of C to check terminal condition, used measure: l^0_eps (|{i: c[i] <= eps}|)
 		uint sparsity_measure = 0;
 		for(size_t variable=0; variable<C.size(); ++variable)
 			if(C[variable]<=0.01)
@@ -297,6 +359,31 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 
 		std::cout << "Iteration: " << number_of_iterations << ", sparsity: " << sparsity_measures.back() << std::endl;
 	}while(sparsity_converged == false && number_of_iterations <= 200); // TODO: param
+
+	// 2. Reduce the optimization problem by discarding the candidate poses that correspond to an optimization variable
+	//	  equal to 0, i.e. those that are not considered any further.
+	uint new_number_of_variables = 0;
+	cv::Mat V_reduced = cv::Mat(cell_centers.size(), 1, CV_8U); // initialize one column because opencv wants it this way, add other columns later
+	for(std::vector<double>::iterator result=C.begin(); result!=C.end(); ++result)
+	{
+		if(*result == 0.0)
+		{
+			// increase number of optimization variables
+			++new_number_of_variables;
+
+			// gather column corresponding to this candidate pose and add it to the new observability matrix
+			cv::Mat column = V.col(result-C.begin());
+			cv::hconcat(V_reduced, column, V_reduced);
+		}
+	}
+
+	// remove the first initial column
+	V_reduced = V_reduced.colRange(1, V_reduced.cols);
+
+	// solve the final optimization problem
+	std::vector<int> C_reduced(new_number_of_variables);
+	solveOptimizationProblem(C_reduced, V_reduced, NULL);
+
 
 //	testing
 //	std::cout << "number of free cells: " << cell_centers.size() << ", number of candidates: " << number_of_candidates << std::endl;

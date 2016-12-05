@@ -2,8 +2,9 @@
 #include <opencv/highgui.h>
 #include <iostream>
 #include <vector>
-#include <math.h>
+#include <cmath>
 #include <string>
+#include <fstream>
 
 #include <Eigen/Dense>
 #include <libqsopt/qsopt.h>
@@ -105,7 +106,8 @@ class convexSPPExplorator
 {
 protected:
 	// function that is used to create and solve a Qsopt optimization problem out of the given matrices and vectors
-	void solveOptimizationProblem(std::vector<double>& C, const cv::Mat& V, const std::vector<double>* W);
+	template<typename T>
+	void solveOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<double>* W);
 
 public:
 	// constructor
