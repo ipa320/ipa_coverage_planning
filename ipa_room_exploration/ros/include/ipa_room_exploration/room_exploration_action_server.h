@@ -111,7 +111,10 @@ protected:
 									// are revisited after one go trough the room
 
 	double goal_eps_;				// distance between the published navigation goal and the robot to publish the next
-									// navigation goal in the path.
+									// navigation goal in the path
+
+	int cell_size_;					// size of one cell that is used to discretize the free space when using the convexSPP
+									// explorator
 
 	gridPointExplorator grid_point_planner; // object that uses the grid point method to plan a path trough a room
 	boustrophedonExplorer boustrophedon_explorer_; // object that uses the boustrophedon exploration method to plan a path trough the room

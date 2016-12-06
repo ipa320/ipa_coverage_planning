@@ -5,12 +5,14 @@
 #include <cmath>
 #include <string>
 #include <fstream>
+#include <stdio.h>
 
 #include <Eigen/Dense>
 #include <libqsopt/qsopt.h>
 
-#include <ipa_room_exploration/concorde_TSP.h>
-#include <ipa_room_exploration/meanshift2d.h>
+#include <ipa_room_exploration/nearest_neighbor_TSP.h>
+#include <ipa_room_exploration/A_star_pathplanner.h>
+#include <ipa_room_exploration/fow_to_robot_mapper.h>
 
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>
@@ -109,6 +111,12 @@ protected:
 	template<typename T>
 	void solveOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<double>* W);
 
+	// object to find a path trough the chosen sensing poses by doing a repetitive nearest neighbor algorithm
+	NearestNeighborTSPSolver tsp_solver_;
+
+	// object that plans a path from A to B using the Astar method
+	AStarPlanner path_planner_;
+
 public:
 	// constructor
 	convexSPPExplorator();
@@ -122,5 +130,5 @@ public:
 				const int cell_size, const double delta_theta, const geometry_msgs::Polygon& room_min_max_coordinates,
 				const std::vector<geometry_msgs::Point32>& footprint, const Eigen::Matrix<float, 2, 1>& robot_to_fow_middlepoint_vector,
 				const double max_fow_angle, const double smallest_robot_to_fow_distance, const double largest_robot_to_fow_distance,
-				const uint sparsity_check_range);
+				const uint sparsity_check_range, const bool plan_for_footprint);
 };
