@@ -130,5 +130,5 @@ public:
 				const int cell_size, const double delta_theta, const geometry_msgs::Polygon& room_min_max_coordinates,
 				const std::vector<geometry_msgs::Point32>& footprint, const Eigen::Matrix<float, 2, 1>& robot_to_fow_middlepoint_vector,
 				const double max_fow_angle, const double smallest_robot_to_fow_distance, const double largest_robot_to_fow_distance,
-				const uint sparsity_check_range, const bool plan_for_footprint);
+				const uint sparsity_check_range);
 };

@@ -548,9 +548,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	else if(path_planning_algorithm_ == 4) // use convexSPP explorator
 	{
 		if(plan_for_footprint_ == false)
-			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, 7, (double) PI/2, min_max_coordinates, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fow_vectors[3].norm(), cell_size_, false);
+			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, 7, (double) PI/2, min_max_coordinates, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fow_vectors[3].norm(), cell_size_);
 		else
-			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, 7, (double) PI/2, min_max_coordinates, goal->footprint, middle_point, max_angle, 0.0, goal->coverage_radius, cell_size_, true);
+			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, 7, (double) PI/2, min_max_coordinates, goal->footprint, middle_point, max_angle, 0.0, goal->coverage_radius, cell_size_);
 	}
 
 	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
