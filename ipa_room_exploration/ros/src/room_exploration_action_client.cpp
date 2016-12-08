@@ -96,8 +96,8 @@ int main(int argc, char **argv)
 	drc_exp.setConfig("room_exploration_algorithm", 4);
 //	drc_exp.setConfig("grid_line_length", 15);
 //	drc_exp.setConfig("path_eps", 10);
-	drc_exp.setConfig("plan_for_footprint", true);
-	drc_exp.setConfig("goal_eps", 0.0);
+//	drc_exp.setConfig("plan_for_footprint", true);
+//	drc_exp.setConfig("goal_eps", 0.0);
 
 //	cv::Point2f src_center(map.cols/2.0F, map.rows/2.0F);
 //	cv::Mat rot_mat = getRotationMatrix2D(src_center, 180, 1.0);

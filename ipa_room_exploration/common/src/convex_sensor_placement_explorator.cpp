@@ -158,6 +158,7 @@ void convexSPPExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::
 //	II.	Construct the matrices that are used in the linear program. These are:
 //			W: weight matrix for the re-weighted convex relaxation method
 //			V: visibility matrix that stores 1 if cell i can be observed from candidate pose j (V[i,j] = 1) or 0 else
+//				(when planning for footprint: if cell i can be covered from pose j)
 // III.	Solve the optimization problems in the following order
 //		1. 	Iteratively solve the weighted optimization problem to approximate the problem by a convex optimization. This
 //			speeds up the solution and is done until the sparsity of the optimization variables doesn't change anymore,
@@ -176,8 +177,8 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		const float map_resolution, const cv::Point starting_position, const cv::Point2d map_origin,
 		const int cell_size, const double delta_theta, const geometry_msgs::Polygon& room_min_max_coordinates,
 		const std::vector<geometry_msgs::Point32>& footprint, const Eigen::Matrix<float, 2, 1>& robot_to_fow_middlepoint_vector,
-		const double max_fow_angle, const double smallest_robot_to_fow_distance, const double largest_robot_to_fow_distance,
-		const uint sparsity_check_range)
+		const double max_fow_angle, const double smallest_robot_to_footprint_distance, const double largest_robot_to_footprint_distance,
+		const uint sparsity_check_range, const bool plan_for_footprint)
 {
 	// ************* I. Go trough the map and discretize it. *************
 	// get cells
@@ -220,35 +221,37 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		Eigen::Matrix<float, 2, 2> R;
 		R << cos_theta, -sin_theta, sin_theta, cos_theta;
 
-		// transform field of view points
+		// transform field of view points, if the planning should be done for the field of view
 		std::vector<cv::Point> transformed_fow_points;
 		Eigen::Matrix<float, 2, 1> pose_as_matrix;
-		pose_as_matrix << (pose->x*map_resolution)+map_origin.x, (pose->y*map_resolution)+map_origin.y; // convert to [meter]
-		for(size_t point = 0; point < footprint.size(); ++point)
+		if(plan_for_footprint==false)
 		{
-			// transform fow-point from geometry_msgs::Point32 to Eigen::Matrix
-			Eigen::Matrix<float, 2, 1> fow_point;
-			fow_point << footprint[point].x, footprint[point].y;
+			pose_as_matrix << (pose->x*map_resolution)+map_origin.x, (pose->y*map_resolution)+map_origin.y; // convert to [meter]
+			for(size_t point = 0; point < footprint.size(); ++point)
+			{
+				// transform fow-point from geometry_msgs::Point32 to Eigen::Matrix
+				Eigen::Matrix<float, 2, 1> fow_point;
+				fow_point << footprint[point].x, footprint[point].y;
 
-			// linear transformation
-			Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R * fow_point;
+				// linear transformation
+				Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R * fow_point;
 
-			// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
-			// values
-			cv::Point current_point = cv::Point((transformed_vector(0, 0) - map_origin.x)/map_resolution, (transformed_vector(1, 0) - map_origin.y)/map_resolution);
-			current_point.x = std::max(current_point.x, 0);
-			current_point.y = std::max(current_point.y, 0);
-			current_point.x = std::min(current_point.x, room_map.cols);
-			current_point.y = std::min(current_point.y, room_map.rows);
-			transformed_fow_points.push_back(current_point);
+				// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
+				// values
+				cv::Point current_point = cv::Point((transformed_vector(0, 0) - map_origin.x)/map_resolution, (transformed_vector(1, 0) - map_origin.y)/map_resolution);
+				current_point.x = std::max(current_point.x, 0);
+				current_point.y = std::max(current_point.y, 0);
+				current_point.x = std::min(current_point.x, room_map.cols);
+				current_point.y = std::min(current_point.y, room_map.rows);
+				transformed_fow_points.push_back(current_point);
+			}
 		}
-
-		// rotate the vector from the robot to the field of view middle point
-		Eigen::Matrix<float, 2, 1> transformed_robot_to_middlepoint_vector = R * robot_to_fow_middlepoint_vector;
 
 		// for each pose check the cells that are closer than the max distance from robot to fow-corner and more far away
 		// than the min distance, also only check points that span an angle to the robot-to-fow vector smaller than the
 		// max found angle to the corners
+		// when planning for the robot footprint simply check if it is smaller away to the pose than the given coverage
+		// radius
 //		cv::Mat black_map = cv::Mat(room_map.rows, room_map.cols, room_map.type(), cv::Scalar(0));
 //		cv::circle(black_map, cv::Point(pose->x, pose->y), 3, cv::Scalar(200), CV_FILLED);
 //		cv::fillConvexPoly(black_map, transformed_fow_points, cv::Scalar(150));
@@ -259,10 +262,16 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 			pose_to_neighbor << neighbor->x-pose->x, neighbor->y-pose->y;
 			double distance = pose_to_neighbor.norm();
 
-			// if neighbor is in the possible distance range check it further, distances given in [meter]
-			if(distance >= smallest_robot_to_fow_distance/map_resolution && distance <= largest_robot_to_fow_distance/map_resolution)
+			// if neighbor is in the possible distance range check it further, distances given in [meter], when planning
+			// for the fow
+			if(distance > smallest_robot_to_footprint_distance/map_resolution &&
+					distance <= largest_robot_to_footprint_distance/map_resolution && plan_for_footprint==false)
 			{
 //				cv::circle(black_map, *neighbor, 2, cv::Scalar(50), CV_FILLED);
+
+
+				// rotate the vector from the robot to the field of view middle point
+				Eigen::Matrix<float, 2, 1> transformed_robot_to_middlepoint_vector = R * robot_to_fow_middlepoint_vector;
 
 				// compute angle between the rotated robot-to-fow vector and the robot-to-neighbor vector
 				float dot = transformed_robot_to_middlepoint_vector.transpose()*pose_to_neighbor;
@@ -301,6 +310,11 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 				}
 				else // point spans too big angle with middle point vector to be inside the fow
 					V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 0;
+			}
+			// check if neighbor is covered by footprint when planning for it
+			else if(plan_for_footprint==true && distance<=largest_robot_to_footprint_distance)
+			{
+				V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 1;
 			}
 			else // point not in the right range to be inside the fow
 				V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 0;
@@ -502,45 +516,45 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	}
 
 //	testing
-	cv::Mat test_map = room_map.clone();
-	for(std::vector<geometry_msgs::Pose2D>::iterator pose=chosen_poses.begin(); pose!=chosen_poses.end(); ++pose)
-	{
-		float sin_theta = std::sin(pose->theta);
-		float cos_theta = std::cos(pose->theta);
-		Eigen::Matrix<float, 2, 2> R;
-		R << cos_theta, -sin_theta, sin_theta, cos_theta;
-
-		// transform field of view points
-		std::vector<cv::Point> transformed_fow_points;
-		Eigen::Matrix<float, 2, 1> pose_as_matrix;
-		pose_as_matrix << (pose->x*map_resolution)+map_origin.x, (pose->y*map_resolution)+map_origin.y; // convert to [meter]
-		for(size_t point = 0; point < footprint.size(); ++point)
-		{
-			// transform fow-point from geometry_msgs::Point32 to Eigen::Matrix
-			Eigen::Matrix<float, 2, 1> fow_point;
-			fow_point << footprint[point].x, footprint[point].y;
-
-			// linear transformation
-			Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R * fow_point;
-
-			// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
-			// values
-			cv::Point current_point = cv::Point((transformed_vector(0, 0) - map_origin.x)/map_resolution, (transformed_vector(1, 0) - map_origin.y)/map_resolution);
-			current_point.x = std::max(current_point.x, 0);
-			current_point.y = std::max(current_point.y, 0);
-			current_point.x = std::min(current_point.x, room_map.cols);
-			current_point.y = std::min(current_point.y, room_map.rows);
-			transformed_fow_points.push_back(current_point);
-		}
-
-		// rotate the vector from the robot to the field of view middle point
-		Eigen::Matrix<float, 2, 1> transformed_robot_to_middlepoint_vector = R * robot_to_fow_middlepoint_vector;
-
-		cv::fillConvexPoly(test_map, transformed_fow_points, cv::Scalar(200));
-	}
-	for(size_t i=0; i<cell_centers.size(); ++i)
-		cv::circle(test_map, cell_centers[i], 2, cv::Scalar(100), CV_FILLED);
-
-	cv::imshow("seen areas", test_map);
-	cv::waitKey();
+//	cv::Mat test_map = room_map.clone();
+//	for(std::vector<geometry_msgs::Pose2D>::iterator pose=chosen_poses.begin(); pose!=chosen_poses.end(); ++pose)
+//	{
+//		float sin_theta = std::sin(pose->theta);
+//		float cos_theta = std::cos(pose->theta);
+//		Eigen::Matrix<float, 2, 2> R;
+//		R << cos_theta, -sin_theta, sin_theta, cos_theta;
+//
+//		// transform field of view points
+//		std::vector<cv::Point> transformed_fow_points;
+//		Eigen::Matrix<float, 2, 1> pose_as_matrix;
+//		pose_as_matrix << (pose->x*map_resolution)+map_origin.x, (pose->y*map_resolution)+map_origin.y; // convert to [meter]
+//		for(size_t point = 0; point < footprint.size(); ++point)
+//		{
+//			// transform fow-point from geometry_msgs::Point32 to Eigen::Matrix
+//			Eigen::Matrix<float, 2, 1> fow_point;
+//			fow_point << footprint[point].x, footprint[point].y;
+//
+//			// linear transformation
+//			Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R * fow_point;
+//
+//			// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
+//			// values
+//			cv::Point current_point = cv::Point((transformed_vector(0, 0) - map_origin.x)/map_resolution, (transformed_vector(1, 0) - map_origin.y)/map_resolution);
+//			current_point.x = std::max(current_point.x, 0);
+//			current_point.y = std::max(current_point.y, 0);
+//			current_point.x = std::min(current_point.x, room_map.cols);
+//			current_point.y = std::min(current_point.y, room_map.rows);
+//			transformed_fow_points.push_back(current_point);
+//		}
+//
+//		// rotate the vector from the robot to the field of view middle point
+//		Eigen::Matrix<float, 2, 1> transformed_robot_to_middlepoint_vector = R * robot_to_fow_middlepoint_vector;
+//
+//		cv::fillConvexPoly(test_map, transformed_fow_points, cv::Scalar(200));
+//	}
+//	for(size_t i=0; i<cell_centers.size(); ++i)
+//		cv::circle(test_map, cell_centers[i], 2, cv::Scalar(100), CV_FILLED);
+//
+//	cv::imshow("seen areas", test_map);
+//	cv::waitKey();
 }
