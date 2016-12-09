@@ -48,6 +48,8 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 	{
 		cell_size_ = config.cell_size;
 		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
+		delta_theta_ = config.delta_theta;
+		std::cout << "room_exploration/delta_theta = " << delta_theta_ << std::endl;
 	}
 
 	left_sections_min_area_ = config.left_sections_min_area;
@@ -116,6 +118,8 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	{
 		node_handle_.param("cell_size", cell_size_, 10);
 		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
+		node_handle_.param("delta_theta", delta_theta_, 1.570796);
+		std::cout << "room_exploration/delta_theta = " << delta_theta_ << std::endl;
 	}
 
 	// min area for revisiting left sections
@@ -550,9 +554,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	{
 		// TODO: delta_theta as parameter
 		if(plan_for_footprint_ == false)
-			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, 7, (double) PI/2, min_max_coordinates, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fow_vectors[3].norm(), cell_size_, false);
+			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, 7, delta_theta_, min_max_coordinates, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fow_vectors[3].norm(), cell_size_, false);
 		else
-			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, 7, (double) PI/2, min_max_coordinates, goal->footprint, middle_point, max_angle, 0.0, goal->coverage_radius, cell_size_, true);
+			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, 7, delta_theta_, min_max_coordinates, goal->footprint, middle_point, max_angle, 0.0, goal->coverage_radius, cell_size_, true);
 	}
 
 	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************

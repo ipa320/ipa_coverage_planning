@@ -42,6 +42,11 @@ mu: 1.03
 # parameter to set the importance of the traveleing direction from the previous step and the next step, a higher value means that the robot should turn less
 delta_theta_weight: 0.15
 
+# parameters specific for the convexSPP explorator
 # size of one cell when discretizing the free space in the convexSPP explorator method, smaller value means a more detailed discretization
 # [pixel]
 cell_size: 10
+
+# sampling angle when creating possible sensing poses
+# [rad]
+delta_theta: 1.570796

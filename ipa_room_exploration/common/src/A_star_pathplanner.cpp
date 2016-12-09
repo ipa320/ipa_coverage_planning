@@ -344,7 +344,8 @@ double AStarPlanner::planPath(const cv::Mat& map, const cv::Point& start_point, 
 
 
 double AStarPlanner::planPath(const cv::Mat& map, const cv::Mat& downsampled_map, const cv::Point& start_point, const cv::Point& end_point, const double downsampling_factor,
-		const double robot_radius, const double map_resolution, const int end_point_valid_neighborhood_radius, cv::Mat* draw_path_map)
+		const double robot_radius, const double map_resolution, const int end_point_valid_neighborhood_radius, cv::Mat* draw_path_map,
+		std::vector<cv::Point>* route)
 {
 	route_ = "";
 	double step_length = 1./downsampling_factor;
@@ -353,10 +354,10 @@ double AStarPlanner::planPath(const cv::Mat& map, const cv::Mat& downsampled_map
 //	cv::circle(debug, end_point, 2, cv::Scalar(127), CV_FILLED);
 //	cv::imshow("debug", debug);
 //	cv::waitKey();
-	double pathlength = step_length * planPath(downsampled_map, downsampling_factor*start_point, downsampling_factor*end_point, 1., 0., map_resolution, end_point_valid_neighborhood_radius);
+	double pathlength = step_length * planPath(downsampled_map, downsampling_factor*start_point, downsampling_factor*end_point, 1., 0., map_resolution, end_point_valid_neighborhood_radius, route);
 	if(pathlength > 1e9) //if no path can be found try with the original map
 	{
-		pathlength = planPath(map, start_point, end_point, 1., 0., map_resolution, 1./downsampling_factor * end_point_valid_neighborhood_radius);
+		pathlength = planPath(map, start_point, end_point, 1., 0., map_resolution, 1./downsampling_factor * end_point_valid_neighborhood_radius, route);
 		step_length = 1.;
 	}
 	if(pathlength > 1e9)

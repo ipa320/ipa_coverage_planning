@@ -83,6 +83,7 @@ struct arcStruct
 	cv::Point start_point;
 	cv::Point end_point;
 	double weight;
+	std::vector<cv::Point> edge_points;
 };
 
 
@@ -97,7 +98,7 @@ struct arcStruct
 //
 // 		s.t. 	Vc >= 1 (elementwise)
 //				sum(flows_into_node, r) - sum(flows_out_of_node, t+1) = 0; r=1:R-1
-//				sum(flows, r) = 1; r=0:R
+//				sum(flows, r) <= 1; r=0:R
 //				sum(flows_out_of_start_node, 0) = 1
 //				c(i+r*n)={0,1}
 // where r determines different stages, i.e. steps in the coverage procedure, c(i+r*n)={0,1} determines whether an arc is
@@ -120,7 +121,12 @@ class flowNetworkExplorator
 protected:
 	// function that is used to create and solve a Qsopt optimization problem out of the given matrices and vectors
 	template<typename T>
-	void solveOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<double>* W);
+	void solveOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<std::vector<uint> >& flows_into_nodes,
+			const std::vector<std::vector<uint> >& flows_out_of_nodes, const int stages, const uint start_index,
+			const std::vector<uint>& start_arcs, const std::vector<double>* W);
+
+	// function that checks if the given point is more close enough to any point in the given vector
+	bool pointClose(const std::vector<cv::Point>& points, const cv::Point& point, const double min_distance);
 
 	// object that plans a path from A to B using the Astar method
 	AStarPlanner path_planner_;

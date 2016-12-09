@@ -1,4 +1,4 @@
-#include <ipa_building_navigation/nearest_neighbor_TSP.h>
+#include <ipa_room_exploration/nearest_neighbor_TSP.h>
 
 //Default Constructor
 NearestNeighborTSPSolver::NearestNeighborTSPSolver()
