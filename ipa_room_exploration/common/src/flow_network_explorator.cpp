@@ -14,7 +14,7 @@ void flowNetworkExplorator::solveOptimizationProblem(std::vector<T>& C, const cv
 {
 	// initialize the problem
 	QSprob problem;
-	problem = QScreate_prob("conv-SPP", QS_MIN);
+	problem = QScreate_prob("flowNetworkExploration", QS_MIN);
 
 	std::cout << "Creating and solving linear program." << std::endl;
 
@@ -78,7 +78,7 @@ void flowNetworkExplorator::solveOptimizationProblem(std::vector<T>& C, const cv
 			std::cout << "!!!!! failed to add constraint !!!!!" << std::endl;
 	}
 
-	// equality constraints to ensure that only one arc at every stage is taken
+	// constraints to ensure that only one arc at every stage is taken
 	for(size_t r=0; r<stages; ++r)
 	{
 		std::vector<int> variable_indices;
@@ -94,7 +94,10 @@ void flowNetworkExplorator::solveOptimizationProblem(std::vector<T>& C, const cv
 		std::vector<double> variable_coefficients(variable_indices.size(), 1.0);
 
 		// add constraint for current stage, TODO: maybe inequality constraint for r>0
-		rval = QSadd_row(problem, (int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 1.0, 'E', (const char *) NULL);
+		if(r==0) // equality constraint for initial stage
+			rval = QSadd_row(problem, (int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 1.0, 'E', (const char *) NULL);
+		else // inequality constraint for further stages --> if a stage isn't needed ignore it
+			rval = QSadd_row(problem, (int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 1.0, 'L', (const char *) NULL);
 
 		if(rval)
 			std::cout << "!!!!! failed to add constraint !!!!!" << std::endl;
@@ -105,17 +108,53 @@ void flowNetworkExplorator::solveOptimizationProblem(std::vector<T>& C, const cv
 	// the node is taken
 	//	Remark:	not done for initial and final stage, because at the initial step there is no previous step and the path
 	//			shouldn't be a cycle, like in a traveling salesman problem
-	for(size_t node=0; node<V.rows; ++node)
+	for(size_t r=1; r<stages-1; ++r)
 	{
-		std::vector<int> variable_indices;
-
-		// gather flows into node
-		for(size_t inflow=0; inflow<flows_into_nodes.size(); ++inflow)
+		for(size_t node=0; node<flows_into_nodes.size(); ++node)
 		{
-			for(size_t r=1; r<stages-1; ++r)
+			std::vector<int> variable_indices;
+			std::vector<double> variable_coefficients;
+
+			// gather flows into node
+			for(size_t inflow=0; inflow<flows_into_nodes[node].size(); ++inflow)
 			{
-//				variable_indices.push_back(flows_into_nodes[inflow]);
+				// if at stage one a start arcs flows into the node, take the index of the arc in the start_arcs
+				// vector
+				if(r==1 && contains(start_arcs, flows_into_nodes[node][inflow])==true)
+				{
+					variable_indices.push_back(std::find(start_arcs.begin(), start_arcs.end(), flows_into_nodes[node][inflow])-start_arcs.begin());
+					variable_coefficients.push_back(1.0);
+				}
+				// if the incoming arc is not an initial arc, get its index in the optimization vector
+				else if(r>1)
+				{
+					variable_indices.push_back(flows_into_nodes[node][inflow] + start_arcs.size() + V.cols*(r-2));
+					variable_coefficients.push_back(1.0);
+				}
 			}
+
+			// if the current node has no incoming arc, ignore it in this step
+			//	Remark: should only hold if r=1 and the start arcs don't go into this node
+			if(variable_coefficients.size()==0)
+				continue;
+
+			// gather flows out of node
+			for(size_t outflow=0; outflow<flows_out_of_nodes[node].size(); ++outflow)
+			{
+				variable_indices.push_back(flows_out_of_nodes[node][outflow] + start_arcs.size() + V.cols*(r-1));
+				variable_coefficients.push_back(-1.0);
+			}
+
+// 			testing
+//			std::cout << "number of flows: " << variable_indices.size() << std::endl;
+//			for(size_t i=0; i<variable_indices.size(); ++i)
+//				std::cout << variable_indices[i] << std::endl;
+
+			// add constraint
+			rval = QSadd_row(problem, (int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 0.0, 'E', (const char *) NULL);
+
+			if(rval)
+				std::cout << "!!!!! failed to add constraint !!!!!" << std::endl;
 		}
 	}
 
@@ -256,7 +295,7 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 		const float map_resolution, const cv::Point starting_position, const cv::Point2d map_origin,
 		const int cell_size, const geometry_msgs::Polygon& room_min_max_coordinates,
 		const Eigen::Matrix<float, 2, 1>& robot_to_fow_middlepoint_vector, const float coverage_radius,
-		const bool plan_for_footprint)
+		const bool plan_for_footprint, const int sparsity_check_range)
 {
 	// *********** I. Discretize the free space and create the flow network ***********
 	// find cell centers that need to be covered
@@ -403,6 +442,18 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 		}
 	}
 
+//	testing
+//	for(size_t i=0; i<flows_into_nodes.size(); ++i)
+//	{
+//		std::cout << "in: " << std::endl;
+//		for(size_t j=0; j<flows_into_nodes[i].size(); ++j)
+//			std::cout << flows_into_nodes[i][j] << std::endl;
+//		std::cout << "out: " << std::endl;
+//		for(size_t j=0; j<flows_out_of_nodes[i].size(); ++j)
+//			std::cout << flows_out_of_nodes[i][j] << std::endl;
+//		std::cout << std::endl;
+//	}
+
 	std::cout << "Constructed all matrices for the optimization problem. Checking if all cells can be covered." << std::endl;
 
 	// print out warning if a defined cell is not coverable with the chosen arcs
@@ -423,11 +474,55 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 		std::cout << "!!!!! WARNING: Not all cells could be covered with the given parameters, try changing them or ignore it to not cover the whole free space." << std::endl;
 
 	// *********** III. Solve the different optimization problems ***********
-	int number_of_stages = 3;
+	// 1. iteratively solve the optimization problem, using convex relaxation
+	int number_of_stages = edges.size()/4;
 	std::vector<double> C(flows_out_of_nodes[0].size()+number_of_candidates*(number_of_stages-1));
 	std::vector<double> W(C.size(), 1.0);
-	std::cout << "start_arcs: " << flows_out_of_nodes[0].size() << std::endl;
+	std::cout << "start arcs number: " << flows_out_of_nodes[0].size() << ", initial stages: " << number_of_stages << std::endl;
 	solveOptimizationProblem(C, V, w, flows_into_nodes, flows_out_of_nodes, number_of_stages, 0, flows_out_of_nodes[0], &W);
+	bool sparsity_converged = false; // boolean to check, if the sparsity of C has converged to a certain value
+	double weight_epsilon = 0.0; // parameter that is used to update the weights after one solution has been obtained
+	uint number_of_iterations = 0;
+	std::vector<uint> sparsity_measures; // vector that stores the computed sparsity measures to check convergence
+	double euler_constant = std::exp(1.0);
+	do
+	{
+		// increase number of iterations
+		++number_of_iterations;
+
+		// solve optimization of the current step
+		solveOptimizationProblem(C, V, w, flows_into_nodes, flows_out_of_nodes, number_of_stages, 0, flows_out_of_nodes[0], &W);
+
+		// update epsilon and W
+		int exponent = 1 + (number_of_iterations - 1)*0.1;
+		weight_epsilon = std::pow(1/(euler_constant-1), exponent);
+		for(size_t weight=0; weight<W.size(); ++weight)
+			W[weight] = weight_epsilon/(weight_epsilon + C[weight]);
+
+		// measure sparsity of C to check terminal condition, used measure: l^0_eps (|{i: c[i] <= eps}|)
+		uint sparsity_measure = 0;
+		for(size_t variable=0; variable<C.size(); ++variable)
+			if(C[variable]<=0.01)
+				++sparsity_measure;
+		sparsity_measures.push_back(sparsity_measure);
+
+		// check terminal condition, i.e. if the sparsity hasn't improved in the last n steps using l^0_eps measure,
+		// if enough iterations have been done yet
+		if(sparsity_measures.size() >= sparsity_check_range)
+		{
+			uint number_of_last_measure = 0;
+			for(std::vector<uint>::reverse_iterator measure=sparsity_measures.rbegin(); measure!=sparsity_measures.rbegin()+sparsity_check_range && measure!=sparsity_measures.rend(); ++measure)
+				if(*measure == sparsity_measures.back())
+					++number_of_last_measure;
+
+			if(number_of_last_measure == sparsity_check_range)
+				sparsity_converged = true;
+		}
+
+		std::cout << "Iteration: " << number_of_iterations << ", sparsity: " << sparsity_measures.back() << std::endl;
+	}while(sparsity_converged == false && number_of_iterations <= 150);
+
+
 
 //	testing
 //	cv::Mat test_map = room_map.clone();

@@ -13,6 +13,7 @@
 #include <ipa_room_exploration/fow_to_robot_mapper.h>
 #include <ipa_room_exploration/A_star_pathplanner.h>
 #include <ipa_room_exploration/distance_matrix.h>
+#include <ipa_room_exploration/contains.h>
 
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>
@@ -143,5 +144,5 @@ public:
 				const cv::Point starting_position, const cv::Point2d map_origin,
 				const int cell_size, const geometry_msgs::Polygon& room_min_max_coordinates,
 				const Eigen::Matrix<float, 2, 1>& robot_to_fow_middlepoint_vector, const float coverage_radius,
-				const bool plan_for_footprint);
+				const bool plan_for_footprint, const int sparsity_check_range);
 };
