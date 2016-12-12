@@ -8,7 +8,7 @@ flowNetworkExplorator::flowNetworkExplorator()
 
 // Function that creates a Qsopt optimization problem and solves it, using the given matrices and vectors.
 template<typename T>
-void flowNetworkExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::Mat& V,
+void flowNetworkExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<double>& weights,
 		const std::vector<std::vector<uint> >& flows_into_nodes, const std::vector<std::vector<uint> >& flows_out_of_nodes,
 		const int stages, const uint start_index, const std::vector<uint>& start_arcs,  const std::vector<double>* W)
 {
@@ -18,7 +18,7 @@ void flowNetworkExplorator::solveOptimizationProblem(std::vector<T>& C, const cv
 
 	std::cout << "Creating and solving linear program." << std::endl;
 
-	// add the optimization variables to the problem at each stage
+	// add the optimization variables to the problem at each stage, stages zero induced
 	int rval;
 	for(size_t r=0; r<stages; ++r)
 	{
@@ -27,68 +27,94 @@ void flowNetworkExplorator::solveOptimizationProblem(std::vector<T>& C, const cv
 		{
 			for(size_t arc=0; arc<start_arcs.size(); ++arc)
 			{
-				if(W != NULL) // if a weight-vector is provided, use it to set the weights for the variables
-					rval = QSnew_col(problem, W->operator[](start_arcs[arc]), 0.0, 1.0, (const char *) NULL);
+				if(W != NULL) // if a relaxation-vector is provided, use it to set the weights for the variables
+					rval = QSnew_col(problem, W->operator[](arc)*weights[start_arcs[arc]], 0.0, 1.0, (const char *) NULL);
 				else
-					rval = QSnew_col(problem, 1.0, 0.0, 1.0, (const char *) NULL);
+					rval = QSnew_col(problem, weights[start_arcs[arc]], 0.0, 1.0, (const char *) NULL);
 			}
 		}
 		else
 		{
-			for(size_t variable=0; variable<C.size(); ++variable)
+			for(size_t variable=0; variable<V.cols; ++variable) // columns of V determine number of arcs at one stage
 			{
 				if(W != NULL) // if a weight-vector is provided, use it to set the weights for the variables
-					rval = QSnew_col(problem, W->operator[](variable), 0.0, 1.0, (const char *) NULL);
+					rval = QSnew_col(problem, W->operator[](variable + start_arcs.size() + V.cols*(r-1))*weights[variable], 0.0, 1.0, (const char *) NULL);
 				else
-					rval = QSnew_col(problem, 1.0, 0.0, 1.0, (const char *) NULL);
+					rval = QSnew_col(problem, weights[variable], 0.0, 1.0, (const char *) NULL);
 
 				if(rval)
 					std::cout << "!!!!! failed to add variable !!!!!" << std::endl;
 			}
 		}
 	}
+	int number_of_variables = QSget_colcount(problem);
+	std::cout << "number of variables in the problem: " << number_of_variables << std::endl;
 
-	// equality constraints to ensure that every position has been seen at least once
+	// inequality constraints to ensure that every position has been seen at least once:
+	//		for each center that should be covered, find the arcs of the different stages that cover it
+	for(size_t row=0; row<V.rows; ++row)
+	{
+		std::vector<int> variable_indices;
+
+		// initial stage
+		for(size_t col=0; col<start_arcs.size(); ++col)
+			if(V.at<uchar>(row, start_arcs[col])==1)
+				variable_indices.push_back((int) col);
+
+		// further stages
+		for(size_t col=0; col<V.cols; ++col)
+			if(V.at<uchar>(row, col) == 1)
+				for(size_t r=1; r<stages; ++r)
+					variable_indices.push_back((int) col + start_arcs.size() + V.cols*(r-1));
+
+		// all indices are 1 in this constraint
+		std::vector<double> variable_coefficients(variable_indices.size(), 1.0);
+
+		// add the constraint, if the current cell can be covered by the given arcs
+		if(variable_indices.size()>0)
+			rval = QSadd_row(problem, (int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 1.0, 'G', (const char *) NULL);
+
+		if(rval)
+			std::cout << "!!!!! failed to add constraint !!!!!" << std::endl;
+	}
+
+	// equality constraints to ensure that only one arc at every stage is taken
 	for(size_t r=0; r<stages; ++r)
 	{
-		if(r==0)
+		std::vector<int> variable_indices;
+
+		if(r==0) // initial stage
+			for(size_t variable=0; variable<start_arcs.size(); ++variable)
+				variable_indices.push_back(variable);
+		else // other stages
+			for(size_t variable=0; variable<V.cols; ++variable)
+				variable_indices.push_back(variable + start_arcs.size() + V.cols*(r-1));
+
+		// all indices are 1 in this constraint
+		std::vector<double> variable_coefficients(variable_indices.size(), 1.0);
+
+		// add constraint for current stage, TODO: maybe inequality constraint for r>0
+		rval = QSadd_row(problem, (int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 1.0, 'E', (const char *) NULL);
+
+		if(rval)
+			std::cout << "!!!!! failed to add constraint !!!!!" << std::endl;
+
+	}
+
+	// equality constraint to ensure that if in the previous stage an arc flows into one node, another arc flowing out of
+	// the node is taken
+	//	Remark:	not done for initial and final stage, because at the initial step there is no previous step and the path
+	//			shouldn't be a cycle, like in a traveling salesman problem
+	for(size_t node=0; node<V.rows; ++node)
+	{
+		std::vector<int> variable_indices;
+
+		// gather flows into node
+		for(size_t inflow=0; inflow<flows_into_nodes.size(); ++inflow)
 		{
-			for(size_t row=0; row<start_arcs.size(); ++row)
+			for(size_t r=1; r<stages-1; ++r)
 			{
-				// gather the indices of the start arcs that are used in the initial constraint, i.e. where V[row][column] == 1
-				std::vector<int> variable_indices;
-				for(size_t col=0; col<start_arcs.size(); ++col)
-					if(V.at<uchar>(row, start_arcs[col]) == 1)
-						variable_indices.push_back((int) col);
-
-				// all indices are 1 in this constraint
-				std::vector<double> variable_coefficients(variable_indices.size(), 1.0);
-
-				// add the constraint
-				rval = QSadd_row(problem, (int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 1.0, 'G', (const char *) NULL);
-
-				if(rval)
-					std::cout << "!!!!! failed to add constraint !!!!!" << std::endl;
-			}
-		}
-		else
-		{
-			for(size_t row=0; row<V.rows; ++row)
-			{
-				// gather the indices of the arcs that are used in this constraint (row), i.e. where V[row][column] == 1
-				std::vector<int> variable_indices;
-				for(size_t col=0; col<V.cols; ++col)
-					if(V.at<uchar>(row, col) == 1)
-						variable_indices.push_back((int) col);
-
-				// all indices are 1 in this constraint
-				std::vector<double> variable_coefficients(variable_indices.size(), 1.0);
-
-				// add the constraint
-				rval = QSadd_row(problem, (int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 1.0, 'G', (const char *) NULL);
-
-				if(rval)
-					std::cout << "!!!!! failed to add constraint !!!!!" << std::endl;
+//				variable_indices.push_back(flows_into_nodes[inflow]);
 			}
 		}
 	}
@@ -98,13 +124,13 @@ void flowNetworkExplorator::solveOptimizationProblem(std::vector<T>& C, const cv
 	if(W == NULL)
 	{
 		// save problem
-		QSwrite_prob(problem, "lin_prog.lp", "LP");
+		QSwrite_prob(problem, "lin_flow_prog.lp", "LP");
 
 		// read in the original problem, before "End" include the definition of the variables as integers
 		std::ifstream original_problem;
-		original_problem.open("lin_prog.lp", std::ifstream::in);
+		original_problem.open("lin_flow_prog.lp", std::ifstream::in);
 		std::ofstream new_problem;
-		new_problem.open("int_lin_prog.lp", std::ofstream::out);
+		new_problem.open("int_lin_flow_prog.lp", std::ofstream::out);
 		std::string interception_line = "End";
 		std::string line;
 		while (getline(original_problem,line))
@@ -136,12 +162,15 @@ void flowNetworkExplorator::solveOptimizationProblem(std::vector<T>& C, const cv
 		new_problem.close();
 
 		// reload the problem
-		problem = QSread_prob("int_lin_prog.lp", "LP");
+		problem = QSread_prob("int_lin_flow_prog.lp", "LP");
 		if(problem == (QSprob) NULL)
 		{
 		    fprintf(stderr, "Unable to read and load the LP\n");
 		}
 	}
+
+//	testing
+	QSwrite_prob(problem, "lin_flow_prog.lp", "LP");
 
 	// solve the optimization problem
 	int status=0;
@@ -173,18 +202,17 @@ void flowNetworkExplorator::solveOptimizationProblem(std::vector<T>& C, const cv
 	}
 
 	// retrieve solution
-	int ncols = QSget_colcount(problem);
 	double* result;
-	result  = (double *) malloc(ncols * sizeof (double));
+	result  = (double *) malloc(number_of_variables * sizeof (double));
 	QSget_solution(problem, NULL, result, NULL, NULL, NULL);
-	for(size_t variable=0; variable<ncols; ++variable)
+	for(size_t variable=0; variable<number_of_variables; ++variable)
 	{
 		C[variable] = result[variable];
 //		std::cout << result[variable] << std::endl;
 	}
 
 //	testing
-	QSwrite_prob(problem, "lin_prog.lp", "LP");
+	QSwrite_prob(problem, "lin_flow_prog.lp", "LP");
 
 	// free space used by the optimization problem
 	QSfree(problem);
@@ -375,7 +403,31 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 		}
 	}
 
-	std::cout << "Constructed all matrices for the optimization problem." << std::endl;
+	std::cout << "Constructed all matrices for the optimization problem. Checking if all cells can be covered." << std::endl;
+
+	// print out warning if a defined cell is not coverable with the chosen arcs
+	bool all_cells_covered = true;
+	for(size_t row=0; row<V.rows; ++row)
+	{
+		int number_of_paths = 0;
+		for(size_t col=0; col<V.cols; ++col)
+			if(V.at<uchar>(row, col)==1)
+				++number_of_paths;
+		if(number_of_paths==0)
+		{
+			std::cout << "!!!!!!!! EMPTY ROW OF VISIBILITY MATRIX !!!!!!!!!!!!!" << std::endl << "cell " << row << " not coverable" << std::endl;
+			all_cells_covered = false;
+		}
+	}
+	if(all_cells_covered == false)
+		std::cout << "!!!!! WARNING: Not all cells could be covered with the given parameters, try changing them or ignore it to not cover the whole free space." << std::endl;
+
+	// *********** III. Solve the different optimization problems ***********
+	int number_of_stages = 3;
+	std::vector<double> C(flows_out_of_nodes[0].size()+number_of_candidates*(number_of_stages-1));
+	std::vector<double> W(C.size(), 1.0);
+	std::cout << "start_arcs: " << flows_out_of_nodes[0].size() << std::endl;
+	solveOptimizationProblem(C, V, w, flows_into_nodes, flows_out_of_nodes, number_of_stages, 0, flows_out_of_nodes[0], &W);
 
 //	testing
 //	cv::Mat test_map = room_map.clone();

@@ -68,7 +68,7 @@ std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& path_l
 			double saved_distance = 100000000000000; //saver for distance to current next node
 			for (int current_neighbor = 0; current_neighbor < path_length_matrix.cols; current_neighbor++)
 			{
-				if (!contains(calculated_order, current_neighbor)) //check if current neighbor hasn't been visited yet
+				if (!contains<int>(calculated_order, current_neighbor)) //check if current neighbor hasn't been visited yet
 				{
 					if (path_length_matrix.at<double>(current_node, current_neighbor) < saved_distance
 				        && path_length_matrix.at<double>(current_node, current_neighbor) > 0)

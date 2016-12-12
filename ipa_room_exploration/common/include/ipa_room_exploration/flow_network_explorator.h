@@ -121,9 +121,9 @@ class flowNetworkExplorator
 protected:
 	// function that is used to create and solve a Qsopt optimization problem out of the given matrices and vectors
 	template<typename T>
-	void solveOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<std::vector<uint> >& flows_into_nodes,
-			const std::vector<std::vector<uint> >& flows_out_of_nodes, const int stages, const uint start_index,
-			const std::vector<uint>& start_arcs, const std::vector<double>* W);
+	void solveOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<double>& weights,
+			const std::vector<std::vector<uint> >& flows_into_nodes, const std::vector<std::vector<uint> >& flows_out_of_nodes, const int stages, const uint start_index,
+			const std::vector<uint>& start_arcs, const std::vector<double>* W=NULL);
 
 	// function that checks if the given point is more close enough to any point in the given vector
 	bool pointClose(const std::vector<cv::Point>& points, const cv::Point& point, const double min_distance);

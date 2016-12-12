@@ -29,7 +29,7 @@ void convexSPPExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::
 			std::cout << "!!!!! failed to add variable !!!!!" << std::endl;
 	}
 
-	// equality constraints to ensure that every position has been seen at least once
+	// inequality constraints to ensure that every position has been seen at least once
 	for(size_t row=0; row<V.rows; ++row)
 	{
 		// gather the indices of the variables that are used in this constraint (row), i.e. where V[row][column] == 1

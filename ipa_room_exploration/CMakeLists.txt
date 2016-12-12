@@ -88,8 +88,7 @@ add_executable(room_exploration_server ros/src/room_exploration_action_server.cp
 					common/src/fow_to_robot_mapper.cpp
 					common/src/A_star_pathplanner.cpp common/src/node.cpp
 					common/src/concorde_TSP.cpp
-					common/src/nearest_neighbor_TSP.cpp
-					common/src/contains.cpp)
+					common/src/nearest_neighbor_TSP.cpp)
 add_dependencies(room_exploration_server
 	${catkin_EXPORTED_TARGETS}
 	${PROJECT_NAME}_gencfg)
