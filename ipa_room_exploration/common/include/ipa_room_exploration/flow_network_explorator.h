@@ -2,6 +2,7 @@
 #include <opencv/highgui.h>
 #include <iostream>
 #include <vector>
+#include <set>
 #include <cmath>
 #include <string>
 #include <fstream>
@@ -88,6 +89,7 @@ struct arcStruct
 };
 
 
+// TODO: update
 // This class provides a coverage path planning algorithm based on a flow network. It spans such a network by going trough
 // the given room map with a sweep line and defining edges of it whenever it touches an obstacle. From this touchpoint
 // the edge is generated in a distance along the sweep line, that is equivalent to the given coverage radius, because the
@@ -120,10 +122,18 @@ struct arcStruct
 class flowNetworkExplorator
 {
 protected:
-	// function that is used to create and solve a Qsopt optimization problem out of the given matrices and vectors
+	// function that is used to create and solve a Qsopt optimization problem out of the given matrices and vectors, using
+	// the multistage ansatz
 	template<typename T>
-	void solveOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<double>& weights,
-			const std::vector<std::vector<uint> >& flows_into_nodes, const std::vector<std::vector<uint> >& flows_out_of_nodes, const int stages, const uint start_index,
+	void solveMultiStageOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<double>& weights,
+			const std::vector<std::vector<uint> >& flows_into_nodes, const std::vector<std::vector<uint> >& flows_out_of_nodes,
+			const int stages, const std::vector<uint>& start_arcs, const std::vector<double>* W=NULL);
+
+	// function that is used to create and solve a Qsopt optimization problem out of the given matrices and vectors, using
+	// the two-stage ansatz
+	template<typename T>
+	void solveThreeStageOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<double>& weights,
+			const std::vector<std::vector<uint> >& flows_into_nodes, const std::vector<std::vector<uint> >& flows_out_of_nodes,
 			const std::vector<uint>& start_arcs, const std::vector<double>* W=NULL);
 
 	// function that checks if the given point is more close enough to any point in the given vector

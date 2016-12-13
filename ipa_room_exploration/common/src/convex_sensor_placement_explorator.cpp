@@ -376,7 +376,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		{
 			uint number_of_last_measure = 0;
 			for(std::vector<uint>::reverse_iterator measure=sparsity_measures.rbegin(); measure!=sparsity_measures.rbegin()+sparsity_check_range && measure!=sparsity_measures.rend(); ++measure)
-				if(*measure == sparsity_measures.back())
+				if(*measure >= sparsity_measures.back())
 					++number_of_last_measure;
 
 			if(number_of_last_measure == sparsity_check_range)
