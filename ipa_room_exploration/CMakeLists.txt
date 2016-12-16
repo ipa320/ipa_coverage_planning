@@ -38,6 +38,22 @@ find_package(Boost REQUIRED COMPONENTS system)
 find_package(Eigen REQUIRED)
 find_package(libqsopt REQUIRED)
 
+# Coin-Or and Cbc, included as ubuntu system package, without Cmake-module so include pkg-config file
+#	!!! Important note: the order of the libraries when linking your executable is important, if it is wrong you get undefined references !!!
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(CoinUtils REQUIRED coinutils)# coinutils osi-clp clp osi cbc cgl
+pkg_check_modules(OsiClp REQUIRED osi-clp)
+pkg_check_modules(Clp REQUIRED clp)
+pkg_check_modules(Osi REQUIRED osi)
+pkg_check_modules(Cbc REQUIRED cbc)
+pkg_check_modules(Cgl REQUIRED cgl)
+Message(STATUS "coinutils include dirs: " ${CoinUtils_INCLUDE_DIRS})
+Message(STATUS "osi-clp include dirs: " ${OsiClp_INCLUDE_DIRS})
+Message(STATUS "clp include dirs: " ${Clp_INCLUDE_DIRS})
+Message(STATUS "osi include dirs: " ${Osi_INCLUDE_DIRS})
+Message(STATUS "cbc include dirs: " ${Cbc_INCLUDE_DIRS})
+Message(STATUS "cgl include dirs: " ${Cgl_INCLUDE_DIRS})
+
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -58,6 +74,12 @@ CATKIN_DEPENDS
 DEPENDS
 	OpenCV
 	Boost
+	CoinUtils
+	OsiClp
+	Clp
+	Osi
+	Cgl
+	Cbc
 )
 
 
@@ -75,6 +97,12 @@ include_directories(
 	${OpenCV_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIRS}
 	${Eigen_INCLUDE_DIRS}
+	${CoinUtils_INCLUDE_DIRS}
+	${OsiClp_INCLUDE_DIRS}
+	${Clp_INCLUDE_DIRS}
+	${Osi_INCLUDE_DIRS}
+	${Cgl_INCLUDE_DIRS}
+	${Cbc_INCLUDE_DIRS}
 )
 
 # room exploration action server, note: qsopt is a static library --> need an absolut path to it
@@ -96,7 +124,12 @@ target_link_libraries(room_exploration_server
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBRARIES}
 	${Boost_LIBRARIES}
-	${Eigen_LIBRARIES}
+	${CoinUtils_LIBRARIES}
+	${OsiClp_LIBRARIES}
+	${Clp_LIBRARIES}
+	${Osi_LIBRARIES}
+	${Cgl_LIBRARIES}
+	${Cbc_LIBRARIES}
 	${libqsopt_INCLUDE_DIRS}/libqsopt/qsopt.a
 )
 

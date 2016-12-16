@@ -11,10 +11,15 @@
 	<url>http://ros.org/wiki/ipa_room_exploration</url>
 
 	<buildtool_depend>catkin</buildtool_depend>
-	
+
 	<depend>boost</depend>
 	<depend>cmake_modules</depend>
 	<depend>cob_map_accessibility_analysis</depend>
+	<depend>coinor-libcbc-dev</depend>
+	<depend>coinor-libcgl-dev</depend>
+	<depend>coinor-libclp-dev</depend>
+	<depend>coinor-libcoinutils-dev</depend>
+	<depend>coinor-libosi-dev</depend>
 	<depend>cv_bridge</depend>
 	<depend>dynamic_reconfigure</depend>
 	<depend>geometry_msgs</depend>

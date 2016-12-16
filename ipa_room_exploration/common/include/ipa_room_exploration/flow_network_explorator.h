@@ -8,8 +8,23 @@
 #include <fstream>
 #include <stdio.h>
 
+// Eigen library for matrix/vector computations
 #include <Eigen/Dense>
+// Qsopt linear programming solver, TODO: obsolete
 #include <libqsopt/qsopt.h>
+// Coin-Or library with Cbc mixed integer programming solver
+//#include "CbcConfig.h"
+//#include "CoinPragma.hpp"
+//#include "OsiSolverInterface.hpp"
+//#include "CbcModel.hpp"
+//#include "CbcCutGenerator.hpp"
+//#include "OsiClpSolverInterface.hpp"
+//#include <ClpModel.hpp>
+#include <coin/OsiClpSolverInterface.hpp>
+#include <coin/CoinBuild.hpp>
+#include <coin/CoinModel.hpp>
+#include <coin/CbcModel.hpp>
+#include <coin/CbcHeuristicLocal.hpp>
 
 #include <ipa_room_exploration/fow_to_robot_mapper.h>
 #include <ipa_room_exploration/A_star_pathplanner.h>
@@ -155,4 +170,7 @@ public:
 				const int cell_size, const geometry_msgs::Polygon& room_min_max_coordinates,
 				const Eigen::Matrix<float, 2, 1>& robot_to_fow_middlepoint_vector, const float coverage_radius,
 				const bool plan_for_footprint, const int sparsity_check_range);
+
+	// test function
+	void testFunc();
 };

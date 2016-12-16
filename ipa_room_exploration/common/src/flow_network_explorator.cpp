@@ -520,7 +520,7 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<T>& C
 	for(size_t variable=0; variable<number_of_variables; ++variable)
 	{
 		C[variable] = result[variable];
-//		std::cout << result[variable] << std::endl;
+		std::cout << result[variable] << std::endl;
 	}
 
 //	testing
@@ -971,4 +971,165 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 //	}
 	cv::imshow("discretized", test_map);
 	cv::waitKey();
+}
+
+// test function for an easy case to check correctness
+void flowNetworkExplorator::testFunc()
+{
+	std::vector<double> w(6, 1.0);
+	std::vector<int> C(2+6+6);
+	cv::Mat V = cv::Mat(8, 6, CV_8U, cv::Scalar(0));
+	std::vector<std::vector<uint> > flows_out_of_nodes(3);
+	std::vector<std::vector<uint> > flows_in_nodes(3);
+
+	// cell 1
+	V.at<uchar>(0,0) = 1;
+	V.at<uchar>(0,1) = 1;
+	//cell 2
+	V.at<uchar>(1,0) = 1;
+	V.at<uchar>(1,1) = 1;
+	// cell 3
+	V.at<uchar>(2,4) = 1;
+	V.at<uchar>(2,5) = 1;
+	// cell 4
+	V.at<uchar>(3,0) = 1;
+	V.at<uchar>(3,1) = 1;
+	V.at<uchar>(3,4) = 1;
+	V.at<uchar>(3,5) = 1;
+	// cell 5
+	V.at<uchar>(4,0) = 1;
+	V.at<uchar>(4,1) = 1;
+	V.at<uchar>(4,2) = 1;
+	V.at<uchar>(4,3) = 1;
+	// cell 6
+	V.at<uchar>(5,2) = 1;
+	V.at<uchar>(5,3) = 1;
+	// cell 7
+	V.at<uchar>(6,4) = 1;
+	V.at<uchar>(6,5) = 1;
+	// cell 8
+	V.at<uchar>(7,2) = 1;
+	V.at<uchar>(7,3) = 1;
+
+	flows_out_of_nodes[0].push_back(0);
+	flows_out_of_nodes[0].push_back(4);
+	flows_out_of_nodes[1].push_back(1);
+	flows_out_of_nodes[1].push_back(2);
+	flows_out_of_nodes[2].push_back(3);
+	flows_out_of_nodes[2].push_back(5);
+
+	flows_in_nodes[0].push_back(1);
+	flows_in_nodes[0].push_back(5);
+	flows_in_nodes[1].push_back(0);
+	flows_in_nodes[1].push_back(3);
+	flows_in_nodes[2].push_back(2);
+	flows_in_nodes[2].push_back(4);
+
+	for(size_t row=0; row<V.rows; ++row)
+	{
+		for(size_t col=0; col<V.cols; ++col)
+		{
+			std::cout << (int) V.at<uchar>(row, col) << " ";
+		}
+		std::cout << std::endl;
+	}
+
+//	solveThreeStageOptimizationProblem(C, V, w, flows_in_nodes, flows_out_of_nodes, flows_out_of_nodes[0]);
+//
+//	std::cout << "read out: " << std::endl;
+//	for(size_t c=0; c<C.size(); ++c)
+//		std::cout << C[c] << std::endl;
+
+//	QSprob problem;
+//	problem = QSread_prob("int_lin_flow_prog.lp", "LP");
+//	int status=0;
+//	QSget_intcount(problem, &status);
+//	std::cout << "number of integer variables in the problem: " << status << std::endl;
+//	int* intflags = (int *) malloc (14 * sizeof (int));
+//	QSget_intflags (problem, intflags);
+//    printf ("Integer Variables\n");
+//    for (int j = 0; j < 14; j++)
+//    {
+//        if (intflags[j] == 1)
+//        {
+//            printf ("%d ", j);
+//        }
+//    }
+//    printf ("\n");
+//	QSopt_dual(problem, NULL);
+//	double* result;
+//	result  = (double *) malloc(14 * sizeof (double));
+//	QSget_solution(problem, NULL, result, NULL, NULL, NULL);
+//	for(size_t variable=0; variable<14; ++variable)
+//	{
+//		std::cout << result[variable] << std::endl;
+//	}
+//	QSwrite_prob(problem, "lin_flow_prog.lp", "LP");
+
+	OsiClpSolverInterface LP_solver;
+	OsiClpSolverInterface* solver_pointer = &LP_solver;
+
+	double obj[] = {1, 1, 1, 1, 1, 1, 1, 1};
+	double lower[] = {0, 0, 0, 0, 0, 0, 0, 0};
+	double upper[] = {1, 1, 1, 1, 1, 1, 1, 1};
+	int which_int[] = {0, 1, 2, 3, 4, 5, 6, 7};
+	int initial_constr[] = {0, 1};
+	int cover_constr1[] = {0, 1, 2, 3, 5, 6};
+	int cover_constr2[] = {4, 7};
+	int cover_constr3[] = {0, 2, 4, 5, 7};
+	int cover_constr4[] = {1, 3, 4, 6, 7};
+	int con_constr[] = {1, 3, 4, 7};
+	int final_constr[] = {5, 6, 7};
+	double init_constr_obj[] = {1, 1};
+	double cover_obj1[] = {1, 1, 1, 1, 1, 1};
+	double cover_obj2[] = {1, 1};
+	double cover_obj3[] = {1, 1, 1, 1, 1};
+	double cover_obj4[] = {1, 1, 1, 1, 1};
+	double con_obj[] = {1, 1, -1, -1};
+	double final_constr_obj[] = {1, 1, 1};
+	int numberColumns=(int) (sizeof(lower)/sizeof(double));
+
+	CoinModel problem_builder;
+
+	for(size_t i=0; i<numberColumns; ++i)
+	{
+		problem_builder.setColBounds(i, lower[i], upper[i]);
+		problem_builder.setObjective(i, obj[i]);
+
+		problem_builder.setInteger(i);
+	}
+
+	problem_builder.addRow(2, initial_constr, init_constr_obj, 1, 1);
+	problem_builder.addRow(6, cover_constr1, cover_obj1, 1);
+	problem_builder.addRow(2, cover_constr2, cover_obj2, 1);
+	problem_builder.addRow(5, cover_constr3, cover_obj3, 1);
+	problem_builder.addRow(5, cover_constr4, cover_obj4, 1);
+	problem_builder.addRow(4, con_constr, con_obj, 0, 0);
+	problem_builder.addRow(3, final_constr, final_constr_obj, 1, 1);
+
+	solver_pointer->loadFromCoinModel(problem_builder);
+
+	solver_pointer->writeLp("test_lp", "lp");
+
+	CbcModel model(*solver_pointer);
+	model.solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
+
+//	CbcHeuristicLocal heuristic2(model);
+//	model.addHeuristic(&heuristic2);
+
+	model.initialSolve();
+	model.branchAndBound();
+
+	const double * solution = model.solver()->getColSolution();
+
+	for(size_t i=0; i<numberColumns; ++i)
+		std::cout << solution[i] << std::endl;
+	std::cout << std::endl;
+
+//  CglProbing generator1;
+//  generator1.setUsingObjective(true);
+//  generator1.setMaxPass(3);
+//  generator1.setMaxProbe(100);
+//  generator1.setMaxLook(50);
+//  generator1.setRowCuts(3);
 }
