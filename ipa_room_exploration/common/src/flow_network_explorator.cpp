@@ -645,11 +645,13 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 			if(arc->start_point == *edge)
 			{
 				flows_into_nodes[edge-edges.begin()].push_back(arc-arcs.begin());
-				++number_of_outflows;
 			}
 			// if the end point of the arc is the edge save it as outgoing flow
 			else if(arc->end_point == *edge)
+			{
 				flows_out_of_nodes[edge-edges.begin()].push_back(arc-arcs.begin());
+				++number_of_outflows;
+			}
 		}
 	}
 
@@ -663,6 +665,18 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 //		for(size_t j=0; j<flows_out_of_nodes[i].size(); ++j)
 //			std::cout << flows_out_of_nodes[i][j] << std::endl;
 //		std::cout << std::endl;
+//	}
+//	for(size_t node=0; node<flows_out_of_nodes.size(); ++node)
+//	{
+//		cv::Mat paths = room_map.clone();
+//		for(size_t flow=0; flow<flows_out_of_nodes[node].size(); ++flow)
+//		{
+//			std::vector<cv::Point> path = arcs[flows_out_of_nodes[node][flow]].edge_points;
+//			for(size_t p=0; p<path.size(); ++p)
+//				paths.at<uchar>(path[p]) = 127;
+//		}
+//		cv::imshow("paths", paths);
+//		cv::waitKey();
 //	}
 
 	std::cout << "Constructed all matrices for the optimization problem. Checking if all cells can be covered." << std::endl;
@@ -801,7 +815,7 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	{
 		for(size_t flow=0; flow<flows_out_of_nodes[node].size(); ++flow)
 		{
-			if(C_small[flow_counter+flows_out_of_nodes[start_index].size()+flows_out_of_nodes.size()]!=0)
+			if(C_small[flow_counter+flows_out_of_nodes[start_index].size()+V.cols]!=0)
 			{
 				// insert saved outgoing flow index
 				used_arcs.insert(flows_out_of_nodes[node][flow]);
@@ -812,6 +826,7 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 				cv::imshow("discretized", test_map);
 				cv::waitKey();
 			}
+			++flow_counter;
 		}
 	}
 
@@ -876,19 +891,22 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	}
 	V_reduced = V_reduced.colRange(1, V_reduced.cols);
 
-	for(size_t row=0; row<V_reduced.rows; ++row)
-	{
-		int one_count = 0;
-		for(size_t col=0; col<V_reduced.cols; ++col)
-		{
-			std::cout << (int) V_reduced.at<uchar>(row, col) << " ";
-			if(V_reduced.at<uchar>(row, col)!=0)
-				++one_count;
-		}
-		std::cout << std::endl;
-		if(one_count == 0)
-			std::cout << "!!!!!!!!!!!!! empty row !!!!!!!!!!!!!!!!!!" << std::endl;
-	}
+//	for(size_t sol=0; sol<C_small.size(); ++sol)
+//		std::cout << C_small[sol] << std::endl;
+//
+//	for(size_t row=0; row<V_reduced.rows; ++row)
+//	{
+//		int one_count = 0;
+//		for(size_t col=0; col<V_reduced.cols; ++col)
+//		{
+//			std::cout << (int) V_reduced.at<uchar>(row, col) << " ";
+//			if(V_reduced.at<uchar>(row, col)!=0)
+//				++one_count;
+//		}
+//		std::cout << std::endl;
+//		if(one_count == 0)
+//			std::cout << "!!!!!!!!!!!!! empty row !!!!!!!!!!!!!!!!!!" << std::endl;
+//	}
 
 //	testing
 //	cv::Mat test_map = room_map.clone();
@@ -909,11 +927,68 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 // test function for an easy case to check correctness
 void flowNetworkExplorator::testFunc()
 {
-	std::vector<double> w(6, 1.0);
-	std::vector<int> C(2+6+6);
-	cv::Mat V = cv::Mat(8, 6, CV_8U, cv::Scalar(0));
-	std::vector<std::vector<uint> > flows_out_of_nodes(3);
-	std::vector<std::vector<uint> > flows_in_nodes(3);
+//	std::vector<double> w(6, 1.0);
+//	std::vector<int> C(2+6+6);
+//	cv::Mat V = cv::Mat(8, 6, CV_8U, cv::Scalar(0));
+//	std::vector<std::vector<uint> > flows_out_of_nodes(3);
+//	std::vector<std::vector<uint> > flows_in_nodes(3);
+//
+//	// cell 1
+//	V.at<uchar>(0,0) = 1;
+//	V.at<uchar>(0,1) = 1;
+//	//cell 2
+//	V.at<uchar>(1,0) = 1;
+//	V.at<uchar>(1,1) = 1;
+//	// cell 3
+//	V.at<uchar>(2,4) = 1;
+//	V.at<uchar>(2,5) = 1;
+//	// cell 4
+//	V.at<uchar>(3,0) = 1;
+//	V.at<uchar>(3,1) = 1;
+//	V.at<uchar>(3,4) = 1;
+//	V.at<uchar>(3,5) = 1;
+//	// cell 5
+//	V.at<uchar>(4,0) = 1;
+//	V.at<uchar>(4,1) = 1;
+//	V.at<uchar>(4,2) = 1;
+//	V.at<uchar>(4,3) = 1;
+//	// cell 6
+//	V.at<uchar>(5,2) = 1;
+//	V.at<uchar>(5,3) = 1;
+//	// cell 7
+//	V.at<uchar>(6,4) = 1;
+//	V.at<uchar>(6,5) = 1;
+//	// cell 8
+//	V.at<uchar>(7,2) = 1;
+//	V.at<uchar>(7,3) = 1;
+//
+//	flows_out_of_nodes[0].push_back(0);
+//	flows_out_of_nodes[0].push_back(4);
+//	flows_out_of_nodes[1].push_back(1);
+//	flows_out_of_nodes[1].push_back(2);
+//	flows_out_of_nodes[2].push_back(3);
+//	flows_out_of_nodes[2].push_back(5);
+//
+//	flows_in_nodes[0].push_back(1);
+//	flows_in_nodes[0].push_back(5);
+//	flows_in_nodes[1].push_back(0);
+//	flows_in_nodes[1].push_back(3);
+//	flows_in_nodes[2].push_back(2);
+//	flows_in_nodes[2].push_back(4);
+//
+//	for(size_t row=0; row<V.rows; ++row)
+//	{
+//		for(size_t col=0; col<V.cols; ++col)
+//		{
+//			std::cout << (int) V.at<uchar>(row, col) << " ";
+//		}
+//		std::cout << std::endl;
+//	}
+	std::vector<double> w(14, 1.0);
+	std::vector<int> C(2+14+14);
+	cv::Mat V = cv::Mat(12, 14, CV_8U, cv::Scalar(0));
+	std::vector<std::vector<uint> > flows_out_of_nodes(6);
+	std::vector<std::vector<uint> > flows_in_nodes(6);
 
 	// cell 1
 	V.at<uchar>(0,0) = 1;
@@ -921,42 +996,82 @@ void flowNetworkExplorator::testFunc()
 	//cell 2
 	V.at<uchar>(1,0) = 1;
 	V.at<uchar>(1,1) = 1;
+	V.at<uchar>(1,4) = 1;
+	V.at<uchar>(1,5) = 1;
 	// cell 3
 	V.at<uchar>(2,4) = 1;
 	V.at<uchar>(2,5) = 1;
+	V.at<uchar>(2,10) = 1;
+	V.at<uchar>(2,11) = 1;
 	// cell 4
 	V.at<uchar>(3,0) = 1;
 	V.at<uchar>(3,1) = 1;
-	V.at<uchar>(3,4) = 1;
-	V.at<uchar>(3,5) = 1;
 	// cell 5
 	V.at<uchar>(4,0) = 1;
 	V.at<uchar>(4,1) = 1;
-	V.at<uchar>(4,2) = 1;
-	V.at<uchar>(4,3) = 1;
+	V.at<uchar>(4,6) = 1;
+	V.at<uchar>(4,7) = 1;
 	// cell 6
-	V.at<uchar>(5,2) = 1;
-	V.at<uchar>(5,3) = 1;
+	V.at<uchar>(5,6) = 1;
+	V.at<uchar>(5,7) = 1;
+	V.at<uchar>(5,10) = 1;
+	V.at<uchar>(5,11) = 1;
 	// cell 7
-	V.at<uchar>(6,4) = 1;
-	V.at<uchar>(6,5) = 1;
+	V.at<uchar>(6,2) = 1;
+	V.at<uchar>(6,3) = 1;
 	// cell 8
 	V.at<uchar>(7,2) = 1;
 	V.at<uchar>(7,3) = 1;
+	V.at<uchar>(7,6) = 1;
+	V.at<uchar>(7,7) = 1;
+	// cell 9
+	V.at<uchar>(8,6) = 1;
+	V.at<uchar>(8,7) = 1;
+	V.at<uchar>(8,12) = 1;
+	V.at<uchar>(8,13) = 1;
+	// cell 10
+	V.at<uchar>(9,2) = 1;
+	V.at<uchar>(9,3) = 1;
+	// cell 11
+	V.at<uchar>(10,2) = 1;
+	V.at<uchar>(10,3) = 1;
+	V.at<uchar>(10,8) = 1;
+	V.at<uchar>(10,9) = 1;
+	// cell 12
+	V.at<uchar>(11,8) = 1;
+	V.at<uchar>(11,9) = 1;
+	V.at<uchar>(11,12) = 1;
+	V.at<uchar>(11,13) = 1;
 
 	flows_out_of_nodes[0].push_back(0);
 	flows_out_of_nodes[0].push_back(4);
 	flows_out_of_nodes[1].push_back(1);
 	flows_out_of_nodes[1].push_back(2);
+	flows_out_of_nodes[1].push_back(6);
 	flows_out_of_nodes[2].push_back(3);
-	flows_out_of_nodes[2].push_back(5);
+	flows_out_of_nodes[2].push_back(8);
+	flows_out_of_nodes[3].push_back(5);
+	flows_out_of_nodes[3].push_back(10);
+	flows_out_of_nodes[4].push_back(7);
+	flows_out_of_nodes[4].push_back(11);
+	flows_out_of_nodes[4].push_back(12);
+	flows_out_of_nodes[5].push_back(9);
+	flows_out_of_nodes[5].push_back(13);
 
 	flows_in_nodes[0].push_back(1);
 	flows_in_nodes[0].push_back(5);
 	flows_in_nodes[1].push_back(0);
 	flows_in_nodes[1].push_back(3);
+	flows_in_nodes[1].push_back(7);
 	flows_in_nodes[2].push_back(2);
-	flows_in_nodes[2].push_back(4);
+	flows_in_nodes[2].push_back(9);
+	flows_in_nodes[3].push_back(4);
+	flows_in_nodes[3].push_back(11);
+	flows_in_nodes[4].push_back(6);
+	flows_in_nodes[4].push_back(10);
+	flows_in_nodes[4].push_back(13);
+	flows_in_nodes[5].push_back(8);
+	flows_in_nodes[5].push_back(12);
 
 	for(size_t row=0; row<V.rows; ++row)
 	{
@@ -967,7 +1082,99 @@ void flowNetworkExplorator::testFunc()
 		std::cout << std::endl;
 	}
 
-	solveThreeStageOptimizationProblem(C, V, w, flows_in_nodes, flows_out_of_nodes, flows_out_of_nodes[0]);
+	std::vector<double> W(C.size(), 1.0);
+	double weight_epsilon = 0.0;
+	double euler_constant = std::exp(1.0);
+	for(size_t i=1; i<=3; ++i)
+	{
+
+		solveThreeStageOptimizationProblem(C, V, w, flows_in_nodes, flows_out_of_nodes, flows_out_of_nodes[0], &W);
+		for(size_t c=0; c<C.size(); ++c)
+			std::cout << C[c] << std::endl;
+		std::cout << std::endl;
+
+		int exponent = 1 + (i - 1)*0.1;
+		weight_epsilon = std::pow(1/(euler_constant-1), exponent);
+		for(size_t weight=0; weight<W.size(); ++weight)
+		{
+			W[weight] = weight_epsilon/(weight_epsilon + C[weight]);
+			std::cout << W[weight] << std::endl;
+		}
+		std::cout << std::endl;
+	}
+
+	std::set<uint> used_arcs; // set that stores the indices of the arcs corresponding to non-zero elements in the solution
+	// go trough the start arcs and determine the new start arcs
+	std::cout << "initial: " << std::endl;
+	for(size_t start_arc=0; start_arc<flows_out_of_nodes[0].size(); ++start_arc)
+	{
+		if(C[start_arc]!=0)
+		{
+			// insert start index
+			used_arcs.insert(flows_out_of_nodes[0][start_arc]);
+			std::cout << flows_out_of_nodes[0][start_arc] << std::endl;
+		}
+	}
+
+	// go trough the coverage stage
+	std::cout << "coverage: " << std::endl;
+	for(size_t arc=flows_out_of_nodes[0].size(); arc<flows_out_of_nodes[0].size()+V.cols; ++arc)
+	{
+		if(C[arc]!=0)
+		{
+			// insert index, relative to the first coverage variable
+			used_arcs.insert(arc-flows_out_of_nodes[0].size());
+
+			std::cout << arc-flows_out_of_nodes[0].size() << std::endl;
+		}
+	}
+
+	// go trough the final stage and find the remaining used arcs
+	std::cout << "final: " << std::endl;
+	uint flow_counter = 0;
+	for(size_t node=0; node<flows_out_of_nodes.size(); ++node)
+	{
+		for(size_t flow=0; flow<flows_out_of_nodes[node].size(); ++flow)
+		{
+			if(C[flow_counter+flows_out_of_nodes[0].size()+V.cols]!=0)
+			{
+				// insert saved outgoing flow index
+				used_arcs.insert(flows_out_of_nodes[node][flow]);
+
+				std::cout << flows_out_of_nodes[node][flow] << std::endl;
+			}
+			++flow_counter;
+		}
+	}
+
+	std::cout << "got " << used_arcs.size() << " used arcs" << std::endl;
+
+	// remove the first initial column
+	uint new_number_of_variables = 0;
+	cv::Mat V_reduced = cv::Mat(V.rows, 1, CV_8U); // initialize one column because opencv wants it this way, add other columns later
+	for(std::set<uint>::iterator var=used_arcs.begin(); var!=used_arcs.end(); ++var)
+	{
+		// gather column corresponding to this candidate pose and add it to the new observability matrix
+		cv::Mat column = V.col(*var);
+		cv::hconcat(V_reduced, column, V_reduced);
+	}
+	V_reduced = V_reduced.colRange(1, V_reduced.cols);
+
+	for(size_t row=0; row<V_reduced.rows; ++row)
+	{
+		int one_count = 0;
+		for(size_t col=0; col<V_reduced.cols; ++col)
+		{
+			std::cout << (int) V_reduced.at<uchar>(row, col) << " ";
+			if(V_reduced.at<uchar>(row, col)!=0)
+				++one_count;
+		}
+		std::cout << std::endl;
+		if(one_count == 0)
+			std::cout << "!!!!!!!!!!!!! empty row !!!!!!!!!!!!!!!!!!" << std::endl;
+	}
+
+	V_reduced = V_reduced.colRange(1, V_reduced.cols);
 
 	std::cout << "read out: " << std::endl;
 	for(size_t c=0; c<C.size(); ++c)
