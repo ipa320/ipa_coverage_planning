@@ -258,7 +258,7 @@ void flowNetworkExplorator::solveMultiStageOptimizationProblem(std::vector<T>& C
 	QSfree(problem);
 }
 
-// Function that creates a Qsopt optimization problem and solves it, using the given matrices and vectors and the two-stage
+// Function that creates a Cbc optimization problem and solves it, using the given matrices and vectors and the 3-stage
 // ansatz, that takes an initial step going from the start node and then a coverage stage assuming that the number of
 // flows into and out of a node must be the same. At last a final stage is gone, that terminates the path in one of the
 // possible nodes.
@@ -268,32 +268,43 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<T>& C
 			const std::vector<uint>& start_arcs, const std::vector<double>* W)
 {
 	// initialize the problem
-	QSprob problem;
-	problem = QScreate_prob("flowNetworkExploration", QS_MIN);
+	CoinModel problem_builder;
 
 	std::cout << "Creating and solving linear program." << std::endl;
 
 	// add the optimization variables to the problem
-	int rval;
+	int number_of_variables = 0;
 	for(size_t arc=0; arc<start_arcs.size(); ++arc) // initial stage
 	{
 		if(W != NULL) // if a relaxation-vector is provided, use it to set the weights for the variables
-			rval = QSnew_col(problem, W->operator[](arc)*weights[start_arcs[arc]], 0.0, 1.0, (const char *) NULL);
+		{
+			problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
+			problem_builder.setObjective(number_of_variables, W->operator[](arc)*weights[start_arcs[arc]]);
+			++number_of_variables;
+		}
 		else
-			rval = QSnew_col(problem, weights[start_arcs[arc]], 0.0, 1.0, (const char *) NULL);
-
-		if(rval)
-			std::cout << "!!!!! failed to add initial variable !!!!!" << std::endl;
+		{
+			problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
+			problem_builder.setObjective(number_of_variables, weights[start_arcs[arc]]);
+			problem_builder.setInteger(number_of_variables);
+			++number_of_variables;
+		}
 	}
 	for(size_t variable=0; variable<V.cols; ++variable) // coverage stage
 	{
 		if(W != NULL) // if a weight-vector is provided, use it to set the weights for the variables
-			rval = QSnew_col(problem, W->operator[](variable + start_arcs.size())*weights[variable], 0.0, 1.0, (const char *) NULL);
+		{
+			problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
+			problem_builder.setObjective(number_of_variables, W->operator[](variable + start_arcs.size())*weights[variable]);
+			++number_of_variables;
+		}
 		else
-			rval = QSnew_col(problem, weights[variable], 0.0, 1.0, (const char *) NULL);
-
-		if(rval)
-			std::cout << "!!!!! failed to add coverage variable !!!!!" << std::endl;
+		{
+			problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
+			problem_builder.setObjective(number_of_variables, weights[variable]);
+			problem_builder.setInteger(number_of_variables);
+			++number_of_variables;
+		}
 	}
 	int number_of_final_arcs = 0;
 	for(size_t node=0; node<flows_out_of_nodes.size(); ++node) // final stage
@@ -301,18 +312,22 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<T>& C
 		for(size_t flow=0; flow<flows_out_of_nodes[node].size(); ++flow)
 		{
 			if(W != NULL) // if a weight-vector is provided, use it to set the weights for the variables
-				rval = QSnew_col(problem, W->operator[](number_of_final_arcs + start_arcs.size() + V.cols)*weights[flows_out_of_nodes[node][flow]], 0.0, 1.0, (const char *) NULL);
+			{
+				problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
+				problem_builder.setObjective(number_of_variables,  W->operator[](number_of_final_arcs + start_arcs.size() + V.cols)*weights[flows_out_of_nodes[node][flow]]);
+				++number_of_variables;
+			}
 			else
-				rval = QSnew_col(problem, weights[flows_out_of_nodes[node][flow]], 0.0, 1.0, (const char *) NULL);
-
-			if(rval)
-				std::cout << "!!!!! failed to add final node !!!!!" << std::endl;
-			else
-				++number_of_final_arcs; // increase number of done flows out of nodes to access right optimization variable
+			{
+				problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
+				problem_builder.setObjective(number_of_variables,  weights[flows_out_of_nodes[node][flow]]);
+				problem_builder.setInteger(number_of_variables);
+				++number_of_variables;
+			}
+			++number_of_final_arcs; // increase number of done flows out of nodes to access right optimization variable
 		}
 	}
 
-	int number_of_variables = QSget_colcount(problem);
 	std::cout << "number of variables in the problem: " << number_of_variables << std::endl;
 
 	// inequality constraints to ensure that every position has been seen at least once:
@@ -351,10 +366,7 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<T>& C
 
 		// add the constraint, if the current cell can be covered by the given arcs
 		if(variable_indices.size()>0)
-			rval = QSadd_row(problem, (int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 1.0, 'G', (const char *) NULL);
-
-		if(rval)
-			std::cout << "!!!!! failed to add constraint !!!!!" << std::endl;
+			problem_builder.addRow((int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 1.0);
 	}
 
 
@@ -370,10 +382,7 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<T>& C
 		start_indices[start] = start;
 		start_coefficients[start] = 1.0;
 	}
-	rval = QSadd_row(problem, (int) start_indices.size(), &start_indices[0], &start_coefficients[0], 1.0, 'E', (const char *) NULL);
-
-	if(rval)
-		std::cout << "!!!!! failed to add initial constraint !!!!!" << std::endl;
+	problem_builder.addRow((int) start_indices.size(), &start_indices[0], &start_coefficients[0], 1.0, 1.0);
 
 	// coverage stage
 	for(size_t node=0; node<flows_into_nodes.size(); ++node)
@@ -410,10 +419,7 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<T>& C
 //			std::cout << variable_indices[i] << std::endl;
 
 		// add constraint
-		rval = QSadd_row(problem, (int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 0.0, 'E', (const char *) NULL);
-
-		if(rval)
-			std::cout << "!!!!! failed to add constraint !!!!!" << std::endl;
+		problem_builder.addRow((int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 0.0, 0.0);
 	}
 
 	// equality constraint to ensure that the path only once goes to the final stage
@@ -426,108 +432,35 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<T>& C
 		final_coefficients[node] = 1.0;
 	}
 	// add constraint
-	rval = QSadd_row(problem, (int) final_indices.size(), &final_indices[0], &final_coefficients[0], 1.0, 'E', (const char *) NULL);
+	problem_builder.addRow((int) final_indices.size(), &final_indices[0], &final_coefficients[0], 1.0, 1.0);
 
-	if(rval)
-		std::cout << "!!!!! failed to add constraint !!!!!" << std::endl;
+	// load the created LP problem to the solver
+	OsiClpSolverInterface LP_solver;
+	OsiClpSolverInterface* solver_pointer = &LP_solver;
 
-	// if no weights are given an integer linear program should be solved, so the problem needs to be changed to this
-	// by saving it to a file and reloading it (no better way available from Qsopt)
-	if(W == NULL)
-	{
-		// save problem
-		QSwrite_prob(problem, "lin_flow_prog.lp", "LP");
+	solver_pointer->loadFromCoinModel(problem_builder);
 
-		// read in the original problem, before "End" include the definition of the variables as integers
-		std::ifstream original_problem;
-		original_problem.open("lin_flow_prog.lp", std::ifstream::in);
-		std::ofstream new_problem;
-		new_problem.open("int_lin_flow_prog.lp", std::ofstream::out);
-		std::string interception_line = "End";
-		std::string line;
-		while (getline(original_problem,line))
-		{
-			if (line != interception_line)
-			{
-				new_problem << line << std::endl;
-			}
-			else
-			{
-				// include Integer section
-				new_problem << "Integer" << std::endl;
-				for(size_t variable=1; variable<=C.size(); ++variable)
-				{
-					new_problem << " x" << variable;
+	// testing
+	solver_pointer->writeLp("lin_flow_prog", "lp");
 
-					// new line for reading convenience after 5 variables
-					if(variable%5 == 0 && variable != C.size()-1)
-					{
-						new_problem << std::endl;
-					}
-				}
+	// solve the created optimization problem
+	CbcModel model(*solver_pointer);
+	model.solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
 
-				// add "End" to the file to show end of it
-				new_problem << std::endl << std::left << line << std::endl;
-			}
-		}
-		original_problem.close();
-		new_problem.close();
+//	CbcHeuristicLocal heuristic2(model);
+//	model.addHeuristic(&heuristic2);
 
-		// reload the problem
-		problem = QSread_prob("int_lin_flow_prog.lp", "LP");
-		if(problem == (QSprob) NULL)
-		{
-		    fprintf(stderr, "Unable to read and load the LP\n");
-		}
-	}
-
-//	testing
-	QSwrite_prob(problem, "lin_flow_prog.lp", "LP");
-
-	// solve the optimization problem
-	int status=0;
-	QSget_intcount(problem, &status);
-	std::cout << "number of integer variables in the problem: " << status << std::endl;
-	rval = QSopt_dual(problem, &status);
-
-	if (rval)
-	{
-	    fprintf (stderr, "QSopt_dual failed with return code %d\n", rval);
-	}
-	else
-	{
-	    switch (status)
-	    {
-	    	case QS_LP_OPTIMAL:
-	    		printf ("Found optimal solution to LP\n");
-	    		break;
-	    	case QS_LP_INFEASIBLE:
-	    		printf ("No feasible solution exists for the LP\n");
-	    		break;
-	    	case QS_LP_UNBOUNDED:
-	    		printf ("The LP objective is unbounded\n");
-	    		break;
-	    	default:
-	    		printf ("LP could not be solved, status = %d\n", status);
-	    		break;
-	    }
-	}
+	model.initialSolve();
+	model.branchAndBound();
 
 	// retrieve solution
-	double* result;
-	result  = (double *) malloc(number_of_variables * sizeof (double));
-	QSget_solution(problem, NULL, result, NULL, NULL, NULL);
-	for(size_t variable=0; variable<number_of_variables; ++variable)
+	const double * solution = model.solver()->getColSolution();
+
+	for(size_t res=0; res<number_of_variables; ++res)
 	{
-		C[variable] = result[variable];
-		std::cout << result[variable] << std::endl;
+//		std::cout << solution[i] << std::endl;
+		C[res] = solution[res];
 	}
-
-//	testing
-	QSwrite_prob(problem, "lin_flow_prog.lp", "LP");
-
-	// free space used by the optimization problem
-	QSfree(problem);
 }
 
 // This Function checks if the given cv::Point is close enough to one cv::Point in the given vector. If one point gets found
@@ -1034,11 +967,11 @@ void flowNetworkExplorator::testFunc()
 		std::cout << std::endl;
 	}
 
-//	solveThreeStageOptimizationProblem(C, V, w, flows_in_nodes, flows_out_of_nodes, flows_out_of_nodes[0]);
-//
-//	std::cout << "read out: " << std::endl;
-//	for(size_t c=0; c<C.size(); ++c)
-//		std::cout << C[c] << std::endl;
+	solveThreeStageOptimizationProblem(C, V, w, flows_in_nodes, flows_out_of_nodes, flows_out_of_nodes[0]);
+
+	std::cout << "read out: " << std::endl;
+	for(size_t c=0; c<C.size(); ++c)
+		std::cout << C[c] << std::endl;
 
 //	QSprob problem;
 //	problem = QSread_prob("int_lin_flow_prog.lp", "LP");

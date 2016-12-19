@@ -7,8 +7,13 @@
 #include <fstream>
 #include <stdio.h>
 
+// Eigen library for matrix/vector computations
 #include <Eigen/Dense>
-#include <libqsopt/qsopt.h>
+// Coin-Or Cbc linear programming solver
+#include <coin/OsiClpSolverInterface.hpp>
+#include <coin/CoinModel.hpp>
+#include <coin/CbcModel.hpp>
+#include <coin/CbcHeuristicLocal.hpp>
 
 #include <ipa_room_exploration/nearest_neighbor_TSP.h>
 #include <ipa_room_exploration/A_star_pathplanner.h>

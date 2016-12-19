@@ -11,8 +11,7 @@ template<typename T>
 void convexSPPExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<double>* W)
 {
 	// initialize the problem
-	QSprob problem;
-	problem = QScreate_prob("conv-SPP", QS_MIN);
+	CoinModel problem_builder;
 
 	ROS_INFO("Creating and solving linear program.");
 
@@ -20,13 +19,18 @@ void convexSPPExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::
 	int rval;
 	for(size_t variable=0; variable<C.size(); ++variable)
 	{
-		if(W != NULL) // if a weight-vector is provided, use it to set the weights for the variables
-			rval = QSnew_col(problem, W->operator[](variable), 0.0, 1.0, (const char *) NULL);
+		if(W != NULL) // if a weight-vector is provided, use it to set the weights for the var>iables
+		{
+			problem_builder.setColBounds(variable, 0.0, 1.0);
+			problem_builder.setObjective(variable, W->operator[](variable));
+		}
 		else
-			rval = QSnew_col(problem, 1.0, 0.0, 1.0, (const char *) NULL);
+		{
+			problem_builder.setColBounds(variable, 0.0, 1.0);
+			problem_builder.setObjective(variable, 1.0);
+			problem_builder.setInteger(variable);
+		}
 
-		if(rval)
-			std::cout << "!!!!! failed to add variable !!!!!" << std::endl;
 	}
 
 	// inequality constraints to ensure that every position has been seen at least once
@@ -42,107 +46,36 @@ void convexSPPExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::
 		std::vector<double> variable_coefficients(variable_indices.size(), 1.0);
 
 		// add the constraint
-		rval = QSadd_row(problem, (int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 1.0, 'G', (const char *) NULL);
-
-		if(rval)
-			std::cout << "!!!!! failed to add constraint !!!!!" << std::endl;
+		problem_builder.addRow((int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 1.0);
 	}
 
-	// if no weights are given an integer linear program should be solved, so the problem needs to be changed to this
-	// by saving it to a file and reloading it (no better way available from Qsopt)
-	if(W == NULL)
-	{
-		// save problem
-		QSwrite_prob(problem, "lin_prog.lp", "LP");
+	// load the created LP problem to the solver
+		OsiClpSolverInterface LP_solver;
+		OsiClpSolverInterface* solver_pointer = &LP_solver;
 
-		// read in the original problem, before "End" include the definition of the variables as integers
-		std::ifstream original_problem;
-		original_problem.open("lin_prog.lp", std::ifstream::in);
-		std::ofstream new_problem;
-		new_problem.open("int_lin_prog.lp", std::ofstream::out);
-		std::string interception_line = "End";
-		std::string line;
-		while (getline(original_problem,line))
+		solver_pointer->loadFromCoinModel(problem_builder);
+
+		// testing
+		solver_pointer->writeLp("lin_cpp_prog", "lp");
+
+		// solve the created optimization problem
+		CbcModel model(*solver_pointer);
+		model.solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
+
+	//	CbcHeuristicLocal heuristic2(model);
+	//	model.addHeuristic(&heuristic2);
+
+		model.initialSolve();
+		model.branchAndBound();
+
+		// retrieve solution
+		const double * solution = model.solver()->getColSolution();
+
+		for(size_t res=0; res<C.size(); ++res)
 		{
-			if (line != interception_line)
-			{
-				new_problem << line << std::endl;
-			}
-			else
-			{
-				// include Integer section
-				new_problem << "Integer" << std::endl;
-				for(size_t variable=1; variable<=C.size(); ++variable)
-				{
-					new_problem << " x" << variable;
-
-					// new line for reading convenience after 5 variables
-					if(variable%5 == 0 && variable != C.size()-1)
-					{
-						new_problem << std::endl;
-					}
-				}
-
-				// add "End" to the file to show end of it
-				new_problem << std::endl << std::left << line << std::endl;
-			}
+	//		std::cout << solution[i] << std::endl;
+			C[res] = solution[res];
 		}
-		original_problem.close();
-		new_problem.close();
-
-		// reload the problem
-		problem = QSread_prob("int_lin_prog.lp", "LP");
-		if(problem == (QSprob) NULL)
-		{
-		    fprintf(stderr, "Unable to read and load the LP\n");
-		}
-	}
-
-	// solve the optimization problem
-	int status=0;
-	QSget_intcount(problem, &status);
-	std::cout << "number of integer variables in the problem: " << status << std::endl;
-	rval = QSopt_dual(problem, &status);
-
-	if (rval)
-	{
-	    fprintf (stderr, "QSopt_dual failed with return code %d\n", rval);
-	}
-	else
-	{
-	    switch (status)
-	    {
-	    	case QS_LP_OPTIMAL:
-	    		printf ("Found optimal solution to LP\n");
-	    		break;
-	    	case QS_LP_INFEASIBLE:
-	    		printf ("No feasible solution exists for the LP\n");
-	    		break;
-	    	case QS_LP_UNBOUNDED:
-	    		printf ("The LP objective is unbounded\n");
-	    		break;
-	    	default:
-	    		printf ("LP could not be solved, status = %d\n", status);
-	    		break;
-	    }
-	}
-
-	// retrieve solution
-	int ncols = QSget_colcount(problem);
-	double* result;
-	result  = (double *) malloc(ncols * sizeof (double));
-	QSget_solution(problem, NULL, result, NULL, NULL, NULL);
-	for(size_t variable=0; variable<ncols; ++variable)
-	{
-		C[variable] = result[variable];
-//		std::cout << result[variable] << std::endl;
-	}
-
-//	testing
-	QSwrite_prob(problem, "lin_prog.lp", "LP");
-
-	// free space used by the optimization problem
-	QSfree(problem);
 }
 
 // Function that is used to get a coverage path that covers the free space of the given map. It is programmed after

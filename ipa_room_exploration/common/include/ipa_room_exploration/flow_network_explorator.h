@@ -13,15 +13,7 @@
 // Qsopt linear programming solver, TODO: obsolete
 #include <libqsopt/qsopt.h>
 // Coin-Or library with Cbc mixed integer programming solver
-//#include "CbcConfig.h"
-//#include "CoinPragma.hpp"
-//#include "OsiSolverInterface.hpp"
-//#include "CbcModel.hpp"
-//#include "CbcCutGenerator.hpp"
-//#include "OsiClpSolverInterface.hpp"
-//#include <ClpModel.hpp>
 #include <coin/OsiClpSolverInterface.hpp>
-#include <coin/CoinBuild.hpp>
 #include <coin/CoinModel.hpp>
 #include <coin/CbcModel.hpp>
 #include <coin/CbcHeuristicLocal.hpp>
