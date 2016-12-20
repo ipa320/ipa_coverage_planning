@@ -17,6 +17,8 @@
 #include <coin/CoinModel.hpp>
 #include <coin/CbcModel.hpp>
 #include <coin/CbcHeuristicLocal.hpp>
+// Coin-Or library with Clp linear programming solver
+#include <coin/ClpSimplex.hpp>
 
 #include <ipa_room_exploration/fow_to_robot_mapper.h>
 #include <ipa_room_exploration/A_star_pathplanner.h>
