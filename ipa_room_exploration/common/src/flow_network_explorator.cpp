@@ -10,8 +10,7 @@ flowNetworkExplorator::flowNetworkExplorator()
 // ansatz, that takes an initial step going from the start node and then a coverage stage assuming that the number of
 // flows into and out of a node must be the same. At last a final stage is gone, that terminates the path in one of the
 // possible nodes.
-template<typename T>
-void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<double>& weights,
+void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<double>& C, const cv::Mat& V, const std::vector<double>& weights,
 			const std::vector<std::vector<uint> >& flows_into_nodes, const std::vector<std::vector<uint> >& flows_out_of_nodes,
 			const std::vector<uint>& start_arcs)
 {
@@ -240,33 +239,176 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<T>& C
 	}
 	problem_builder.addRow((int) start_flow_indices.size(), &start_flow_indices[0], &start_flow_coefficients[0], 0.0, 0.0);
 
-	// equality constraints to set the node indicator variables for each node
-//	for(size_t node=0; node<flows_into_nodes.size(); ++node)
-//	{
-//		std::vector<int> indicator_indices;
-//		std::vector<double> indicator_coefficients;
-//
-//		// gather flows into node
-//		for(size_t inflow=0; inflow<flows_into_nodes[node].size(); ++inflow)
-//		{
-//			// if a start arcs flows into the node, additionally take the index of the arc in the start_arc vector
-//			if(contains(start_arcs, flows_into_nodes[node][inflow])==true)
-//			{
-//				indicator_indices.push_back(std::find(start_arcs.begin(), start_arcs.end(), flows_into_nodes[node][inflow])-start_arcs.begin());
-//				indicator_coefficients.push_back(1.0);
-//			}
-//			// get the index of the arc in the optimization vector
-//			indicator_indices.push_back(flows_into_nodes[node][inflow] + start_arcs.size());
-//			indicator_coefficients.push_back(1.0);
+	// load the created LP problem to the solver
+	OsiClpSolverInterface LP_solver;
+	OsiClpSolverInterface* solver_pointer = &LP_solver;
+
+	solver_pointer->loadFromCoinModel(problem_builder);
+
+	// testing
+	solver_pointer->writeLp("lin_flow_prog", "lp");
+
+	// solve the created integer optimization problem
+	CbcModel model(*solver_pointer);
+	model.solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
+
+//	CbcHeuristicLocal heuristic2(model);
+//	model.addHeuristic(&heuristic2);
+
+	model.initialSolve();
+	model.branchAndBound();
+
+	// retrieve solution
+	const double* solution = model.solver()->getColSolution();
+
+	for(size_t res=0; res<number_of_variables; ++res)
+	{
+//		std::cout << solution[res] << std::endl;
+		C[res] = solution[res];
+	}
+}
+
+// Function that creates a Cbc optimization problem and solves it, using the given matrices and vectors and the 3-stage
+// ansatz, that takes an initial step going from the start node and then a coverage stage assuming that the number of
+// flows into and out of a node must be the same. At last a final stage is gone, that terminates the path in one of the
+// possible nodes. This function uses lazy generalized cutset inequalities (GCI) to prevent cycles. For that a solution
+// without cycle prevention constraints is determined and then cycles are detected in this solution. For these cycles
+// then additional constraints are added and a new solution is determined. This procedure gets repeated until no cycle
+// is detected in the solution or the only cycle contains all visited nodes, because such a solution is a traveling
+// salesman like solution, which is a valid solution.
+void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<double>& C, const cv::Mat& V, const std::vector<double>& weights,
+		const std::vector<std::vector<uint> >& flows_into_nodes, const std::vector<std::vector<uint> >& flows_out_of_nodes,
+		const std::vector<uint>& start_arcs)
+{
+	// initialize the problem
+	CoinModel problem_builder;
+
+	std::cout << "Creating and solving linear program." << std::endl;
+
+	// add the optimization variables to the problem
+	int number_of_variables = 0;
+	for(size_t arc=0; arc<start_arcs.size(); ++arc) // initial stage
+	{
+		problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
+		problem_builder.setObjective(number_of_variables, weights[start_arcs[arc]]);
+		problem_builder.setInteger(number_of_variables);
+		++number_of_variables;
 //		}
-//
-//		// get node indicator variable
-//		indicator_indices.push_back(node+2.0*start_arcs.size()+3.0*V.cols);
-//		indicator_coefficients.push_back(-1.0);
-//
-//		// add constraint
-//		problem_builder.addRow((int) indicator_indices.size(), &indicator_indices[0], &indicator_coefficients[0], 0.0, 0.0);
-//	}
+	}
+	for(size_t variable=0; variable<V.cols; ++variable) // coverage stage
+	{
+		problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
+		problem_builder.setObjective(number_of_variables, weights[variable]);
+//		problem_builder.setInteger(number_of_variables);
+		++number_of_variables;
+	}
+	for(size_t variable=0; variable<V.cols; ++variable) // final stage
+	{
+		problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
+		problem_builder.setObjective(number_of_variables, weights[variable]);
+		problem_builder.setInteger(number_of_variables);
+		++number_of_variables;
+	}
+	std::cout << "number of variables in the problem: " << number_of_variables << std::endl;
+
+	// inequality constraints to ensure that every position has been seen at least once:
+	//		for each center that should be covered, find the arcs of the three stages that cover it
+	for(size_t row=0; row<V.rows; ++row)
+	{
+		std::vector<int> variable_indices;
+
+		// initial stage, TODO: check this for correctness
+		for(size_t col=0; col<start_arcs.size(); ++col)
+			if(V.at<uchar>(row, start_arcs[col])==1)
+				variable_indices.push_back((int) col);
+
+		// coverage and final stage
+		for(size_t col=0; col<V.cols; ++col)
+		{
+			if(V.at<uchar>(row, col)==1)
+			{
+				variable_indices.push_back((int) col + start_arcs.size()); // coverage stage
+				variable_indices.push_back((int) col + start_arcs.size() + V.cols); // final stage
+			}
+		}
+
+		// all indices are 1 in this constraint
+		std::vector<double> variable_coefficients(variable_indices.size(), 1.0);
+
+		// add the constraint, if the current cell can be covered by the given arcs
+		if(variable_indices.size()>0)
+			problem_builder.addRow((int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 1.0);
+	}
+
+
+	// equality constraint to ensure that the number of flows out of one node is the same as the number of flows into the
+	// node during the coverage stage
+	//	Remark: for initial stage ensure that exactly one arc is gone, because there only the outgoing flows are taken
+	//			into account
+	// initial stage
+	std::vector<int> start_indices(start_arcs.size());
+	std::vector<double> start_coefficients(start_arcs.size());
+	for(size_t start=0; start<start_arcs.size(); ++start)
+	{
+		start_indices[start] = start;
+		start_coefficients[start] = 1.0;
+	}
+	problem_builder.addRow((int) start_indices.size(), &start_indices[0], &start_coefficients[0], 1.0, 1.0);
+
+	// coverage stage
+	for(size_t node=0; node<flows_into_nodes.size(); ++node)
+	{
+		std::vector<int> variable_indices;
+		std::vector<double> variable_coefficients;
+
+		// gather flows into node
+		for(size_t inflow=0; inflow<flows_into_nodes[node].size(); ++inflow)
+		{
+			// if a start arcs flows into the node, additionally take the index of the arc in the start_arc vector
+			if(contains(start_arcs, flows_into_nodes[node][inflow])==true)
+			{
+				// conservativity
+				variable_indices.push_back(std::find(start_arcs.begin(), start_arcs.end(), flows_into_nodes[node][inflow])-start_arcs.begin());
+				variable_coefficients.push_back(1.0);
+			}
+			// get the index of the arc in the optimization vector
+			// conservativity
+			variable_indices.push_back(flows_into_nodes[node][inflow] + start_arcs.size());
+			variable_coefficients.push_back(1.0);
+		}
+
+		// gather flows out of node, also include flows into final nodes (for conservativity)
+		for(size_t outflow=0; outflow<flows_out_of_nodes[node].size(); ++outflow)
+		{
+			// coverage stage variable
+			// conservativity
+			variable_indices.push_back(flows_out_of_nodes[node][outflow] + start_arcs.size());
+			variable_coefficients.push_back(-1.0);
+			// final stage variable
+			variable_indices.push_back(flows_out_of_nodes[node][outflow] + start_arcs.size() + V.cols);
+			variable_coefficients.push_back(-1.0);
+		}
+
+//		testing
+//		std::cout << "number of flows: " << variable_indices.size() << std::endl;
+//		for(size_t i=0; i<variable_indices.size(); ++i)
+//			std::cout << variable_indices[i] << std::endl;
+
+		// add conservativity constraint
+		problem_builder.addRow((int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 0.0, 0.0);
+	}
+
+	// equality constraint to ensure that the path only once goes to the final stage
+	std::vector<int> final_indices(V.cols);
+	std::vector<double> final_coefficients(final_indices.size());
+	// gather indices
+	for(size_t node=0; node<final_indices.size(); ++node)
+	{
+		final_indices[node] = node + start_arcs.size() + V.cols;
+		final_coefficients[node] = 1.0;
+	}
+	// add constraint
+	problem_builder.addRow((int) final_indices.size(), &final_indices[0], &final_coefficients[0], 1.0, 1.0);
 
 	// load the created LP problem to the solver
 	OsiClpSolverInterface LP_solver;
@@ -281,8 +423,8 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<T>& C
 	CbcModel model(*solver_pointer);
 	model.solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
 
-	CbcHeuristicLocal heuristic2(model);
-	model.addHeuristic(&heuristic2);
+//	CbcHeuristicLocal heuristic2(model);
+//	model.addHeuristic(&heuristic2);
 
 	model.initialSolve();
 	model.branchAndBound();

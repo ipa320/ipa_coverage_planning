@@ -129,10 +129,15 @@ struct arcStruct
 class flowNetworkExplorator
 {
 protected:
-	// function that is used to create and solve a Qsopt optimization problem out of the given matrices and vectors, using
-	// the three-stage ansatz
-	template<typename T>
-	void solveThreeStageOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<double>& weights,
+	// function that is used to create and solve a Cbc optimization problem out of the given matrices and vectors, using
+	// the three-stage ansatz and single-flow cycle prevention constraints
+	void solveThreeStageOptimizationProblem(std::vector<double>& C, const cv::Mat& V, const std::vector<double>& weights,
+			const std::vector<std::vector<uint> >& flows_into_nodes, const std::vector<std::vector<uint> >& flows_out_of_nodes,
+			const std::vector<uint>& start_arcs);
+
+	// function that is used to create and solve a Cbc optimization problem out of the given matrices and vectors, using
+	// the three-stage ansatz and lazy generalized cutset inequalities (GCI)
+	void solveLazyConstraintOptimizationProblem(std::vector<double>& C, const cv::Mat& V, const std::vector<double>& weights,
 			const std::vector<std::vector<uint> >& flows_into_nodes, const std::vector<std::vector<uint> >& flows_out_of_nodes,
 			const std::vector<uint>& start_arcs);
 
