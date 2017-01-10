@@ -10,8 +10,6 @@
 
 // Eigen library for matrix/vector computations
 #include <Eigen/Dense>
-// Qsopt linear programming solver, TODO: obsolete
-#include <libqsopt/qsopt.h>
 // Coin-Or library with Cbc mixed integer programming solver
 #include <coin/OsiClpSolverInterface.hpp>
 #include <coin/CoinModel.hpp>
@@ -131,13 +129,6 @@ struct arcStruct
 class flowNetworkExplorator
 {
 protected:
-	// function that is used to create and solve a Qsopt optimization problem out of the given matrices and vectors, using
-	// the multistage ansatz
-	template<typename T>
-	void solveMultiStageOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<double>& weights,
-			const std::vector<std::vector<uint> >& flows_into_nodes, const std::vector<std::vector<uint> >& flows_out_of_nodes,
-			const int stages, const std::vector<uint>& start_arcs, const std::vector<double>* W=NULL);
-
 	// function that is used to create and solve a Qsopt optimization problem out of the given matrices and vectors, using
 	// the three-stage ansatz
 	template<typename T>

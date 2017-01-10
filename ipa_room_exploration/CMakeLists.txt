@@ -8,7 +8,6 @@ set(catkin_RUN_PACKAGES
 	ipa_building_msgs
 	ipa_building_navigation
 	libconcorde_tsp_solver
-	libqsopt
 	move_base_msgs
 	nav_msgs
 	roscpp
@@ -36,7 +35,6 @@ generate_dynamic_reconfigure_options(
 find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(Eigen REQUIRED)
-find_package(libqsopt REQUIRED)
 
 # Coin-Or and Cbc, included as ubuntu system package, without Cmake-module so include pkg-config file
 #	!!! Important note: the order of the libraries when linking your executable is important, if it is wrong you get undefined references !!!
@@ -105,7 +103,7 @@ include_directories(
 	${Cbc_INCLUDE_DIRS}
 )
 
-# room exploration action server, note: qsopt is a static library --> need an absolut path to it
+# room exploration action server, note: order of linking the Coin-Or packages important
 add_executable(room_exploration_server ros/src/room_exploration_action_server.cpp
 					common/src/grid_point_explorator.cpp
 					common/src/boustrophedon_explorator.cpp
@@ -130,7 +128,6 @@ target_link_libraries(room_exploration_server
 	${Osi_LIBRARIES}
 	${Cgl_LIBRARIES}
 	${Cbc_LIBRARIES}
-	${libqsopt_INCLUDE_DIRS}/libqsopt/qsopt.a
 )
 
 # room exploration client
