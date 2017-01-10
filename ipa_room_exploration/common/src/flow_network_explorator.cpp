@@ -265,7 +265,7 @@ void flowNetworkExplorator::solveMultiStageOptimizationProblem(std::vector<T>& C
 template<typename T>
 void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<double>& weights,
 			const std::vector<std::vector<uint> >& flows_into_nodes, const std::vector<std::vector<uint> >& flows_out_of_nodes,
-			const std::vector<uint>& start_arcs, const std::vector<double>* W)
+			const std::vector<uint>& start_arcs)
 {
 	// initialize the problem
 	CoinModel problem_builder;
@@ -276,35 +276,38 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<T>& C
 	int number_of_variables = 0;
 	for(size_t arc=0; arc<start_arcs.size(); ++arc) // initial stage
 	{
-		if(W != NULL) // if a relaxation-vector is provided, use it to set the weights for the variables
-		{
-			problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
-			problem_builder.setObjective(number_of_variables, W->operator[](arc)*weights[start_arcs[arc]]);
-			++number_of_variables;
-		}
-		else
-		{
-			problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
-			problem_builder.setObjective(number_of_variables, weights[start_arcs[arc]]);
-			problem_builder.setInteger(number_of_variables);
-			++number_of_variables;
-		}
+//		if(W != NULL) // if a relaxation-vector is provided, use it to set the weights for the variables
+//		{
+//			problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
+//			problem_builder.setObjective(number_of_variables, W->operator[](arc)*weights[start_arcs[arc]]);
+//			// inital arc indication variables need to be binary, because only one initial step is allowed
+//			problem_builder.setInteger(number_of_variables);
+//			++number_of_variables;
+//		}
+//		else
+//		{
+		problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
+		problem_builder.setObjective(number_of_variables, weights[start_arcs[arc]]);
+		problem_builder.setInteger(number_of_variables);
+		++number_of_variables;
+//		}
 	}
 	for(size_t variable=0; variable<V.cols; ++variable) // coverage stage
 	{
-		if(W != NULL) // if a weight-vector is provided, use it to set the weights for the variables
-		{
-			problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
-			problem_builder.setObjective(number_of_variables, W->operator[](variable + start_arcs.size())*weights[variable]);
-			++number_of_variables;
-		}
-		else
-		{
-			problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
-			problem_builder.setObjective(number_of_variables, weights[variable]);
-			problem_builder.setInteger(number_of_variables);
-			++number_of_variables;
-		}
+//		if(W != NULL) // if a weight-vector is provided, use it to set the weights for the variables
+//		{
+//			problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
+//			problem_builder.setObjective(number_of_variables, W->operator[](variable + start_arcs.size())*weights[variable]);
+//
+//			++number_of_variables;
+//		}
+//		else
+//		{
+		problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
+		problem_builder.setObjective(number_of_variables, weights[variable]);
+//		problem_builder.setInteger(number_of_variables);
+		++number_of_variables;
+//		}
 	}
 //	int number_of_final_arcs = 0;
 //	for(size_t node=0; node<flows_out_of_nodes.size(); ++node) // final stage
@@ -329,19 +332,34 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<T>& C
 //	}
 	for(size_t variable=0; variable<V.cols; ++variable) // final stage
 	{
-		if(W != NULL) // if a weight-vector is provided, use it to set the weights for the variables
-		{
-			problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
-			problem_builder.setObjective(number_of_variables, W->operator[](variable + start_arcs.size() + V.cols)*weights[variable]);
-			++number_of_variables;
-		}
-		else
-		{
-			problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
-			problem_builder.setObjective(number_of_variables, weights[variable]);
-			problem_builder.setInteger(number_of_variables);
-			++number_of_variables;
-		}
+//		if(W != NULL) // if a weight-vector is provided, use it to set the weights for the variables
+//		{
+//			problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
+//			problem_builder.setObjective(number_of_variables, W->operator[](variable + start_arcs.size() + V.cols)*weights[variable]);
+//			// final arc indication variables need to be binary, because only one terminal step is allowed
+//			problem_builder.setInteger(number_of_variables);
+//			++number_of_variables;
+//		}
+//		else
+//		{
+		problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
+		problem_builder.setObjective(number_of_variables, weights[variable]);
+		problem_builder.setInteger(number_of_variables);
+		++number_of_variables;
+//		}
+	}
+	for(size_t aux_flow=0; aux_flow<V.cols+start_arcs.size(); ++aux_flow) // auxiliary flow variables for initial and coverage stage
+	{
+		problem_builder.setColBounds(number_of_variables, 0.0, COIN_DBL_MAX); // auxiliary flow at least 0
+		problem_builder.setObjective(number_of_variables, 0.0); // no additional part in the objective
+		++number_of_variables;
+	}
+	for(size_t indicator=0; indicator<flows_into_nodes.size(); ++indicator) // indicator variables showing if a node is in the path
+	{
+		problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
+		problem_builder.setObjective(number_of_variables, 0.0); // no additional part in the objective, TODO: check if including number of chosen nodes in objective
+		problem_builder.setInteger(number_of_variables);
+		++number_of_variables;
 	}
 
 	std::cout << "number of variables in the problem: " << number_of_variables << std::endl;
@@ -405,11 +423,24 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<T>& C
 	}
 	problem_builder.addRow((int) start_indices.size(), &start_indices[0], &start_coefficients[0], 1.0, 1.0);
 
-	// coverage stage
+	// coverage stage, also add the flow decreasing and node indicator constraints
 	for(size_t node=0; node<flows_into_nodes.size(); ++node)
 	{
+		// vectors for the conservativity constraint
 		std::vector<int> variable_indices;
 		std::vector<double> variable_coefficients;
+
+		// vectors for the decreasing equality constraint that ensures that the flow gets reduced by 1, every time it passes a node,
+		// cycles are prevented by this, because a start of a cycle is also an end of it, producing a constraint that the flow
+		// trough this node needs to be larger than from any other arc in this cycle but also it needs to be smaller than
+		// any other flow, which is not possible
+		std::vector<int> flow_decrease_indices;
+		std::vector<double> flow_decrease_coefficients;
+
+		// vectors for the node indicator equality constraints that sets the indicator for the node to 1, if an arc flows
+		// into this node during the initial or coverage stage
+		std::vector<int> indicator_indices;
+		std::vector<double> indicator_coefficients;
 
 		// gather flows into node
 		for(size_t inflow=0; inflow<flows_into_nodes[node].size(); ++inflow)
@@ -417,21 +448,38 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<T>& C
 			// if a start arcs flows into the node, additionally take the index of the arc in the start_arc vector
 			if(contains(start_arcs, flows_into_nodes[node][inflow])==true)
 			{
+				// conservativity
 				variable_indices.push_back(std::find(start_arcs.begin(), start_arcs.end(), flows_into_nodes[node][inflow])-start_arcs.begin());
 				variable_coefficients.push_back(1.0);
+				// decreasing flow
+				flow_decrease_indices.push_back(variable_indices.back() + start_arcs.size() + 2.0*V.cols);
+				flow_decrease_coefficients.push_back(1.0);
+				// node indicator
+				indicator_indices.push_back(variable_indices.back());
+				indicator_coefficients.push_back(1.0);
 			}
 			// get the index of the arc in the optimization vector
-			//	Remark: only in the coverage stage flows can flow into a node
+			// conservativity
 			variable_indices.push_back(flows_into_nodes[node][inflow] + start_arcs.size());
 			variable_coefficients.push_back(1.0);
+			// decreasing flow
+			flow_decrease_indices.push_back(variable_indices.back() + start_arcs.size() + 2.0*V.cols);
+			flow_decrease_coefficients.push_back(1.0);
+			// node indicator
+			indicator_indices.push_back(flows_into_nodes[node][inflow] + start_arcs.size());
+			indicator_coefficients.push_back(1.0);
 		}
 
-		// gather flows out of node, also include flows into final nodes
+		// gather flows out of node, also include flows into final nodes (for conservativity)
 		for(size_t outflow=0; outflow<flows_out_of_nodes[node].size(); ++outflow)
 		{
 			// coverage stage variable
+			// conservativity
 			variable_indices.push_back(flows_out_of_nodes[node][outflow] + start_arcs.size());
 			variable_coefficients.push_back(-1.0);
+			// flow decreasing
+			flow_decrease_indices.push_back(flows_out_of_nodes[node][outflow] + 2.0*(start_arcs.size()+V.cols));
+			flow_decrease_coefficients.push_back(-1.0);
 			// final stage variable
 			variable_indices.push_back(flows_out_of_nodes[node][outflow] + start_arcs.size() + V.cols);
 			variable_coefficients.push_back(-1.0);
@@ -442,8 +490,24 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<T>& C
 //		for(size_t i=0; i<variable_indices.size(); ++i)
 //			std::cout << variable_indices[i] << std::endl;
 
-		// add constraint
+		// add conservativity constraint
 		problem_builder.addRow((int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 0.0, 0.0);
+
+		// add node indicator variable to flow decreasing constraint
+		flow_decrease_indices.push_back(node + 2.0*start_arcs.size() + 3.0*V.cols);
+		flow_decrease_coefficients.push_back(-1.0);
+
+		// add flow decreasing constraint
+//		std::cout << "decreasing constraint" << std::endl;
+		problem_builder.addRow((int) flow_decrease_indices.size(), &flow_decrease_indices[0], &flow_decrease_coefficients[0], 0.0, 0.0);
+
+		// get node indicator variable for the indicator constraint
+//		std::cout << "indicator constraint" << std::endl;
+		indicator_indices.push_back(node + 2.0*start_arcs.size() + 3.0*V.cols);
+		indicator_coefficients.push_back(-1.0);
+
+		// add node indicator constraint
+		problem_builder.addRow((int) indicator_indices.size(), &indicator_indices[0], &indicator_coefficients[0], 0.0, 0.0);
 	}
 
 	// equality constraint to ensure that the path only once goes to the final stage
@@ -457,6 +521,71 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<T>& C
 	}
 	// add constraint
 	problem_builder.addRow((int) final_indices.size(), &final_indices[0], &final_coefficients[0], 1.0, 1.0);
+
+	// TODO: finish cycle prevention
+	// inequality constraints changing the maximal flow along an arc, if this arc is gone in the path
+	std::cout << "max flow constraints" << std::endl;
+	for(size_t node=0; node<V.cols+start_arcs.size(); ++node)
+	{
+		// size of two, because each auxiliary flow corresponds to exactly one arc indication variable
+		std::vector<int> aux_flow_indices(2);
+		std::vector<double> aux_flow_coefficients(2);
+
+		// first entry shows indication variable
+		aux_flow_indices[0] = node;
+		aux_flow_coefficients[0] = flows_into_nodes.size()-1; // allow a high flow if the arc is chosen in the path
+
+		// second entry shows the flow variable
+		aux_flow_indices[1] = node+start_arcs.size()+2.0*V.cols;
+		aux_flow_coefficients[1] = -1.0;
+
+		// add constraint
+		problem_builder.addRow((int) aux_flow_indices.size(), &aux_flow_indices[0], &aux_flow_coefficients[0], 0.0);
+	}
+
+	// equality constraints to set the flow out of the start to the number of gone nodes
+	std::cout << "init flow constraints" << std::endl;
+	std::vector<int> start_flow_indices(start_arcs.size()+flows_into_nodes.size());
+	std::vector<double> start_flow_coefficients(start_flow_indices.size());
+	for(size_t node=0; node<start_arcs.size(); ++node) // start arcs
+	{
+		start_flow_indices[node] = node+start_arcs.size()+2.0*V.cols;
+		start_flow_coefficients[node] = 1.0;
+	}
+	for(size_t indicator=0; indicator<flows_into_nodes.size(); ++indicator) // node indicator variables
+	{
+		start_flow_indices[indicator+start_arcs.size()] = indicator+2.0*start_arcs.size()+3.0*V.cols;
+		start_flow_coefficients[indicator+start_arcs.size()] = -1.0;
+	}
+	problem_builder.addRow((int) start_flow_indices.size(), &start_flow_indices[0], &start_flow_coefficients[0], 0.0, 0.0);
+
+	// equality constraints to set the node indicator variables for each node
+//	for(size_t node=0; node<flows_into_nodes.size(); ++node)
+//	{
+//		std::vector<int> indicator_indices;
+//		std::vector<double> indicator_coefficients;
+//
+//		// gather flows into node
+//		for(size_t inflow=0; inflow<flows_into_nodes[node].size(); ++inflow)
+//		{
+//			// if a start arcs flows into the node, additionally take the index of the arc in the start_arc vector
+//			if(contains(start_arcs, flows_into_nodes[node][inflow])==true)
+//			{
+//				indicator_indices.push_back(std::find(start_arcs.begin(), start_arcs.end(), flows_into_nodes[node][inflow])-start_arcs.begin());
+//				indicator_coefficients.push_back(1.0);
+//			}
+//			// get the index of the arc in the optimization vector
+//			indicator_indices.push_back(flows_into_nodes[node][inflow] + start_arcs.size());
+//			indicator_coefficients.push_back(1.0);
+//		}
+//
+//		// get node indicator variable
+//		indicator_indices.push_back(node+2.0*start_arcs.size()+3.0*V.cols);
+//		indicator_coefficients.push_back(-1.0);
+//
+//		// add constraint
+//		problem_builder.addRow((int) indicator_indices.size(), &indicator_indices[0], &indicator_coefficients[0], 0.0, 0.0);
+//	}
 
 	// load the created LP problem to the solver
 	OsiClpSolverInterface LP_solver;
@@ -515,7 +644,7 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<T>& C
 
 	for(size_t res=0; res<number_of_variables; ++res)
 	{
-//		std::cout << solution[i] << std::endl;
+//		std::cout << solution[res] << std::endl;
 		C[res] = solution[res];
 	}
 }
@@ -771,7 +900,7 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	}
 
 	// 2. iteratively solve the optimization problem, using convex relaxation
-	std::vector<double> C_small(flows_out_of_nodes[start_index].size()+number_of_candidates+number_of_outflows);
+	std::vector<double> C_small(2.0*(flows_out_of_nodes[start_index].size()+number_of_candidates) + number_of_outflows + edges.size());
 	std::vector<double> W_small(C_small.size(), 1.0);
 	std::cout << "number of outgoing arcs: " << number_of_outflows << std::endl;
 //	solveThreeStageOptimizationProblem(C_small, V, w, flows_into_nodes, flows_out_of_nodes, flows_out_of_nodes[0], &W_small);
@@ -789,43 +918,45 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	uint number_of_iterations = 0;
 	std::vector<uint> sparsity_measures; // vector that stores the computed sparsity measures to check convergence
 	double euler_constant = std::exp(1.0);
-	do
-	{
-		// increase number of iterations
-		++number_of_iterations;
+//	do
+//	{
+//		// increase number of iterations
+//		++number_of_iterations;
+//
+//		// solve optimization of the current step
+////		solveMultiStageOptimizationProblem(C, V, w, flows_into_nodes, flows_out_of_nodes, number_of_stages, flows_out_of_nodes[start_index], &W);
+//		solveThreeStageOptimizationProblem(C_small, V, w, flows_into_nodes, flows_out_of_nodes, flows_out_of_nodes[start_index], &W_small);
+//
+//		// update epsilon and W
+//		int exponent = 1 + (number_of_iterations - 1)*0.1;
+//		weight_epsilon = std::pow(1/(euler_constant-1), exponent);
+//		for(size_t weight=0; weight<W_small.size(); ++weight)
+//			W_small[weight] = weight_epsilon/(weight_epsilon + C_small[weight]);
+//
+//		// measure sparsity of C to check terminal condition, used measure: l^0_eps (|{i: c[i] <= eps}|)
+//		uint sparsity_measure = 0;
+//		for(size_t variable=0; variable<C_small.size(); ++variable)
+//			if(C_small[variable]<=0.01)
+//				++sparsity_measure;
+//		sparsity_measures.push_back(sparsity_measure);
+//
+//		// check terminal condition, i.e. if the sparsity hasn't improved in the last n steps using l^0_eps measure,
+//		// if enough iterations have been done yet
+//		if(sparsity_measures.size() >= sparsity_check_range)
+//		{
+//			uint number_of_last_measure = 0;
+//			for(std::vector<uint>::reverse_iterator measure=sparsity_measures.rbegin(); measure!=sparsity_measures.rbegin()+sparsity_check_range && measure!=sparsity_measures.rend(); ++measure)
+//				if(*measure >= sparsity_measures.back())
+//					++number_of_last_measure;
+//
+//			if(number_of_last_measure == sparsity_check_range)
+//				sparsity_converged = true;
+//		}
+//
+//		std::cout << "Iteration: " << number_of_iterations << ", sparsity: " << sparsity_measures.back() << std::endl;
+//	}while(sparsity_converged == false && number_of_iterations <= 50); // TODO: param
 
-		// solve optimization of the current step
-//		solveMultiStageOptimizationProblem(C, V, w, flows_into_nodes, flows_out_of_nodes, number_of_stages, flows_out_of_nodes[start_index], &W);
-		solveThreeStageOptimizationProblem(C_small, V, w, flows_into_nodes, flows_out_of_nodes, flows_out_of_nodes[start_index], &W_small);
-
-		// update epsilon and W
-		int exponent = 1 + (number_of_iterations - 1)*0.1;
-		weight_epsilon = std::pow(1/(euler_constant-1), exponent);
-		for(size_t weight=0; weight<W_small.size(); ++weight)
-			W_small[weight] = weight_epsilon/(weight_epsilon + C_small[weight]);
-
-		// measure sparsity of C to check terminal condition, used measure: l^0_eps (|{i: c[i] <= eps}|)
-		uint sparsity_measure = 0;
-		for(size_t variable=0; variable<C_small.size(); ++variable)
-			if(C_small[variable]<=0.01)
-				++sparsity_measure;
-		sparsity_measures.push_back(sparsity_measure);
-
-		// check terminal condition, i.e. if the sparsity hasn't improved in the last n steps using l^0_eps measure,
-		// if enough iterations have been done yet
-		if(sparsity_measures.size() >= sparsity_check_range)
-		{
-			uint number_of_last_measure = 0;
-			for(std::vector<uint>::reverse_iterator measure=sparsity_measures.rbegin(); measure!=sparsity_measures.rbegin()+sparsity_check_range && measure!=sparsity_measures.rend(); ++measure)
-				if(*measure >= sparsity_measures.back())
-					++number_of_last_measure;
-
-			if(number_of_last_measure == sparsity_check_range)
-				sparsity_converged = true;
-		}
-
-		std::cout << "Iteration: " << number_of_iterations << ", sparsity: " << sparsity_measures.back() << std::endl;
-	}while(sparsity_converged == false && number_of_iterations <= 50); // TODO: param
+	solveThreeStageOptimizationProblem(C_small, V, w, flows_into_nodes, flows_out_of_nodes, flows_out_of_nodes[start_index]);
 
 	// 3. discard the arcs corresponding to zero elements in the optimization vector and solve the final optimization
 	//	  problem
@@ -841,7 +972,7 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 
 			std::vector<cv::Point> path=arcs[flows_out_of_nodes[start_index][start_arc]].edge_points;
 			for(size_t j=0; j<path.size(); ++j)
-				test_map.at<uchar>(path[j])=100;
+				test_map.at<uchar>(path[j])=50;
 
 			cv::imshow("discretized", test_map);
 			cv::waitKey();
@@ -877,7 +1008,7 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 				used_arcs.insert(flows_out_of_nodes[node][flow]);
 				std::vector<cv::Point> path=arcs[flows_out_of_nodes[node][flow]].edge_points;
 				for(size_t j=0; j<path.size(); ++j)
-					test_map.at<uchar>(path[j])=100;
+					test_map.at<uchar>(path[j])=150;
 
 				cv::imshow("discretized", test_map);
 				cv::waitKey();
@@ -949,19 +1080,19 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 //	for(size_t sol=0; sol<C_small.size(); ++sol)
 //		std::cout << C_small[sol] << std::endl;
 //
-//	for(size_t row=0; row<V_reduced.rows; ++row)
-//	{
-//		int one_count = 0;
-//		for(size_t col=0; col<V_reduced.cols; ++col)
-//		{
-//			std::cout << (int) V_reduced.at<uchar>(row, col) << " ";
-//			if(V_reduced.at<uchar>(row, col)!=0)
-//				++one_count;
-//		}
-//		std::cout << std::endl;
-//		if(one_count == 0)
-//			std::cout << "!!!!!!!!!!!!! empty row !!!!!!!!!!!!!!!!!!" << std::endl;
-//	}
+	for(size_t row=0; row<V_reduced.rows; ++row)
+	{
+		int one_count = 0;
+		for(size_t col=0; col<V_reduced.cols; ++col)
+		{
+			std::cout << (int) V_reduced.at<uchar>(row, col) << " ";
+			if(V_reduced.at<uchar>(row, col)!=0)
+				++one_count;
+		}
+		std::cout << std::endl;
+		if(one_count == 0)
+			std::cout << "!!!!!!!!!!!!! empty row !!!!!!!!!!!!!!!!!!" << std::endl;
+	}
 
 //	testing
 //	cv::Mat test_map = room_map.clone();
@@ -1040,7 +1171,7 @@ void flowNetworkExplorator::testFunc()
 //		std::cout << std::endl;
 //	}
 	std::vector<double> w(14, 1.0);
-	std::vector<double> C(2+14+14);
+	std::vector<double> C(2+14+14+2+14+6);
 	cv::Mat V = cv::Mat(12, 14, CV_8U, cv::Scalar(0));
 	std::vector<std::vector<uint> > flows_out_of_nodes(6);
 	std::vector<std::vector<uint> > flows_in_nodes(6);
@@ -1140,10 +1271,10 @@ void flowNetworkExplorator::testFunc()
 	std::vector<double> W(C.size(), 1.0);
 	double weight_epsilon = 0.0;
 	double euler_constant = std::exp(1.0);
-	for(size_t i=1; i<=3; ++i)
+	for(size_t i=1; i<=1; ++i)
 	{
 
-		solveThreeStageOptimizationProblem(C, V, w, flows_in_nodes, flows_out_of_nodes, flows_out_of_nodes[0], &W);
+		solveThreeStageOptimizationProblem(C, V, w, flows_in_nodes, flows_out_of_nodes, flows_out_of_nodes[0]);//, &W);
 		for(size_t c=0; c<C.size(); ++c)
 			std::cout << C[c] << std::endl;
 		std::cout << std::endl;
