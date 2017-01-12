@@ -517,8 +517,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	// ***************** II. plan the path using the wanted planner *****************
 	std::vector<geometry_msgs::Pose2D> exploration_path;
-	flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, 10, min_max_coordinates, middle_point, fitting_circle_radius/map_resolution, false, 5);
-//	flow_network_explorator_.testFunc();
+//	flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, 10, min_max_coordinates, middle_point, fitting_circle_radius/map_resolution, false, 5);
+	flow_network_explorator_.testFunc();
 	if(path_planning_algorithm_ == 1) // use grid point explorator
 	{
 		// set wanted grid size

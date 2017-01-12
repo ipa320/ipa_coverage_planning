@@ -33,7 +33,7 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<doubl
 	{
 		problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
 		problem_builder.setObjective(number_of_variables, weights[variable]);
-//		problem_builder.setInteger(number_of_variables);
+		problem_builder.setInteger(number_of_variables);
 		++number_of_variables;
 	}
 	for(size_t variable=0; variable<V.cols; ++variable) // final stage
@@ -202,7 +202,6 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<doubl
 	// add constraint
 	problem_builder.addRow((int) final_indices.size(), &final_indices[0], &final_coefficients[0], 1.0, 1.0);
 
-	// TODO: finish cycle prevention
 	// inequality constraints changing the maximal flow along an arc, if this arc is gone in the path
 	std::cout << "max flow constraints" << std::endl;
 	for(size_t node=0; node<V.cols+start_arcs.size(); ++node)
@@ -253,7 +252,8 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<doubl
 	model.solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
 
 //	CbcHeuristicLocal heuristic2(model);
-//	model.addHeuristic(&heuristic2);
+	CbcHeuristicFPump heuristic(model);
+	model.addHeuristic(&heuristic);
 
 	model.initialSolve();
 	model.branchAndBound();
@@ -299,7 +299,7 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 	{
 		problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
 		problem_builder.setObjective(number_of_variables, weights[variable]);
-//		problem_builder.setInteger(number_of_variables);
+		problem_builder.setInteger(number_of_variables);
 		++number_of_variables;
 	}
 	for(size_t variable=0; variable<V.cols; ++variable) // final stage
@@ -423,14 +423,191 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 	CbcModel model(*solver_pointer);
 	model.solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
 
-//	CbcHeuristicLocal heuristic2(model);
-//	model.addHeuristic(&heuristic2);
+	CbcHeuristicFPump heuristic(model);
+	model.addHeuristic(&heuristic);
 
 	model.initialSolve();
 	model.branchAndBound();
 
+//	testing
+//	std::vector<int> test_row(2);
+//	std::vector<double> test_coeff(2);
+//
+//	test_row[0] = 0;
+//	test_row[1] = 1;
+//
+//	test_coeff[0] = 1.0;
+//	test_coeff[1] = 1.0;
+//	solver_pointer->addRow(2, &test_row[0], &test_coeff[0], 0.0, 0.0);
+//	solver_pointer->writeLp("lin_flow_prog", "lp");
+//	solver_pointer->resolve();
+
 	// retrieve solution
 	const double* solution = model.solver()->getColSolution();
+
+	// search for cycles in the retrieved solution, if one is found add a constraint to prevent this cycle
+	// TODO: finish adding and resolving lazy constraints
+	bool cycle_free = false;
+
+	do
+	{
+		// get the arcs that are used in the previously calculated solution
+		std::set<uint> used_arcs; // set that stores the indices of the arcs corresponding to non-zero elements in the solution
+
+		// go trough the start arcs
+		for(size_t start_arc=0; start_arc<start_arcs.size(); ++start_arc)
+		{
+			if(solution[start_arc]!=0)
+			{
+				// insert start index
+				used_arcs.insert(start_arcs[start_arc]);
+			}
+		}
+
+		// go trough the coverage stage
+		for(size_t arc=start_arcs.size(); arc<start_arcs.size()+V.cols; ++arc)
+		{
+			if(solution[arc]!=0)
+			{
+				// insert index, relative to the first coverage variable
+				used_arcs.insert(arc-start_arcs.size());
+			}
+		}
+
+		// go trough the final stage and find the remaining used arcs
+		std::vector<std::vector<uint> > reduced_outflows(flows_out_of_nodes.size());
+		for(size_t node=0; node<flows_out_of_nodes.size(); ++node)
+		{
+			for(size_t flow=0; flow<flows_out_of_nodes[node].size(); ++flow)
+			{
+				if(solution[flows_out_of_nodes[node][flow]+start_arcs.size()+V.cols]!=0)
+				{
+					// insert saved outgoing flow index
+					used_arcs.insert(flows_out_of_nodes[node][flow]);
+				}
+			}
+		}
+
+		std::cout << "got the used arcs:" << std::endl;
+		for(std::set<uint>::iterator sol=used_arcs.begin(); sol!=used_arcs.end(); ++sol)
+			std::cout << *sol << std::endl;
+		std::cout << std::endl;
+
+		// construct the directed edges out of the used arcs
+		std::vector<std::vector<int> > directed_edges; // vector that stores the directed edges for each node
+		for(uint start_node=0; start_node<flows_out_of_nodes.size(); ++start_node)
+		{
+			// check if a used arc is flowing out of the current start node
+			std::vector<uint> originating_flows;
+			bool originating = false;
+			for(std::set<uint>::iterator arc=used_arcs.begin(); arc!=used_arcs.end(); ++arc)
+			{
+				if(contains(flows_out_of_nodes[start_node], *arc)==true)
+				{
+					originating = true;
+					originating_flows.push_back(*arc);
+				}
+			}
+
+			// if the arc is originating from this node, find its destination
+			std::vector<int> current_directed_edges;
+			if(originating==true)
+			{
+				for(uint end_node=0; end_node<flows_into_nodes.size(); ++end_node)
+				{
+					if(end_node==start_node)
+						continue;
+
+					for(std::vector<uint>::iterator arc=originating_flows.begin(); arc!=originating_flows.end(); ++arc)
+						if(contains(flows_into_nodes[end_node], *arc)==true)
+							current_directed_edges.push_back(end_node);
+				}
+			}
+
+			// if the current node doesn't flow into another node insert a vector storing -1
+			if(current_directed_edges.size()==0)
+				current_directed_edges.push_back(-1);
+
+			// save the found used directed edges
+			directed_edges.push_back(current_directed_edges);
+		}
+
+		// testing
+		std::cout << "used destinations: " << std::endl;
+		directed_edges[1].push_back(0);
+		for(size_t i=0; i<directed_edges.size(); ++i)
+		{
+			for(size_t j=0; j<directed_edges[i].size(); ++j)
+			{
+				std::cout << directed_edges[i][j] << " ";
+			}
+			std::cout << std::endl;
+		}
+		std::cout << std::endl;
+
+		// construct the support graph out of the directed edges
+		directedGraph support_graph(flows_out_of_nodes.size()); // initialize with the right number of edges
+
+		int number_of_not_used_nodes = 0;
+		for(size_t start=0; start<directed_edges.size(); ++start)
+		{
+			for(size_t end=0; end<directed_edges[start].size(); ++end)
+			{
+				// if no destination starting from this node could be found ignore this node
+				if(directed_edges[start][end]==-1)
+				{
+					break;
+					++number_of_not_used_nodes;
+				}
+
+				// add the directed edge
+				boost::add_edge(start, directed_edges[start][end], support_graph);
+			}
+		}
+
+		// search for the strongly connected components
+		std::vector<int> c(flows_into_nodes.size());
+		int number_of_strong_components = boost::strong_components(support_graph, boost::make_iterator_property_map(c.begin(), boost::get(boost::vertex_index, support_graph), c[0]));
+		std::cout << "got " << number_of_strong_components << " strongly connected components" << std::endl;
+		for (std::vector <int>::iterator i = c.begin(); i != c.end(); ++i)
+		  std::cout << "Vertex " << i - c.begin() << " is in component " << *i << std::endl;
+
+		// check if no cycle appears in the solution, i.e. if not each node is a component of its own or a traveling
+		// salesman path has been computed (not_used_nodes+1)
+		if(number_of_strong_components==flows_out_of_nodes.size() || number_of_strong_components==number_of_not_used_nodes+1)
+			cycle_free = true;
+
+		// if a cycle appears find it and add the prevention constraint to the problem and resolve it
+		if(cycle_free==false)
+		{
+			// go trough the components and find components with more than 1 element in it
+			std::vector<std::vector<uint> > cycles;
+			for (int component=0; component<c.size(); ++component)
+			{
+				std::vector<uint> current_component;
+				int elements = std::count(c.begin(), c.end(), c[component]);
+				std::cout << c[component] << std::endl;
+				if(elements>=2)
+					for(std::vector<int>::iterator element=c.begin(); element!=c.end(); ++element)
+						if(*element==c[component])
+							current_component.push_back(element-c.begin());
+
+				// save the found cycle
+				cycles.push_back(current_component);
+			}
+
+			for(size_t i=0; i<cycles.size(); ++i)
+			{
+				for(size_t j=0; j<cycles[i].size(); ++i)
+				{
+					std::cout << cycles[i][j] << " ";
+				}
+				std::cout << std::endl;
+			}
+		}
+
+		cycle_free = true;
+	}while(cycle_free == false);
 
 	for(size_t res=0; res<number_of_variables; ++res)
 	{
@@ -693,7 +870,8 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	std::vector<double> C(2.0*(flows_out_of_nodes[start_index].size()+number_of_candidates) + number_of_outflows + edges.size());
 	std::cout << "number of outgoing arcs: " << number_of_outflows << std::endl;
 
-	solveThreeStageOptimizationProblem(C, V, w, flows_into_nodes, flows_out_of_nodes, flows_out_of_nodes[start_index]);
+//	solveThreeStageOptimizationProblem(C, V, w, flows_into_nodes, flows_out_of_nodes, flows_out_of_nodes[start_index]);
+	solveLazyConstraintOptimizationProblem(C, V, w, flows_into_nodes, flows_out_of_nodes, flows_out_of_nodes[start_index]);
 
 	// 3. discard the arcs corresponding to zero elements in the optimization vector and solve the final optimization
 	//	  problem
@@ -814,8 +992,13 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	}
 	V_reduced = V_reduced.colRange(1, V_reduced.cols);
 
-	for(size_t sol=0; sol<C.size(); ++sol)
-		std::cout << C[sol] << std::endl;
+	for(size_t sol=0; sol<flows_out_of_nodes[start_index].size()+2.0*number_of_candidates; ++sol)
+	{
+		if(C[sol] != 0)
+		{
+			std::cout << "var" << sol << ": " << C[sol] << std::endl;
+		}
+	}
 
 	for(size_t row=0; row<V_reduced.rows; ++row)
 	{
@@ -826,7 +1009,7 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 			if(V_reduced.at<uchar>(row, col)!=0)
 				++one_count;
 		}
-		std::cout << std::endl;
+//		std::cout << std::endl;
 		if(one_count == 0)
 			std::cout << "!!!!!!!!!!!!! empty row !!!!!!!!!!!!!!!!!!" << std::endl;
 	}
@@ -968,31 +1151,42 @@ void flowNetworkExplorator::testFunc()
 
 	flows_out_of_nodes[0].push_back(0);
 	flows_out_of_nodes[0].push_back(4);
+
 	flows_out_of_nodes[1].push_back(1);
 	flows_out_of_nodes[1].push_back(2);
 	flows_out_of_nodes[1].push_back(6);
+
 	flows_out_of_nodes[2].push_back(3);
 	flows_out_of_nodes[2].push_back(8);
+
 	flows_out_of_nodes[3].push_back(5);
 	flows_out_of_nodes[3].push_back(10);
+
 	flows_out_of_nodes[4].push_back(7);
 	flows_out_of_nodes[4].push_back(11);
 	flows_out_of_nodes[4].push_back(12);
+
 	flows_out_of_nodes[5].push_back(9);
 	flows_out_of_nodes[5].push_back(13);
 
+
 	flows_in_nodes[0].push_back(1);
 	flows_in_nodes[0].push_back(5);
+
 	flows_in_nodes[1].push_back(0);
 	flows_in_nodes[1].push_back(3);
 	flows_in_nodes[1].push_back(7);
+
 	flows_in_nodes[2].push_back(2);
 	flows_in_nodes[2].push_back(9);
+
 	flows_in_nodes[3].push_back(4);
 	flows_in_nodes[3].push_back(11);
+
 	flows_in_nodes[4].push_back(6);
 	flows_in_nodes[4].push_back(10);
 	flows_in_nodes[4].push_back(13);
+
 	flows_in_nodes[5].push_back(8);
 	flows_in_nodes[5].push_back(12);
 
@@ -1011,7 +1205,8 @@ void flowNetworkExplorator::testFunc()
 	for(size_t i=1; i<=1; ++i)
 	{
 
-		solveThreeStageOptimizationProblem(C, V, w, flows_in_nodes, flows_out_of_nodes, flows_out_of_nodes[0]);//, &W);
+//		solveThreeStageOptimizationProblem(C, V, w, flows_in_nodes, flows_out_of_nodes, flows_out_of_nodes[0]);//, &W);
+		solveLazyConstraintOptimizationProblem(C, V, w, flows_in_nodes, flows_out_of_nodes, flows_out_of_nodes[0]);
 		for(size_t c=0; c<C.size(); ++c)
 			std::cout << C[c] << std::endl;
 		std::cout << std::endl;

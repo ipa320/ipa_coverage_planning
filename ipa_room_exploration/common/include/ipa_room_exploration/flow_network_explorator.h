@@ -14,9 +14,13 @@
 #include <coin/OsiClpSolverInterface.hpp>
 #include <coin/CoinModel.hpp>
 #include <coin/CbcModel.hpp>
-#include <coin/CbcHeuristicLocal.hpp>
+#include <coin/CbcHeuristicFPump.hpp>
 // Coin-Or library with Clp linear programming solver
 #include <coin/ClpSimplex.hpp>
+// Boost libraries
+#include <boost/config.hpp>
+#include <boost/graph/strong_components.hpp>
+#include <boost/graph/adjacency_list.hpp>
 
 #include <ipa_room_exploration/fow_to_robot_mapper.h>
 #include <ipa_room_exploration/A_star_pathplanner.h>
@@ -95,6 +99,8 @@ struct arcStruct
 	std::vector<cv::Point> edge_points;
 };
 
+// typedef for boost, defining a directed graph
+typedef boost::adjacency_list <boost::vecS, boost::vecS, boost::directedS > directedGraph;
 
 // TODO: update
 // This class provides a coverage path planning algorithm based on a flow network. It spans such a network by going trough
