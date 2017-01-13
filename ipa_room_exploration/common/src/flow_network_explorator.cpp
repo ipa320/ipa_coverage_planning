@@ -33,7 +33,7 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<doubl
 	{
 		problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
 		problem_builder.setObjective(number_of_variables, weights[variable]);
-		problem_builder.setInteger(number_of_variables);
+//		problem_builder.setInteger(number_of_variables);
 		++number_of_variables;
 	}
 	for(size_t variable=0; variable<V.cols; ++variable) // final stage
@@ -489,6 +489,7 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 		}
 
 		std::cout << "got the used arcs:" << std::endl;
+//		used_arcs.insert(1); // TODO: delete
 		for(std::set<uint>::iterator sol=used_arcs.begin(); sol!=used_arcs.end(); ++sol)
 			std::cout << *sol << std::endl;
 		std::cout << std::endl;
@@ -534,7 +535,7 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 
 		// testing
 		std::cout << "used destinations: " << std::endl;
-		directed_edges[1].push_back(0);
+//		directed_edges[1].push_back(0);
 		for(size_t i=0; i<directed_edges.size(); ++i)
 		{
 			for(size_t j=0; j<directed_edges[i].size(); ++j)
@@ -581,32 +582,143 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 		if(cycle_free==false)
 		{
 			// go trough the components and find components with more than 1 element in it
-			std::vector<std::vector<uint> > cycles;
+			std::vector<std::vector<uint> > cycle_nodes;
+			std::set<int> done_components; // set that stores the component indices for that the nodes already were found
 			for (int component=0; component<c.size(); ++component)
 			{
-				std::vector<uint> current_component;
-				int elements = std::count(c.begin(), c.end(), c[component]);
-				std::cout << c[component] << std::endl;
-				if(elements>=2)
-					for(std::vector<int>::iterator element=c.begin(); element!=c.end(); ++element)
-						if(*element==c[component])
-							current_component.push_back(element-c.begin());
+				// check if component hasn't been done yet
+				if(done_components.find(c[component])==done_components.end())
+				{
+					std::vector<uint> current_component_nodes;
+					int elements = std::count(c.begin(), c.end(), c[component]);
+//					std::cout << c[component] << std::endl;
+					if(elements>=2)
+					{
+						for(std::vector<int>::iterator element=c.begin(); element!=c.end(); ++element)
+						{
+							if(*element==c[component])
+							{
+								current_component_nodes.push_back(element-c.begin());
+							}
+						}
 
-				// save the found cycle
-				cycles.push_back(current_component);
+						// save the found cycle
+						if(current_component_nodes.size()>0)
+							cycle_nodes.push_back(current_component_nodes);
+
+						// add it to done components
+						done_components.insert(c[component]);
+					}
+				}
 			}
 
-			for(size_t i=0; i<cycles.size(); ++i)
+			std::cout << "found nodes that are part of a cycle: " << std::endl;
+			for(size_t i=0; i<cycle_nodes.size(); ++i)
 			{
-				for(size_t j=0; j<cycles[i].size(); ++i)
+				for(size_t j=0; j<cycle_nodes[i].size(); ++j)
 				{
-					std::cout << cycles[i][j] << " ";
+					std::cout << cycle_nodes[i][j] << " ";
 				}
 				std::cout << std::endl;
 			}
-		}
 
-		cycle_free = true;
+			// add the cycle prevention constraints for each found cycle to the optimization problem and resolve it
+			for(size_t cycle=0; cycle<cycle_nodes.size(); ++cycle)
+			{
+				// for each node in this cycle only use the outgoing arcs that are part of the cycle and the outflows
+				// out of the cycle that don't start at the current node
+//				std::cout << "searching for outflows" << std::endl;
+				for(size_t node=0; node<cycle_nodes[cycle].size(); ++node)
+				{
+					std::vector<int> cpc_indices;
+					std::vector<double> cpc_coefficients;
+
+					// gather the arcs in outgoing from all neighbors
+					for(size_t neighbor=0; neighbor<cycle_nodes[cycle].size(); ++neighbor)
+					{
+						// for the node itself gather the outflows that belong to the cycle
+						if(neighbor==node)
+						{
+//							std::cout << "node itself: " << cycle_nodes[cycle][neighbor] << std::endl;
+							int flow_index = -1;
+							for(std::vector<uint>::const_iterator outflow=flows_out_of_nodes[cycle_nodes[cycle][neighbor]].begin(); outflow!=flows_out_of_nodes[cycle_nodes[cycle][neighbor]].end(); ++outflow)
+							{
+								// if the current arc is used in the solution, search for it in the incoming flows of
+								// the other nodes in the cycle
+								if(used_arcs.find(*outflow)!=used_arcs.end())
+									for(size_t new_node=0; new_node<cycle_nodes[cycle].size(); ++new_node)
+										if(contains(flows_into_nodes[cycle_nodes[cycle][new_node]], *outflow)==true)
+											flow_index=*outflow;
+							}
+
+							// if the outflow is an inflow of another cycle node, add its index to the constraint
+							if(flow_index!=-1)
+							{
+								cpc_indices.push_back(flow_index+start_arcs.size());
+								cpc_coefficients.push_back(-1.0);
+							}
+
+//							for(std::vector<uint>::const_iterator outflow=flows_out_of_nodes[cycle_nodes[cycle][neighbor]].begin(); outflow!=flows_out_of_nodes[cycle_nodes[cycle][neighbor]].end(); ++outflow)
+//							{
+//								std::cout << *outflow << " ";
+//								if(contains(cycle_nodes[cycle], *outflow)==true)
+//								{
+//									cpc_indices.push_back(*outflow+start_arcs.size());
+//									cpc_coefficients.push_back(-1.0);
+//								}
+//							}
+//							std::cout << std::endl;
+						}
+						// for other nodes gather outflows that are not part of the cycle
+						else
+						{
+//							std::cout << "neighbor" << std::endl;
+							bool in_cycle = false;
+							for(std::vector<uint>::const_iterator outflow=flows_out_of_nodes[cycle_nodes[cycle][neighbor]].begin(); outflow!=flows_out_of_nodes[cycle_nodes[cycle][neighbor]].end(); ++outflow)
+							{
+								// search for the current flow in the incoming flows of the other nodes in the cycle
+								for(size_t new_node=0; new_node<cycle_nodes[cycle].size(); ++new_node)
+									if(contains(flows_into_nodes[cycle_nodes[cycle][new_node]], *outflow)==true)
+										in_cycle=true;
+
+								// if the arc is not in the cycle add its index
+								if(in_cycle==false)
+								{
+									cpc_indices.push_back(*outflow+start_arcs.size());
+									cpc_coefficients.push_back(1.0);
+								}
+
+								// reset the indication boolean
+								in_cycle = false;
+							}
+
+//							for(std::vector<uint>::const_iterator outflow=flows_out_of_nodes[cycle_nodes[cycle][neighbor]].begin(); outflow!=flows_out_of_nodes[cycle_nodes[cycle][neighbor]].end(); ++outflow)
+//							{
+//								if(contains(cycle_nodes[cycle], *outflow)==false)
+//								{
+//									cpc_indices.push_back(*outflow+start_arcs.size());
+//									cpc_coefficients.push_back(1.0);
+//								}
+//							}
+						}
+					}
+
+					std::cout << "adding constraint" << std::endl;
+					// add the constraint
+					solver_pointer->addRow((int) cpc_indices.size(), &cpc_indices[0], &cpc_coefficients[0], 0.0, COIN_DBL_MAX);
+				}
+
+			}
+
+//			testing
+			solver_pointer->writeLp("lin_flow_prog", "lp");
+
+			// resolve the problem with the new constraints
+			solver_pointer->resolve();
+
+			// retrieve new solution
+			const double* solution = model.solver()->getColSolution();
+		}
 	}while(cycle_free == false);
 
 	for(size_t res=0; res<number_of_variables; ++res)
