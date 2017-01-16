@@ -16,6 +16,7 @@
 	<depend>cmake_modules</depend>
 	<depend>cob_map_accessibility_analysis</depend>
 	<depend>coinor-libcbc-dev</depend>
+	<depend>coinor-libcbc3</depend>
 	<depend>coinor-libcgl-dev</depend>
 	<depend>coinor-libclp-dev</depend>
 	<depend>coinor-libcoinutils-dev</depend>

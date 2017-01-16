@@ -43,13 +43,13 @@ pkg_check_modules(CoinUtils REQUIRED coinutils)# coinutils osi-clp clp osi cbc c
 pkg_check_modules(OsiClp REQUIRED osi-clp)
 pkg_check_modules(Clp REQUIRED clp)
 pkg_check_modules(Osi REQUIRED osi)
-pkg_check_modules(Cbc REQUIRED cbc)
+pkg_check_modules(Cbc-lib REQUIRED cbc)
 pkg_check_modules(Cgl REQUIRED cgl)
 Message(STATUS "coinutils include dirs: " ${CoinUtils_INCLUDE_DIRS})
 Message(STATUS "osi-clp include dirs: " ${OsiClp_INCLUDE_DIRS})
 Message(STATUS "clp include dirs: " ${Clp_INCLUDE_DIRS})
 Message(STATUS "osi include dirs: " ${Osi_INCLUDE_DIRS})
-Message(STATUS "cbc include dirs: " ${Cbc_INCLUDE_DIRS})
+Message(STATUS "cbc include dirs: " ${Cbc-lib_INCLUDE_DIRS})
 Message(STATUS "cgl include dirs: " ${Cgl_INCLUDE_DIRS})
 
 ###################################
@@ -77,7 +77,7 @@ DEPENDS
 	Clp
 	Osi
 	Cgl
-	Cbc
+	Cbc-lib
 )
 
 
@@ -100,7 +100,7 @@ include_directories(
 	${Clp_INCLUDE_DIRS}
 	${Osi_INCLUDE_DIRS}
 	${Cgl_INCLUDE_DIRS}
-	${Cbc_INCLUDE_DIRS}
+	${Cbc-lib_INCLUDE_DIRS}
 )
 
 # room exploration action server, note: order of linking the Coin-Or packages important
@@ -127,7 +127,7 @@ target_link_libraries(room_exploration_server
 	${Clp_LIBRARIES}
 	${Osi_LIBRARIES}
 	${Cgl_LIBRARIES}
-	${Cbc_LIBRARIES}
+	${Cbc-lib_LIBRARIES}
 )
 
 # room exploration client
