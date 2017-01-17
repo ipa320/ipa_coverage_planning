@@ -584,7 +584,6 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 
 		// check if no cycle appears in the solution, i.e. if not each node is a component of its own or a traveling
 		// salesman path has been computed (not_used_nodes+1) or each arc flows to another node
-		// TODO: check
 		if(number_of_cycles==0)
 			cycle_free = true;
 
@@ -711,8 +710,8 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 			CbcModel new_model(*solver_pointer);
 			new_model.solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
 
-			CbcHeuristicFPump heuristic(model);
-			new_model.addHeuristic(&heuristic);
+			CbcHeuristicFPump heuristic_new(new_model);
+			new_model.addHeuristic(&heuristic_new);
 
 //			new_model.initialSolve();
 			new_model.branchAndBound();

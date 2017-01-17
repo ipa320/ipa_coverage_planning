@@ -3,6 +3,7 @@
 # 2 = boustrophedon explorator
 # 3 = neural network explorator
 # 4 = convexSPP explorator
+# 5 = flowNetwork explorator
 # int
 room_exploration_algorithm: 1
 
@@ -53,4 +54,5 @@ delta_theta: 1.570796
 
 # parameters specfific for the flowNetwork explorator
 # factor, an arc can be longer than a straight arc, higher values allow more arcs to be considered in the optimization problem
-curvature_factor: 1.3 # 1.1
+# Important: if too small, maybe the problem becomes infeasible and the optimizer won't work correctly
+curvature_factor: 1.1 # 1.1
