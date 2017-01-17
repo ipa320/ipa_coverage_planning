@@ -52,7 +52,7 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<doubl
 	for(size_t indicator=0; indicator<flows_into_nodes.size(); ++indicator) // indicator variables showing if a node is in the path
 	{
 		problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
-		problem_builder.setObjective(number_of_variables, 0.0); // no additional part in the objective, TODO: check if including number of chosen nodes in objective
+		problem_builder.setObjective(number_of_variables, 0.0); // no additional part in the objective
 		problem_builder.setInteger(number_of_variables);
 		++number_of_variables;
 	}
@@ -65,7 +65,6 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<doubl
 	{
 		std::vector<int> variable_indices;
 
-		// initial stage, TODO: check this for correctness
 		for(size_t col=0; col<start_arcs.size(); ++col)
 			if(V.at<uchar>(row, start_arcs[col])==1)
 				variable_indices.push_back((int) col);
@@ -317,7 +316,6 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 	{
 		std::vector<int> variable_indices;
 
-		// initial stage, TODO: check this for correctness
 		for(size_t col=0; col<start_arcs.size(); ++col)
 			if(V.at<uchar>(row, start_arcs[col])==1)
 				variable_indices.push_back((int) col);
@@ -446,7 +444,6 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 	const double* solution = model.solver()->getColSolution();
 
 	// search for cycles in the retrieved solution, if one is found add a constraint to prevent this cycle
-	// TODO: finish adding and resolving lazy constraints
 	bool cycle_free = false;
 
 	do
@@ -488,11 +485,11 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 			}
 		}
 
-		std::cout << "got the used arcs:" << std::endl;
-//		used_arcs.insert(1); // TODO: delete
-		for(std::set<uint>::iterator sol=used_arcs.begin(); sol!=used_arcs.end(); ++sol)
-			std::cout << *sol << std::endl;
-		std::cout << std::endl;
+		std::cout << "got " << used_arcs.size() << " used arcs" << std::endl;
+//		std::cout << "got the used arcs:" << std::endl;
+//		for(std::set<uint>::iterator sol=used_arcs.begin(); sol!=used_arcs.end(); ++sol)
+//			std::cout << *sol << std::endl;
+//		std::cout << std::endl;
 
 		// construct the directed edges out of the used arcs
 		std::vector<std::vector<int> > directed_edges; // vector that stores the directed edges for each node
@@ -533,18 +530,18 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 			directed_edges.push_back(current_directed_edges);
 		}
 
-		// testing
-		std::cout << "used destinations: " << std::endl;
-//		directed_edges[1].push_back(0);
-		for(size_t i=0; i<directed_edges.size(); ++i)
-		{
-			for(size_t j=0; j<directed_edges[i].size(); ++j)
-			{
-				std::cout << directed_edges[i][j] << " ";
-			}
-			std::cout << std::endl;
-		}
-		std::cout << std::endl;
+//		// testing
+//		std::cout << "used destinations: " << std::endl;
+////		directed_edges[1].push_back(0);
+//		for(size_t i=0; i<directed_edges.size(); ++i)
+//		{
+//			for(size_t j=0; j<directed_edges[i].size(); ++j)
+//			{
+//				std::cout << directed_edges[i][j] << " ";
+//			}
+//			std::cout << std::endl;
+//		}
+//		std::cout << std::endl;
 
 		// construct the support graph out of the directed edges
 		directedGraph support_graph(flows_out_of_nodes.size()); // initialize with the right number of edges
@@ -570,12 +567,25 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 		std::vector<int> c(flows_into_nodes.size());
 		int number_of_strong_components = boost::strong_components(support_graph, boost::make_iterator_property_map(c.begin(), boost::get(boost::vertex_index, support_graph), c[0]));
 		std::cout << "got " << number_of_strong_components << " strongly connected components" << std::endl;
-		for (std::vector <int>::iterator i = c.begin(); i != c.end(); ++i)
-		  std::cout << "Vertex " << i - c.begin() << " is in component " << *i << std::endl;
+//		for (std::vector <int>::iterator i = c.begin(); i != c.end(); ++i)
+//		  std::cout << "Vertex " << i - c.begin() << " is in component " << *i << std::endl;
+
+		// check how many cycles there are in the solution (components with a size >= 2)
+		int number_of_cycles = 0;
+		for(std::vector<int>::iterator comp=c.begin(); comp!=c.end(); ++comp)
+		{
+			int elements = std::count(c.begin(), c.end(), *comp);
+			if(elements>=2)
+				++number_of_cycles;
+			// check if a tsp path is computed (number of arcs is same as number of nodes)
+			if(elements==used_arcs.size())
+				--number_of_cycles;
+		}
 
 		// check if no cycle appears in the solution, i.e. if not each node is a component of its own or a traveling
-		// salesman path has been computed (not_used_nodes+1)
-		if(number_of_strong_components==flows_out_of_nodes.size() || number_of_strong_components==number_of_not_used_nodes+1)
+		// salesman path has been computed (not_used_nodes+1) or each arc flows to another node
+		// TODO: check
+		if(number_of_cycles==0)
 			cycle_free = true;
 
 		// if a cycle appears find it and add the prevention constraint to the problem and resolve it
@@ -612,15 +622,15 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 				}
 			}
 
-			std::cout << "found nodes that are part of a cycle: " << std::endl;
-			for(size_t i=0; i<cycle_nodes.size(); ++i)
-			{
-				for(size_t j=0; j<cycle_nodes[i].size(); ++j)
-				{
-					std::cout << cycle_nodes[i][j] << " ";
-				}
-				std::cout << std::endl;
-			}
+//			std::cout << "found nodes that are part of a cycle: " << std::endl;
+//			for(size_t i=0; i<cycle_nodes.size(); ++i)
+//			{
+//				for(size_t j=0; j<cycle_nodes[i].size(); ++j)
+//				{
+//					std::cout << cycle_nodes[i][j] << " ";
+//				}
+//				std::cout << std::endl;
+//			}
 
 			// add the cycle prevention constraints for each found cycle to the optimization problem and resolve it
 			for(size_t cycle=0; cycle<cycle_nodes.size(); ++cycle)
@@ -658,16 +668,6 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 								cpc_coefficients.push_back(-1.0);
 							}
 
-//							for(std::vector<uint>::const_iterator outflow=flows_out_of_nodes[cycle_nodes[cycle][neighbor]].begin(); outflow!=flows_out_of_nodes[cycle_nodes[cycle][neighbor]].end(); ++outflow)
-//							{
-//								std::cout << *outflow << " ";
-//								if(contains(cycle_nodes[cycle], *outflow)==true)
-//								{
-//									cpc_indices.push_back(*outflow+start_arcs.size());
-//									cpc_coefficients.push_back(-1.0);
-//								}
-//							}
-//							std::cout << std::endl;
 						}
 						// for other nodes gather outflows that are not part of the cycle
 						else
@@ -691,19 +691,10 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 								// reset the indication boolean
 								in_cycle = false;
 							}
-
-//							for(std::vector<uint>::const_iterator outflow=flows_out_of_nodes[cycle_nodes[cycle][neighbor]].begin(); outflow!=flows_out_of_nodes[cycle_nodes[cycle][neighbor]].end(); ++outflow)
-//							{
-//								if(contains(cycle_nodes[cycle], *outflow)==false)
-//								{
-//									cpc_indices.push_back(*outflow+start_arcs.size());
-//									cpc_coefficients.push_back(1.0);
-//								}
-//							}
 						}
 					}
 
-					std::cout << "adding constraint" << std::endl;
+//					std::cout << "adding constraint" << std::endl;
 					// add the constraint
 					solver_pointer->addRow((int) cpc_indices.size(), &cpc_indices[0], &cpc_coefficients[0], 0.0, COIN_DBL_MAX);
 				}
@@ -716,8 +707,18 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 			// resolve the problem with the new constraints
 			solver_pointer->resolve();
 
+			// create a new model with the updated optimization problem and solve it
+			CbcModel new_model(*solver_pointer);
+			new_model.solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
+
+			CbcHeuristicFPump heuristic(model);
+			new_model.addHeuristic(&heuristic);
+
+//			new_model.initialSolve();
+			new_model.branchAndBound();
+
 			// retrieve new solution
-			const double* solution = model.solver()->getColSolution();
+			solution = new_model.solver()->getColSolution();
 		}
 	}while(cycle_free == false);
 
@@ -757,18 +758,20 @@ bool flowNetworkExplorator::pointClose(const std::vector<cv::Point>& points, con
 // III.	Create a<nd solve the optimization problems in the following order:
 //		1.	Find the start node that is closest to the given starting position. This start node is used as initial step
 //			in the optimization problem.
-//		2. 	Iteratively solve the weighted optimization problem to approximate the problem by a convex optimization. This
-//			speeds up the solution and is done until the sparsity of the optimization variables doesn't change anymore,
-//			i.e. converged, or a specific number of iterations is reached. To measure the sparsity a l^0_eps measure is
-//			used, that checks |{i: c[i] <= eps}|. In each step the weights are adapted with respect to the previous solution.
-//		3.	Solve the final optimization problem by discarding the arcs that correspond to zero elements in the previous
-//			determined solution. This reduces the dimensionality of the problem and allows the algorithm to faster find
-//			a solution.
+//		2.	Solve the optimization problem, using lazy constraints to prevent cycles in the solution. See the upper
+//			function for further details.
+//		3.	Retrieve the solution provided by the optimizer and create a path trough the environment.
+//		4.	Construct a pose path out of the calculated point path.
+// IV.	The previous step produces a path for the field of view. If wanted this path gets mapped to the robot path s.t.
+//		the field of view follows the wanted path. To do so simply a vector transformation is applied. If the computed robot
+//		pose is not in the free space, another accessible point is generated by finding it on the radius around the fow
+//		middlepoint s.t. the distance to the last robot position is minimized. If this is not wanted one has to set the
+//		corresponding Boolean to false (shows that the path planning should be done for the robot footprint).
 void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
 		const float map_resolution, const cv::Point starting_position, const cv::Point2d map_origin,
 		const int cell_size, const geometry_msgs::Polygon& room_min_max_coordinates,
 		const Eigen::Matrix<float, 2, 1>& robot_to_fow_middlepoint_vector, const float coverage_radius,
-		const bool plan_for_footprint, const int sparsity_check_range)
+		const bool plan_for_footprint, const double path_eps, const double curvature_factor)
 {
 	// *********** I. Discretize the free space and create the flow network ***********
 	// find cell centers that need to be covered
@@ -785,7 +788,7 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	for(size_t y=room_min_max_coordinates.points[0].y+coverage_int; y<=room_min_max_coordinates.points[1].y; ++y)
 	{
 //		cv::Mat test_map = room_map.clone();
-		for(size_t x=0; x<room_map.cols; ++x)
+		for(size_t x=0; x<room_map.cols; x+=2.0*coverage_int)
 		{
 			// check if an obstacle has been found, only check outer parts of the occupied space
 			if(room_map.at<uchar>(y,x)==0 && (room_map.at<uchar>(y-1,x)==255 || room_map.at<uchar>(y+1,x)==255))
@@ -797,8 +800,8 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 				else if(room_map.at<uchar>(y+coverage_int, x)==255 && y+coverage_int<room_map.rows)
 					edges.push_back(cv::Point(x, y+coverage_int));
 
-				// increase x according to the coverage radius, -1 because it gets increased after this for step
-				x += 2.0*coverage_int-1;
+				// increase x according to the coverage radius, -1 because it gets increased after this step
+//				x += 2.0*coverage_int-1;
 			}
 		}
 //		cv::imshow("test", test_map);
@@ -832,7 +835,6 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	std::cout << "found " << edges.size() << " edges" << std::endl;
 
 	// create the arcs for the flow network
-	// TODO: reduce dimensionality, maybe only arcs that are straight (close enough to straight line)?
 	std::cout << "Constructing distance matrix" << std::endl;
 	cv::Mat distance_matrix; // determine weights
 	DistanceMatrix::constructDistanceMatrix(distance_matrix, room_map, edges, 0.25, 0.0, map_resolution, path_planner_);
@@ -859,7 +861,7 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 				// don't add too long arcs to reduce dimensionality, because they certainly won't get chosen anyway
 				// also don't add arcs that are too far away from the straight line (start-end) because they are likely
 				// to go completely around obstacles and are not good
-				if(current_forward_arc.weight <= max_distance && current_forward_arc.weight <= 1.1*cv::norm(vector)) // TODO: param
+				if(current_forward_arc.weight <= max_distance && current_forward_arc.weight <= curvature_factor*cv::norm(vector))
 				{
 					std::vector<cv::Point> astar_path;
 					path_planner_.planPath(room_map, current_forward_arc.start_point, current_forward_arc.end_point, 1.0, 0.0, map_resolution, 0, &astar_path);
@@ -891,6 +893,7 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 		// use the pointClose function to check if a cell can be covered along the path
 		for(std::vector<cv::Point>::iterator cell=cell_centers.begin(); cell!=cell_centers.end(); ++cell)
 		{
+			// TODO: why 1.1 times radius?
 			if(pointClose(arc->edge_points, *cell, 1.1*coverage_radius) == true)
 				V.at<uchar>(cell-cell_centers.begin(), arc-arcs.begin()) = 1;
 			else
@@ -907,12 +910,12 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 		for(std::vector<arcStruct>::iterator arc=arcs.begin(); arc!=arcs.end(); ++arc)
 		{
 			// if the start point of the arc is the edge save it as incoming flow
-			if(arc->start_point == *edge)
+			if(arc->end_point == *edge)
 			{
 				flows_into_nodes[edge-edges.begin()].push_back(arc-arcs.begin());
 			}
 			// if the end point of the arc is the edge save it as outgoing flow
-			else if(arc->end_point == *edge)
+			else if(arc->start_point == *edge)
 			{
 				flows_out_of_nodes[edge-edges.begin()].push_back(arc-arcs.begin());
 				++number_of_outflows;
@@ -978,21 +981,24 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 		}
 	}
 
-	// 2. iteratively solve the optimization problem, using convex relaxation
+	// 2. solve the optimization problem
 	std::vector<double> C(2.0*(flows_out_of_nodes[start_index].size()+number_of_candidates) + number_of_outflows + edges.size());
 	std::cout << "number of outgoing arcs: " << number_of_outflows << std::endl;
 
-//	solveThreeStageOptimizationProblem(C, V, w, flows_into_nodes, flows_out_of_nodes, flows_out_of_nodes[start_index]);
 	solveLazyConstraintOptimizationProblem(C, V, w, flows_into_nodes, flows_out_of_nodes, flows_out_of_nodes[start_index]);
 
-	// 3. discard the arcs corresponding to zero elements in the optimization vector and solve the final optimization
-	//	  problem
+//	testing
+	for(size_t i=0; i<C.size(); ++i)
+		if(C[i]!=0)
+			std::cout << "var" << i << ": " << C[i] << std::endl;
+
+	// 3. retrieve the seolution and create a path
 	cv::Mat test_map = room_map.clone();
 	std::set<uint> used_arcs; // set that stores the indices of the arcs corresponding to non-zero elements in the solution
 	// go trough the start arcs and determine the new start arcs
 	for(size_t start_arc=0; start_arc<flows_out_of_nodes[start_index].size(); ++start_arc)
 	{
-		if(C[start_arc]!=0)
+		if(C[start_arc]>0.01) // taking integer precision in solver into account
 		{
 			// insert start index
 			used_arcs.insert(flows_out_of_nodes[start_index][start_arc]);
@@ -1000,16 +1006,16 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 			std::vector<cv::Point> path=arcs[flows_out_of_nodes[start_index][start_arc]].edge_points;
 			for(size_t j=0; j<path.size(); ++j)
 				test_map.at<uchar>(path[j])=50;
-
-			cv::imshow("discretized", test_map);
-			cv::waitKey();
+//
+//			cv::imshow("discretized", test_map);
+//			cv::waitKey();
 		}
 	}
 
 	// go trough the coverage stage
 	for(size_t arc=flows_out_of_nodes[start_index].size(); arc<flows_out_of_nodes[start_index].size()+arcs.size(); ++arc)
 	{
-		if(C[arc]!=0)
+		if(C[arc]>0.01) // taking integer precision in solver into account
 		{
 			// insert index, relative to the first coverage variable
 			used_arcs.insert(arc-flows_out_of_nodes[start_index].size());
@@ -1017,9 +1023,9 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 			std::vector<cv::Point> path=arcs[arc-flows_out_of_nodes[start_index].size()].edge_points;
 			for(size_t j=0; j<path.size(); ++j)
 				test_map.at<uchar>(path[j])=100;
-
-			cv::imshow("discretized", test_map);
-			cv::waitKey();
+//
+//			cv::imshow("discretized", test_map);
+//			cv::waitKey();
 		}
 	}
 
@@ -1029,116 +1035,103 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	{
 		for(size_t flow=0; flow<flows_out_of_nodes[node].size(); ++flow)
 		{
-			if(C[flows_out_of_nodes[node][flow]+flows_out_of_nodes[start_index].size()+V.cols]!=0)
+			if(C[flows_out_of_nodes[node][flow]+flows_out_of_nodes[start_index].size()+V.cols]>0.01) // taking integer precision in solver into account
 			{
 				// insert saved outgoing flow index
 				used_arcs.insert(flows_out_of_nodes[node][flow]);
 				std::vector<cv::Point> path=arcs[flows_out_of_nodes[node][flow]].edge_points;
 				for(size_t j=0; j<path.size(); ++j)
 					test_map.at<uchar>(path[j])=150;
-
-				cv::imshow("discretized", test_map);
-				cv::waitKey();
+//
+//				cv::imshow("discretized", test_map);
+//				cv::waitKey();
 			}
 		}
 	}
 
 	std::cout << "got " << used_arcs.size() << " used arcs" << std::endl;
 
-	// go trough the indices of the used arcs and save the arcs as new candidates, also determine the nodes that correspond
-	// to these arcs (i.e. are either start or end)
-	std::vector<arcStruct> reduced_arc_candidates;
-	std::vector<cv::Point> reduced_edges;
-	for(std::set<uint>::iterator candidate=used_arcs.begin(); candidate!=used_arcs.end(); ++candidate)
+	// starting from the start node, go trough the arcs and create a coverage path
+	std::vector<cv::Point> path_positions;
+	path_positions.push_back(edges[start_index]);
+	cv::Point last_point = edges[start_index];
+	std::cout << "getting path using arcs, done arcs:" << std::endl;
+	int number_of_gone_arcs = 0;
+	do
 	{
-		arcStruct current_arc = arcs[*candidate];
-		cv::Point start = current_arc.start_point;
-		cv::Point end = current_arc.end_point;
-		reduced_arc_candidates.push_back(current_arc);
-
-		// if the start/end hasn't been already saved, save it
-		if(contains(reduced_edges, start)==false)
-			reduced_edges.push_back(start);
-		if(contains(reduced_edges, end)==false)
-			reduced_edges.push_back(end);
-	}
-
-	// determine the reduced outgoing and incoming flows and find new start index
-	std::vector<std::vector<uint> > reduced_flows_into_nodes(reduced_edges.size());
-	std::vector<std::vector<uint> > reduced_flows_out_of_nodes(reduced_edges.size());
-	uint reduced_start_index = 0;
-	for(std::vector<cv::Point>::iterator edge=reduced_edges.begin(); edge!=reduced_edges.end(); ++edge)
-	{
-		for(std::vector<arcStruct>::iterator arc=reduced_arc_candidates.begin(); arc!=reduced_arc_candidates.end(); ++arc)
+		std::cout << "n: " << number_of_gone_arcs << std::endl;
+		// go trough the arcs and find the one that has the last point as begin and go along it
+		for(std::set<uint>::iterator arc_index=used_arcs.begin(); arc_index!=used_arcs.end(); ++arc_index)
 		{
-			// if the start point of the arc is the edge save it as incoming flow
-			if(arc->start_point == *edge)
+//			std::cout << arcs[*arc_index].start_point << " " << last_point << std::endl;
+			if(arcs[*arc_index].start_point==last_point)
 			{
-				reduced_flows_into_nodes[edge-reduced_edges.begin()].push_back(arc-reduced_arc_candidates.begin());
-
-				// check if current origin of the arc is determined start edge
-				if(*edge == edges[start_index])
+				std::vector<cv::Point> edge = arcs[*arc_index].edge_points;
+				for(std::vector<cv::Point>::iterator pos=edge.begin(); pos!=edge.end(); ++pos)
 				{
-					reduced_start_index = edge-reduced_edges.begin();
-					std::cout << "found new start index" << std::endl;
+					cv::Point difference = last_point - *pos;
+					// if the next point is far enough away from the last point insert it into the coverage path
+					if(difference.x*difference.x+difference.y*difference.y<=path_eps*path_eps)
+					{
+						path_positions.push_back(*pos);
+						last_point = *pos;
+					}
 				}
+
+				// increase number of gone arcs
+				++number_of_gone_arcs;
 			}
-			// if the end point of the arc is the edge save it as outgoing flow
-			else if(arc->end_point == *edge)
-				reduced_flows_out_of_nodes[edge-reduced_edges.begin()].push_back(arc-reduced_arc_candidates.begin());
 		}
+	}while(number_of_gone_arcs<used_arcs.size());
+
+	// 4. calculate a pose path out of the point path
+	std::vector<geometry_msgs::Pose2D> fow_poses;
+	for(unsigned int point_index=0; point_index<path_positions.size(); ++point_index)
+	{
+		// get the vector from the current point to the next point
+		cv::Point current_point = path_positions[point_index];
+		cv::Point next_point = path_positions[(point_index+1)%(path_positions.size())];
+		cv::Point vector = next_point - current_point;
+
+		float angle = std::atan2(vector.y, vector.x);
+
+		// add the next navigation goal to the path
+		geometry_msgs::Pose2D current_pose;
+		current_pose.x = current_point.x;
+		current_pose.y = current_point.y;
+		current_pose.theta = angle;
+
+		fow_poses.push_back(current_pose);
 	}
 
-	std::cout << "number of arcs (" << reduced_flows_out_of_nodes.size() << ") for the reduced edges:" << std::endl;
-	for(size_t i=0; i<reduced_flows_out_of_nodes.size(); ++i)
-		std::cout << "n" << (int) i << ": " << reduced_flows_out_of_nodes[i].size() << std::endl;
-
-	// remove the first initial column
-	uint new_number_of_variables = 0;
-	cv::Mat V_reduced = cv::Mat(cell_centers.size(), 1, CV_8U); // initialize one column because opencv wants it this way, add other columns later
-	for(std::set<uint>::iterator var=used_arcs.begin(); var!=used_arcs.end(); ++var)
+	// if the path should be planned for the robot footprint create the path and return here
+	if(plan_for_footprint == true)
 	{
-		// gather column corresponding to this candidate pose and add it to the new observability matrix
-		cv::Mat column = V.col(*var);
-		cv::hconcat(V_reduced, column, V_reduced);
-	}
-	V_reduced = V_reduced.colRange(1, V_reduced.cols);
-
-	for(size_t sol=0; sol<flows_out_of_nodes[start_index].size()+2.0*number_of_candidates; ++sol)
-	{
-		if(C[sol] != 0)
+		for(std::vector<geometry_msgs::Pose2D>::iterator pose=fow_poses.begin(); pose != fow_poses.end(); ++pose)
 		{
-			std::cout << "var" << sol << ": " << C[sol] << std::endl;
+			geometry_msgs::Pose2D current_pose;
+			current_pose.x = (pose->x * map_resolution) + map_origin.x;
+			current_pose.y = (pose->y * map_resolution) + map_origin.y;
+			current_pose.theta = pose->theta;
+			path.push_back(current_pose);
 		}
+		return;
 	}
 
-	for(size_t row=0; row<V_reduced.rows; ++row)
-	{
-		int one_count = 0;
-		for(size_t col=0; col<V_reduced.cols; ++col)
-		{
-//			std::cout << (int) V_reduced.at<uchar>(row, col) << " ";
-			if(V_reduced.at<uchar>(row, col)!=0)
-				++one_count;
-		}
-//		std::cout << std::endl;
-		if(one_count == 0)
-			std::cout << "!!!!!!!!!!!!! empty row !!!!!!!!!!!!!!!!!!" << std::endl;
-	}
+	// *********************** IV. Get the robot path out of the fow path. ***********************
+	// go trough all computed fow poses and compute the corresponding robot pose
+	std::cout << "mapping path" << std::endl;
+	mapPath(room_map, path, fow_poses, robot_to_fow_middlepoint_vector, map_resolution, map_origin, starting_position);
 
 //	testing
-//	cv::Mat test_map = room_map.clone();
-//	for(size_t i=0; i<cell_centers.size(); ++i)
-//		cv::circle(test_map, cell_centers[i], 2, cv::Scalar(75), CV_FILLED);
-	for(size_t i=0; i<reduced_edges.size(); ++i)
-		cv::circle(test_map, reduced_edges[i], 2, cv::Scalar(150), CV_FILLED);
-//	for(size_t i=0; i<reduced_arc_candidates.size(); ++i)
+//	cv::Mat path_map = room_map.clone();
+	cv::imshow("solution", test_map);
+//	for(std::vector<cv::Point>::iterator point=path_positions.begin(); point!=path_positions.end(); ++point)
 //	{
-//		std::vector<cv::Point> path=reduced_arc_candidates[i].edge_points;
-//		for(size_t j=0; j<path.size(); ++j)
-//			test_map.at<uchar>(path[j])=100;
+//		cv::circle(path_map, *point, 2, cv::Scalar(127), CV_FILLED);
+//		cv::imshow("path", path_map);
+//		cv::waitKey();
 //	}
-	cv::imshow("discretized", test_map);
 	cv::waitKey();
 }
 

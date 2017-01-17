@@ -51,6 +51,15 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		delta_theta_ = config.delta_theta;
 		std::cout << "room_exploration/delta_theta = " << delta_theta_ << std::endl;
 	}
+	else if(path_planning_algorithm_ == 5) // set flowNetwork explorator parameters
+	{
+		path_eps_ = config.path_eps;
+		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
+		cell_size_ = config.cell_size;
+		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
+		curvature_factor_ = config.curvature_factor;
+		std::cout << "room_exploration/delta_theta = " << delta_theta_ << std::endl;
+	}
 
 	left_sections_min_area_ = config.left_sections_min_area;
 	std::cout << "room_exploration/left_sections_min_area_ = " << left_sections_min_area_ << std::endl;
@@ -94,7 +103,7 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	}
 	else if(path_planning_algorithm_ == 2) // set boustrophedon exploration parameters
 	{
-		node_handle_.param("path_eps", path_eps_, 3);
+		node_handle_.param("path_eps", path_eps_, 3.0);
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
 	}
 	else if(path_planning_algorithm_ == 3) // set neural network explorator parameters
@@ -120,6 +129,15 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
 		node_handle_.param("delta_theta", delta_theta_, 1.570796);
 		std::cout << "room_exploration/delta_theta = " << delta_theta_ << std::endl;
+	}
+	else if(path_planning_algorithm_ == 5) // set flowNetwork explorator parameters
+	{
+		node_handle_.param("path_eps", path_eps_, 3.0);
+		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
+		node_handle_.param("cell_size", cell_size_, 10);
+		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
+		node_handle_.param("curvature_factor", curvature_factor_, 1.1);
+		std::cout << "room_exploration/curvature_factor = " << curvature_factor_ << std::endl;
 	}
 
 	// min area for revisiting left sections
@@ -517,8 +535,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	// ***************** II. plan the path using the wanted planner *****************
 	std::vector<geometry_msgs::Pose2D> exploration_path;
-	flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, 10, min_max_coordinates, middle_point, fitting_circle_radius/map_resolution, false, 5);
-//	flow_network_explorator_.testFunc();
 	if(path_planning_algorithm_ == 1) // use grid point explorator
 	{
 		// set wanted grid size
@@ -553,11 +569,21 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	}
 	else if(path_planning_algorithm_ == 4) // use convexSPP explorator
 	{
-		// TODO: delta_theta as parameter
 		if(plan_for_footprint_ == false)
-			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, 7, delta_theta_, min_max_coordinates, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fow_vectors[3].norm(), cell_size_, false);
+			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, delta_theta_, min_max_coordinates, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fow_vectors[3].norm(), 7, false);
 		else
-			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, 7, delta_theta_, min_max_coordinates, goal->footprint, middle_point, max_angle, 0.0, goal->coverage_radius, cell_size_, true);
+			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, delta_theta_, min_max_coordinates, goal->footprint, middle_point, max_angle, 0.0, goal->coverage_radius, 7, true);
+	}
+	else if(path_planning_algorithm_ == 5) // use flow network explorator
+	{
+		if(plan_for_footprint_ == false)
+			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, min_max_coordinates, middle_point, fitting_circle_radius/map_resolution, false, path_eps_, curvature_factor_);
+		else
+		{
+			Eigen::Matrix<float, 2, 1> zero_vector;
+			zero_vector << 0, 0;
+			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, min_max_coordinates, zero_vector, goal->coverage_radius, true, path_eps_, curvature_factor_);
+		}
 	}
 
 	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************

@@ -18,13 +18,17 @@ left_sections_min_area: 0.01
 # double
 goal_eps: 0.35
 
+# size of one cell when discretizing the free space, smaller value means a more detailed discretization
+# [pixel]
+cell_size: 10
+
 # line length of one cell in the grid, when using the grid point exploration method
 # [pixel]
 grid_line_length: 10
 
-# distance between two points when generating the path with the boustrophedon explorator
+# distance between two points when generating the path
 # [pixel]
-path_eps: 10
+path_eps: 10.0
 
 # parameters specific for the neural network explorator, see "A Neural Network Approach to Complete Coverage Path Planning" from Simon X. Yang and Chaomin Luo
 # step size for integrating the state dynamics
@@ -43,10 +47,10 @@ mu: 1.03
 delta_theta_weight: 0.15
 
 # parameters specific for the convexSPP explorator
-# size of one cell when discretizing the free space in the convexSPP explorator method, smaller value means a more detailed discretization
-# [pixel]
-cell_size: 10
-
 # sampling angle when creating possible sensing poses
 # [rad]
 delta_theta: 1.570796
+
+# parameters specfific for the flowNetwork explorator
+# factor, an arc can be longer than a straight arc, higher values allow more arcs to be considered in the optimization problem
+curvature_factor: 1.3 # 1.1

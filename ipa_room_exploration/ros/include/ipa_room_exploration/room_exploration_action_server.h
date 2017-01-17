@@ -114,8 +114,7 @@ protected:
 	double goal_eps_;				// distance between the published navigation goal and the robot to publish the next
 									// navigation goal in the path
 
-	int cell_size_;					// size of one cell that is used to discretize the free space when using the convexSPP
-									// explorator
+	int cell_size_;					// size of one cell that is used to discretize the free space
 
 	double delta_theta_;			// sampling angle when creating possible sensing poses in the convexSPP explorator
 
@@ -127,8 +126,9 @@ protected:
 
 	// parameters for the different planners
 	int grid_line_length_; // size of the grid-lines that the grid-point-explorator lays over the map
-	int path_eps_; // the distance between points when generating a path with the boustrophedon exploration method
+	double path_eps_; // the distance between points when generating a path
 	bool plan_for_footprint_; // boolean that implies if the path should be planned for the footprint and not for the field of view
+	double curvature_factor_; // double that shows the factor, an arc can be longer than a straight arc when using the flowNetwork explorator
 
 	// neural network explorator specific parameters
 	double step_size_; // step size for integrating the state dynamics

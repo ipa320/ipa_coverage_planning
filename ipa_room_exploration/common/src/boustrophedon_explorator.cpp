@@ -36,7 +36,7 @@ boustrophedonExplorer::boustrophedonExplorer()
 //		corresponding Boolean to false (shows that the path planning should be done for the robot footprint).
 void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
 		const float map_resolution, const cv::Point starting_position, const cv::Point2d map_origin,
-		const float fitting_circle_radius, const int path_eps, const bool plan_for_footprint,
+		const float fitting_circle_radius, const double path_eps, const bool plan_for_footprint,
 		const Eigen::Matrix<float, 2, 1> robot_to_fow_vector)
 {
 	ROS_INFO("Planning the boustrophedon path trough the room.");

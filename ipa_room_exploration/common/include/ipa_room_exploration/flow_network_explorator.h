@@ -165,7 +165,7 @@ public:
 				const cv::Point starting_position, const cv::Point2d map_origin,
 				const int cell_size, const geometry_msgs::Polygon& room_min_max_coordinates,
 				const Eigen::Matrix<float, 2, 1>& robot_to_fow_middlepoint_vector, const float coverage_radius,
-				const bool plan_for_footprint, const int sparsity_check_range);
+				const bool plan_for_footprint, const double path_eps, const double curvature_factor);
 
 	// test function
 	void testFunc();
