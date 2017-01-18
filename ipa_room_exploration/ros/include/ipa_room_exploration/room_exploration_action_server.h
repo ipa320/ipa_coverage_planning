@@ -104,9 +104,12 @@ class RoomExplorationServer
 {
 protected:
 
-	int path_planning_algorithm_; // variable to specify which algorithm is going to be used to plan a path
-									// 1: grid point explorator
-									// 2: boustrophedon explorator
+	int path_planning_algorithm_;	// variable to specify which algorithm is going to be used to plan a path
+										// 1: grid point explorator
+										// 2: boustrophedon explorator
+
+	bool revisit_areas_;			// variable that turns functionality on/off to revisit areas that haven't been seen during the
+									// execution of the coverage path, due to uncertainites or dynamical obstacles
 
 	double left_sections_min_area_; // variable to determine the minimal area that not seen sections must have before they
 									// are revisited after one go trough the room

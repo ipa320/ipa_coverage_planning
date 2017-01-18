@@ -61,8 +61,14 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		std::cout << "room_exploration/delta_theta = " << delta_theta_ << std::endl;
 	}
 
+	revisit_areas_ = config.revisit_areas;
+	if(revisit_areas_ == true)
+		ROS_INFO("Areas not seen after the initial execution of the path will be revisited.");
+	else
+		ROS_INFO("Areas not seen after the initial execution of the path will NOT be revisited.");
+
 	left_sections_min_area_ = config.left_sections_min_area;
-	std::cout << "room_exploration/left_sections_min_area_ = " << left_sections_min_area_ << std::endl;
+	std::cout << "room_exploration/left_sections_min_area = " << left_sections_min_area_ << std::endl;
 
 	std::cout << "######################################################################################" << std::endl;
 }
@@ -143,6 +149,13 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		node_handle_.param("curvature_factor", curvature_factor_, 1.1);
 		std::cout << "room_exploration/curvature_factor = " << curvature_factor_ << std::endl;
 	}
+
+	// boolean to set the functionality of revisiting not seen areas
+	node_handle_.param("revisit_areas", revisit_areas_, true);
+	if(revisit_areas_ == true)
+		ROS_INFO("Areas not seen after the initial execution of the path will be revisited.");
+	else
+		ROS_INFO("Areas not seen after the initial execution of the path will NOT be revisited.");
 
 	// min area for revisiting left sections
 	node_handle_.param("left_sections_min_area", left_sections_min_area_, 10.0);
@@ -610,6 +623,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	pixel_values = global_costmap.data;
 
 	// TODO: change to option
+	// check for areas that haven't been seen during the execution of the path and revisit them, if wanted
+
 	// save the costmap as Mat of the same type as the given map (8UC1)
 	cv::Mat costmap_as_mat = cv::Mat(global_map.cols, global_map.rows, global_map.type());
 
