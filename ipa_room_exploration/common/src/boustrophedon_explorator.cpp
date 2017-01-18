@@ -39,6 +39,7 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		const float fitting_circle_radius, const double path_eps, const bool plan_for_footprint,
 		const Eigen::Matrix<float, 2, 1> robot_to_fow_vector)
 {
+	// TODO: use Sobel to find best direction to sweep and for each cell --> rotate map before sweeping
 	ROS_INFO("Planning the boustrophedon path trough the room.");
 	// *********************** I. Sweep a slice trough the map and mark the found cell boundaries. ***********************
 	// create a map copy to mark the cell boundaries
@@ -489,10 +490,14 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 //		testing
 //		std::cout << "printing path" << std::endl;
 //		cv::Mat fow_path_map = room_map.clone();
-//		for(size_t i=0; i<fow_middlepoint_path.size(); ++i)
+//		for(size_t i=0; i<fow_middlepoint_path.size()-1; ++i)
+//		{
 //			cv::circle(fow_path_map, fow_middlepoint_path[i], 2, cv::Scalar(200), CV_FILLED);
-////		for(size_t i=0; i<optimal_order.size()-1; ++i)
-////			cv::line(fow_path_map, polygon_centers[optimal_order[i]], polygon_centers[optimal_order[i+1]], cv::Scalar(100), 1);
+//			cv::line(fow_path_map, fow_middlepoint_path[i], fow_middlepoint_path[i+1], cv::Scalar(100), 1);
+//		}
+//		cv::circle(fow_path_map, fow_middlepoint_path.back(), 2, cv::Scalar(200), CV_FILLED);
+//		for(size_t i=0; i<optimal_order.size()-1; ++i)
+//			cv::line(fow_path_map, polygon_centers[optimal_order[i]], polygon_centers[optimal_order[i+1]], cv::Scalar(100), 1);
 //		cv::imshow("cell path", fow_path_map);
 //		cv::waitKey();
 

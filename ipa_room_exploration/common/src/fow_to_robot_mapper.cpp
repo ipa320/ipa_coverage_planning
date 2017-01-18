@@ -52,6 +52,7 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 			cv::Point fow_position(pose->x, pose->y);
 
 			// get vector from current position to desired fow position
+			// TODO: map accessability server
 			std::vector<cv::Point> astar_path;
 			path_planner.planPath(room_map, robot_pos, fow_position, 1.0, 0.0, map_resolution, 0, &astar_path);
 

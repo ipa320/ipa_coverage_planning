@@ -19,6 +19,7 @@ void gridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		const float map_resolution, const cv::Point starting_position,
 		const geometry_msgs::Polygon room_min_max_coordinates, const cv::Point2d map_origin)
 {
+	// TODO: map to robot path
 	//******************* I. Get grid points *************************
 	// vector to store all found points
 	std::vector<cv::Point> grid_points;

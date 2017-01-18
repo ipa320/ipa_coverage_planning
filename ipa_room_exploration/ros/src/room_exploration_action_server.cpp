@@ -232,6 +232,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 	}
 	else
 	{
+		// TODO: map accessability check for fow middlepoint
 		ROS_INFO("The base failed to move to the goal for some reason");
 		return false;
 	}
@@ -470,7 +471,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		grid_length = std::floor(grid_length_as_double/map_resolution);
 		std::cout << "grid size: " << grid_length_as_double << ", as int: " << grid_length << std::endl;
 	}
-	else
+	else // if planning should be done for the footprint, read out the given coverage radius
 	{
 		grid_length = std::floor(goal->coverage_radius/map_resolution);
 	}
@@ -592,6 +593,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
 	// 1. publish navigation goals
+	//  TODO: interrupt parameter or cancel action
 	std::vector<geometry_msgs::Pose2D> robot_poses;
 	for(size_t nav_goal = 0; nav_goal < exploration_path.size(); ++nav_goal)
 		bool res = publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->camera_frame, robot_poses, goal_eps_); // eps = 0.35
@@ -607,6 +609,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	std::vector<signed char> pixel_values;
 	pixel_values = global_costmap.data;
 
+	// TODO: change to option
 	// save the costmap as Mat of the same type as the given map (8UC1)
 	cv::Mat costmap_as_mat = cv::Mat(global_map.cols, global_map.rows, global_map.type());
 
@@ -630,7 +633,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		drawSeenPoints(seen_positions_map, robot_poses, goal->footprint, map_resolution, map_origin);
 	cv::Mat copy = room_map.clone();
 
-	// testing
+	// testing, TODO: parameter to show
 	cv::namedWindow("initially seen areas", cv::WINDOW_NORMAL);
 	cv::imshow("initially seen areas", seen_positions_map);
 	cv::resizeWindow("initially seen areas", 600, 600);
@@ -793,6 +796,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		}
 		else
 		{
+			// TODO: return areas that were not visible on radius
 			std::cout << "center not reachable on perimeter" << std::endl;
 		}
 	}

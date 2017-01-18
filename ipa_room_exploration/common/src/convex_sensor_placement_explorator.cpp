@@ -487,7 +487,13 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 //	}
 //	for(size_t i=0; i<cell_centers.size(); ++i)
 //		cv::circle(test_map, cell_centers[i], 2, cv::Scalar(100), CV_FILLED);
-//
+//	for(size_t i=0; i<path.size()-1; ++i)
+//	{
+//		cv::circle(test_map, cv::Point(path[i].x/map_resolution, path[i].y/map_resolution), 5, cv::Scalar(100), CV_FILLED);
+//		cv::line(test_map, cv::Point(path[i].x/map_resolution, path[i].y/map_resolution), cv::Point(path[i+1].x/map_resolution, path[i+1].y/map_resolution), cv::Scalar(127), 2);
+//	}
+//	cv::circle(test_map, cv::Point(path.back().x/map_resolution, path.back().y/map_resolution), 5, cv::Scalar(100), CV_FILLED);
+
 //	cv::imshow("seen areas", test_map);
 //	cv::waitKey();
 }
