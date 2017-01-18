@@ -95,6 +95,10 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		ROS_INFO("You have chosen the boustrophedon exploration method.");
 	else if(path_planning_algorithm_ == 3)
 		ROS_INFO("You have chosen the neural network exploration method.");
+	else if(path_planning_algorithm_ == 4)
+		ROS_INFO("You have chosen the convexSPP exploration method.");
+	else if(path_planning_algorithm_ == 5)
+		ROS_INFO("You have chosen the flow network exploration method.");
 
 	if (path_planning_algorithm_ == 1) // get grid point exploration parameters
 	{
