@@ -170,10 +170,10 @@ install(DIRECTORY ros/include/${PROJECT_NAME}/
 #)
 
 # uncomment this if you have launch files
-#install(DIRECTORY ros/launch
-#	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/ros
-#	PATTERN ".svn" EXCLUDE
-#)
+install(DIRECTORY ros/launch
+	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/ros
+	PATTERN ".svn" EXCLUDE
+)
 
 #install(DIRECTORY common/files
 #	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/common

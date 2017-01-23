@@ -1125,6 +1125,7 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 //	testing
 //	cv::Mat path_map = room_map.clone();
 	cv::imshow("solution", test_map);
+	cv::imwrite("/home/rmbce/Pictures/room_exploration/coverage_path.png", test_map);
 //	for(std::vector<cv::Point>::iterator point=path_positions.begin(); point!=path_positions.end(); ++point)
 //	{
 //		cv::circle(path_map, *point, 2, cv::Scalar(127), CV_FILLED);

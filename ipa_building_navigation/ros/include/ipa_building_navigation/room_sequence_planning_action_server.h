@@ -99,7 +99,6 @@
 #include <actionlib/server/simple_action_server.h>
 #include <ipa_building_msgs/FindRoomSequenceWithCheckpointsAction.h>
 
-
 class RoomSequencePlanningServer
 {
 public:
