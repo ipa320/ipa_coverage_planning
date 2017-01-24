@@ -152,7 +152,9 @@ protected:
 	// eps_x and eps_y are used to define a epsilon neighborhood around the goal in which a new nav_goal gets published
 	// 	--> may smooth the process, move_base often slows before and stops at the goal
 	bool publishNavigationGoal(const geometry_msgs::Pose2D& nav_goal, const std::string map_frame,
-			const std::string camera_frame, std::vector<geometry_msgs::Pose2D>& robot_poses, const double eps = 0.0);
+			const std::string camera_frame, std::vector<geometry_msgs::Pose2D>& robot_poses,
+			const double robot_to_fow_middlepoint_distance, const double eps = 0.0,
+			const bool perimeter_check = false);
 
 	// converter-> Pixel to meter for X coordinate
 	double convertPixelToMeterForXCoordinate(const int pixel_valued_object_x, const float map_resolution, const cv::Point2d map_origin)

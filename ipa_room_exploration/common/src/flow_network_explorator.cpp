@@ -787,6 +787,7 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	for(size_t y=room_min_max_coordinates.points[0].y+coverage_int; y<=room_min_max_coordinates.points[1].y; ++y)
 	{
 //		cv::Mat test_map = room_map.clone();
+//		cv::line(test_map, cv::Point(0, y), cv::Point(room_map.cols, y), cv::Scalar(127), 1);
 		for(size_t x=0; x<room_map.cols; x+=2.0*coverage_int)
 		{
 			// check if an obstacle has been found, only check outer parts of the occupied space
@@ -965,7 +966,7 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	if(all_cells_covered == false)
 		std::cout << "!!!!! WARNING: Not all cells could be covered with the given parameters, try changing them or ignore it to not cover the whole free space." << std::endl;
 
-	// *********** III. Solve the different optimization problems ***********
+	// *********** III. Solve the optimization problem ***********
 	// 1. Find the start node closest to the starting position.
 	double min_distance = 1e5;
 	uint start_index = 0;
@@ -1047,6 +1048,8 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 			}
 		}
 	}
+	cv::imshow("discretized", test_map);
+	cv::waitKey();
 
 	std::cout << "got " << used_arcs.size() << " used arcs" << std::endl;
 
@@ -1054,11 +1057,11 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	std::vector<cv::Point> path_positions;
 	path_positions.push_back(edges[start_index]);
 	cv::Point last_point = edges[start_index];
-	std::cout << "getting path using arcs, done arcs:" << std::endl;
+	std::cout << "getting path using arcs" << std::endl;
 	int number_of_gone_arcs = 0;
 	do
 	{
-		std::cout << "n: " << number_of_gone_arcs << std::endl;
+//		std::cout << "n: " << number_of_gone_arcs << std::endl;
 		// go trough the arcs and find the one that has the last point as begin and go along it
 		for(std::set<uint>::iterator arc_index=used_arcs.begin(); arc_index!=used_arcs.end(); ++arc_index)
 		{
@@ -1082,6 +1085,7 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 			}
 		}
 	}while(number_of_gone_arcs<used_arcs.size());
+	std::cout << "got path" << std::endl;
 
 	// 4. calculate a pose path out of the point path
 	std::vector<geometry_msgs::Pose2D> fow_poses;
@@ -1103,6 +1107,7 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 		fow_poses.push_back(current_pose);
 	}
 
+
 	// if the path should be planned for the robot footprint create the path and return here
 	if(plan_for_footprint == true)
 	{
@@ -1122,17 +1127,17 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	std::cout << "mapping path" << std::endl;
 	mapPath(room_map, path, fow_poses, robot_to_fow_middlepoint_vector, map_resolution, map_origin, starting_position);
 
-//	testing
+////	testing
 //	cv::Mat path_map = room_map.clone();
-	cv::imshow("solution", test_map);
-	cv::imwrite("/home/rmbce/Pictures/room_exploration/coverage_path.png", test_map);
+//	cv::imshow("solution", test_map);
+//	cv::imwrite("/home/rmbce/Pictures/room_exploration/coverage_path.png", test_map);
 //	for(std::vector<cv::Point>::iterator point=path_positions.begin(); point!=path_positions.end(); ++point)
 //	{
 //		cv::circle(path_map, *point, 2, cv::Scalar(127), CV_FILLED);
 //		cv::imshow("path", path_map);
 //		cv::waitKey();
 //	}
-	cv::waitKey();
+//	cv::waitKey();
 }
 
 // test function for an easy case to check correctness

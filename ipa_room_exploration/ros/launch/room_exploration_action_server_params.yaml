@@ -5,7 +5,7 @@
 # 4 = convexSPP explorator
 # 5 = flowNetwork explorator
 # int
-room_exploration_algorithm: 1
+room_exploration_algorithm: 3
 
 # this variable sets if the path should be generated such that the robot footprint has to cover everything instead of the field of view
 plan_for_footprint: false
@@ -24,11 +24,11 @@ goal_eps: 0.35
 
 # size of one cell when discretizing the free space, smaller value means a more detailed discretization
 # [pixel]
-cell_size: 10
+cell_size: 7
 
 # line length of one cell in the grid, when using the grid point exploration method
 # [pixel]
-grid_line_length: 10
+grid_line_length: 7
 
 # distance between two points when generating the path
 # [pixel]

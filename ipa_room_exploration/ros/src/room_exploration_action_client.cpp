@@ -60,7 +60,11 @@ int main(int argc, char **argv)
 			}
 		}
 	}
-
+	min_y -= 1;
+	min_x -= 1;
+	max_y += 1;
+	max_x += 1;
+	std::cout << min_y << " " << max_y << " ," << min_x << " " << max_x << std::endl;
 	std::cout << "map-size: " << map.rows << "x" << map.cols << std::endl;
 
 //	const std::string topic = "/move_base/global_costmap/costmap";
@@ -93,7 +97,7 @@ int main(int argc, char **argv)
 	ROS_INFO("Action server started, sending goal.");
 
 	DynamicReconfigureClient drc_exp(nh, "room_exploration_server/set_parameters", "room_exploration_server/parameter_updates");
-	drc_exp.setConfig("room_exploration_algorithm", 5);
+//	drc_exp.setConfig("room_exploration_algorithm", 5);
 //	drc_exp.setConfig("grid_line_length", 15);
 //	drc_exp.setConfig("path_eps", 10);
 //	drc_exp.setConfig("cell_size", 10);
@@ -184,13 +188,13 @@ int main(int argc, char **argv)
 	goal.map_origin = map_origin;
 	goal.starting_position = starting_position;
 	goal.map_resolution = 0.05;
-	goal.robot_radius = 0.4; // turtlebot, used for sim 0.177
+	goal.robot_radius = 0.2; // turtlebot, used for sim 0.177, 0.4
 	goal.room_min_max = min_max_points;
 	goal.camera_frame = "/base_footprint";
 	goal.map_frame = "/map";
 	goal.field_of_view = fow_points;
 	goal.footprint = footprint_points;
-	goal.coverage_radius = 0.5;
+	goal.coverage_radius = 0.2;
 	goal.region_of_interest_coordinates = region_of_interest;
 	ac.sendGoal(goal);
 
