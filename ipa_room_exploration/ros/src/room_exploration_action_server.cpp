@@ -63,12 +63,15 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 
 	revisit_areas_ = config.revisit_areas;
 	if(revisit_areas_ == true)
-		ROS_INFO("Areas not seen after the initial execution of the path will be revisited.");
+		std::cout << "Areas not seen after the initial execution of the path will be revisited." << std::endl;
 	else
-		ROS_INFO("Areas not seen after the initial execution of the path will NOT be revisited.");
+		std::cout << "Areas not seen after the initial execution of the path will NOT be revisited." << std::endl;
 
 	left_sections_min_area_ = config.left_sections_min_area;
 	std::cout << "room_exploration/left_sections_min_area = " << left_sections_min_area_ << std::endl;
+
+	interrupt_navigation_publishing_ = config.interrupt_navigation_publishing;
+	std::cout << "room_exploration/interrupt_navigation_publishing = " << interrupt_navigation_publishing_ << std::endl;
 
 	std::cout << "######################################################################################" << std::endl;
 }
@@ -486,8 +489,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	int roi_y_end = goal->region_of_interest_coordinates.points[1].y;
 
 //	cv::Mat room_map = global_map(cv::Range(roi_y_start, roi_y_end), cv::Range(roi_x_start, roi_x_end));
-	cv::Mat room_map = global_map.clone();
-	cv::Mat path_map = room_map.clone(); // TODO: remove
+	cv::Mat room_map = global_map;
 
 	// erode map so that not reachable areas are not considered
 	int robot_radius_in_pixel = (robot_radius / map_resolution);
@@ -653,18 +655,32 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		}
 	}
 
-	// TODO: remove
-	for(size_t i=0; i<exploration_path.size()-1; ++i)
-		cv::line(path_map, cv::Point(exploration_path[i].x/map_resolution, exploration_path[i].y/map_resolution), cv::Point(exploration_path[i+1].x/map_resolution, exploration_path[i+1].y/map_resolution), cv::Scalar(127), 1);
-	cv::imwrite("/home/rmbce/Pictures/room_exploration/path.png", path_map);
-
 	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
 	// 1. publish navigation goals
-	//  TODO: interrupt parameter or cancel action
 	double distance_robot_fow_middlepoint = middle_point.norm();
 	std::vector<geometry_msgs::Pose2D> robot_poses;
 	for(size_t nav_goal = 0; nav_goal < exploration_path.size(); ++nav_goal)
-		bool res = publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->camera_frame, robot_poses, distance_robot_fow_middlepoint, goal_eps_, true); // eps = 0.35
+	{
+		// check if the path should be continued or not
+		bool interrupted = false;
+		if(interrupt_navigation_publishing_==true)
+		{
+			ROS_INFO("Interrupt order received, resuming coverage path later.");
+			interrupted = true;
+		}
+		while(interrupt_navigation_publishing_==true)
+		{
+			// sleep for 1s because else this loop would produce errors
+			std::cout << "sleeping... (-.-)zzZZ" << std::endl;
+			ros::Duration sleep_rate(1);
+			sleep_rate.sleep();
+		}
+		if(interrupted==true)
+			ROS_INFO("Interrupt order canceled, resuming coverage path now.");
+
+		// if no interrupt is wanted, publish the navigation goal
+		publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->camera_frame, robot_poses, distance_robot_fow_middlepoint, goal_eps_, true); // eps = 0.35
+	}
 
 	std::cout << "published all navigation goals, starting to check seen area" << std::endl;
 

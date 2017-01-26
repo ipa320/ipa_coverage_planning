@@ -111,6 +111,10 @@ protected:
 	bool revisit_areas_;			// variable that turns functionality on/off to revisit areas that haven't been seen during the
 									// execution of the coverage path, due to uncertainites or dynamical obstacles
 
+	bool interrupt_navigation_publishing_;	// variable that interrupts the publishing of navigation goals as long as needed, e.g. when
+											// during the execution of the coverage path a trashbin is found and one wants to empty it
+											// directly and resume the path later.
+
 	double left_sections_min_area_; // variable to determine the minimal area that not seen sections must have before they
 									// are revisited after one go trough the room
 
