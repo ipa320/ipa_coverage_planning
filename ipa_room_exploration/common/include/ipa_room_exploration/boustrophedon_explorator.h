@@ -15,6 +15,8 @@
 #include <geometry_msgs/Polygon.h>
 #include <geometry_msgs/Point32.h>
 
+#define PI 3.14159265359
+
 /*!
  *****************************************************************
  * \file
