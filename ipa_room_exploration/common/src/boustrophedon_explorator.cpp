@@ -44,7 +44,7 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		const Eigen::Matrix<float, 2, 1> robot_to_fow_vector)
 {
 	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
-	// TODO: use PCA to find best direction to sweep and for each cell --> rotate map before sweeping
+	// TODO: use Sobel to find best direction to sweep and for each cell --> rotate map before sweeping
 	// generate matrices for gradient in x/y direction
 	cv::Mat gradient_x, gradient_y;
 
@@ -102,49 +102,6 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
  	cv::Mat contour_map = room_map.clone();
  	cv::findContours(contour_map, contour, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 
- 	// TODO: include PCA later
-// 	// initialize the data points for the PCA
-//    int size = static_cast<int>(contour[0].size());
-//    cv::Mat data_pts = cv::Mat(size, 2, CV_64FC1);
-//    for (int i = 0; i < data_pts.rows; ++i)
-//    {
-//    	if(room_map.at<uchar>(contour[0][i])!=0)
-//    	{
-//    		data_pts.at<double>(i, 0) = contour[0][i].x;
-//    		data_pts.at<double>(i, 1) = contour[0][i].y;
-//    	}
-//    }
-//
-//    // perform PCA analysis
-//    cv::PCA pca_analysis(data_pts, cv::Mat(), CV_PCA_DATA_AS_ROW);
-//    // store the center of the object
-//    cv::Point cntr = cv::Point(static_cast<int>(pca_analysis.mean.at<double>(0, 0)), static_cast<int>(pca_analysis.mean.at<double>(0, 1)));
-//
-//    // find the max eigenvalue and its corresponding eigenvector
-//    cv::Point2d max_eigenvector;
-//    double max_eigenvalue=0.0;
-//    for (int i = 0; i < 2; ++i)
-//    {
-//    	double eigen_value = pca_analysis.eigenvalues.at<double>(0, i);
-//    	if(eigen_value > max_eigenvalue)
-//    	{
-//    		max_eigenvector = cv::Point2d(pca_analysis.eigenvectors.at<double>(i, 0), pca_analysis.eigenvectors.at<double>(i, 1));
-//    		max_eigenvalue = eigen_value;
-//    	}
-//    	std::cout << max_eigenvector << ": " << max_eigenvalue << std::endl;
-//    }
-//
-//    cv::Mat test_map = room_map.clone();
-//    cv::circle(test_map, cntr, 3, cv::Scalar(127), CV_FILLED);
-//    cv::line(test_map, cntr, cntr+cv::Point(50*pca_analysis.eigenvectors.at<double>(0, 0), 50*pca_analysis.eigenvectors.at<double>(0, 1)), cv::Scalar(100), 2);
-//    cv::line(test_map, cntr, cntr+cv::Point(40*pca_analysis.eigenvectors.at<double>(1, 0), 40*pca_analysis.eigenvectors.at<double>(1, 1)), cv::Scalar(100), 2);
-//    cv::imshow("test", test_map);
-//    cv::waitKey();
-//
-//	// get the rotation angle of the map s.t. the most occurring gradient is in 90 degree to the x-axis
-//    double rotation_angle = std::atan2(max_eigenvector.y, max_eigenvector.x)-PI/2;
-//    std::cout << "rotation angle: " << rotation_angle << std::endl;
-
     // get the moment--> for a given map, there should only be one contour
     cv::Moments moment = cv::moments(contour[0], false);
 //    std::cout << contour.size() << std::endl;
@@ -154,7 +111,7 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
     cv::Mat R = cv::getRotationMatrix2D(center, (rotation_angle*180)/PI, 1.0);
 
     // determine bounding rectangle to find the size of the new image
-    cv::Rect bbox = cv::RotatedRect(center, room_map.size(), rotation_angle).boundingRect();
+    cv::Rect bbox = cv::RotatedRect(center, room_map.size(), (rotation_angle*180)/PI).boundingRect();
 
     // adjust transformation matrix
     R.at<double>(0,2) += bbox.width/2.0 - center.x;
@@ -171,6 +128,13 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
     cv::erode(rotated_room_map, rotated_room_map, cv::Mat(), cv::Point(-1,-1), 1);
 
     // testing
+//    std::vector<cv::Point> tester;
+//    tester.push_back(cv::Point(10,10));
+//    cv::Mat tester_map = room_map.clone();
+//    cv::circle(tester_map, tester[0], 3, cv::Scalar(127), CV_FILLED);
+//    cv::transform(tester, tester, R);
+//    cv::circle(rotated_room_map, tester[0], 3, cv::Scalar(127), CV_FILLED);
+//    cv::imshow("original", tester_map);
     cv::imshow("rotated_im.png", rotated_room_map);
 //    cv::imwrite("/home/rmbce/Pictures/room_exploration/rotated.png", rotated_room_map);
     cv::waitKey();
@@ -327,12 +291,11 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		// save the found number of segments
 		previous_number_of_segments = number_of_segments;
 	}
-	cv::imshow("cells", cell_map);
-	cv::waitKey();
 
 	// *********************** III. Find the separated cells. ***********************
 	std::vector<std::vector<cv::Point> > cells;
-	cv::findContours(cell_map, cells, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+	cv::Mat cell_copy = cell_map.clone();
+	cv::findContours(cell_copy, cells, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
 //	 testing
 //	cv::Mat black_map = cv::Mat(cell_map.rows, cell_map.cols, cell_map.type(), cv::Scalar(0));
 //	for(size_t i=0; i<cells.size(); ++i)
@@ -350,9 +313,12 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	std::vector<cv::Point> polygon_centers;
 	for(size_t cell=0; cell<cells.size(); ++cell)
 	{
-		generalizedPolygon current_cell(cells[cell]);
-		cell_polygons.push_back(current_cell);
-		polygon_centers.push_back(current_cell.getCenter());
+		if(cv::contourArea(cells[cell])>=0.5) // TODO: make setable param
+		{
+			generalizedPolygon current_cell(cells[cell]);
+			cell_polygons.push_back(current_cell);
+			polygon_centers.push_back(current_cell.getCenter());
+		}
 	}
 
 	ROS_INFO("Found the cells in the given map.");
@@ -389,12 +355,53 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		generalizedPolygon current_cell = cell_polygons[optimal_order[cell]];
 
 		// get a map that has only the current cell drawn in
+		//	Remark:	single cells are obstacle free so it is sufficient to use the cell to check if a position can be reached during the
+		//			execution of the coverage path
 		cv::Mat current_cell_map;
-		current_cell.drawPolygon(current_cell_map, cv::Scalar(127));
+		current_cell.drawPolygon(current_cell_map, cv::Scalar(255));
+
+		// TODO: find longest edge of cells and swipe along this to minimize the turns of the robot
+		// get the longest edge of the current cell and rotate it s.t. this edge is parallel to the x-axis, because this allows to
+		// find path-vertexes along this edge, which minimizes the turns of the robot during the execution of the cell path
+		cv::Point2d edge = current_cell.getLongestEdge();
+		double edge_angle = std::atan2(edge.y, edge.x);
+		cv::Point cell_center = current_cell.getCenter();
+		cv::circle(current_cell_map, cell_center, 5, cv::Scalar(100), CV_FILLED);
+		cv::Mat R_cell = cv::getRotationMatrix2D(cell_center, -(edge_angle*180)/PI, 1.0);
+
+	    // determine bounding rectangle to find the size of the new image
+	    cv::Rect cell_bbox = cv::RotatedRect(cell_center, current_cell_map.size(), -(edge_angle*180)/PI).boundingRect();
+
+	    // adjust transformation matrix
+	    R_cell.at<double>(0,2) += cell_bbox.width/2.0 - cell_center.x;
+	    R_cell.at<double>(1,2) += cell_bbox.height/2.0 - cell_center.y;
+
+	    // rotate the image
+	    cv::Mat rotated_cell_map;
+	    cv::warpAffine(current_cell_map, rotated_cell_map, R_cell, cell_bbox.size(), cv::INTER_AREA);
+
+	    // apply a binary filter to create a binary image, also use a closing operator to smooth the output (the rotation might produce
+	    // black pixels reaching into the white area that were not there before, causing new, wrong cells to open)
+	    cv::threshold(rotated_cell_map, rotated_cell_map, 200, 255, CV_THRESH_BINARY);
+	    cv::dilate(rotated_cell_map, rotated_cell_map, cv::Mat(), cv::Point(-1,-1), 1);
+	    cv::erode(rotated_cell_map, rotated_cell_map, cv::Mat(), cv::Point(-1,-1), 1);
 
 		// get the min/max x/y values for this cell
-		int min_x, max_x, min_y, max_y;
-		current_cell.getMinMaxCoordinates(min_x, max_x, min_y, max_y);
+		int min_x=1e3, max_x=0, min_y=1e3, max_y=0;
+		std::vector<cv::Point> rotated_vertexes = current_cell.getVertexes();
+		cv::transform(rotated_vertexes, rotated_vertexes, R_cell);
+		for(size_t point=0; point<rotated_vertexes.size(); ++point)
+		{
+			if(rotated_vertexes[point].x > max_x)
+				max_x = rotated_vertexes[point].x;
+			if(rotated_vertexes[point].y > max_y)
+				max_y = rotated_vertexes[point].y;
+			if(rotated_vertexes[point].x < min_x)
+				min_x = rotated_vertexes[point].x;
+			if(rotated_vertexes[point].y < min_y)
+				min_y = rotated_vertexes[point].y;
+		}
+//		cv::fillConvexPoly(rotated_cell_map, rotated_vertexes, cv::Scalar(127));
 
 		// get the left and right edges of the path
 		std::vector<boustrophedonHorizontalLine> path_lines;
@@ -408,7 +415,7 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		do
 		{
 			boustrophedonHorizontalLine current_line;
-			cv::Point left_edge, right_edge;
+			cv::Point2d left_edge(-1, -1), right_edge(-1, -1);
 			// check the for the current row to the right/left for the first white pixel (valid position), starting from
 			// the minimal/maximal x value
 			dx = min_x;
@@ -416,47 +423,71 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 			// get the leftmost edges of the path
 			do
 			{
-				if(rotated_room_map.at<uchar>(y, dx) == 255)
+				if(rotated_cell_map.at<uchar>(y, dx) == 255 && rotated_cell_map.at<uchar>(y, dx+fow_radius_as_int) == 255)
 				{
-					left_edge = cv::Point(dx+fow_radius_as_int, y); // add fow radius s.t. the edge is not on the wall
+					left_edge = cv::Point2d(dx+fow_radius_as_int, y); // add fow radius s.t. the edge is not on the wall
 					found = true;
 				}
 				else
 					++dx;
-			}while(dx < current_cell_map.cols && found == false); // dx < ... --> safety, should never hold
+			}while(dx < rotated_cell_map.cols && found == false); // dx < ... --> safety, should never hold
 
 			// get the rightmost edges of the path
 			dx = max_x;
 			found = false;
 			do
 			{
-				if(rotated_room_map.at<uchar>(y, dx) == 255)
+				if(rotated_cell_map.at<uchar>(y, dx) == 255 && rotated_cell_map.at<uchar>(y, dx-fow_radius_as_int) == 255)
 				{
-					right_edge = cv::Point(dx-fow_radius_as_int, y); // subtract fow radius s.t. edge is not on the wall
+					right_edge = cv::Point2d(dx-fow_radius_as_int, y); // subtract fow radius s.t. edge is not on the wall
 					found = true;
 				}
 				else
 					--dx;
 			}while(dx > 0 && found == false);
 
-			// save found horizontal line
-			current_line.left_edge_ = left_edge;
-			current_line.right_edge_ = right_edge;
-			path_lines.push_back(current_line);
+			// save found horizontal line, if one is found, transformed to the original orientation of the cell
+			if(left_edge.x>=0 && left_edge.y>=0 && right_edge.x>=0 && right_edge.y>=0)
+			{
+				cv::circle(rotated_cell_map, left_edge, 2, cv::Scalar(200), CV_FILLED);
+				cv::circle(rotated_cell_map, right_edge, 2, cv::Scalar(200), CV_FILLED);
+				std::vector<cv::Point2d> line_edges(2);
+				line_edges[0] = left_edge;
+				line_edges[1] = right_edge;
+				std::cout << "left: " << left_edge <<  std::endl << "right: " << right_edge << std::endl;
+				cv::invertAffineTransform(R_cell, R_cell); // TODO: makes problems
+				cv::transform(line_edges, line_edges, R_cell);
+
+				cv::Mat test_point = cv::Mat(3, 1, CV_64FC1, cv::Scalar(1));
+				test_point.at<double>(0,0)=left_edge.x;
+				test_point.at<double>(0,1)=left_edge.y;
+				cv::Mat res = R_cell*test_point;
+
+				std::cout << "after transform: " << std::endl;
+				std::cout << "left: " << line_edges[0] <<  std::endl << "right: " << line_edges[1] << std::endl;
+				std::cout << "test left: " << res << std::endl;
+				current_line.left_edge_ = line_edges[0];
+				current_line.right_edge_ = line_edges[1];
+				path_lines.push_back(current_line);
+			}
+			std::cout << std::endl;
+
+		    cv::imshow("cell rotated", rotated_cell_map);
+	//	    cv::waitKey();
 
 			// increase y by given fow-radius value
 			y += fow_radius_as_int;
 		}while(y <= max_y);
 
 //		testing
-//		for(size_t i=0; i<path_lines.size(); ++i)
-//		{
-//			cv::line(current_cell_map, path_lines[i].left_edge_, path_lines[i].right_edge_, cv::Scalar(200), 1);
-//			cv::circle(current_cell_map, path_lines[i].left_edge_, 2, cv::Scalar(200), CV_FILLED);
-//			cv::circle(current_cell_map, path_lines[i].right_edge_, 2, cv::Scalar(200), CV_FILLED);
-//			cv::imshow("path edges", current_cell_map);
-//			cv::waitKey();
-//		}
+		for(size_t i=0; i<path_lines.size(); ++i)
+		{
+			cv::line(current_cell_map, path_lines[i].left_edge_, path_lines[i].right_edge_, cv::Scalar(200), 1);
+			cv::circle(current_cell_map, path_lines[i].left_edge_, 2, cv::Scalar(200), CV_FILLED);
+			cv::circle(current_cell_map, path_lines[i].right_edge_, 2, cv::Scalar(200), CV_FILLED);
+		}
+		cv::imshow("path edges", current_cell_map);
+		cv::waitKey();
 
 		// get the edge nearest to the current robot position to start the boustrophedon path at by looking at the
 		// upper and lower horizontal path (possible nearest locations)
@@ -622,6 +653,11 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 			}
 		}
 	}
+
+	// map the calculated path back to the originally rotated map
+	cv::invertAffineTransform(R, R);
+	cv::transform(fow_middlepoint_path, fow_middlepoint_path, R);
+
 //		testing
 //		std::cout << "printing path" << std::endl;
 //		cv::Mat fow_path_map = room_map.clone();

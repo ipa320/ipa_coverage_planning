@@ -89,7 +89,10 @@ protected:
 	std::vector<cv::Point> vertexes_;
 
 	// edges
-	std::vector<cv::Point> edges_;
+	std::vector<cv::Point2d> edges_;
+
+	// longest edge of the current cell
+	cv::Point2d longest_edge_;
 
 	// center
 	cv::Point center_;
@@ -104,13 +107,23 @@ public:
 		// save given vertexes
 		vertexes_ = vertexes;
 
-		// compute vector to represent edges and compute sum of coordinates
+		// compute vector to represent edges and find longest edge
+		double longest_squared_edge_length = 0.0;
 		for(unsigned int point = 0; point < vertexes.size(); ++point)
 		{
-			cv::Point current_vector;
+			// construct edge
+			cv::Point2d current_vector;
 			current_vector.x = vertexes[(point+1)%vertexes.size()].x - vertexes[point].x;
 			current_vector.y= vertexes[(point+1)%vertexes.size()].y - vertexes[point].y;
 			edges_.push_back(current_vector);
+
+			// check if current edge is longer than the previous edges
+			double current_length = current_vector.x*current_vector.x+current_vector.y*current_vector.y;
+			if(current_length > longest_squared_edge_length)
+			{
+				longest_edge_ = current_vector;
+				longest_squared_edge_length = current_length;
+			}
 		}
 
 		// get max/min x/y coordinates
@@ -159,6 +172,16 @@ public:
 	std::vector<cv::Point> getVertexes()
 	{
 		return vertexes_;
+	}
+
+	std::vector<cv::Point2d> getEdges()
+	{
+		return edges_;
+	}
+
+	cv::Point2d getLongestEdge()
+	{
+		return longest_edge_;
 	}
 
 	void drawPolygon(cv::Mat& image, const cv::Scalar& color)
