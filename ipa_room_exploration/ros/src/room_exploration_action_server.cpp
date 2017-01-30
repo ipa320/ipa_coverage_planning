@@ -26,6 +26,8 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 	{
 		path_eps_ = config.path_eps;
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
+		min_cell_size_ = config.min_cell_size;
+		std::cout << "room_exploration/min_cell_size_ = " << min_cell_size_ << std::endl;
 	}
 	else if(path_planning_algorithm_ == 3) // set neural network explorator parameters
 	{
@@ -49,7 +51,7 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		cell_size_ = config.cell_size;
 		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
 		delta_theta_ = config.delta_theta;
-		std::cout << "room_exploration/delta_theta = " << delta_theta_ << std::endl;
+		std::cout << "room_exploration/delta_theta_ = " << delta_theta_ << std::endl;
 	}
 	else if(path_planning_algorithm_ == 5) // set flowNetwork explorator parameters
 	{
@@ -58,7 +60,7 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		cell_size_ = config.cell_size;
 		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
 		curvature_factor_ = config.curvature_factor;
-		std::cout << "room_exploration/delta_theta = " << delta_theta_ << std::endl;
+		std::cout << "room_exploration/delta_theta_ = " << delta_theta_ << std::endl;
 	}
 
 	revisit_areas_ = config.revisit_areas;
@@ -118,6 +120,8 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	{
 		node_handle_.param("path_eps", path_eps_, 3.0);
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
+		node_handle_.param("min_cell_size", min_cell_size_, 0.5);
+		std::cout << "room_exploration/min_cell_size_ = " << min_cell_size_ << std::endl;
 	}
 	else if(path_planning_algorithm_ == 3) // set neural network explorator parameters
 	{
@@ -616,12 +620,12 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	{
 		// plan path
 		if(plan_for_footprint_ == false)
-			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, path_eps_, plan_for_footprint_, middle_point);
+			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, path_eps_, plan_for_footprint_, middle_point, min_cell_size_);
 		else
 		{
 			Eigen::Matrix<float, 2, 1> zero_vector;
 			zero_vector << 0, 0;
-			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, goal->coverage_radius/map_resolution, path_eps_, plan_for_footprint_, zero_vector);
+			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, goal->coverage_radius/map_resolution, path_eps_, plan_for_footprint_, zero_vector, min_cell_size_);
 		}
 	}
 	else if(path_planning_algorithm_ == 3) // use neural network explorator
@@ -736,6 +740,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		std::vector < cv::Vec4i > hierarchy;
 		cv::findContours(seen_positions_map, left_areas, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
 
+		// find valid regions
 		for(size_t area = 0; area < left_areas.size(); ++area)
 		{
 			// don't look at hole contours

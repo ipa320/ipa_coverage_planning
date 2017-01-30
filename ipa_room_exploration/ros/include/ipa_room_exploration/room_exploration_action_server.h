@@ -123,6 +123,8 @@ protected:
 
 	int cell_size_;					// size of one cell that is used to discretize the free space
 
+	double min_cell_size_;			// minimal area a cell can have, when using the boustrophedon explorator
+
 	double delta_theta_;			// sampling angle when creating possible sensing poses in the convexSPP explorator
 
 	gridPointExplorator grid_point_planner; // object that uses the grid point method to plan a path trough a room
