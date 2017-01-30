@@ -728,5 +728,17 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	// *********************** V. Get the robot path out of the fow path. ***********************
 	// go trough all computed fow poses and compute the corresponding robot pose
 	ROS_INFO("Starting to map from field of view pose to robot pose");
-	mapPath(rotated_room_map, path, fow_poses, robot_to_fow_vector, map_resolution, map_origin, starting_position);
+	mapPath(room_map, path, fow_poses, robot_to_fow_vector, map_resolution, map_origin, starting_position);
+
+//	testing
+//	std::cout << "printing path" << std::endl;
+//	cv::Mat fow_path_map = room_map.clone();
+//	for(size_t i=0; i<fow_middlepoint_path.size()-1; ++i)
+//	{
+//		cv::circle(fow_path_map, cv::Point(path[i].x/map_resolution, path[i].y/map_resolution), 2, cv::Scalar(200), CV_FILLED);
+//		cv::line(fow_path_map, cv::Point(path[i].x/map_resolution, path[i].y/map_resolution), cv::Point(path[i+1].x/map_resolution, path[i+1].y/map_resolution), cv::Scalar(100), 1);
+//	}
+//	cv::circle(fow_path_map, cv::Point(path.back().x/map_resolution, path.back().y/map_resolution), 2, cv::Scalar(200), CV_FILLED);
+//	cv::imshow("cell path", fow_path_map);
+//	cv::waitKey();
 }
