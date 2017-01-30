@@ -5,6 +5,9 @@
 #include <algorithm>
 #include <cmath>
 
+#include <ros/ros.h>
+#include <cob_map_accessibility_analysis/CheckPerimeterAccessibility.h>
+
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
 
@@ -74,6 +77,8 @@
  ****************************************************************/
 
 #pragma once
+
+#define PI 3.14159265359
 
 // Function that provides the functionality that a given fow path gets mapped to a robot path by using the given parameters.
 // To do so simply a vector operation is applied. If the computed robot pose is not in the free space, another accessible

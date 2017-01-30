@@ -51,30 +51,65 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 			// get current fow position
 			cv::Point fow_position(pose->x, pose->y);
 
-			// get vector from current position to desired fow position
-			// TODO: map accessability server
-			std::vector<cv::Point> astar_path;
-			path_planner.planPath(room_map, robot_pos, fow_position, 1.0, 0.0, map_resolution, 0, &astar_path);
+			// use the map accessibility analysis server to find a reachable pose
+			std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";
+			cob_map_accessibility_analysis::CheckPerimeterAccessibility::Response response;
+			cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
+			geometry_msgs::Pose2D goal;
+			goal.x = (fow_position.x*map_resolution) + map_origin.x;
+			goal.y = (fow_position.y*map_resolution) + map_origin.y;
+			check_request.center = goal;
+			check_request.radius = robot_to_fow_vector.norm();
+			check_request.rotational_sampling_step = PI/8;
 
-			// find the point on the astar path that is on the viewing circle around the fow middlepoint
-			cv::Point accessible_position;
-			for(std::vector<cv::Point>::iterator point=astar_path.begin(); point!=astar_path.end(); ++point)
+			// send request
+			bool res = ros::service::call(perimeter_service_name, check_request, response);
+			if(res==true && response.accessible_poses_on_perimeter.size()!=0)
 			{
-				if(cv::norm(*point-fow_position) <= robot_to_fow_vector_pixel.norm())
+				// go trough the found accessible positions and take the one that minimizes the distance to the last pose
+				double min_squared_distance = 1e5;
+				geometry_msgs::Pose2D best_pose;
+				for(std::vector<geometry_msgs::Pose2D>::iterator pose = response.accessible_poses_on_perimeter.begin(); pose != response.accessible_poses_on_perimeter.end(); ++pose)
 				{
-					accessible_position = *point;
-					break;
+					cv::Point diff = robot_pos - cv::Point((pose->x-map_origin.x)/map_resolution, (pose->y-map_origin.y)/map_resolution);
+					double current_distance = diff.x*diff.x+diff.y*diff.y;
+					if(current_distance<=min_squared_distance)
+					{
+						min_squared_distance = current_distance;
+						best_pose = *pose;
+					}
 				}
+
+				// add pose to path and set robot position to it
+				robot_path.push_back(best_pose);
+				robot_pos = cv::Point((best_pose.x-map_origin.x)/map_resolution, (best_pose.y-map_origin.y)/map_resolution);
 			}
+			else // try with the astar pathfinder to find a valid pose, if the accessibility server failed for some reason
+			{
+				// get vector from current position to desired fow position
+				std::vector<cv::Point> astar_path;
+				path_planner.planPath(room_map, robot_pos, fow_position, 1.0, 0.0, map_resolution, 0, &astar_path);
 
-			// get the angle s.t. the pose points to the fow middlepoint and save it
-			current_pose.x = (accessible_position.x * map_resolution) + map_origin.x;
-			current_pose.y = (accessible_position.y * map_resolution) + map_origin.y;
-			current_pose.theta = std::atan2(pose->y-accessible_position.y, pose->x-accessible_position.x);
-			robot_path.push_back(current_pose);
+				// find the point on the astar path that is on the viewing circle around the fow middlepoint
+				cv::Point accessible_position;
+				for(std::vector<cv::Point>::iterator point=astar_path.begin(); point!=astar_path.end(); ++point)
+				{
+					if(cv::norm(*point-fow_position) <= robot_to_fow_vector_pixel.norm())
+					{
+						accessible_position = *point;
+						break;
+					}
+				}
 
-			// set robot position to computed pose s.t. further planning is possible
-			robot_pos = accessible_position;
+				// get the angle s.t. the pose points to the fow middlepoint and save it
+				current_pose.x = (accessible_position.x * map_resolution) + map_origin.x;
+				current_pose.y = (accessible_position.y * map_resolution) + map_origin.y;
+				current_pose.theta = std::atan2(pose->y-accessible_position.y, pose->x-accessible_position.x);
+				robot_path.push_back(current_pose);
+
+				// set robot position to computed pose s.t. further planning is possible
+				robot_pos = accessible_position;
+			}
 		}
 
 //		testing

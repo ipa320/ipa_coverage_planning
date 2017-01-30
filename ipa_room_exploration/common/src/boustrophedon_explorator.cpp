@@ -737,6 +737,8 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 //	{
 //		cv::circle(fow_path_map, cv::Point(path[i].x/map_resolution, path[i].y/map_resolution), 2, cv::Scalar(200), CV_FILLED);
 //		cv::line(fow_path_map, cv::Point(path[i].x/map_resolution, path[i].y/map_resolution), cv::Point(path[i+1].x/map_resolution, path[i+1].y/map_resolution), cv::Scalar(100), 1);
+//		cv::imshow("cell path", fow_path_map);
+//		cv::waitKey();
 //	}
 //	cv::circle(fow_path_map, cv::Point(path.back().x/map_resolution, path.back().y/map_resolution), 2, cv::Scalar(200), CV_FILLED);
 //	cv::imshow("cell path", fow_path_map);
