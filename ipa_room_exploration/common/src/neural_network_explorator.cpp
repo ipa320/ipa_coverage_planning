@@ -74,7 +74,7 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 		{
 			for(int dy=-1; dy<=1; ++dy)
 			{
-				// don't exceed the current column
+				// don't exceed the current row
 				if(row+dy < 0 || row+dy >= neurons_.size())
 					continue;
 
