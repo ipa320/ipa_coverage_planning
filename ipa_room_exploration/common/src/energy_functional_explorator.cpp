@@ -76,4 +76,18 @@ void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 			}
 		}
 	}
+
+//	testing
+	for(size_t i=0; i<nodes.size(); ++i)
+	{
+		cv::Mat test_map = room_map.clone();
+		for(size_t j=0; j<nodes[i].size(); ++j)
+		{
+			std::vector<cv::Point> neighbors = nodes[i][j].neighbors_;
+			for(std::vector<cv::Point>::iterator n=neighbors.begin(); n!=neighbors.end(); ++n)
+				cv::circle(test_map, *n, 2, cv::Scalar(127), CV_FILLED);
+		}
+		cv::imshow("neighbors", test_map);
+		cv::waitKey();
+	}
 }
