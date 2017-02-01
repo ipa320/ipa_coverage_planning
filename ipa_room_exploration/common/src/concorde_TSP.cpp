@@ -130,10 +130,9 @@ std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_
 		writeToFile(path_length_Matrix);
 
 		//use concorde to find optimal tour
-		std::string cmd = ros::package::getPath("libconcorde_tsp_solver")
-				+ "/common/bin/concorde -o " + "$HOME/.ros/TSP_order.txt $HOME/.ros/TSPlib_file.txt";
-				//+ ros::package::getPath("libconcorde_tsp_solver") + "/common/files/TSP_order.txt "
-				//+ ros::package::getPath("libconcorde_tsp_solver") + "/common/files/TSPlib_file.txt";
+		std::string bin_folder = ros::package::command("libs-only-L libconcorde_tsp_solver");
+		bin_folder.erase(std::remove(bin_folder.begin(), bin_folder.end(), '\n'));
+		std::string cmd = bin_folder + "/libconcorde_tsp_solver/concorde -o " + "$HOME/.ros/TSP_order.txt $HOME/.ros/TSPlib_file.txt";
 		int result = system(cmd.c_str());
 		assert(!result);
 
