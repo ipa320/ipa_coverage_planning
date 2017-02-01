@@ -62,6 +62,11 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		curvature_factor_ = config.curvature_factor;
 		std::cout << "room_exploration/delta_theta_ = " << delta_theta_ << std::endl;
 	}
+	else if(path_planning_algorithm_ == 5) // set flowNetwork explorator parameters
+	{
+
+	}
+
 
 	revisit_areas_ = config.revisit_areas;
 	if(revisit_areas_ == true)
@@ -110,6 +115,8 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		ROS_INFO("You have chosen the convexSPP exploration method.");
 	else if(path_planning_algorithm_ == 5)
 		ROS_INFO("You have chosen the flow network exploration method.");
+	else if(path_planning_algorithm_ == 6)
+		ROS_INFO("You have chosen the energy functional exploration method.");
 
 	if (path_planning_algorithm_ == 1) // get grid point exploration parameters
 	{
@@ -155,6 +162,9 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
 		node_handle_.param("curvature_factor", curvature_factor_, 1.1);
 		std::cout << "room_exploration/curvature_factor = " << curvature_factor_ << std::endl;
+	}
+	else if(path_planning_algorithm_ == 6) // set energyfunctional explorator parameters
+	{
 	}
 
 	// boolean to set the functionality of revisiting not seen areas
@@ -656,6 +666,17 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			Eigen::Matrix<float, 2, 1> zero_vector;
 			zero_vector << 0, 0;
 			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, min_max_coordinates, zero_vector, goal->coverage_radius/map_resolution, true, path_eps_, curvature_factor_);
+		}
+	}
+	else if(path_planning_algorithm_ == 6) // use energy functional explorator
+	{
+		if(plan_for_footprint_ == false)
+			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, min_max_coordinates, fitting_circle_radius/map_resolution, false, middle_point);
+		else
+		{
+			Eigen::Matrix<float, 2, 1> zero_vector;
+			zero_vector << 0, 0;
+			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, min_max_coordinates, fitting_circle_radius/map_resolution, true, zero_vector);
 		}
 	}
 

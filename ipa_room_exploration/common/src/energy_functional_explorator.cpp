@@ -26,32 +26,38 @@ energyFunctionalExplorator::energyFunctionalExplorator()
 //			iv.	This procedure is repeated, until all created nodes have been covered.
 //
 void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
-			const cv::Point starting_position, const cv::Point2d map_origin, const int cell_size, const geometry_msgs::Polygon room_min_max_coordinates,
+			const cv::Point starting_position, const cv::Point2d map_origin, const geometry_msgs::Polygon room_min_max_coordinates,
 			const float fitting_circle_radius, const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fow_vector)
 {
 	// *********************** I. Find the nodes and their neighbors ***********************
 	// get the nodes in the free space
 	std::vector<std::vector<energyExploratorNode> > nodes; // 2-dimensional vector to easily find the neighbors
-	for(size_t y=room_min_max_coordinates.points[0].y+cell_size; y<room_min_max_coordinates.points[1].y-cell_size; y+=2.0*cell_size)
+	int radius_as_int = (int) std::floor(fitting_circle_radius);
+	int number_of_nodes = 0;
+	for(size_t y=room_min_max_coordinates.points[0].y+radius_as_int; y<room_min_max_coordinates.points[1].y-radius_as_int; y+=2.0*radius_as_int)
 	{
 		// for the current row create a new set of neurons to span the network over time
 		std::vector<energyExploratorNode> current_row;
-		for(size_t x=room_min_max_coordinates.points[0].x+cell_size; x<room_min_max_coordinates.points[1].x-cell_size; x+=2.0*cell_size)
+		for(size_t x=room_min_max_coordinates.points[0].x+radius_as_int; x<room_min_max_coordinates.points[1].x-radius_as_int; x+=2.0*radius_as_int)
 		{
 			// create node if the current point is in the free space
+			energyExploratorNode current_node;
+			current_node.center_ = cv::Point(x,y);
 			if(room_map.at<uchar>(y,x) == 255)
-			{
-				energyExploratorNode current_node;
-				current_node.center_ = cv::Point(x,y);
-				current_row.push_back(current_node);
-			}
+				current_node.obstacle_ = false;
+			else
+				current_node.obstacle_ = true;
+			current_row.push_back(current_node);
+			++number_of_nodes;
 		}
 
 		// insert the current row into grid
 		nodes.push_back(current_row);
 	}
+	std::cout << "found " << number_of_nodes <<  " nodes" << std::endl;
 
 	// find the neighbors for each node
+	std::vector<energyExploratorNode> corner_nodes; // vector that stores the corner nodes, i.e. nodes with 3 or less neighbors
 	for(size_t row=0; row<nodes.size(); ++row)
 	{
 		for(size_t column=0; column<nodes[row].size(); ++column)
@@ -63,31 +69,60 @@ void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 					continue;
 
 				// get the neighbors left from the current neuron
-				if(column > 0)
+				if(column > 0 && nodes[row+dy][column-1].obstacle_==false)
 					nodes[row][column].neighbors_.push_back(nodes[row+dy][column-1].center_);
 
 				// get the nodes on the same column as the current neuron
-				if(dy != 0)
+				if(dy != 0 && nodes[row+dy][column].obstacle_==false)
 					nodes[row][column].neighbors_.push_back(nodes[row+dy][column].center_);
 
 				// get the nodes right from the current neuron
-				if(column < nodes[row].size()-1)
+				if(column < nodes[row].size()-1 && nodes[row+dy][column+1].obstacle_==false)
 					nodes[row][column].neighbors_.push_back(nodes[row+dy][column+1].center_);
 			}
+
+			// check if the current node is a corner
+			if(nodes[row][column].neighbors_.size()<=3)
+				corner_nodes.push_back(nodes[row][column]);
+		}
+	}
+	std::cout << "found neighbors" << std::endl;
+
+//	testing
+//	for(size_t i=0; i<nodes.size(); ++i)
+//	{
+//		for(size_t j=0; j<nodes[i].size(); ++j)
+//		{
+//			cv::Mat test_map = room_map.clone();
+//
+//			std::vector<cv::Point> neighbors = nodes[i][j].neighbors_;
+//			for(std::vector<cv::Point>::iterator n=neighbors.begin(); n!=neighbors.end(); ++n)
+//				cv::circle(test_map, *n, 2, cv::Scalar(127), CV_FILLED);
+//
+//			cv::imshow("neighbors", test_map);
+//			cv::waitKey();
+//		}
+//	}
+
+	// *********************** II. Plan the coverage path ***********************
+	// i. find the start node of the path as a corner that is closest to the starting position
+	energyExploratorNode start_node;
+	float min_distance = 1e4;
+	for(std::vector<energyExploratorNode>::iterator corner=corner_nodes.begin(); corner!=corner_nodes.end(); ++corner)
+	{
+		cv::Point diff = corner->center_ - starting_position;
+		float current_distance = diff.x*diff.x+diff.y*diff.y;
+		if(current_distance<=min_distance)
+		{
+			start_node = *corner;
+			min_distance = current_distance;
 		}
 	}
 
-//	testing
-	for(size_t i=0; i<nodes.size(); ++i)
-	{
-		cv::Mat test_map = room_map.clone();
-		for(size_t j=0; j<nodes[i].size(); ++j)
-		{
-			std::vector<cv::Point> neighbors = nodes[i][j].neighbors_;
-			for(std::vector<cv::Point>::iterator n=neighbors.begin(); n!=neighbors.end(); ++n)
-				cv::circle(test_map, *n, 2, cv::Scalar(127), CV_FILLED);
-		}
-		cv::imshow("neighbors", test_map);
-		cv::waitKey();
-	}
+	// insert start node into coverage path
+	std::vector<cv::Point> fow_coverage_path;
+	fow_coverage_path.push_back(start_node.center_);
+
+	// ii. starting at the start node, find the coverage path, by choosing the node that min. the energy functional
+	// TODO: set that contains covered nodes
 }
