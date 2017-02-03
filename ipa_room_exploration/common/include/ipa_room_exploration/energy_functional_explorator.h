@@ -15,6 +15,7 @@
 #include <geometry_msgs/Point32.h>
 
 #define PI 3.14159265359
+#define PI_2 PI/2
 
 /*!
  *****************************************************************
@@ -82,7 +83,16 @@ struct energyExploratorNode
 {
 	cv::Point center_;
 	bool obstacle_;
-	std::vector<cv::Point> neighbors_;
+	std::vector<energyExploratorNode*> neighbors_;
+};
+
+// Struct used to create sets of energyExplorationNodes
+struct cv_Point_cmp
+{
+  bool operator() (const cv::Point& lhs, const cv::Point& rhs) const
+  {
+	  return ((lhs.y < rhs.y) || (lhs.y == rhs.y && lhs.x < rhs.x));
+  }
 };
 
 // This class provides the functionality of coverage path planning, based on the work in
@@ -99,7 +109,7 @@ struct energyExploratorNode
 //		d_t(l,n) = ||l_xy-n_xy||_2/d_0,
 // where l_xy or n_xy is the vector storing the position of the corresponding location. d_r is the rotational distance, computed as
 //		d_r(l,n) = 2*(l_theta-n_theta)/pi,
-// where l_theta or n_theta are the angles of the corresponding poses.Function N (n) represents half the number of not yet visited
+// where l_theta or n_theta are the angles of the corresponding poses. Function N(n) represents half the number of not yet visited
 // locations among the 8 neighbors Nb8(n) around n and is computed as
 //		N(n) = 4 - sum_(k in Nb8(n)) |k ∩ L|/2,
 // where L is the number of already visited nodes. If no accessible node in the direct neighborhood could be found, the algorithm
@@ -110,6 +120,10 @@ struct energyExploratorNode
 class energyFunctionalExplorator
 {
 protected:
+	// function to compute the energy function for each pair of nodes
+	float E(const energyExploratorNode& location, const energyExploratorNode& neighbor,
+			const std::set<cv::Point, cv_Point_cmp>& visited_nodes, const int cell_size,
+			const double previous_travel_angle);
 
 public:
 	// constructor

@@ -6,6 +6,31 @@ energyFunctionalExplorator::energyFunctionalExplorator()
 
 }
 
+// Function that computes the energy functional for each pair of nodes.
+float E(const energyExploratorNode& location, const energyExploratorNode& neighbor,
+		std::set<cv::Point, cv_Point_cmp> visited_nodes, const int cell_size, const double previous_travel_angle)
+{
+	float energy_functional = 0.0;
+
+	// 1. translational distance
+	cv::Point diff = location.center_ - neighbor.center_;
+	energy_functional += cv::norm(diff)/cell_size;
+
+	// 2. rotational distance
+	double travel_angle_to_node = std::atan2(diff.y, diff.x);
+	energy_functional += std::abs(previous_travel_angle - travel_angle_to_node)/PI_2;
+
+	// 3. neighboring function, determining how many neighbors of the neighbor have been visited
+	// TODO: finish
+	int visited_neighbors = 0;
+//	for(std::vector<cv::Point>::iterator n=neighbor.neighbors_.begin(); n!=neighbor.neighbors_.end(); ++n)
+//		if(visited_nodes.find(*n->center_)!=visited_nodes.end())
+//			++visited_neighbors;
+//	energy_functional += 4 - visited_neighbors/2;
+
+	return energy_functional;
+}
+
 // Function that plans a coverage path trough the given map, using the method proposed in
 //
 //	Bormann, Richard, Joshua Hampp, and Martin Hägele. "New brooms sweep clean-an autonomous robotic cleaning assistant for
@@ -33,7 +58,7 @@ void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 	// get the nodes in the free space
 	std::vector<std::vector<energyExploratorNode> > nodes; // 2-dimensional vector to easily find the neighbors
 	int radius_as_int = (int) std::floor(fitting_circle_radius);
-	int number_of_nodes = 0;
+	int number_of_free_nodes = 0;
 	for(size_t y=room_min_max_coordinates.points[0].y+radius_as_int; y<room_min_max_coordinates.points[1].y-radius_as_int; y+=2.0*radius_as_int)
 	{
 		// for the current row create a new set of neurons to span the network over time
@@ -44,17 +69,20 @@ void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 			energyExploratorNode current_node;
 			current_node.center_ = cv::Point(x,y);
 			if(room_map.at<uchar>(y,x) == 255)
+			{
 				current_node.obstacle_ = false;
+				++number_of_free_nodes;
+			}
+			// add the obstacle nodes to easily find the neighbors for each free node by using the grid structure
 			else
 				current_node.obstacle_ = true;
 			current_row.push_back(current_node);
-			++number_of_nodes;
 		}
 
 		// insert the current row into grid
 		nodes.push_back(current_row);
 	}
-	std::cout << "found " << number_of_nodes <<  " nodes" << std::endl;
+	std::cout << "found " << number_of_free_nodes <<  " free nodes" << std::endl;
 
 	// find the neighbors for each node
 	std::vector<energyExploratorNode> corner_nodes; // vector that stores the corner nodes, i.e. nodes with 3 or less neighbors
@@ -70,15 +98,15 @@ void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 
 				// get the neighbors left from the current neuron
 				if(column > 0 && nodes[row+dy][column-1].obstacle_==false)
-					nodes[row][column].neighbors_.push_back(nodes[row+dy][column-1].center_);
+					nodes[row][column].neighbors_.push_back(&nodes[row+dy][column-1]);
 
 				// get the nodes on the same column as the current neuron
 				if(dy != 0 && nodes[row+dy][column].obstacle_==false)
-					nodes[row][column].neighbors_.push_back(nodes[row+dy][column].center_);
+					nodes[row][column].neighbors_.push_back(&nodes[row+dy][column]);
 
 				// get the nodes right from the current neuron
 				if(column < nodes[row].size()-1 && nodes[row+dy][column+1].obstacle_==false)
-					nodes[row][column].neighbors_.push_back(nodes[row+dy][column+1].center_);
+					nodes[row][column].neighbors_.push_back(&nodes[row+dy][column+1]);
 			}
 
 			// check if the current node is a corner
@@ -124,5 +152,16 @@ void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 	fow_coverage_path.push_back(start_node.center_);
 
 	// ii. starting at the start node, find the coverage path, by choosing the node that min. the energy functional
-	// TODO: set that contains covered nodes
+	std::set<cv::Point, cv_Point_cmp> visited_nodes;
+	energyExploratorNode last_node = start_node;
+	visited_nodes.insert(start_node.center_);
+	double previous_travel_angle = std::atan2(starting_position.y-start_node.center_.y, starting_position.x-start_node.center_.x);
+	do
+	{
+		// check the direct neighbors, if at least one is not already visited
+		// TODO: finish --> pointers as neighbors
+		std::vector<energyExploratorNode> not_visited_neighbors;
+//		for(std::)
+
+	}while(visited_nodes.size()<number_of_free_nodes);
 }
