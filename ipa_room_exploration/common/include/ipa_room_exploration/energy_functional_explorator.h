@@ -97,7 +97,7 @@ struct cv_Point_cmp
 
 // This class provides the functionality of coverage path planning, based on the work in
 //
-//	Bormann, Richard, Joshua Hampp, and Martin Hägele. "New brooms sweep clean-an autonomous robotic cleaning assistant for
+//	Bormann Richard, Joshua Hampp, and Martin Hägele. "New brooms sweep clean-an autonomous robotic cleaning assistant for
 //	professional office cleaning." Robotics and Automation (ICRA), 2015 IEEE International Conference on. IEEE, 2015.
 //
 // In this method the area that should be covered is discretized into a grid, using the given grid size parameter d_0. Each of these
