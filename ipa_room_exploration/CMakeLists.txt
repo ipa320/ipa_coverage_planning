@@ -140,6 +140,13 @@ target_link_libraries(room_exploration_client
 )
 add_dependencies(room_exploration_client ${catkin_EXPORTED_TARGETS})
 
+# evaluation of room exploration algorithms
+add_executable(room_exploration_evaluation ros/src/room_exploration_evaluation.cpp)
+target_link_libraries(room_exploration_evaluation
+	${catkin_LIBRARIES} 
+	${OpenCV_LIBRARIES}
+)
+add_dependencies(room_exploration_client ${catkin_EXPORTED_TARGETS})
  
 #############
 ## Install ##

@@ -108,6 +108,10 @@ protected:
 	int path_planning_algorithm_;	// variable to specify which algorithm is going to be used to plan a path
 										// 1: grid point explorator
 										// 2: boustrophedon explorator
+										// 3: neural network explorator
+										// 4: convexSPP explorator
+										// 5: flowNetwork explorator
+										// 6: energyFunctional explorator
 
 	bool revisit_areas_;			// variable that turns functionality on/off to revisit areas that haven't been seen during the
 									// execution of the coverage path, due to uncertainites or dynamical obstacles

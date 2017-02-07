@@ -154,7 +154,6 @@ int main(int argc, char **argv)
 	geometry_msgs::Pose2D map_origin;
 	map_origin.x = 0.0;
 	map_origin.y = 0.0;
-	map_origin.theta = 0.0;
 
 	geometry_msgs::Pose2D starting_position;
 	starting_position.x = 1.0;

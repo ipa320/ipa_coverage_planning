@@ -494,7 +494,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv_bridge::CvImagePtr cv_ptr_obj;
 	cv_ptr_obj = cv_bridge::toCvCopy(goal->input_map, sensor_msgs::image_encodings::MONO8);
 	cv::Mat global_map = cv_ptr_obj->image;
-	transformImageToRoomCordinates(global_map);
+//	transformImageToRoomCordinates(global_map); // TODO: add again
 
 	// extract the subregion of the given map that should be explored
 	int roi_x_start = goal->region_of_interest_coordinates.points[0].x;
@@ -502,12 +502,14 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	int roi_x_end = goal->region_of_interest_coordinates.points[1].x;
 	int roi_y_end = goal->region_of_interest_coordinates.points[1].y;
 
-//	cv::Mat room_map = global_map(cv::Range(roi_y_start, roi_y_end), cv::Range(roi_x_start, roi_x_end));
-	cv::Mat room_map = global_map;
+	cv::Mat room_map = global_map(cv::Range(roi_y_start, roi_y_end), cv::Range(roi_x_start, roi_x_end));
+//	cv::Mat room_map = global_map;
 
 	// erode map so that not reachable areas are not considered
 	int robot_radius_in_pixel = (robot_radius / map_resolution);
 	cv::erode(room_map, room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
+//	cv::imshow("room", room_map);
+//	cv::waitKey();
 
 	// get the grid size, to check the areas that should be revisited later
 	int grid_length;
@@ -679,6 +681,10 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, true, zero_vector);
 		}
 	}
+
+	// check if the size of the exploration path is larger then zero
+	if(exploration_path.size()==0)
+		return;
 
 	// if wanted, return the path as the result
 	ipa_building_msgs::RoomExplorationResult action_result;
