@@ -4,8 +4,9 @@
 # 3 = neural network explorator
 # 4 = convexSPP explorator
 # 5 = flowNetwork explorator
+# 6 = energyFunctional explorator
 # int
-room_exploration_algorithm: 2
+room_exploration_algorithm: 1
 
 # this variable sets if the path should be generated such that the robot footprint has to cover everything instead of the field of view
 plan_for_footprint: false
@@ -20,6 +21,7 @@ left_sections_min_area: 0.01
 
 # min distance between the robot and the published navigation goal before the next goal in the path gets published
 # double
+# [pixel]
 goal_eps: 0.35
 
 # size of one cell when discretizing the free space, smaller value means a more detailed discretization
