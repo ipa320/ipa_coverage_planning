@@ -680,6 +680,18 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		}
 	}
 
+	// if wanted, return the path as the result
+	ipa_building_msgs::RoomExplorationResult action_result;
+	if(goal->return_path == true)
+		action_result.coverage_path = exploration_path;
+
+	// check if the path should be executed, if not end here
+	if(goal->execute_path == false)
+	{
+		room_exploration_server_.setSucceeded(action_result);
+		return;
+	}
+
 	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
 	// 1. publish navigation goals
 	double distance_robot_fow_middlepoint = middle_point.norm();
@@ -745,10 +757,10 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		cv::Mat copy = room_map.clone();
 
 		// testing, TODO: parameter to show
-		cv::namedWindow("initially seen areas", cv::WINDOW_NORMAL);
-		cv::imshow("initially seen areas", seen_positions_map);
-		cv::resizeWindow("initially seen areas", 600, 600);
-		cv::waitKey();
+//		cv::namedWindow("initially seen areas", cv::WINDOW_NORMAL);
+//		cv::imshow("initially seen areas", seen_positions_map);
+//		cv::resizeWindow("initially seen areas", 600, 600);
+//		cv::waitKey();
 
 		// apply a binary filter on the image, making the drawn seen areas black
 		cv::threshold(seen_positions_map, seen_positions_map, 150, 255, cv::THRESH_BINARY);
@@ -836,15 +848,15 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		 }
 
 		 // testing
-		 black_map = room_map.clone();
-		 for(size_t i = 0; i < area_centers.size(); ++i)
-		 {
-			 cv::circle(black_map, area_centers[i], 2, cv::Scalar(127), CV_FILLED);
-			 std::cout << area_centers[i] << std::endl;
-		 }
-		cv::namedWindow("revisiting areas", cv::WINDOW_NORMAL);
-		cv::imshow("revisiting areas", black_map);
-		cv::resizeWindow("revisiting areas", 600, 600);
+//		 black_map = room_map.clone();
+//		 for(size_t i = 0; i < area_centers.size(); ++i)
+//		 {
+//			 cv::circle(black_map, area_centers[i], 2, cv::Scalar(127), CV_FILLED);
+//			 std::cout << area_centers[i] << std::endl;
+//		 }
+//		cv::namedWindow("revisiting areas", cv::WINDOW_NORMAL);
+//		cv::imshow("revisiting areas", black_map);
+//		cv::resizeWindow("revisiting areas", 600, 600);
 	//	cv::waitKey();
 
 		// 4. plan a tsp path trough the centers of the left areas
@@ -912,16 +924,16 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			}
 		}
 
-		drawSeenPoints(copy, robot_poses, goal->field_of_view, corner_point_1, corner_point_2, map_resolution, map_origin);
-		cv::namedWindow("seen areas", cv::WINDOW_NORMAL);
-		cv::imshow("seen areas", copy);
-		cv::resizeWindow("seen areas", 600, 600);
-		cv::waitKey();
+//		drawSeenPoints(copy, robot_poses, goal->field_of_view, corner_point_1, corner_point_2, map_resolution, map_origin);
+//		cv::namedWindow("seen areas", cv::WINDOW_NORMAL);
+//		cv::imshow("seen areas", copy);
+//		cv::resizeWindow("seen areas", 600, 600);
+//		cv::waitKey();
 	}
 
 	ROS_INFO("Explored room.");
 
-	room_exploration_server_.setSucceeded();
+	room_exploration_server_.setSucceeded(action_result);
 
 	return;
 }

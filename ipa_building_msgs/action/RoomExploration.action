@@ -14,7 +14,10 @@ geometry_msgs/Polygon room_min_max			# first point provides the minimum (x,y)-co
 geometry_msgs/Polygon region_of_interest_coordinates	# define the region of interest, for which a path should be planned, by giving the start x/y and end x/y
 string map_frame					# string that carries the name of the map frame, used for tracking of the robot
 string camera_frame					# string that carries the name of the camera frame, that is in the same kinematic chain as the map_frame and shows the camera pose
+bool return_path					# boolean used to determine, if the server should return the path
+bool execute_path					# boolean used to determine, if the server should execute the coverage path
 ---
 # result definition
+geometry_msgs/Pose2D[] coverage_path			# when the server should return the coverage path, this is done returning the points in an array that shows the order of visiting
 ---
 # feedback definition

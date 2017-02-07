@@ -24,6 +24,15 @@
 
 #include <Eigen/Dense>
 
+// overload of << operator for geometry_msgs::Pose2D to wanted format
+std::ostream& operator<<(std::ostream& os, const geometry_msgs::Pose2D& obj)
+{
+	std::stringstream ss;
+	ss <<  "[" << obj.x << ", " << obj.y << ", " << obj.theta << "]";
+	os << ss.rdbuf();
+    return os;
+}
+
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "room_exploration_client");
@@ -196,7 +205,15 @@ int main(int argc, char **argv)
 	goal.footprint = footprint_points;
 	goal.coverage_radius = 0.2;
 	goal.region_of_interest_coordinates = region_of_interest;
+	goal.return_path = true;
+	goal.execute_path = false;
 	ac.sendGoal(goal);
+
+	ac.waitForResult(ros::Duration());
+	ipa_building_msgs::RoomExplorationResultConstPtr action_result = ac.getResult();
+
+	std::cout << "Got a path with " << action_result->coverage_path.size() << " nodes." << std::endl;
+	std::cout << action_result->coverage_path[0] << std::endl;
 
 ////	// testing
 //	std::vector<cv::Point> fow(5);
