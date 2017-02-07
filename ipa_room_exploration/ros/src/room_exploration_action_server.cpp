@@ -671,12 +671,12 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	else if(path_planning_algorithm_ == 6) // use energy functional explorator
 	{
 		if(plan_for_footprint_ == false)
-			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, min_max_coordinates, fitting_circle_radius/map_resolution, false, middle_point);
+			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, false, middle_point);
 		else
 		{
 			Eigen::Matrix<float, 2, 1> zero_vector;
 			zero_vector << 0, 0;
-			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, min_max_coordinates, fitting_circle_radius/map_resolution, true, zero_vector);
+			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, true, zero_vector);
 		}
 	}
 

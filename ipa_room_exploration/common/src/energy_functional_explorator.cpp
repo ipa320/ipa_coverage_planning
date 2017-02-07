@@ -55,19 +55,20 @@ float energyFunctionalExplorator::E(const energyExploratorNode& location, const 
 //		Boolean to false (shows that the path planning should be done for the robot footprint).
 //
 void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
-			const cv::Point starting_position, const cv::Point2d map_origin, const geometry_msgs::Polygon room_min_max_coordinates,
-			const float fitting_circle_radius, const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fow_vector)
+			const cv::Point starting_position, const cv::Point2d map_origin, const float fitting_circle_radius,
+			const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fow_vector)
 {
 	// *********************** I. Find the nodes and their neighbors ***********************
 	// get the nodes in the free space
 	std::vector<std::vector<energyExploratorNode> > nodes; // 2-dimensional vector to easily find the neighbors
+	std::set<cv::Point, cv_Point_cmp> visited_nodes; // vector that stores the already visited nodes
 	int radius_as_int = (int) std::floor(fitting_circle_radius);
-	int number_of_free_nodes = 0;
-	for(size_t y=room_min_max_coordinates.points[0].y+radius_as_int; y<room_min_max_coordinates.points[1].y-radius_as_int; y+=2.0*radius_as_int)
+	int number_of_nodes = 0;
+	for(size_t y=0; y<room_map.rows; y+=2.0*radius_as_int)
 	{
 		// for the current row create a new set of neurons to span the network over time
 		std::vector<energyExploratorNode> current_row;
-		for(size_t x=room_min_max_coordinates.points[0].x+radius_as_int; x<room_min_max_coordinates.points[1].x-radius_as_int; x+=2.0*radius_as_int)
+		for(size_t x=0; x<room_map.cols; x+=2.0*radius_as_int)
 		{
 			// create node if the current point is in the free space
 			energyExploratorNode current_node;
@@ -75,18 +76,22 @@ void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 			if(room_map.at<uchar>(y,x) == 255)
 			{
 				current_node.obstacle_ = false;
-				++number_of_free_nodes;
+				++number_of_nodes;
 			}
-			// add the obstacle nodes to easily find the neighbors for each free node by using the grid structure
+			// add the obstacle nodes as already visited
 			else
+			{
 				current_node.obstacle_ = true;
+				++number_of_nodes;
+				visited_nodes.insert(current_node.center_);
+			}
 			current_row.push_back(current_node);
 		}
 
 		// insert the current row into grid
 		nodes.push_back(current_row);
 	}
-	std::cout << "found " << number_of_free_nodes <<  " free nodes" << std::endl;
+	std::cout << "found " << number_of_nodes <<  " nodes" << std::endl;
 
 	// find the neighbors for each node
 	std::vector<energyExploratorNode> corner_nodes; // vector that stores the corner nodes, i.e. nodes with 3 or less neighbors
@@ -101,20 +106,25 @@ void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 					continue;
 
 				// get the neighbors left from the current neuron
-				if(column > 0 && nodes[row+dy][column-1].obstacle_==false)
+				if(column > 0)
 					nodes[row][column].neighbors_.push_back(&nodes[row+dy][column-1]);
 
 				// get the nodes on the same column as the current neuron
-				if(dy != 0 && nodes[row+dy][column].obstacle_==false)
+				if(dy != 0)
 					nodes[row][column].neighbors_.push_back(&nodes[row+dy][column]);
 
 				// get the nodes right from the current neuron
-				if(column < nodes[row].size()-1 && nodes[row+dy][column+1].obstacle_==false)
+				if(column < nodes[row].size()-1)
 					nodes[row][column].neighbors_.push_back(&nodes[row+dy][column+1]);
 			}
 
-			// check if the current node is a corner
-			if(nodes[row][column].neighbors_.size()<=3 && nodes[row][column].obstacle_==false)
+			// check if the current node is a corner, i.e. nodes that have 3 or less neighbors that are not obstacles
+			int non_obstacle_neighbors = 0;
+			for(std::vector<energyExploratorNode*>::iterator neighbor=nodes[row][column].neighbors_.begin(); neighbor!=nodes[row][column].neighbors_.end(); ++neighbor)
+				if((*neighbor)->obstacle_==false)
+					++non_obstacle_neighbors;
+
+			if(non_obstacle_neighbors<=3 && nodes[row][column].obstacle_==false)
 				corner_nodes.push_back(nodes[row][column]);
 		}
 	}
@@ -127,9 +137,9 @@ void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 //		{
 //			cv::Mat test_map = room_map.clone();
 //
-//			std::vector<cv::Point> neighbors = nodes[i][j].neighbors_;
-//			for(std::vector<cv::Point>::iterator n=neighbors.begin(); n!=neighbors.end(); ++n)
-//				cv::circle(test_map, *n, 2, cv::Scalar(127), CV_FILLED);
+//			std::vector<energyExploratorNode*> neighbors = nodes[i][j].neighbors_;
+//			for(std::vector<energyExploratorNode*>::iterator n=neighbors.begin(); n!=neighbors.end(); ++n)
+//				cv::circle(test_map, (*n)->center_, 2, cv::Scalar(127), CV_FILLED);
 //
 //			cv::imshow("neighbors", test_map);
 //			cv::waitKey();
@@ -160,7 +170,6 @@ void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 	fow_coverage_path.push_back(start_pose);
 
 	// ii. starting at the start node, find the coverage path, by choosing the node that min. the energy functional
-	std::set<cv::Point, cv_Point_cmp> visited_nodes;
 	energyExploratorNode last_node = start_node;
 	visited_nodes.insert(start_node.center_);
 	double previous_travel_angle = std::atan2(starting_position.y-start_node.center_.y, starting_position.x-start_node.center_.x);
@@ -234,7 +243,7 @@ void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 		}
 
 //		std::cout << "covered nodes: " << visited_nodes.size() << std::endl;
-	}while(visited_nodes.size()<number_of_free_nodes);
+	}while(visited_nodes.size()<number_of_nodes);
 
 	// go trough the found fow-path and compute the angles of the poses s.t. it points to the next pose that should be visited
 	for(unsigned int point_index=0; point_index<fow_coverage_path.size(); ++point_index)
@@ -271,8 +280,8 @@ void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 //	{
 //		cv::circle(path_map, cv::Point(path_node->x, path_node->y), 2, cv::Scalar(100), CV_FILLED);
 //		cv::line(path_map, cv::Point(path_node->x, path_node->y), cv::Point((path_node-1)->x, (path_node-1)->y), cv::Scalar(127));
-////		cv::imshow("path", path_map);
-////		cv::waitKey();
+//		cv::imshow("path", path_map);
+//		cv::waitKey();
 //	}
 //	cv::imshow("path", path_map);
 //	cv::waitKey();
