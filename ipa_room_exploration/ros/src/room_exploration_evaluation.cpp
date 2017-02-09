@@ -388,7 +388,10 @@ public:
 				// send the exploration goal
 				ipa_building_msgs::RoomExplorationResultConstPtr result_expl;
 				if(planCoveragePath(room_map, datas, *config, result_expl, t0, datas.robot_start_position_, min_max_points, region_of_interest)==false)
-					return false;
+				{
+					output << "room " << room_index << " exceeded the time limitation of 5 hours" << std::endl << std::endl;
+					continue;
+				}
 				clock_gettime(CLOCK_MONOTONIC,  &t1); //set time stamp after the path planning
 
 				// retrieve the solution and save the found results
@@ -496,8 +499,8 @@ public:
 		goal.execute_path = false;
 		ac_exp.sendGoal(goal);
 
-		// wait for results
-		bool finished = ac_exp.waitForResult();
+		// wait for results for 5 hours
+		bool finished = ac_exp.waitForResult(ros::Duration(18000));
 
 		// if an error occurred, return a boolean showing failure
 		if(finished==false)
