@@ -131,6 +131,15 @@ target_link_libraries(room_exploration_server
 	${Cbc-lib_LIBRARIES}
 )
 
+# server for coverage checking
+add_executable(coverage_check_server ros/src/coverage_check_server.cpp)
+target_link_libraries(coverage_check_server
+	${catkin_LIBRARIES} 
+	${OpenCV_LIBRARIES}
+	${Boost_LIBRARIES}
+)
+add_dependencies(coverage_check_server ${catkin_EXPORTED_TARGETS})
+
 # room exploration client
 add_executable(room_exploration_client ros/src/room_exploration_action_client.cpp)
 target_link_libraries(room_exploration_client

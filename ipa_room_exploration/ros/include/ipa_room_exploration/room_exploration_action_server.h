@@ -1,34 +1,35 @@
+// Ros specific
 #include <ros/ros.h>
 #include <actionlib/server/simple_action_server.h>
 #include <move_base_msgs/MoveBaseAction.h>
 #include <actionlib/client/simple_action_client.h>
 #include <ros/time.h>
 #include <cv_bridge/cv_bridge.h>
-
-#include <ipa_room_exploration/RoomExplorationConfig.h>
-
+#include <tf/transform_listener.h>
+#include <dynamic_reconfigure/server.h>
+// OpenCV specific
+#include <opencv/cv.h>
+// Eigen library
 #include <Eigen/Dense>
-
+// standard c++ libraries
 #include <iostream>
 #include <list>
 #include <string>
 #include <vector>
 #include <algorithm>
 #include <cmath>
-
+// services and actions
 #include <ipa_building_msgs/RoomExplorationAction.h>
 #include <cob_map_accessibility_analysis/CheckPerimeterAccessibility.h>
-#include <ipa_room_exploration/concorde_TSP.h>
-
+#include <ipa_building_msgs/checkCoverage.h>
+// messages
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>
 #include <geometry_msgs/Point32.h>
 #include <nav_msgs/OccupancyGrid.h>
-
-#include <tf/transform_listener.h>
-
-#include <dynamic_reconfigure/server.h>
-
+// specific from this package
+#include <ipa_room_exploration/concorde_TSP.h>
+#include <ipa_room_exploration/RoomExplorationConfig.h>
 #include <ipa_room_exploration/grid_point_explorator.h>
 #include <ipa_room_exploration/boustrophedon_explorator.h>
 #include <ipa_room_exploration/neural_network_explorator.h>

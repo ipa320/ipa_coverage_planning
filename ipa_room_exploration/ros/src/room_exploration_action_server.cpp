@@ -558,68 +558,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		grid_length = std::floor(goal->coverage_radius/map_resolution);
 	}
 
-	// find the points that are used to raycast the field of view
-	// get points that define the edge-points of the line the raycasting should go to, by computing the intersection of two
-	// lines: the line defined by the robot pose and the fow-point that spans the highest angle and a line parallel to the
-	// front side of the fow with an offset
-	Eigen::Matrix<float, 2, 1> corner_point_1, corner_point_2;
-	float max_angle = 0.0;
-	if(plan_for_footprint_ == false)
-	{
-		// get angles between robot_pose and fow-corners in relative coordinates
-		float dot = fow_vectors[0].transpose()*fow_vectors[1];
-		float abs = fow_vectors[0].norm()*fow_vectors[1].norm();
-		float quotient = dot/abs;
-		if(quotient > 1) // prevent errors resulting from round errors
-			quotient = 1;
-		else if(quotient < -1)
-			quotient = -1;
-		float angle_1 = std::acos(quotient);
-		dot = fow_vectors[2].transpose()*fow_vectors[3];
-		abs = fow_vectors[2].norm()*fow_vectors[3].norm();
-		quotient = dot/abs;
-		if(quotient > 1) // prevent errors resulting from round errors
-			quotient = 1;
-		else if(quotient < -1)
-			quotient = -1;
-		float angle_2 = std::acos(dot/abs);
-
-		if(angle_1 > angle_2) // do a line crossing s.t. the corners are guaranteed to be after the fow
-		{
-			// save fond max angle
-			max_angle = angle_1;
-
-			float border_distance = 7;
-			Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_1 = fow_vectors[0];
-			Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_2 = fow_vectors[1];
-
-			// get vectors showing the directions for for the lines from pose to edge of fow
-			Eigen::Matrix<float, 2, 1> normed_fow_vector_1 = fow_vectors[0]/fow_vectors[0].norm();
-			Eigen::Matrix<float, 2, 1> normed_fow_vector_2 = fow_vectors[1]/fow_vectors[1].norm();
-
-			// get the offset point after the end of the fow
-			Eigen::Matrix<float, 2, 1> offset_point_after_fow = fow_vectors[2];
-			offset_point_after_fow(1, 0) = offset_point_after_fow(1, 0) + border_distance;
-
-			// find the parameters for the two different intersections (for each corner point)
-			float first_edge_parameter = (pose_to_fow_edge_vector_1(1, 0)/pose_to_fow_edge_vector_1(0, 0) * (fow_vectors[0](0, 0) - offset_point_after_fow(0, 0)) + offset_point_after_fow(1, 0) - fow_vectors[0](1, 0))/( pose_to_fow_edge_vector_1(1, 0)/pose_to_fow_edge_vector_1(0, 0) * (fow_vectors[3](0, 0) - fow_vectors[2](0, 0)) - (fow_vectors[3](1, 0) - fow_vectors[2](1, 0)) );
-			float second_edge_parameter = (pose_to_fow_edge_vector_2(1, 0)/pose_to_fow_edge_vector_2(0, 0) * (fow_vectors[1](0, 0) - offset_point_after_fow(0, 0)) + offset_point_after_fow(1, 0) - fow_vectors[1](1, 0))/( pose_to_fow_edge_vector_2(1, 0)/pose_to_fow_edge_vector_2(0, 0) * (fow_vectors[3](0, 0) - fow_vectors[2](0, 0)) - (fow_vectors[3](1, 0) - fow_vectors[2](1, 0)) );
-
-			// use the line equation and found parameters to actually find the corners
-			corner_point_1 = first_edge_parameter * (fow_vectors[3] - fow_vectors[2]) + offset_point_after_fow;
-			corner_point_2 = second_edge_parameter * (fow_vectors[3] - fow_vectors[2]) + offset_point_after_fow;
-		}
-		else
-		{
-			// save found max angle
-			max_angle = angle_2;
-
-			// follow the lines to the farthest points and go a little longer, this ensures that the whole fow is covered
-			corner_point_1 = 1.3 * fow_vectors[2];
-			corner_point_2 = 1.3 * fow_vectors[3];
-		}
-	}
-
 	// ***************** II. plan the path using the wanted planner *****************
 	std::vector<geometry_msgs::Pose2D> exploration_path;
 	if(path_planning_algorithm_ == 1) // use grid point explorator
@@ -656,6 +594,31 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	}
 	else if(path_planning_algorithm_ == 4) // use convexSPP explorator
 	{
+		// find the maximum angle that is spanned between the closer or more distant corners, used to determine the visibility of cells
+		float max_angle = 0.0;
+		float dot = fow_vectors[0].transpose()*fow_vectors[1];
+		float abs = fow_vectors[0].norm()*fow_vectors[1].norm();
+		float quotient = dot/abs;
+		if(quotient > 1) // prevent errors resulting from round errors
+			quotient = 1;
+		else if(quotient < -1)
+			quotient = -1;
+		float angle_1 = std::acos(quotient);
+		dot = fow_vectors[2].transpose()*fow_vectors[3];
+		abs = fow_vectors[2].norm()*fow_vectors[3].norm();
+		quotient = dot/abs;
+		if(quotient > 1) // prevent errors resulting from round errors
+			quotient = 1;
+		else if(quotient < -1)
+			quotient = -1;
+		float angle_2 = std::acos(dot/abs);
+
+		if(angle_1 > angle_2)
+			max_angle = angle_1;
+		else
+			max_angle = angle_2;
+
+		// plan coverage path
 		if(plan_for_footprint_ == false)
 			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, delta_theta_, min_max_coordinates, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fow_vectors[3].norm(), 7, false);
 		else
@@ -704,7 +667,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// 1. publish navigation goals
 	double distance_robot_fow_middlepoint = middle_point.norm();
 	std::vector<geometry_msgs::Pose2D> robot_poses;
-	for(size_t nav_goal = 0; nav_goal < exploration_path.size(); ++nav_goal)
+	for(size_t nav_goal = 0; nav_goal < 3; ++nav_goal)
 	{
 		// check if the path should be continued or not
 		bool interrupted = false;
@@ -757,11 +720,60 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		cv::threshold(costmap_as_mat, costmap_as_mat, 75, 255, cv::THRESH_BINARY_INV);
 
 		// 3. draw the seen positions so the server can check what points haven't been seen
-		cv::Mat seen_positions_map = costmap_as_mat.clone();
+		// TODO: change to server check
+		std::string coverage_service_name = "/coverage_check_server/coverage_check";
+		cv::Mat seen_positions_map;
+		// define the request for the coverage check
+		ipa_building_msgs::checkCoverageRequest coverage_request;
+		ipa_building_msgs::checkCoverageResponse coverage_response;
+		// fill request
+		sensor_msgs::Image im;
+		cv_bridge::CvImage cv_image;
+//		cv_image.header.stamp = ros::Time::now();
+		cv_image.encoding = "mono8";
+		cv_image.image = costmap_as_mat;
+		cv_image.toImageMsg(im);
+		coverage_request.input_map = im;
+		coverage_request.path = robot_poses;
+		coverage_request.field_of_view = goal->field_of_view;
+		coverage_request.footprint = goal->footprint;
+		coverage_request.map_origin = goal->map_origin;
+		coverage_request.map_resolution = map_resolution;
 		if(plan_for_footprint_ == false)
-			drawSeenPoints(seen_positions_map, robot_poses, goal->field_of_view, corner_point_1, corner_point_2, map_resolution, map_origin);
+		{
+			coverage_request.check_for_footprint = false;
+			// send request
+			if(ros::service::call(coverage_service_name, coverage_request, coverage_response) == true)
+			{
+				cv_bridge::CvImagePtr cv_ptr_obj;
+				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.coverage_map, sensor_msgs::image_encodings::MONO8);
+				seen_positions_map = cv_ptr_obj->image;
+			}
+			else
+			{
+				ROS_WARN("Coverage check failed, is the coverage_check_server running?");
+				room_exploration_server_.setAborted();
+				return;
+			}
+		}
 		else
-			drawSeenPoints(seen_positions_map, robot_poses, goal->footprint, map_resolution, map_origin);
+		{
+			coverage_request.check_for_footprint = true;
+			if(ros::service::call(coverage_service_name, coverage_request, coverage_response) == true)
+			{
+				cv_bridge::CvImagePtr cv_ptr_obj;
+				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.coverage_map, sensor_msgs::image_encodings::MONO8);
+				seen_positions_map = cv_ptr_obj->image;
+			}
+			else
+			{
+				ROS_WARN("Coverage check failed, is the coverage_check_server running?");
+				room_exploration_server_.setAborted();
+				return;
+			}
+		}
+		cv::imshow("covered", seen_positions_map);
+		cv::waitKey();
 		cv::Mat copy = room_map.clone();
 
 		// testing, TODO: parameter to show

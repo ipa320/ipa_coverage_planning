@@ -204,15 +204,15 @@ int main(int argc, char **argv)
 	goal.footprint = footprint_points;
 	goal.coverage_radius = 0.2;
 	goal.region_of_interest_coordinates = region_of_interest;
-	goal.return_path = true;
-	goal.execute_path = false;
+	goal.return_path = false;
+	goal.execute_path = true;
 	ac.sendGoal(goal);
 
 	ac.waitForResult(ros::Duration());
-	ipa_building_msgs::RoomExplorationResultConstPtr action_result = ac.getResult();
-
-	std::cout << "Got a path with " << action_result->coverage_path.size() << " nodes." << std::endl;
-	std::cout << action_result->coverage_path[0] << std::endl;
+//	ipa_building_msgs::RoomExplorationResultConstPtr action_result = ac.getResult();
+//
+//	std::cout << "Got a path with " << action_result->coverage_path.size() << " nodes." << std::endl;
+//	std::cout << action_result->coverage_path[0] << std::endl;
 
 ////	// testing
 //	std::vector<cv::Point> fow(5);

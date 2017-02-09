@@ -8,4 +8,5 @@
 
   <!-- run cob_map_accessibility_analysis_server-->
   <include file="$(find ipa_room_exploration)/ros/launch/cob_map_accessibility_analysis.launch"/>
+  <include file="$(find ipa_room_exploration)/ros/launch/coverage_check_server.launch"/>
 </launch>
