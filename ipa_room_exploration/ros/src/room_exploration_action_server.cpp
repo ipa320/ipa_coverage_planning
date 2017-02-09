@@ -508,6 +508,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// erode map so that not reachable areas are not considered
 	int robot_radius_in_pixel = (robot_radius / map_resolution);
 	cv::erode(room_map, room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
+//	cv::circle(room_map, cv::Point(min_max_coordinates.points[0].x, min_max_coordinates.points[0].y), 2, cv::Scalar(127), CV_FILLED);
+//	cv::circle(room_map, cv::Point(min_max_coordinates.points[1].x, min_max_coordinates.points[1].y), 2, cv::Scalar(127), CV_FILLED);
 //	cv::imshow("room", room_map);
 //	cv::waitKey();
 

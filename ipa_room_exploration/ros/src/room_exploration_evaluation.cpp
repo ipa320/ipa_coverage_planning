@@ -50,50 +50,25 @@ struct explorationConfig
 									// 4: convexSPP explorator
 									// 5: flowNetwork explorator
 									// 6: energyFunctional explorator
-	int room_segmentation_algorithm_;	// this variable selects the algorithm for room segmentation
-											// 1 = morphological segmentation
-											// 2 = distance segmentation
-											// 3 = Voronoi segmentation
-											// 4 = semantic segmentation
-											// 5 = Voronoi random field segmentation
 
 	// default values --> best ones?
 	explorationConfig()
 	{
 		exploration_algorithm_ = 2;
-		room_segmentation_algorithm_ = 3;
 	}
 
 	// create one configuration
-	explorationConfig(const int exploration_algorithm, const int room_segmentation_algorithm)
+	explorationConfig(const int exploration_algorithm)
 	{
 		exploration_algorithm_ = exploration_algorithm;
-		room_segmentation_algorithm_ = room_segmentation_algorithm;
 	}
 
 	// function that returns the current configuration as string
 	std::string generateConfigurationFolderString() const
 	{
 		std::stringstream ss;
-		ss << "seg" << room_segmentation_algorithm_ << "expl" << exploration_algorithm_;
+		ss << "expl" << exploration_algorithm_;
 		return ss.str();
-	}
-
-	// function that returns the name of the chosen segmentation algorithm
-	std::string roomSegmentationAlgorithmToString() const
-	{
-		std::string s = "";
-		if (room_segmentation_algorithm_ == 1)
-			s = "morphological segmentation";
-		else if (room_segmentation_algorithm_ == 2)
-			s = "distance segmentation";
-		else if (room_segmentation_algorithm_ == 3)
-			s = "Voronoi segmentation";
-		else if (room_segmentation_algorithm_ == 4)
-			s = "semantic segmentation";
-		else if (room_segmentation_algorithm_ == 5)
-			s = "Voronoi random field segmentation";
-		return s;
 	}
 
 	// function that returns the name of the chosen exploration algorithm
@@ -174,45 +149,22 @@ class explorationEvaluation
 protected:
 
 	// function that creates configurations to get all possible combinations of segmentations and exploration algorithms
-	void setconfigurations(std::vector<explorationConfig>& configurations, const std::vector<int>& segmentation_algorithms,
-			const std::vector<int>& exploration_algorithms)
+	void setconfigurations(std::vector<explorationConfig>& configurations, const std::vector<int>& exploration_algorithms)
 	{
-		for(std::vector<int>::const_iterator seg=segmentation_algorithms.begin(); seg!=segmentation_algorithms.end(); ++seg)
+		for(std::vector<int>::const_iterator expl=exploration_algorithms.begin(); expl!=exploration_algorithms.end(); ++expl)
 		{
-			for(std::vector<int>::const_iterator expl=exploration_algorithms.begin(); expl!=exploration_algorithms.end(); ++expl)
-			{
-				explorationConfig current_config(*expl, *seg);
-				configurations.push_back(current_config);
-			}
+			explorationConfig current_config(*expl);
+			configurations.push_back(current_config);
 		}
 	}
 
 public:
 
-	// to segment the map only once for each segmentation algorithm
-	ipa_building_msgs::MapSegmentationResultConstPtr result_seg_morph;
-	bool segmented_morph;
-	ipa_building_msgs::MapSegmentationResultConstPtr result_seg_dist;
-	bool segmented_dist;
-	ipa_building_msgs::MapSegmentationResultConstPtr result_seg_vor;
-	bool segmented_vor;
-	ipa_building_msgs::MapSegmentationResultConstPtr result_seg_semant;
-	bool segmented_semant;
-	ipa_building_msgs::MapSegmentationResultConstPtr result_seg_vrf;
-	bool segmented_vrf;
-
 	ros::NodeHandle node_handle_;
 
 	explorationEvaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::string& data_storage_path,
-			const double robot_radius, const std::vector<int>& segmentation_algorithms, const std::vector<int>& exploration_algorithms,
-			const std::vector<geometry_msgs::Point32>& fow_points)
+			const double robot_radius, const std::vector<int>& exploration_algorithms, const std::vector<geometry_msgs::Point32>& fow_points)
 	{
-		segmented_morph = false;
-		segmented_dist = false;
-		segmented_vor = false;
-		segmented_semant = false;
-		segmented_vrf = false;
-
 		// set node-handle
 		node_handle_ = nh;
 
@@ -261,7 +213,7 @@ public:
 
 		// create all needed configurations
 		std::vector<explorationConfig> configs;
-		setconfigurations(configs, segmentation_algorithms, exploration_algorithms);
+		setconfigurations(configs, exploration_algorithms);
 
 		// prepare images and evaluation datas
 		std::vector<explorationData> evaluation_datas;
@@ -298,120 +250,86 @@ public:
 		std::cout << "evaluating configs" << std::endl;
 		for (size_t i=0; i<evaluation_datas.size(); ++i)
 		{
-			if (evaluateAllConfigs(configs, evaluation_datas[i], data_storage_path)==false)
+			if (planCoveragePaths(configs, evaluation_datas[i], data_storage_path)==false)
 			{
 				std::cout << "failed to simulate map " << evaluation_datas[i].map_name_ << std::endl;
 				if(failed_maps.is_open())
 					failed_maps << evaluation_datas[i].map_name_ << std::endl;
 			}
-			//reset booleans to segment the new map
-			segmented_morph = false;
-			segmented_dist = false;
-			segmented_vor = false;
-			segmented_semant = false;
-			segmented_vrf = false;
 		}
 		failed_maps.close();
 	}
 
 	// function that does the whole evaluation for all configs
-	bool evaluateAllConfigs(const std::vector<explorationConfig>& configs, const explorationData& datas, const std::string data_storage_path)
+	bool planCoveragePaths(const std::vector<explorationConfig>& configs, const explorationData& datas, const std::string data_storage_path)
 	{
 		// go trough all configs and do the evaluations
 		for(std::vector<explorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
 		{
-			std::cout << "config: seg" << config->room_segmentation_algorithm_  << ", expl: " << config->exploration_algorithm_ << std::endl;
+			std::cout << "expl: " << config->exploration_algorithm_ << std::endl;
 			//variables for time measurement
-			struct timespec t0, t1, t2, t3;
+			struct timespec t0, t1;
 
-			// 1. retrieve segmentation and check if the map has already been segmented
-			ipa_building_msgs::MapSegmentationResultConstPtr result_seg;
-			clock_gettime(CLOCK_MONOTONIC,  &t0); //set time stamp before the segmentation
-			if(config->room_segmentation_algorithm_ == 1)
-			{
-				if(segmented_morph == false)
-				{
-					if (segmentFloorPlan(datas, *config, result_seg_morph, t0) == false)
-						return false;
-					segmented_morph = true;
-				}
-				else
-					std::cout << "map has already been segmented" << std::endl;
-				result_seg = result_seg_morph;
-			}
-			else if (config->room_segmentation_algorithm_ == 2)
-			{
-				if(segmented_dist == false)
-				{
-					if (segmentFloorPlan(datas, *config, result_seg_dist, t0) == false)
-						return false;
-					segmented_dist = true;
-				}
-				else
-					std::cout << "map has already been segmented" << std::endl;
-				result_seg = result_seg_dist;
-			}
-			else if (config->room_segmentation_algorithm_ == 3)
-			{
-				if(segmented_vor == false)
-				{
-					if (segmentFloorPlan(datas, *config, result_seg_vor, t0) == false)
-						return false;
-					segmented_vor = true;
-				}
-				else
-					std::cout << "map has already been segmented" << std::endl;
-				result_seg = result_seg_vor;
-			}
-			else if (config->room_segmentation_algorithm_ == 4)
-			{
-				if(segmented_semant == false)
-				{
-					if (segmentFloorPlan(datas, *config, result_seg_semant, t0) == false)
-						return false;
-					segmented_semant = true;
-				}
-				else
-					std::cout << "map has already been segmented" << std::endl;
-				result_seg = result_seg_semant;
-			}
-			else if (config->room_segmentation_algorithm_ == 5)
-			{
-				if(segmented_vrf == false)
-				{
-					if (segmentFloorPlan(datas, *config, result_seg_vrf, t0) == false)
-						return false;
-					segmented_vrf = true;
-				}
-				else
-					std::cout << "map has already been segmented" << std::endl;
-				result_seg = result_seg_vrf;
-			}
-			clock_gettime(CLOCK_MONOTONIC,  &t1); //set time stamp after the segmentation
-			std::cout << "Segmentation computed " << result_seg->room_information_in_pixel.size() << " rooms." << std::endl;
+			// 1. read out the ground truth map
+			std::string map_name_basic = datas.map_name_;
+			std::size_t pos = datas.map_name_.find("_furnitures");
+			if (pos != std::string::npos)
+				map_name_basic = datas.map_name_.substr(0, pos);
+			std::string gt_image_filename = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/" + map_name_basic + "_gt_segmentation.png";
+			std::cout << "Loading ground truth segmentation from: " << gt_image_filename << std::endl;
+			cv::Mat gt_map = cv::imread(gt_image_filename.c_str(),CV_8U);
 
-			// 2. retrieve the segmented map and get the maps that show only one room each
-			cv_bridge::CvImagePtr cv_ptr_obj;
-			cv_ptr_obj = cv_bridge::toCvCopy(result_seg->segmented_map, sensor_msgs::image_encodings::TYPE_32SC1);
-			cv::Mat segmented_map = cv_ptr_obj->image;
+
+			// 2. retrieve the rooms for each ground truth map and get the maps that show only one room each
+			int label = 1;
+			std::vector<cv::Rect> bounding_boxes;
+			cv::Mat labeled_map;
+			gt_map.convertTo(labeled_map, CV_32SC1);
+			for (int y = 0; y < gt_map.rows; y++)
+			{
+				for (int x = 0; x < gt_map.cols; x++)
+				{
+					if (gt_map.at<uchar>(y,x)!=255 || labeled_map.at<int>(y,x)!=255)
+						continue;
+
+					// fill each room area with a unique id
+					cv::Rect rect;
+					cv::floodFill(labeled_map, cv::Point(x,y), label, &rect, 0, 0, 8);
+
+					// save the bounding box to retrieve the min/max coordinates
+					bounding_boxes.push_back(rect);
+
+					++label;
+				}
+			}
 			std::vector<cv::Mat> room_maps;
-			for(int room=1; room<=result_seg->room_information_in_pixel.size(); ++room)
+			std::vector<cv::Rect> chosen_bb;
+			for(int room=1; room<label; ++room)
 			{
-				cv::Mat room_map = cv::Mat(segmented_map.rows, segmented_map.cols, CV_8U, cv::Scalar(0));
+				int number_of_pixels = 0;
+				cv::Mat room_map = cv::Mat(labeled_map.rows, labeled_map.cols, CV_8U, cv::Scalar(0));
 				// go trough pixels and make pixels belonging to room white and not belonging pixels black
 				for(size_t y=0; y<room_map.rows; ++y)
 				{
 					for(size_t x=0; x<room_map.cols; ++x)
 					{
-						if(segmented_map.at<int>(y,x)==room)
+						if(labeled_map.at<int>(y,x)==room)
+						{
 							room_map.at<uchar>(y,x) = 255;
-						else
-							room_map.at<uchar>(y,x) = 0;
+							++number_of_pixels;
+						}
 					}
 				}
 
-				// save room map
-				room_maps.push_back(room_map);
+				// save room map, if region is big enough
+				if(number_of_pixels>=100)
+				{
+					room_maps.push_back(room_map);
+					chosen_bb.push_back(bounding_boxes[room-1]);
+//					cv::rectangle(room_map, bounding_boxes[room-1], cv::Scalar(127), 2);
+//					cv::imshow("room", room_map);
+//					cv::waitKey();
+				}
 			}
 
 			// 3. go trough all rooms and find the coverage path trough it
@@ -420,34 +338,38 @@ public:
 			edge_point.x = 0;
 			edge_point.y = 0;
 			region_of_interest.points.push_back(edge_point);
-			edge_point.x = segmented_map.cols;
-			edge_point.y = segmented_map.rows;
+			edge_point.x = gt_map.cols;
+			edge_point.y = gt_map.rows;
 			region_of_interest.points.push_back(edge_point);
 			std::stringstream output;
 			for(size_t room_index=0; room_index<room_maps.size(); ++room_index)
 			{
 				cv::Mat room_map = room_maps[room_index];
 
-				// find min/max coordinates for this room
-				int min_y = 1e5, max_y = 0, min_x = 1e5, max_x = 0;
-				for (int y = 0; y < room_map.rows; y++)
-				{
-					for (int x = 0; x < room_map.cols; x++)
-					{
-						//only check white pixels
-						if(room_map.at<uchar>(y,x)==255)
-						{
-							if(y < min_y)
-								min_y = y;
-							if(y > max_y)
-								max_y = y;
-							if(x < min_x)
-								min_x = x;
-							if(x > max_x)
-								max_x = x;
-						}
-					}
-				}
+				// find min/max coordinates for this room by using the saved bounding box
+//				int min_y = 1e5, max_y = 0, min_x = 1e5, max_x = 0;
+//				for (int y = 0; y < room_map.rows; y++)
+//				{
+//					for (int x = 0; x < room_map.cols; x++)
+//					{
+//						//only check white pixels
+//						if(room_map.at<uchar>(y,x)==255)
+//						{
+//							if(y < min_y)
+//								min_y = y;
+//							if(y > max_y)
+//								max_y = y;
+//							if(x < min_x)
+//								min_x = x;
+//							if(x > max_x)
+//								max_x = x;
+//						}
+//					}
+//				}
+				int min_y = chosen_bb[room_index].y;
+				int max_y = chosen_bb[room_index].y+chosen_bb[room_index].height;
+				int min_x = chosen_bb[room_index].x;
+				int max_x = chosen_bb[room_index].x+chosen_bb[room_index].width;
 				min_y -= 1;
 				min_x -= 1;
 				max_y += 1;
@@ -465,17 +387,20 @@ public:
 
 				// send the exploration goal
 				ipa_building_msgs::RoomExplorationResultConstPtr result_expl;
-				if(planCoveragePath(room_map, datas, *config, result_expl, t2, datas.robot_start_position_, min_max_points, region_of_interest)==false)
+				if(planCoveragePath(room_map, datas, *config, result_expl, t0, datas.robot_start_position_, min_max_points, region_of_interest)==false)
 					return false;
-				clock_gettime(CLOCK_MONOTONIC,  &t3); //set time stamp after the path planning
+				clock_gettime(CLOCK_MONOTONIC,  &t1); //set time stamp after the path planning
 
 				// retrieve the solution and save the found results
-				double calculation_time = (t3.tv_sec - t2.tv_sec) + (double) (t3.tv_nsec - t2.tv_nsec) * 1e-9;
+				double calculation_time = (t1.tv_sec - t0.tv_sec) + (double) (t1.tv_nsec - t0.tv_nsec) * 1e-9;
 				std::vector<geometry_msgs::Pose2D> coverage_path = result_expl->coverage_path;
 				// transform path to map coordinates
 				std::cout << "length of path: " << coverage_path.size() << std::endl;
 				if(coverage_path.size()==0)
-					return false;
+				{
+					output << "room " << room_index << " had a bug" << std::endl << std::endl;
+					continue;
+				}
 				for(size_t point=0; point<coverage_path.size(); ++point)
 				{
 					coverage_path[point].x = (coverage_path[point].x-datas.map_origin_.position.x)/datas.map_resolution_;
@@ -500,134 +425,6 @@ public:
 		}
 
 		// if all configurations finished, return a boolean showing success
-		return true;
-	}
-
-	// function that segments the given floor plan
-	bool segmentFloorPlan(const explorationData& evaluation_data, const explorationConfig& evaluation_configuration,
-				ipa_building_msgs::MapSegmentationResultConstPtr& result_seg, struct timespec& t0)
-	{
-		int loopcounter = 0;
-		bool segmented = false;
-		do
-		{
-			clock_gettime(CLOCK_MONOTONIC, &t0); //set time stamp before the segmentation
-			sensor_msgs::Image map_msg;
-			cv_bridge::CvImage cv_image;
-			cv_image.encoding = "mono8";
-			cv_image.image = evaluation_data.floor_plan_;
-			cv_image.toImageMsg(map_msg);
-			actionlib::SimpleActionClient<ipa_building_msgs::MapSegmentationAction> ac_seg("/room_segmentation/room_segmentation_server", true);
-			ROS_INFO("Waiting for action server '/room_segmentation/room_segmentation_server' to start.");
-			ac_seg.waitForServer(ros::Duration(60)); // wait for the action server to start, will wait for infinite time
-			std::cout << "Action server started, sending goal_seg." << std::endl;
-			ros::Duration s(0.5);
-			s.sleep();
-
-			// send dynamic reconfigure config
-			ROS_INFO("Trying to connect to dynamic reconfigure server.");
-			DynamicReconfigureClient drc(node_handle_, "/room_segmentation/room_segmentation_server/set_parameters", "/room_segmentation/room_segmentation_server/parameter_updates");
-			ROS_INFO("Done connecting to the dynamic reconfigure server.");
-			const int room_segmentation_algorithm = evaluation_configuration.room_segmentation_algorithm_;
-			drc.setConfig("room_segmentation_algorithm", room_segmentation_algorithm);
-			if(room_segmentation_algorithm == 1) //morpho
-			{
-				drc.setConfig("room_area_factor_lower_limit_morphological", 0.8);
-				drc.setConfig("room_area_factor_upper_limit_morphological", 47.0);
-				ROS_INFO("You have chosen the morphological segmentation.");
-			}
-			if(room_segmentation_algorithm == 2) //distance
-			{
-				drc.setConfig("room_area_factor_lower_limit_distance", 0.35);
-				drc.setConfig("room_area_factor_upper_limit_distance", 163.0);
-				ROS_INFO("You have chosen the distance segmentation.");
-			}
-			if(room_segmentation_algorithm == 3) //voronoi
-			{
-				drc.setConfig("room_area_factor_lower_limit_voronoi", 0.1);	//1.53;
-				drc.setConfig("room_area_factor_upper_limit_voronoi", 1000000.);	//120.0;
-				drc.setConfig("voronoi_neighborhood_index", 280);
-				drc.setConfig("max_iterations", 150);
-				drc.setConfig("min_critical_point_distance_factor", 0.5); //1.6;
-				drc.setConfig("max_area_for_merging", 12.5);
-				ROS_INFO("You have chosen the Voronoi segmentation");
-			}
-			if(room_segmentation_algorithm == 4) //semantic
-			{
-				drc.setConfig("room_area_factor_lower_limit_semantic", 1.0);
-				drc.setConfig("room_area_factor_upper_limit_semantic", 1000000.);//23.0;
-				ROS_INFO("You have chosen the semantic segmentation.");
-			}
-			if(room_segmentation_algorithm == 5) //voronoi random field
-			{
-				drc.setConfig("room_area_lower_limit_voronoi_random", 1.53); //1.53
-				drc.setConfig("room_area_upper_limit_voronoi_random", 1000000.); //1000000.0
-				drc.setConfig("max_iterations", 150);
-				drc.setConfig("voronoi_random_field_epsilon_for_neighborhood", 7);
-				drc.setConfig("min_neighborhood_size", 5);
-				drc.setConfig("min_voronoi_random_field_node_distance", 7.0); // [pixel]
-				drc.setConfig("max_voronoi_random_field_inference_iterations", 9000);
-				drc.setConfig("max_area_for_merging", 12.5);
-				ROS_INFO("You have chosen the Voronoi random field segmentation.");
-			}
-			drc.setConfig("display_segmented_map", false);
-
-			// send a goal to the action
-			ipa_building_msgs::MapSegmentationGoal goal_seg;
-			goal_seg.input_map = map_msg;
-			goal_seg.map_origin = evaluation_data.map_origin_;
-			goal_seg.map_resolution = evaluation_data.map_resolution_;
-			goal_seg.return_format_in_meter = false;
-			goal_seg.return_format_in_pixel = true;
-			//goal_seg.room_segmentation_algorithm = evaluation_configuration.room_segmentation_algorithm_;
-			goal_seg.robot_radius = evaluation_data.robot_radius_;
-			ac_seg.sendGoal(goal_seg);
-
-			//wait for the action to return
-			bool finished_before_timeout = ac_seg.waitForResult(ros::Duration(600.0 + loopcounter * 100.0));
-			if (finished_before_timeout == false) //if it takes too long the server should be killed and restarted
-			{
-				std::cout << "action server took too long" << std::endl;
-				std::string pid_cmd = "pidof room_segmentation_server > room_sequence_planning/seg_srv_pid.txt";
-				int pid_result = system(pid_cmd.c_str());
-				std::ifstream pid_reader("room_exploration/seg_srv_pid.txt");
-				int value;
-				std::string line;
-				if (pid_reader.is_open())
-				{
-					while (getline(pid_reader, line))
-					{
-						std::istringstream iss(line);
-						while (iss >> value)
-						{
-							std::cout << "PID of room_segmentation_server: " << value << std::endl;
-							std::stringstream ss;
-							ss << "kill " << value;
-							std::string kill_cmd = ss.str();
-							int kill_result = system(kill_cmd.c_str());
-							std::cout << "kill result: " << kill_result << std::endl;
-						}
-					}
-					pid_reader.close();
-					remove("room_exploration/seg_srv_pid.txt");
-				}
-				else
-				{
-					std::cout << "missing logfile" << std::endl;
-				}
-			}
-			else // segmentation finished while given time --> return result
-			{
-				result_seg = ac_seg.getResult();
-				segmented = true;
-				std::cout << "Finished segmentation successfully!" << std::endl;
-			}
-			++loopcounter; //enlarge the loop counter so the client will wait longer for the server to start
-		}while(segmented == false && loopcounter <= 6);
-
-		if(loopcounter > 6)
-			return false;
-
 		return true;
 	}
 
@@ -724,12 +521,15 @@ int main(int argc, char **argv)
 	//explorationEvaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::string& data_storage_path,
 //	const double robot_radius, const std::vector<int>& segmentation_algorithms, const std::vector<int>& exploration_algorithms,
 //	const std::vector<geometry_msgs::Point32>& fow_points)
-	std::vector<int> segmentation_algorithms(5);
-	for(int i=1; i<=5; ++i)
-		segmentation_algorithms[i-1] = i;
-	std::vector<int> exploration_algorithms(6);
+	std::vector<int> exploration_algorithms;
 	for(int i=1; i<=6; ++i)
-		exploration_algorithms[i-1] = i;
+	{
+		// choose which algorithms not to evaluate
+		if(i==5)
+			continue;
+
+		exploration_algorithms.push_back(i);
+	}
 	geometry_msgs::Point32 fow_point_1;// geometry_msgs::Point32(0.3, 0.3);
 	fow_point_1.x = 0.1;
 	fow_point_1.y = 0.5;
@@ -747,8 +547,8 @@ int main(int argc, char **argv)
 	fow_points[1] = fow_point_2;
 	fow_points[2] = fow_point_3;
 	fow_points[3] = fow_point_4;
-	// radius=0.7m
-	explorationEvaluation ev(nh, test_map_path, data_storage_path, 0.7, segmentation_algorithms, exploration_algorithms, fow_points);
+	// radius=0.6m
+	explorationEvaluation ev(nh, test_map_path, data_storage_path, 0.6, exploration_algorithms, fow_points);
 	ros::shutdown();
 
 	//exit

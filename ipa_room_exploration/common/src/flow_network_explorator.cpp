@@ -877,6 +877,17 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	}
 	std::cout << "arcs: " << arcs.size() << std::endl;
 
+//	testing
+//	cv::Mat arc_map = room_map.clone();
+//	for(size_t i=0; i<arcs.size(); ++i)
+//	{
+//		arcStruct current_arc = arcs[i];
+//		for(size_t j=0; j<current_arc.edge_points.size(); ++j)
+//			arc_map.at<uchar>(current_arc.edge_points[j]) = 127;
+//	}
+//	cv::imshow("test", arc_map);
+//	cv::waitKey();
+
 	// *********** II. Construct the matrices for the optimization problem ***********
 	std::cout << "Starting to construct the matrices for the optimization problem." << std::endl;
 	// 1. weight vector
@@ -993,7 +1004,7 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 			std::cout << "var" << i << ": " << C[i] << std::endl;
 
 	// 3. retrieve the seolution and create a path
-	cv::Mat test_map = room_map.clone();
+//	cv::Mat test_map = room_map.clone();
 	std::set<uint> used_arcs; // set that stores the indices of the arcs corresponding to non-zero elements in the solution
 	// go trough the start arcs and determine the new start arcs
 	for(size_t start_arc=0; start_arc<flows_out_of_nodes[start_index].size(); ++start_arc)
@@ -1004,8 +1015,8 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 			used_arcs.insert(flows_out_of_nodes[start_index][start_arc]);
 
 			std::vector<cv::Point> path=arcs[flows_out_of_nodes[start_index][start_arc]].edge_points;
-			for(size_t j=0; j<path.size(); ++j)
-				test_map.at<uchar>(path[j])=50;
+//			for(size_t j=0; j<path.size(); ++j)
+//				test_map.at<uchar>(path[j])=50;
 //
 //			cv::imshow("discretized", test_map);
 //			cv::waitKey();
@@ -1021,8 +1032,8 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 			used_arcs.insert(arc-flows_out_of_nodes[start_index].size());
 
 			std::vector<cv::Point> path=arcs[arc-flows_out_of_nodes[start_index].size()].edge_points;
-			for(size_t j=0; j<path.size(); ++j)
-				test_map.at<uchar>(path[j])=100;
+//			for(size_t j=0; j<path.size(); ++j)
+//				test_map.at<uchar>(path[j])=100;
 //
 //			cv::imshow("discretized", test_map);
 //			cv::waitKey();
@@ -1040,16 +1051,16 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 				// insert saved outgoing flow index
 				used_arcs.insert(flows_out_of_nodes[node][flow]);
 				std::vector<cv::Point> path=arcs[flows_out_of_nodes[node][flow]].edge_points;
-				for(size_t j=0; j<path.size(); ++j)
-					test_map.at<uchar>(path[j])=150;
+//				for(size_t j=0; j<path.size(); ++j)
+//					test_map.at<uchar>(path[j])=150;
 //
 //				cv::imshow("discretized", test_map);
 //				cv::waitKey();
 			}
 		}
 	}
-	cv::imshow("discretized", test_map);
-	cv::waitKey();
+//	cv::imshow("discretized", test_map);
+//	cv::waitKey();
 
 	std::cout << "got " << used_arcs.size() << " used arcs" << std::endl;
 
