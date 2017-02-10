@@ -315,156 +315,6 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 	}
 }
 
-// Function to draw the seen points into the given map, that shows the positions the robot can actually reach. This is done by
-// going trough all given robot-poses and calculate where the field of view has been. The field of view is given in the relative
-// not rotated case, meaning to be in the robot-frame, where x_robot shows into the direction of the front and the y_robot axis
-// along its left side. The function then calculates the field_of_view_points in the global frame by using the given robot pose.
-// After this the function does a raycasting to check if the field of view has been blocked by an obstacle and couldn't see
-// what's behind it. This ensures that no Point is wrongly classified as seen.
-void RoomExplorationServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std::vector<geometry_msgs::Pose2D>& robot_poses,
-			const std::vector<geometry_msgs::Point32>& field_of_view_points, const Eigen::Matrix<float, 2, 1> raycasting_corner_1,
-			const Eigen::Matrix<float, 2, 1> raycasting_corner_2, const float map_resolution, const cv::Point2d map_origin)
-{
-	// go trough each given robot pose
-	for(std::vector<geometry_msgs::Pose2D>::const_iterator current_pose = robot_poses.begin(); current_pose != robot_poses.end(); ++current_pose)
-	{
-		// get the rotation matrix
-		float sin_theta = std::sin(current_pose->theta);
-		float cos_theta = std::cos(current_pose->theta);
-		Eigen::Matrix<float, 2, 2> R;
-		R << cos_theta, -sin_theta, sin_theta, cos_theta;
-
-		// transform field of view points
-		std::vector<cv::Point> transformed_fow_points;
-		Eigen::Matrix<float, 2, 1> pose_as_matrix;
-		pose_as_matrix << current_pose->x, current_pose->y;
-		for(size_t point = 0; point < field_of_view_points.size(); ++point)
-		{
-			// transform fow-point from geometry_msgs::Point32 to Eigen::Matrix
-			Eigen::Matrix<float, 2, 1> fow_point;
-			fow_point << field_of_view_points[point].x, field_of_view_points[point].y;
-
-			// linear transformation
-			Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R * fow_point;
-
-			// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
-			// values
-			cv::Point current_point = cv::Point((transformed_vector(0, 0) - map_origin.x)/map_resolution, (transformed_vector(1, 0) - map_origin.y)/map_resolution);
-			current_point.x = std::max(current_point.x, 0);
-			current_point.y = std::max(current_point.y, 0);
-			current_point.x = std::min(current_point.x, reachable_areas_map.cols);
-			current_point.y = std::min(current_point.y, reachable_areas_map.rows);
-			transformed_fow_points.push_back(current_point);
-//			std::cout << current_point << std::endl;
-		}
-//		std::cout << std::endl;
-
-		// transform corners for raycasting
-		Eigen::Matrix<float, 2, 1> transformed_corner_1 = pose_as_matrix + R * raycasting_corner_1;
-		Eigen::Matrix<float, 2, 1> transformed_corner_2 = pose_as_matrix + R * raycasting_corner_2;
-
-		// convert to openCV format
-		cv::Point transformed_corner_cv_1 = cv::Point((transformed_corner_1(0, 0) - map_origin.x)/map_resolution, (transformed_corner_1(1, 0) - map_origin.y)/map_resolution);
-		transformed_corner_cv_1.x = std::max(transformed_corner_cv_1.x, 0);
-		transformed_corner_cv_1.y = std::max(transformed_corner_cv_1.y, 0);
-		transformed_corner_cv_1.x = std::min(transformed_corner_cv_1.x, reachable_areas_map.cols);
-		transformed_corner_cv_1.y = std::min(transformed_corner_cv_1.y, reachable_areas_map.rows);
-		cv::Point transformed_corner_cv_2 = cv::Point((transformed_corner_2(0, 0) - map_origin.x)/map_resolution, (transformed_corner_2(1, 0) - map_origin.y)/map_resolution);
-		transformed_corner_cv_2.x = std::max(transformed_corner_cv_2.x, 0);
-		transformed_corner_cv_2.y = std::max(transformed_corner_cv_2.y, 0);
-		transformed_corner_cv_2.x = std::min(transformed_corner_cv_2.x, reachable_areas_map.cols);
-		transformed_corner_cv_2.y = std::min(transformed_corner_cv_2.y, reachable_areas_map.rows);
-
-//		std::cout << "corners: " << std::endl << transformed_corner_cv_1 << std::endl <<transformed_corner_cv_2 << std::endl;
-
-		// raycast the field of view to look what areas actually have been seen
-		// get points between the edge-points to get goals for raycasting
-		cv::LineIterator border_line(reachable_areas_map, transformed_corner_cv_1, transformed_corner_cv_2, 8); // opencv implementation of bresenham algorithm, 8: color, irrelevant
-		std::vector<cv::Point> raycasting_goals(border_line.count);
-
-		for(size_t i = 0; i < border_line.count; i++, ++border_line)
-			raycasting_goals[i] = border_line.pos();
-
-		// transform pose into OpenCV format
-		cv::Point pose_cv((current_pose->x - map_origin.x)/map_resolution, (current_pose->y - map_origin.y)/map_resolution);
-
-		// go trough the found raycasting goals and draw the field-of-view
-		for(std::vector<cv::Point>::iterator goal = raycasting_goals.begin(); goal != raycasting_goals.end(); ++goal)
-		{
-			// use openCVs bresenham algorithm to find the points from the robot pose to the goal
-			cv::LineIterator ray_points(reachable_areas_map, pose_cv , *goal, 8);
-
-			// go trough the points on the ray and draw them if they are inside the fow, stop the current for-step when a black
-			// pixel is hit (an obstacle stops the camera from seeing whats behind)
-			for(size_t point = 0; point < ray_points.count; point++, ++ray_points)
-			{
-				if(reachable_areas_map.at<uchar>(ray_points.pos()) == 0)
-				{
-					break;
-				}
-
-				if (reachable_areas_map.at<uchar>(ray_points.pos()) > 0 && cv::pointPolygonTest(transformed_fow_points, ray_points.pos(), false) >= 0)
-				{
-					reachable_areas_map.at<uchar>(ray_points.pos()) = 127;
-				}
-			}
-		}
-
-		// draw field of view in map for current pose
-//		cv::fillConvexPoly(reachable_areas_map, transformed_fow_points, cv::Scalar(127));
-	}
-}
-
-// Function that takes the given robot poses and draws the footprint at these positions into the given map. Used when
-// the server should plan a coverage path for the robot footprint.
-void RoomExplorationServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std::vector<geometry_msgs::Pose2D>& robot_poses,
-			const std::vector<geometry_msgs::Point32>& robot_footprint, const float map_resolution,
-			const cv::Point2d map_origin)
-{
-	cv::Mat map_copy = reachable_areas_map.clone(); // copy to draw positions that get later drawn into free space of the original map
-	// iterate trough all poses and draw them into the given map
-	for(std::vector<geometry_msgs::Pose2D>::const_iterator pose=robot_poses.begin(); pose!=robot_poses.end(); ++pose)
-	{
-		// get the rotation matrix
-		float sin_theta = std::sin(pose->theta);
-		float cos_theta = std::cos(pose->theta);
-		Eigen::Matrix<float, 2, 2> R;
-		R << cos_theta, -sin_theta, sin_theta, cos_theta;
-
-		// transform field of view points
-		std::vector<cv::Point> transformed_footprint_points;
-		Eigen::Matrix<float, 2, 1> pose_as_matrix;
-		pose_as_matrix << pose->x, pose->y;
-		for(size_t point = 0; point < robot_footprint.size(); ++point)
-		{
-			// transform fow-point from geometry_msgs::Point32 to Eigen::Matrix
-			Eigen::Matrix<float, 2, 1> footprint_point;
-			footprint_point << robot_footprint[point].x, robot_footprint[point].y;
-
-			// linear transformation
-			Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R * footprint_point;
-
-			// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
-			// values
-			cv::Point current_point = cv::Point((transformed_vector(0, 0) - map_origin.x)/map_resolution, (transformed_vector(1, 0) - map_origin.y)/map_resolution);
-			current_point.x = std::max(current_point.x, 0);
-			current_point.y = std::max(current_point.y, 0);
-			current_point.x = std::min(current_point.x, map_copy.cols);
-			current_point.y = std::min(current_point.y, map_copy.rows);
-			transformed_footprint_points.push_back(current_point);
-		}
-
-		// draw the transformed robot footprint
-		cv::fillConvexPoly(map_copy, transformed_footprint_points, cv::Scalar(127));
-	}
-
-	// draw visited areas into free space of the original map
-	for(size_t y=0; y<map_copy.rows; ++y)
-		for(size_t x=0; x<map_copy.cols; ++x)
-			if(reachable_areas_map.at<uchar>(y, x) == 255)
-				reachable_areas_map.at<uchar>(y, x) = map_copy.at<uchar>(y, x);
-}
-
 // Function executed by Call.
 void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExplorationGoalConstPtr &goal)
 {
@@ -667,7 +517,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// 1. publish navigation goals
 	double distance_robot_fow_middlepoint = middle_point.norm();
 	std::vector<geometry_msgs::Pose2D> robot_poses;
-	for(size_t nav_goal = 0; nav_goal < 3; ++nav_goal)
+	for(size_t nav_goal = 0; nav_goal < exploration_path.size(); ++nav_goal)
 	{
 		// check if the path should be continued or not
 		bool interrupted = false;
@@ -705,7 +555,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	if(revisit_areas_ == true)
 	{
 		// save the costmap as Mat of the same type as the given map (8UC1)
-		cv::Mat costmap_as_mat = cv::Mat(global_map.cols, global_map.rows, global_map.type());
+		cv::Mat costmap_as_mat(global_map.cols, global_map.rows, CV_8UC1);
 
 		// fill one row and then go to the next one (storing method of ros)
 		for(size_t u = 0; u < costmap_as_mat.cols; ++u)
@@ -720,31 +570,32 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		cv::threshold(costmap_as_mat, costmap_as_mat, 75, 255, cv::THRESH_BINARY_INV);
 
 		// 3. draw the seen positions so the server can check what points haven't been seen
-		// TODO: change to server check
+		std::cout << "checking coverage using the coverage_check_server" << std::endl;
 		std::string coverage_service_name = "/coverage_check_server/coverage_check";
 		cv::Mat seen_positions_map;
 		// define the request for the coverage check
 		ipa_building_msgs::checkCoverageRequest coverage_request;
 		ipa_building_msgs::checkCoverageResponse coverage_response;
 		// fill request
-		sensor_msgs::Image im;
+		sensor_msgs::ImageConstPtr service_image;
 		cv_bridge::CvImage cv_image;
-//		cv_image.header.stamp = ros::Time::now();
 		cv_image.encoding = "mono8";
 		cv_image.image = costmap_as_mat;
-		cv_image.toImageMsg(im);
-		coverage_request.input_map = im;
+		service_image = cv_image.toImageMsg();
+		coverage_request.input_map = *service_image;
 		coverage_request.path = robot_poses;
 		coverage_request.field_of_view = goal->field_of_view;
 		coverage_request.footprint = goal->footprint;
 		coverage_request.map_origin = goal->map_origin;
 		coverage_request.map_resolution = map_resolution;
+		std::cout << "filled service request for the coverage check" << std::endl;
 		if(plan_for_footprint_ == false)
 		{
 			coverage_request.check_for_footprint = false;
 			// send request
 			if(ros::service::call(coverage_service_name, coverage_request, coverage_response) == true)
 			{
+				std::cout << "got the service response" << std::endl;
 				cv_bridge::CvImagePtr cv_ptr_obj;
 				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.coverage_map, sensor_msgs::image_encodings::MONO8);
 				seen_positions_map = cv_ptr_obj->image;
@@ -759,8 +610,10 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		else
 		{
 			coverage_request.check_for_footprint = true;
+			// send request
 			if(ros::service::call(coverage_service_name, coverage_request, coverage_response) == true)
 			{
+				std::cout << "got the service response" << std::endl;
 				cv_bridge::CvImagePtr cv_ptr_obj;
 				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.coverage_map, sensor_msgs::image_encodings::MONO8);
 				seen_positions_map = cv_ptr_obj->image;
@@ -772,9 +625,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 				return;
 			}
 		}
-		cv::imshow("covered", seen_positions_map);
-		cv::waitKey();
-		cv::Mat copy = room_map.clone();
+//		cv::imshow("covered", seen_positions_map);
+//		cv::waitKey();
+//		cv::Mat copy = room_map.clone();
 
 		// testing, TODO: parameter to show
 //		cv::namedWindow("initially seen areas", cv::WINDOW_NORMAL);

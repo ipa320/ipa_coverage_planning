@@ -244,7 +244,7 @@ bool coverageCheckServer::checkCoverage(ipa_building_msgs::checkCoverageRequest&
 	// convert the map with the covered area back to the cv format
 	cv_bridge::CvImage cv_image;
 	cv_image.header.stamp = ros::Time::now();
-	cv_image.encoding = "32SC1";
+	cv_image.encoding = "mono8";
 	cv_image.image = covered_areas;
 	cv_image.toImageMsg(response.coverage_map);
 

@@ -121,7 +121,7 @@ add_dependencies(room_exploration_server
 	${PROJECT_NAME}_gencfg)
 target_link_libraries(room_exploration_server
 	${catkin_LIBRARIES} 
-	${OpenCV_LIBRARIES}
+	${OpenCV_LIBS}
 	${Boost_LIBRARIES}
 	${CoinUtils_LIBRARIES}
 	${OsiClp_LIBRARIES}
@@ -135,7 +135,7 @@ target_link_libraries(room_exploration_server
 add_executable(coverage_check_server ros/src/coverage_check_server.cpp)
 target_link_libraries(coverage_check_server
 	${catkin_LIBRARIES} 
-	${OpenCV_LIBRARIES}
+	${OpenCV_LIBS}
 	${Boost_LIBRARIES}
 )
 add_dependencies(coverage_check_server ${catkin_EXPORTED_TARGETS})
@@ -144,7 +144,7 @@ add_dependencies(coverage_check_server ${catkin_EXPORTED_TARGETS})
 add_executable(room_exploration_client ros/src/room_exploration_action_client.cpp)
 target_link_libraries(room_exploration_client
 	${catkin_LIBRARIES} 
-	${OpenCV_LIBRARIES}
+	${OpenCV_LIBS}
 	${Boost_LIBRARIES}
 )
 add_dependencies(room_exploration_client ${catkin_EXPORTED_TARGETS})
@@ -153,7 +153,7 @@ add_dependencies(room_exploration_client ${catkin_EXPORTED_TARGETS})
 add_executable(room_exploration_evaluation ros/src/room_exploration_evaluation.cpp)
 target_link_libraries(room_exploration_evaluation
 	${catkin_LIBRARIES} 
-	${OpenCV_LIBRARIES}
+	${OpenCV_LIBS}
 )
 add_dependencies(room_exploration_client ${catkin_EXPORTED_TARGETS})
  
