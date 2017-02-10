@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <ros/package.h>
 
+#include <stdio.h>
 #include <string>
 #include <vector>
 #include <iostream>
@@ -28,6 +29,8 @@
 #include <ipa_room_exploration/timer.h>
 
 #include <Eigen/Dense>
+
+#include <boost/regex.hpp>
 
 // Overload of << operator for geometry_msgs::Pose2D to wanted format.
 std::ostream& operator<<(std::ostream& os, const geometry_msgs::Pose2D& obj)
@@ -142,6 +145,13 @@ struct explorationData
 	}
 };
 
+struct evaluationResults
+{
+	double calculation_time;
+	double path_length;
+	cv::Mat room_map, coverage_map;
+	int number_of_turns;
+};
 
 // class that segments the wanted maps, finds for each resulting room a coverage path and saves these paths
 class explorationEvaluation
@@ -171,25 +181,25 @@ public:
 		// prepare relevant floor map data
 		std::vector< std::string > map_names;
 		map_names.push_back("lab_ipa");
-		map_names.push_back("lab_c_scan");
-		map_names.push_back("Freiburg52_scan");
-		map_names.push_back("Freiburg79_scan");
-		map_names.push_back("lab_b_scan");
-		map_names.push_back("lab_intel");
-		map_names.push_back("Freiburg101_scan");
-		map_names.push_back("lab_d_scan");
-		map_names.push_back("lab_f_scan");
-		map_names.push_back("lab_a_scan");
-		map_names.push_back("NLB");
-		map_names.push_back("office_a");
-		map_names.push_back("office_b");
-		map_names.push_back("office_c");
-		map_names.push_back("office_d");
-		map_names.push_back("office_e");
-		map_names.push_back("office_f");
-		map_names.push_back("office_g");
-		map_names.push_back("office_h");
-		map_names.push_back("office_i");
+//		map_names.push_back("lab_c_scan");
+//		map_names.push_back("Freiburg52_scan");
+//		map_names.push_back("Freiburg79_scan");
+//		map_names.push_back("lab_b_scan");
+//		map_names.push_back("lab_intel");
+//		map_names.push_back("Freiburg101_scan");
+//		map_names.push_back("lab_d_scan");
+//		map_names.push_back("lab_f_scan");
+//		map_names.push_back("lab_a_scan");
+//		map_names.push_back("NLB");
+//		map_names.push_back("office_a");
+//		map_names.push_back("office_b");
+//		map_names.push_back("office_c");
+//		map_names.push_back("office_d");
+//		map_names.push_back("office_e");
+//		map_names.push_back("office_f");
+//		map_names.push_back("office_g");
+//		map_names.push_back("office_h");
+//		map_names.push_back("office_i");
 //		map_names.push_back("lab_ipa_furnitures");
 //		map_names.push_back("lab_c_scan_furnitures");
 //		map_names.push_back("Freiburg52_scan_furnitures");
@@ -247,17 +257,26 @@ public:
 		std::ofstream failed_maps(bugfile.c_str(), std::ios::out);
 		if(failed_maps.is_open())
 			failed_maps << "maps that had a bug during the simulation and couldn't be finished: " << std::endl;
-		std::cout << "evaluating configs" << std::endl;
+		ROS_INFO("Evaluating the maps.");
+//		for (size_t i=0; i<evaluation_datas.size(); ++i)
+//		{
+//			if (planCoveragePaths(configs, evaluation_datas[i], data_storage_path)==false)
+//			{
+//				std::cout << "failed to simulate map " << evaluation_datas[i].map_name_ << std::endl;
+//				if(failed_maps.is_open())
+//					failed_maps << evaluation_datas[i].map_name_ << std::endl;
+//			}
+//		}
+		failed_maps.close();
+
+		// read out the computed paths and calculate the evaluation values
+		ROS_INFO("Reading out all saved paths.");
+		std::vector<evaluationResults> results;
 		for (size_t i=0; i<evaluation_datas.size(); ++i)
 		{
-			if (planCoveragePaths(configs, evaluation_datas[i], data_storage_path)==false)
-			{
-				std::cout << "failed to simulate map " << evaluation_datas[i].map_name_ << std::endl;
-				if(failed_maps.is_open())
-					failed_maps << evaluation_datas[i].map_name_ << std::endl;
-			}
+			evaluateCoveragePaths(configs, evaluation_datas[i], results, data_storage_path);
 		}
-		failed_maps.close();
+
 	}
 
 	// function that does the whole evaluation for all configs
@@ -389,7 +408,7 @@ public:
 				ipa_building_msgs::RoomExplorationResultConstPtr result_expl;
 				if(planCoveragePath(room_map, datas, *config, result_expl, t0, datas.robot_start_position_, min_max_points, region_of_interest)==false)
 				{
-					output << "room " << room_index << " exceeded the time limitation of 5 hours" << std::endl << std::endl;
+					output << "room " << room_index << " exceeded the time limitation of 3 hours" << std::endl << std::endl;
 					continue;
 				}
 				clock_gettime(CLOCK_MONOTONIC,  &t1); //set time stamp after the path planning
@@ -431,7 +450,83 @@ public:
 		return true;
 	}
 
-	// function that segments the current floor plan
+	// function that reads out the calculated paths and does the evaluation of the calculated these
+	void evaluateCoveragePaths(const std::vector<explorationConfig>& configs, const explorationData& datas,
+			std::vector<evaluationResults>& results, const std::string data_storage_path)
+	{
+		for(std::vector<explorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
+		{
+			// get the location of the results and open this file
+			std::string folder_path = config->generateConfigurationFolderString() + "/";
+			std::string log_filename = data_storage_path + folder_path + datas.map_name_ + "_results.txt";
+			std::ifstream reading_file(log_filename.c_str(), std::ios::in);
+
+			// if the file could be opened, read out the given paths for all rooms
+			std::vector<std::vector<geometry_msgs::Pose2D> > paths;
+			std::vector<std::vector<double> > calculation_times;
+			if (reading_file.is_open()==true)
+			{
+				std::string line;
+				bool initial = true;
+				while(getline(reading_file, line))
+				{
+					double calculation_time;
+					double x, y, theta;
+
+					// check if the current line is empty --> shows a new room
+					std::vector<geometry_msgs::Pose2D> current_path;
+					std::vector<double> current_calculation_times;
+					if(line.empty()==true)
+					{
+						initial = true;
+						continue;
+					}
+
+					// if the new line is the first after an empty line, it contains the calculation time
+					if(initial==true)
+					{
+						// if the time limit was exceeded, save a -1
+						if(line.find("exceeded")!=std::string::npos)
+						{
+							std::cout << "exceeded calculation time" << std::endl;
+							calculation_time = -1;
+							// save a invalid pose, to show that this room has no coverage path
+							geometry_msgs::Pose2D false_pose;
+							false_pose.x = -1;
+							false_pose.y = -1;
+							current_path.push_back(false_pose);
+						}
+						else
+						{
+							const char* str = line.c_str();
+							sscanf(str, "%*[^0-9]%lf", &calculation_time);
+							std::cout << calculation_time << std::endl;
+						}
+						current_calculation_times.push_back(calculation_time);
+						initial = false;
+					}
+					// else read out x,y and theta and create a new Pose
+					else
+					{
+						std::istringstream iss(line);
+						std::string buffer;
+						iss >> buffer;
+						iss >> x;
+//						iss >> buffer;
+						iss >> y;
+						iss >> buffer;
+						iss >> theta;
+						std::cout << "x: " << x << ", y: " << y << ", theta: " << theta << std::endl;
+					}
+				}
+			}
+			else
+				ROS_WARN("Error on reading file '%s'", log_filename.c_str());
+			reading_file.close();
+		}
+	}
+
+	// function that plans one coverage path for the given room map
 	bool planCoveragePath(const cv::Mat& room_map, const explorationData& evaluation_data, const explorationConfig& evaluation_configuration,
 				ipa_building_msgs::RoomExplorationResultConstPtr& result_expl, struct timespec& t0,
 				const geometry_msgs::Pose2D& starting_position, const geometry_msgs::Polygon& min_max_points,
@@ -499,8 +594,8 @@ public:
 		goal.execute_path = false;
 		ac_exp.sendGoal(goal);
 
-		// wait for results for 5 hours
-		bool finished = ac_exp.waitForResult(ros::Duration(18000));
+		// wait for results for 3 hours
+		bool finished = ac_exp.waitForResult(ros::Duration(10800));
 
 		// if an error occurred, return a boolean showing failure
 		if(finished==false)
