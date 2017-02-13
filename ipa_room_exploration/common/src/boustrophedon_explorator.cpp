@@ -671,7 +671,7 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 
 	}
 
-	// map the calculated path back to the originally rotated map
+	// transform the calculated path back to the originally rotated map
 	cv::invertAffineTransform(R, R);
 	cv::transform(fow_middlepoint_path, fow_middlepoint_path, R);
 

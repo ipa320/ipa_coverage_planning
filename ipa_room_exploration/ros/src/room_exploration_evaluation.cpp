@@ -181,25 +181,25 @@ public:
 		// prepare relevant floor map data
 		std::vector< std::string > map_names;
 		map_names.push_back("lab_ipa");
-//		map_names.push_back("lab_c_scan");
-//		map_names.push_back("Freiburg52_scan");
-//		map_names.push_back("Freiburg79_scan");
-//		map_names.push_back("lab_b_scan");
-//		map_names.push_back("lab_intel");
-//		map_names.push_back("Freiburg101_scan");
-//		map_names.push_back("lab_d_scan");
-//		map_names.push_back("lab_f_scan");
-//		map_names.push_back("lab_a_scan");
-//		map_names.push_back("NLB");
-//		map_names.push_back("office_a");
-//		map_names.push_back("office_b");
-//		map_names.push_back("office_c");
-//		map_names.push_back("office_d");
-//		map_names.push_back("office_e");
-//		map_names.push_back("office_f");
-//		map_names.push_back("office_g");
-//		map_names.push_back("office_h");
-//		map_names.push_back("office_i");
+		map_names.push_back("lab_c_scan");
+		map_names.push_back("Freiburg52_scan");
+		map_names.push_back("Freiburg79_scan");
+		map_names.push_back("lab_b_scan");
+		map_names.push_back("lab_intel");
+		map_names.push_back("Freiburg101_scan");
+		map_names.push_back("lab_d_scan");
+		map_names.push_back("lab_f_scan");
+		map_names.push_back("lab_a_scan");
+		map_names.push_back("NLB");
+		map_names.push_back("office_a");
+		map_names.push_back("office_b");
+		map_names.push_back("office_c");
+		map_names.push_back("office_d");
+		map_names.push_back("office_e");
+		map_names.push_back("office_f");
+		map_names.push_back("office_g");
+		map_names.push_back("office_h");
+		map_names.push_back("office_i");
 //		map_names.push_back("lab_ipa_furnitures");
 //		map_names.push_back("lab_c_scan_furnitures");
 //		map_names.push_back("Freiburg52_scan_furnitures");
@@ -258,24 +258,25 @@ public:
 		if(failed_maps.is_open())
 			failed_maps << "maps that had a bug during the simulation and couldn't be finished: " << std::endl;
 		ROS_INFO("Evaluating the maps.");
-//		for (size_t i=0; i<evaluation_datas.size(); ++i)
-//		{
-//			if (planCoveragePaths(configs, evaluation_datas[i], data_storage_path)==false)
-//			{
-//				std::cout << "failed to simulate map " << evaluation_datas[i].map_name_ << std::endl;
-//				if(failed_maps.is_open())
-//					failed_maps << evaluation_datas[i].map_name_ << std::endl;
-//			}
-//		}
+		for (size_t i=0; i<evaluation_datas.size(); ++i)
+		{
+			if (planCoveragePaths(configs, evaluation_datas[i], data_storage_path)==false)
+			{
+				std::cout << "failed to simulate map " << evaluation_datas[i].map_name_ << std::endl;
+				if(failed_maps.is_open())
+					failed_maps << evaluation_datas[i].map_name_ << std::endl;
+			}
+		}
 		failed_maps.close();
 
 		// read out the computed paths and calculate the evaluation values
 		ROS_INFO("Reading out all saved paths.");
-		std::vector<evaluationResults> results;
-		for (size_t i=0; i<evaluation_datas.size(); ++i)
-		{
-			evaluateCoveragePaths(configs, evaluation_datas[i], results, data_storage_path);
-		}
+		// TODO: finish
+//		std::vector<evaluationResults> results;
+//		for (size_t i=0; i<evaluation_datas.size(); ++i)
+//		{
+//			evaluateCoveragePaths(configs, evaluation_datas[i], results, data_storage_path);
+//		}
 
 	}
 
@@ -285,6 +286,11 @@ public:
 		// go trough all configs and do the evaluations
 		for(std::vector<explorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
 		{
+			// create a folder for the log directory
+			std::string folder_path = config->generateConfigurationFolderString() + "/";
+			const std::string upper_command = "mkdir -p " + data_storage_path + folder_path;
+			int return_value = system(upper_command.c_str());
+
 			std::cout << "expl: " << config->exploration_algorithm_ << std::endl;
 			//variables for time measurement
 			struct timespec t0, t1;
@@ -296,7 +302,8 @@ public:
 				map_name_basic = datas.map_name_.substr(0, pos);
 			std::string gt_image_filename = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/" + map_name_basic + "_gt_segmentation.png";
 			std::cout << "Loading ground truth segmentation from: " << gt_image_filename << std::endl;
-			cv::Mat gt_map = cv::imread(gt_image_filename.c_str(),CV_8U);
+			cv::Mat gt_map = cv::imread(gt_image_filename.c_str(), CV_8U);
+			cv::threshold(gt_map, gt_map, 250, 255, CV_THRESH_BINARY);
 
 
 			// 2. retrieve the rooms for each ground truth map and get the maps that show only one room each
@@ -325,23 +332,25 @@ public:
 			std::vector<cv::Rect> chosen_bb;
 			for(int room=1; room<label; ++room)
 			{
-				int number_of_pixels = 0;
 				cv::Mat room_map = cv::Mat(labeled_map.rows, labeled_map.cols, CV_8U, cv::Scalar(0));
 				// go trough pixels and make pixels belonging to room white and not belonging pixels black
 				for(size_t y=0; y<room_map.rows; ++y)
-				{
 					for(size_t x=0; x<room_map.cols; ++x)
-					{
 						if(labeled_map.at<int>(y,x)==room)
-						{
 							room_map.at<uchar>(y,x) = 255;
+
+				// check for the eroded map (the map that shows the in reality reachable areas) to have enough free pixels
+				cv::Mat eroded_map;
+				int robot_radius_in_pixel = (datas.robot_radius_ / datas.map_resolution_);
+				cv::erode(room_map, eroded_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
+				int number_of_pixels = 0;
+				for(size_t y=0; y<eroded_map.rows; ++y)
+					for(size_t x=0; x<eroded_map.cols; ++x)
+						if(eroded_map.at<uchar>(y,x)==255)
 							++number_of_pixels;
-						}
-					}
-				}
 
 				// save room map, if region is big enough
-				if(number_of_pixels>=100)
+				if(number_of_pixels>0)
 				{
 					room_maps.push_back(room_map);
 					chosen_bb.push_back(bounding_boxes[room-1]);
@@ -433,10 +442,7 @@ public:
 					output << coverage_path[point] << std::endl;
 				output << std::endl;
 			}
-			std::string folder_path = config->generateConfigurationFolderString() + "/";
 			std::string log_filename = data_storage_path + folder_path + datas.map_name_ + "_results.txt";
-			const std::string upper_command = "mkdir -p " + data_storage_path + folder_path;
-			int return_value = system(upper_command.c_str());
 			std::cout << log_filename << std::endl;
 			std::ofstream file(log_filename.c_str(), std::ios::out);
 			if (file.is_open()==true)
@@ -506,6 +512,7 @@ public:
 						initial = false;
 					}
 					// else read out x,y and theta and create a new Pose
+					// TODO: get y and theta
 					else
 					{
 						std::istringstream iss(line);
@@ -595,17 +602,55 @@ public:
 		ac_exp.sendGoal(goal);
 
 		// wait for results for 3 hours
-		bool finished = ac_exp.waitForResult(ros::Duration(10800));
+		bool finished;
+		// higher timeout for the flowNetworkExplorator, because much slower than the others
+		if(evaluation_configuration.exploration_algorithm_==5)
+			finished = ac_exp.waitForResult(ros::Duration(10800));
+		else
+			finished = ac_exp.waitForResult(ros::Duration(1800));
 
-		// if an error occurred, return a boolean showing failure
-		if(finished==false)
+
+		if (finished == false) //if it takes too long the server should be killed and restarted
+		{
+			std::cout << "action server took too long" << std::endl;
+			std::string pid_cmd = "pidof room_exploration_server > room_exploration_evaluation/expl_srv_pid.txt";
+			int pid_result = system(pid_cmd.c_str());
+			std::ifstream pid_reader("room_exploration_evaluation/expl_srv_pid.txt");
+			int value;
+			std::string line;
+			if (pid_reader.is_open())
+			{
+				while (getline(pid_reader, line))
+				{
+					std::istringstream iss(line);
+					while (iss >> value)
+					{
+						std::cout << "PID of room_exploration_server: " << value << std::endl;
+						std::stringstream ss;
+						ss << "kill " << value;
+						std::string kill_cmd = ss.str();
+						int kill_result = system(kill_cmd.c_str());
+						std::cout << "kill result: " << kill_result << std::endl;
+					}
+				}
+				pid_reader.close();
+				remove("rroom_exploration_evaluation/expl_srv_pid.txt");
+			}
+			else
+			{
+				std::cout << "missing logfile" << std::endl;
+			}
 			return false;
+		}
+		else
+		{
+			// retrieve solution
+			result_expl = ac_exp.getResult();
+			std::cout << "Finished coverage planning successfully!" << std::endl;
 
-		// retrieve solution
-		result_expl = ac_exp.getResult();
-
-		// show success
-		return true;
+			// show success
+			return true;
+		}
 	}
 };
 

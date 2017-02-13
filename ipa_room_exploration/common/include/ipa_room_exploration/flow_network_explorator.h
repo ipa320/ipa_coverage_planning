@@ -1,5 +1,7 @@
+// OpenCV
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
+// standard c++ includes
 #include <iostream>
 #include <vector>
 #include <set>
@@ -7,7 +9,6 @@
 #include <string>
 #include <fstream>
 #include <stdio.h>
-
 // Eigen library for matrix/vector computations
 #include <Eigen/Dense>
 // Coin-Or library with Cbc mixed integer programming solver
@@ -21,12 +22,12 @@
 #include <boost/config.hpp>
 #include <boost/graph/strong_components.hpp>
 #include <boost/graph/adjacency_list.hpp>
-
+// package specific includes
 #include <ipa_room_exploration/fow_to_robot_mapper.h>
 #include <ipa_room_exploration/A_star_pathplanner.h>
 #include <ipa_room_exploration/distance_matrix.h>
 #include <ipa_room_exploration/contains.h>
-
+// msgs
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>
 #include <geometry_msgs/Point32.h>
