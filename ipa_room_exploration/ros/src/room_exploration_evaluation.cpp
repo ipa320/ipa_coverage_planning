@@ -2,10 +2,12 @@
 #include <ros/package.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string>
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <numeric>
 
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
@@ -23,6 +25,7 @@
 #include <ipa_building_msgs/RoomExplorationAction.h>
 
 #include <ipa_room_exploration/dynamic_reconfigure_client.h>
+#include <ipa_room_exploration/A_star_pathplanner.h>
 
 #include <time.h>
 #include <sys/time.h>
@@ -104,6 +107,8 @@ struct explorationData
 	geometry_msgs::Pose map_origin_;
 	geometry_msgs::Pose2D robot_start_position_;
 	double robot_radius_;
+	double robot_speed_; // [m/s]
+	double rotation_speed_; // [rad/s]
 	std::vector<geometry_msgs::Point32> fow_points_;
 
 	// empty values as default
@@ -115,6 +120,8 @@ struct explorationData
 		map_origin_.position.x = 0;
 		map_origin_.position.y = 0;
 		robot_radius_ = 0.8;
+		robot_speed_ = 0.3;
+		rotation_speed_ = 0.1;
 	}
 
 	// set data used in this evaluation
@@ -125,6 +132,8 @@ struct explorationData
 		floor_plan_ = floor_plan;
 		map_resolution_ = map_resolution;
 		robot_radius_ = robot_radius;
+		robot_speed_ = 0.3;
+		rotation_speed_ = 0.1;
 		fow_points_ = fow_points;
 		map_origin_.position.x = 0;
 		map_origin_.position.y = 0;
@@ -149,6 +158,7 @@ struct evaluationResults
 {
 	double calculation_time;
 	double path_length;
+	double execution_time;
 	cv::Mat room_map, coverage_map;
 	int number_of_turns;
 };
@@ -181,25 +191,25 @@ public:
 		// prepare relevant floor map data
 		std::vector< std::string > map_names;
 		map_names.push_back("lab_ipa");
-		map_names.push_back("lab_c_scan");
-		map_names.push_back("Freiburg52_scan");
-		map_names.push_back("Freiburg79_scan");
-		map_names.push_back("lab_b_scan");
-		map_names.push_back("lab_intel");
-		map_names.push_back("Freiburg101_scan");
-		map_names.push_back("lab_d_scan");
-		map_names.push_back("lab_f_scan");
-		map_names.push_back("lab_a_scan");
-		map_names.push_back("NLB");
-		map_names.push_back("office_a");
-		map_names.push_back("office_b");
-		map_names.push_back("office_c");
-		map_names.push_back("office_d");
-		map_names.push_back("office_e");
-		map_names.push_back("office_f");
-		map_names.push_back("office_g");
-		map_names.push_back("office_h");
-		map_names.push_back("office_i");
+//		map_names.push_back("lab_c_scan");
+//		map_names.push_back("Freiburg52_scan");
+//		map_names.push_back("Freiburg79_scan");
+//		map_names.push_back("lab_b_scan");
+//		map_names.push_back("lab_intel");
+//		map_names.push_back("Freiburg101_scan");
+//		map_names.push_back("lab_d_scan");
+//		map_names.push_back("lab_f_scan");
+//		map_names.push_back("lab_a_scan");
+//		map_names.push_back("NLB");
+//		map_names.push_back("office_a");
+//		map_names.push_back("office_b");
+//		map_names.push_back("office_c");
+//		map_names.push_back("office_d");
+//		map_names.push_back("office_e");
+//		map_names.push_back("office_f");
+//		map_names.push_back("office_g");
+//		map_names.push_back("office_h");
+//		map_names.push_back("office_i");
 //		map_names.push_back("lab_ipa_furnitures");
 //		map_names.push_back("lab_c_scan_furnitures");
 //		map_names.push_back("Freiburg52_scan_furnitures");
@@ -253,30 +263,30 @@ public:
 		}
 
 		// do the evaluation
-		std::string bugfile = data_storage_path + "bugfile.txt";
-		std::ofstream failed_maps(bugfile.c_str(), std::ios::out);
-		if(failed_maps.is_open())
-			failed_maps << "maps that had a bug during the simulation and couldn't be finished: " << std::endl;
-		ROS_INFO("Evaluating the maps.");
-		for (size_t i=0; i<evaluation_datas.size(); ++i)
-		{
-			if (planCoveragePaths(configs, evaluation_datas[i], data_storage_path)==false)
-			{
-				std::cout << "failed to simulate map " << evaluation_datas[i].map_name_ << std::endl;
-				if(failed_maps.is_open())
-					failed_maps << evaluation_datas[i].map_name_ << std::endl;
-			}
-		}
-		failed_maps.close();
+//		std::string bugfile = data_storage_path + "bugfile.txt";
+//		std::ofstream failed_maps(bugfile.c_str(), std::ios::out);
+//		if(failed_maps.is_open())
+//			failed_maps << "maps that had a bug during the simulation and couldn't be finished: " << std::endl;
+//		ROS_INFO("Evaluating the maps.");
+//		for (size_t i=0; i<evaluation_datas.size(); ++i)
+//		{
+//			if (planCoveragePaths(configs, evaluation_datas[i], data_storage_path)==false)
+//			{
+//				std::cout << "failed to simulate map " << evaluation_datas[i].map_name_ << std::endl;
+//				if(failed_maps.is_open())
+//					failed_maps << evaluation_datas[i].map_name_ << std::endl;
+//			}
+//		}
+//		failed_maps.close();
 
 		// read out the computed paths and calculate the evaluation values
 		ROS_INFO("Reading out all saved paths.");
 		// TODO: finish
-//		std::vector<evaluationResults> results;
-//		for (size_t i=0; i<evaluation_datas.size(); ++i)
-//		{
-//			evaluateCoveragePaths(configs, evaluation_datas[i], results, data_storage_path);
-//		}
+		std::vector<evaluationResults> results;
+		for (size_t i=0; i<evaluation_datas.size(); ++i)
+		{
+			evaluateCoveragePaths(configs, evaluation_datas[i], results, data_storage_path);
+		}
 
 	}
 
@@ -462,14 +472,17 @@ public:
 	{
 		for(std::vector<explorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
 		{
-			// get the location of the results and open this file
+			// 1. get the location of the results and open this file
 			std::string folder_path = config->generateConfigurationFolderString() + "/";
+			std::cout << folder_path << datas.map_name_ << std::endl;
 			std::string log_filename = data_storage_path + folder_path + datas.map_name_ + "_results.txt";
 			std::ifstream reading_file(log_filename.c_str(), std::ios::in);
 
-			// if the file could be opened, read out the given paths for all rooms
+			// 2. if the file could be opened, read out the given paths for all rooms
 			std::vector<std::vector<geometry_msgs::Pose2D> > paths;
 			std::vector<std::vector<double> > calculation_times;
+			std::vector<geometry_msgs::Pose2D> current_path;
+			std::vector<double> current_calculation_times;
 			if (reading_file.is_open()==true)
 			{
 				std::string line;
@@ -480,21 +493,30 @@ public:
 					double x, y, theta;
 
 					// check if the current line is empty --> shows a new room
-					std::vector<geometry_msgs::Pose2D> current_path;
-					std::vector<double> current_calculation_times;
 					if(line.empty()==true)
 					{
+						// save the previously found calculation times and paths
+						paths.push_back(current_path);
+						calculation_times.push_back(current_calculation_times);
+
+						// reset temporary vectors
+						current_path.clear();
+						current_calculation_times.clear();
+
+						// set the flag to a new room
 						initial = true;
+
+						// ignore the empty line
 						continue;
 					}
 
 					// if the new line is the first after an empty line, it contains the calculation time
 					if(initial==true)
 					{
-						// if the time limit was exceeded, save a -1
-						if(line.find("exceeded")!=std::string::npos)
+						// if the time limit was exceeded or a bug appeared, save a -1
+						if(line.find("exceeded")!=std::string::npos || line.find("bug")!=std::string::npos)
 						{
-							std::cout << "exceeded calculation time" << std::endl;
+//							std::cout << "exceeded calculation time" << std::endl;
 							calculation_time = -1;
 							// save a invalid pose, to show that this room has no coverage path
 							geometry_msgs::Pose2D false_pose;
@@ -506,30 +528,173 @@ public:
 						{
 							const char* str = line.c_str();
 							sscanf(str, "%*[^0-9]%lf", &calculation_time);
-							std::cout << calculation_time << std::endl;
+//							std::cout << calculation_time << std::endl;
 						}
 						current_calculation_times.push_back(calculation_time);
 						initial = false;
 					}
 					// else read out x,y and theta and create a new Pose
-					// TODO: get y and theta
 					else
 					{
 						std::istringstream iss(line);
+						int pos_counter = 0;
 						std::string buffer;
-						iss >> buffer;
-						iss >> x;
-//						iss >> buffer;
-						iss >> y;
-						iss >> buffer;
-						iss >> theta;
-						std::cout << "x: " << x << ", y: " << y << ", theta: " << theta << std::endl;
+
+						// get saved output until comma or the end of the line is reached
+						while(getline(iss, buffer, ','))
+						{
+							// remove brackets
+							buffer.erase(std::remove(buffer.begin(), buffer.end(), '['), buffer.end());
+							buffer.erase(std::remove(buffer.begin(), buffer.end(), ']'), buffer.end());
+
+							// save value regarding the position of it
+							if(pos_counter==0)
+								x = atof(buffer.c_str());
+							else if(pos_counter==1)
+								y = atof(buffer.c_str());
+							else if(pos_counter==2)
+								theta = atof(buffer.c_str());
+
+							// increase position counter
+							++pos_counter;
+
+						}
+//						std::cout << "x: " << x << ", y: " << y << ", theta: " << theta << std::endl;
+
+						// save the found pose
+						if(x>0 && y>0)
+						{
+							geometry_msgs::Pose2D current_pose;
+							current_pose.x = x;
+							current_pose.y = y;
+							current_pose.theta = theta;
+							current_path.push_back(current_pose);
+						}
 					}
 				}
 			}
 			else
 				ROS_WARN("Error on reading file '%s'", log_filename.c_str());
 			reading_file.close();
+
+			// 3. do the evaluations
+			AStarPlanner path_planner;
+			// 3.1 overall, average pathlength and variance of it for the calculated paths and get the numbers of the turns
+			cv::Mat map = datas.floor_plan_.clone();
+			cv::Mat eroded_map;
+			int robot_radius_in_pixel = (datas.robot_radius_ / datas.map_resolution_);
+			cv::erode(map, eroded_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
+			std::vector<double> pathlengths_for_map;
+			std::vector<std::vector<cv::Point> > interpolated_paths; // variable that stores the path points and the points between them
+			int nonzero_paths = 0;
+			std::vector<double> rotation_values;
+			std::vector<int> number_of_rotations = 0;
+			for(size_t room=0; room<paths.size(); ++room)
+			{
+//				std::cout << "room " << room << ", size of path: " << paths[room].size() << std::endl;
+
+				if(paths[room].size()==0)
+					continue;
+				else
+					++nonzero_paths;
+
+				double current_pathlength = 0.0;
+				std::vector<cv::Point> current_interpolated_path;
+				double previous_angle = 0.0;
+				double current_rotation_abs = 0.0;
+				int current_number_of_rotations = 0;
+				for(std::vector<geometry_msgs::Pose2D>::iterator pose=paths[room].begin(); pose!=paths[room].end()-1; ++pose)
+				{
+					// if a false pose has been saved, ignore it
+					if(pose->x==-1 && pose->y==-1)
+						continue;
+
+					// get the angle and check if it the same as before, if not add the rotation
+					if(pose-paths[room].begin()!=1) // not for start pose
+					{
+						double angle_difference = previous_angle-pose->theta;
+
+						if(angle_difference!=0.0)
+						{
+							++current_number_of_rotations;
+							current_rotation_abs += std::abs(angle_difference);
+						}
+					}
+					// save current angle of pose
+					previous_angle = pose->theta;
+
+					// create output map to show path
+					cv::circle(eroded_map, cv::Point(pose->x, pose->y), 2, cv::Scalar(127), CV_FILLED);
+					cv::line(eroded_map, cv::Point(pose->x, pose->y), cv::Point((pose+1)->x, (pose+1)->y), cv::Scalar(100));
+
+					// find pathlength and path between two consecutive poses
+					current_pathlength += path_planner.planPath(map, cv::Point(pose->x, pose->y), cv::Point((pose+1)->x, (pose+1)->y), 1.0, 0.0, datas.map_resolution_, 0, &current_interpolated_path);
+				}
+
+				// save rotation values
+				rotation_values.push_back(current_rotation_abs);
+				number_of_rotations.push_back(current_number_of_rotations);
+
+				// save the interpolated path between
+				interpolated_paths.push_back(current_interpolated_path);
+
+				// transform the pixel length to meter
+				current_pathlength *= datas.map_resolution_;
+//				std::cout << "length: " << current_pathlength << "m" << std::endl;
+				pathlengths_for_map.push_back(current_pathlength);
+//				cv::imshow("room paths", eroded_map);
+//				cv::waitKey();
+			}
+
+			// save the map with the drawn in coverage paths
+			std::stringstream map_filename;
+			std::string image_path = data_storage_path + folder_path + datas.map_name_ + "_paths.png";
+//			std::cout << image_path << std::endl;
+			cv::imwrite(image_path.c_str(), eroded_map);
+//			cv::imshow("room paths", room_map);
+//			cv::waitKey();
+
+			// calculate the overall pathlength, the average and the variance
+			double overall_pathlength = std::accumulate(pathlengths_for_map.begin(), pathlengths_for_map.end(), 0);
+			double average_pathlength = overall_pathlength/nonzero_paths;
+			double pathlength_variance_squared = 0;
+			std::vector<double> travel_times_in_rooms;
+			for(std::vector<double>::iterator length=pathlengths_for_map.begin(); length!=pathlengths_for_map.end(); ++length)
+			{
+				pathlength_variance_squared += std::pow(*length-average_pathlength, 2.0);
+				travel_times_in_rooms.push_back(*length/datas.robot_speed_);
+			}
+			pathlength_variance_squared /= nonzero_paths;
+
+			// 2. calculate the execution time by using the robot speed and the rotation speed
+			double average_execution_time = 0.0;
+			double execution_time_squared_variance = 0.0;
+			double overall_execution_time = overall_pathlength/datas.robot_speed_; // travel time
+			std::vector<double> rotation_times_in_rooms;
+			for(std::vector<double>::iterator rotation=rotation_values.begin(); rotation!=rotation_values.end(); ++rotation)
+			{
+				overall_execution_time += *rotation/datas.rotation_speed_;
+				rotation_times_in_rooms.push_back(*rotation/datas.rotation_speed_);
+			}
+			average_execution_time = overall_execution_time/nonzero_paths;
+			// compute variance
+			for(size_t room=0; room<paths.size(); ++room)
+			{
+				if(paths[room].size()==0)
+					continue;
+
+				execution_time_squared_variance += std::pow(rotation_times_in_rooms[room]+travel_times_in_rooms[room]-average_execution_time, 2.0);
+			}
+
+			// TODO: average initial coverage + deviation --> return room maps?
+			// 3. coverage when executing the coverage paths
+			std::vector<double> area_covered_percentages;
+
+			// TODO: average calculation time + deviation
+
+			// TODO: parallelity?
+
+			// TODO: number of rooms
 		}
 	}
 

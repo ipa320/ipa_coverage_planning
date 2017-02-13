@@ -1,6 +1,10 @@
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Changelog for package ipa_room_exploration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+0.1.2 (2017-02-13)
+------------------
+* rotation of the map in flowNetworkExplorator
+* Contributors: Florian Jordan
 0.1.1 (2017-02-10)
 ------------------
 * excluded coverage check to standalone service server

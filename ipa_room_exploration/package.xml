@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
 	<name>ipa_room_exploration</name>
-	<version>0.1.0</version>
+	<version>0.1.2</version>
 	<description>
 		This package plans the navigation in a room such that the floor of this room gets inspected completely for dirt.
 	</description>
