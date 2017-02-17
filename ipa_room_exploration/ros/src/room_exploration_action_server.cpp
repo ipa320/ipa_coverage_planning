@@ -62,9 +62,11 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		curvature_factor_ = config.curvature_factor;
 		std::cout << "room_exploration/delta_theta_ = " << delta_theta_ << std::endl;
 	}
-	else if(path_planning_algorithm_ == 5) // set flowNetwork explorator parameters
+	else if(path_planning_algorithm_ == 6) // set energyFunctional explorator parameters
 	{
-
+	}
+	else if(path_planning_algorithm_ == 7) // set voronoi explorator parameters
+	{
 	}
 
 
@@ -117,6 +119,8 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		ROS_INFO("You have chosen the flow network exploration method.");
 	else if(path_planning_algorithm_ == 6)
 		ROS_INFO("You have chosen the energy functional exploration method.");
+	else if(path_planning_algorithm_ == 7)
+		ROS_INFO("You have chosen the voronoi exploration method.");
 
 	if (path_planning_algorithm_ == 1) // get grid point exploration parameters
 	{
@@ -164,6 +168,9 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		std::cout << "room_exploration/curvature_factor = " << curvature_factor_ << std::endl;
 	}
 	else if(path_planning_algorithm_ == 6) // set energyfunctional explorator parameters
+	{
+	}
+	else if(path_planning_algorithm_ == 7) // set voronoi explorator parameters
 	{
 	}
 
@@ -496,6 +503,29 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, true, zero_vector);
 		}
 	}
+	else if(path_planning_algorithm_ == 7) // use voronoi explorator
+	{
+		// TODO: what does max_tracking_distance? --> finish
+		// create a usable occupancyGrid map out of the given room map
+		nav_msgs::OccupancyGrid room_gridmap;
+		matToMap(room_gridmap, room_map);
+
+		// create the object that plans the path, based on the room-map
+		VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, 100*robot_radius); // radius in cm
+
+		// get the exploration path
+		vm.generatePath(exploration_path, cv::Mat(), starting_position.x, starting_position.y);
+
+		// transform the image coordinates to global coordinates
+		cv::Mat test_map = room_map.clone();
+		for(std::vector<geometry_msgs::Pose2D>::iterator pose=exploration_path.begin(); pose!=exploration_path.end()-1; ++pose)
+		{
+			cv::circle(test_map, cv::Point(pose->x, pose->y), 2, cv::Scalar(127), CV_FILLED);
+			cv::line(test_map, cv::Point(pose->x, pose->y), cv::Point((pose+1)->x, (pose+1)->y), cv::Scalar(100), 1);
+		}
+		cv::imshow("path", test_map);
+		cv::waitKey();
+	}
 
 	// check if the size of the exploration path is larger then zero
 	if(exploration_path.size()==0)
@@ -555,16 +585,17 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	if(revisit_areas_ == true)
 	{
 		// save the costmap as Mat of the same type as the given map (8UC1)
-		cv::Mat costmap_as_mat(global_map.cols, global_map.rows, CV_8UC1);
+		cv::Mat costmap_as_mat;//(global_map.cols, global_map.rows, CV_8UC1);
 
-		// fill one row and then go to the next one (storing method of ros)
-		for(size_t u = 0; u < costmap_as_mat.cols; ++u)
-		{
-			for(size_t v = 0; v < costmap_as_mat.rows; ++v)
-			{
-				costmap_as_mat.at<uchar>(u,v) = (uchar) pixel_values[v+u*global_map.rows];
-			}
-		}
+//		// fill one row and then go to the next one (storing method of ros)
+//		for(size_t u = 0; u < costmap_as_mat.cols; ++u)
+//		{
+//			for(size_t v = 0; v < costmap_as_mat.rows; ++v)
+//			{
+//				costmap_as_mat.at<uchar>(u,v) = (uchar) pixel_values[v+u*global_map.rows];
+//			}
+//		}
+		mapToMat(global_costmap, costmap_as_mat);
 
 		// 70% probability of being an obstacle
 		cv::threshold(costmap_as_mat, costmap_as_mat, 75, 255, cv::THRESH_BINARY_INV);
@@ -588,6 +619,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		coverage_request.footprint = goal->footprint;
 		coverage_request.map_origin = goal->map_origin;
 		coverage_request.map_resolution = map_resolution;
+		coverage_request.check_number_of_coverages = false;
 		std::cout << "filled service request for the coverage check" << std::endl;
 		if(plan_for_footprint_ == false)
 		{
@@ -815,6 +847,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "room_exploration_server");
+	ros::Time::init();
 
 	ros::NodeHandle nh("~");
 

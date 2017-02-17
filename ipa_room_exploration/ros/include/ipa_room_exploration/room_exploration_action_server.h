@@ -25,6 +25,7 @@
 #include <ipa_building_msgs/checkCoverage.h>
 // messages
 #include <geometry_msgs/Pose2D.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Polygon.h>
 #include <geometry_msgs/Point32.h>
 #include <nav_msgs/OccupancyGrid.h>
@@ -39,6 +40,7 @@
 #include <ipa_room_exploration/convex_sensor_placement_explorator.h>
 #include <ipa_room_exploration/flow_network_explorator.h>
 #include <ipa_room_exploration/energy_functional_explorator.h>
+#include <ipa_room_exploration/voronoi.hpp>
 
 /*!
  *****************************************************************
@@ -158,6 +160,9 @@ protected:
 	double mu_; // parameter to set the importance of the states of neighboring neurons to the dynamics, higher value means higher influence
 	double delta_theta_weight_; // parameter to set the importance of the traveleing direction from the previous step and the next step, a higher value means that the robot should turn less
 
+	// vornoi explorator specific parameters
+	int max_track_width_;
+
 	// callback function for dynamic reconfigure
 	void dynamic_reconfigure_callback(ipa_room_exploration::RoomExplorationConfig &config, uint32_t level);
 
@@ -195,6 +200,28 @@ protected:
 		cv::Mat dst;
 		cv::warpAffine(map, dst, rot_mat, map.size());
 		cv::flip(dst, map, 1);
+	}
+
+	// function to create an occupancyGrid map out of a given cv::Mat
+	void matToMap(nav_msgs::OccupancyGrid &map, const cv::Mat &mat)
+	{
+		map.info.width  = mat.cols;
+		map.info.height = mat.rows;
+		map.data.resize(mat.cols*mat.rows);
+
+		for(int x=0; x<mat.cols; x++)
+			for(int y=0; y<mat.rows; y++)
+				map.data[y*mat.cols+x] = mat.at<int8_t>(y,x)?0:100;
+	}
+
+	// function to create a cv::Mat out of a given occupancyGrid map
+	void mapToMat(const nav_msgs::OccupancyGrid &map, cv::Mat &mat)
+	{
+		mat = cv::Mat(map.info.height, map.info.width, CV_8U);
+
+		for(int x=0; x<mat.cols; x++)
+			for(int y=0; y<mat.rows; y++)
+				mat.at<int8_t>(y,x) = map.data[y*mat.cols+x];
 	}
 
 	// !!Important!!

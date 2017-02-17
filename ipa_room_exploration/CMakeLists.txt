@@ -7,6 +7,7 @@ set(catkin_RUN_PACKAGES
 	geometry_msgs
 	ipa_building_msgs
 	ipa_building_navigation
+	laser_geometry
 	libconcorde_tsp_solver
 	move_base_msgs
 	nav_msgs
@@ -15,6 +16,7 @@ set(catkin_RUN_PACKAGES
 	sensor_msgs
 	std_msgs
 	tf
+	visualization_msgs
 )
 
 set(catkin_BUILD_PACKAGES

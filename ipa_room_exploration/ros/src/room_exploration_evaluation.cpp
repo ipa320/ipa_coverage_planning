@@ -23,8 +23,10 @@
 
 #include <ipa_building_msgs/MapSegmentationAction.h>
 #include <ipa_building_msgs/RoomExplorationAction.h>
+#include <cob_map_accessibility_analysis/CheckPerimeterAccessibility.h>
 
 #include <ipa_room_exploration/dynamic_reconfigure_client.h>
+#include <ipa_building_msgs/checkCoverage.h>
 #include <ipa_room_exploration/A_star_pathplanner.h>
 
 #include <time.h>
@@ -34,6 +36,8 @@
 #include <Eigen/Dense>
 
 #include <boost/regex.hpp>
+
+#define PI 3.14159265359
 
 // Overload of << operator for geometry_msgs::Pose2D to wanted format.
 std::ostream& operator<<(std::ostream& os, const geometry_msgs::Pose2D& obj)
@@ -103,6 +107,8 @@ struct explorationData
 {
 	std::string map_name_;		// without file type
 	cv::Mat floor_plan_;
+	std::vector<cv::Mat> room_maps_;
+	std::vector<cv::Rect> bounding_boxes_;
 	float map_resolution_;
 	geometry_msgs::Pose map_origin_;
 	geometry_msgs::Pose2D robot_start_position_;
@@ -181,6 +187,81 @@ protected:
 public:
 
 	ros::NodeHandle node_handle_;
+
+	void getRoomMaps(std::vector<explorationData>& data_saver)
+	{
+		for(std::vector<explorationData>::iterator datas=data_saver.begin(); datas!=data_saver.end(); ++datas)
+		{
+			// 1. read out the ground truth map
+			std::string map_name_basic = datas->map_name_;
+			std::size_t pos = datas->map_name_.find("_furnitures");
+			if (pos != std::string::npos)
+				map_name_basic = datas->map_name_.substr(0, pos);
+			std::string gt_image_filename = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/" + map_name_basic + "_gt_segmentation.png";
+			std::cout << "Loading ground truth segmentation from: " << gt_image_filename << std::endl;
+			cv::Mat gt_map = cv::imread(gt_image_filename.c_str(), CV_8U);
+			cv::threshold(gt_map, gt_map, 250, 255, CV_THRESH_BINARY);
+
+			// 2. retrieve the rooms for each ground truth map and get the maps that show only one room each
+			int label = 1;
+			std::vector<cv::Rect> bounding_boxes;
+			cv::Mat labeled_map;
+			gt_map.convertTo(labeled_map, CV_32SC1);
+			for (int y = 0; y < gt_map.rows; y++)
+			{
+				for (int x = 0; x < gt_map.cols; x++)
+				{
+					if (gt_map.at<uchar>(y,x)!=255 || labeled_map.at<int>(y,x)!=255)
+						continue;
+
+					// fill each room area with a unique id
+					cv::Rect rect;
+					cv::floodFill(labeled_map, cv::Point(x,y), label, &rect, 0, 0, 8);
+
+					// save the bounding box to retrieve the min/max coordinates
+					bounding_boxes.push_back(rect);
+
+					++label;
+				}
+			}
+			std::vector<cv::Mat> room_maps;
+			std::vector<cv::Rect> chosen_bb;
+			for(int room=1; room<label; ++room)
+			{
+				cv::Mat room_map = cv::Mat(labeled_map.rows, labeled_map.cols, CV_8U, cv::Scalar(0));
+				// go trough pixels and make pixels belonging to room white and not belonging pixels black
+				for(size_t y=0; y<room_map.rows; ++y)
+					for(size_t x=0; x<room_map.cols; ++x)
+						if(labeled_map.at<int>(y,x)==room)
+							room_map.at<uchar>(y,x) = 255;
+
+				// check for the eroded map (the map that shows the in reality reachable areas) to have enough free pixels
+				cv::Mat eroded_map;
+				int robot_radius_in_pixel = (datas->robot_radius_ / datas->map_resolution_);
+				cv::erode(room_map, eroded_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
+				int number_of_pixels = 0;
+				for(size_t y=0; y<eroded_map.rows; ++y)
+					for(size_t x=0; x<eroded_map.cols; ++x)
+						if(eroded_map.at<uchar>(y,x)==255)
+							++number_of_pixels;
+
+				// save room map, if region is big enough
+				if(number_of_pixels>0)
+				{
+					room_maps.push_back(room_map);
+					chosen_bb.push_back(bounding_boxes[room-1]);
+//					cv::rectangle(room_map, bounding_boxes[room-1], cv::Scalar(127), 2);
+//					cv::imshow("room", room_map);
+//					cv::waitKey();
+				}
+			}
+
+			// save the found room maps and bounding boxes
+			datas->floor_plan_ = gt_map;
+			datas->room_maps_ = room_maps;
+			datas->bounding_boxes_ = chosen_bb;
+		}
+	}
 
 	explorationEvaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::string& data_storage_path,
 			const double robot_radius, const std::vector<int>& exploration_algorithms, const std::vector<geometry_msgs::Point32>& fow_points)
@@ -262,6 +343,9 @@ public:
 			evaluation_datas.push_back(explorationData(map_names[image_index], map, 0.05, robot_radius, fow_points));
 		}
 
+		// get the room maps for each evaluation data
+		getRoomMaps(evaluation_datas);
+
 		// do the evaluation
 //		std::string bugfile = data_storage_path + "bugfile.txt";
 //		std::ofstream failed_maps(bugfile.c_str(), std::ios::out);
@@ -291,7 +375,7 @@ public:
 	}
 
 	// function that does the whole evaluation for all configs
-	bool planCoveragePaths(const std::vector<explorationConfig>& configs, const explorationData& datas, const std::string data_storage_path)
+	bool planCoveragePaths(const std::vector<explorationConfig>& configs, explorationData& datas, const std::string data_storage_path)
 	{
 		// go trough all configs and do the evaluations
 		for(std::vector<explorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
@@ -305,84 +389,19 @@ public:
 			//variables for time measurement
 			struct timespec t0, t1;
 
-			// 1. read out the ground truth map
-			std::string map_name_basic = datas.map_name_;
-			std::size_t pos = datas.map_name_.find("_furnitures");
-			if (pos != std::string::npos)
-				map_name_basic = datas.map_name_.substr(0, pos);
-			std::string gt_image_filename = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/" + map_name_basic + "_gt_segmentation.png";
-			std::cout << "Loading ground truth segmentation from: " << gt_image_filename << std::endl;
-			cv::Mat gt_map = cv::imread(gt_image_filename.c_str(), CV_8U);
-			cv::threshold(gt_map, gt_map, 250, 255, CV_THRESH_BINARY);
-
-
-			// 2. retrieve the rooms for each ground truth map and get the maps that show only one room each
-			int label = 1;
-			std::vector<cv::Rect> bounding_boxes;
-			cv::Mat labeled_map;
-			gt_map.convertTo(labeled_map, CV_32SC1);
-			for (int y = 0; y < gt_map.rows; y++)
-			{
-				for (int x = 0; x < gt_map.cols; x++)
-				{
-					if (gt_map.at<uchar>(y,x)!=255 || labeled_map.at<int>(y,x)!=255)
-						continue;
-
-					// fill each room area with a unique id
-					cv::Rect rect;
-					cv::floodFill(labeled_map, cv::Point(x,y), label, &rect, 0, 0, 8);
-
-					// save the bounding box to retrieve the min/max coordinates
-					bounding_boxes.push_back(rect);
-
-					++label;
-				}
-			}
-			std::vector<cv::Mat> room_maps;
-			std::vector<cv::Rect> chosen_bb;
-			for(int room=1; room<label; ++room)
-			{
-				cv::Mat room_map = cv::Mat(labeled_map.rows, labeled_map.cols, CV_8U, cv::Scalar(0));
-				// go trough pixels and make pixels belonging to room white and not belonging pixels black
-				for(size_t y=0; y<room_map.rows; ++y)
-					for(size_t x=0; x<room_map.cols; ++x)
-						if(labeled_map.at<int>(y,x)==room)
-							room_map.at<uchar>(y,x) = 255;
-
-				// check for the eroded map (the map that shows the in reality reachable areas) to have enough free pixels
-				cv::Mat eroded_map;
-				int robot_radius_in_pixel = (datas.robot_radius_ / datas.map_resolution_);
-				cv::erode(room_map, eroded_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
-				int number_of_pixels = 0;
-				for(size_t y=0; y<eroded_map.rows; ++y)
-					for(size_t x=0; x<eroded_map.cols; ++x)
-						if(eroded_map.at<uchar>(y,x)==255)
-							++number_of_pixels;
-
-				// save room map, if region is big enough
-				if(number_of_pixels>0)
-				{
-					room_maps.push_back(room_map);
-					chosen_bb.push_back(bounding_boxes[room-1]);
-//					cv::rectangle(room_map, bounding_boxes[room-1], cv::Scalar(127), 2);
-//					cv::imshow("room", room_map);
-//					cv::waitKey();
-				}
-			}
-
-			// 3. go trough all rooms and find the coverage path trough it
+			// go trough all rooms and find the coverage path trough it
 			geometry_msgs::Polygon region_of_interest; // always assume full map in this case
 			geometry_msgs::Point32 edge_point;
 			edge_point.x = 0;
 			edge_point.y = 0;
 			region_of_interest.points.push_back(edge_point);
-			edge_point.x = gt_map.cols;
-			edge_point.y = gt_map.rows;
+			edge_point.x = datas.floor_plan_.cols;
+			edge_point.y = datas.floor_plan_.rows;
 			region_of_interest.points.push_back(edge_point);
 			std::stringstream output;
-			for(size_t room_index=0; room_index<room_maps.size(); ++room_index)
+			for(size_t room_index=0; room_index<datas.room_maps_.size(); ++room_index)
 			{
-				cv::Mat room_map = room_maps[room_index];
+				cv::Mat room_map = datas.room_maps_[room_index];
 
 				// find min/max coordinates for this room by using the saved bounding box
 //				int min_y = 1e5, max_y = 0, min_x = 1e5, max_x = 0;
@@ -404,10 +423,10 @@ public:
 //						}
 //					}
 //				}
-				int min_y = chosen_bb[room_index].y;
-				int max_y = chosen_bb[room_index].y+chosen_bb[room_index].height;
-				int min_x = chosen_bb[room_index].x;
-				int max_x = chosen_bb[room_index].x+chosen_bb[room_index].width;
+				int min_y = datas.bounding_boxes_[room_index].y;
+				int max_y = datas.bounding_boxes_[room_index].y+datas.bounding_boxes_[room_index].height;
+				int min_x = datas.bounding_boxes_[room_index].x;
+				int max_x = datas.bounding_boxes_[room_index].x+datas.bounding_boxes_[room_index].width;
 				min_y -= 1;
 				min_x -= 1;
 				max_y += 1;
@@ -470,6 +489,18 @@ public:
 	void evaluateCoveragePaths(const std::vector<explorationConfig>& configs, const explorationData& datas,
 			std::vector<evaluationResults>& results, const std::string data_storage_path)
 	{
+		// find the middle-point distance of the given field of view
+		std::vector<Eigen::Matrix<float, 2, 1> > fow_vectors;
+		for(int i = 0; i < 4; ++i)
+		{
+			Eigen::Matrix<float, 2, 1> current_vector;
+			current_vector << datas.fow_points_[i].x, datas.fow_points_[i].y;
+			fow_vectors.push_back(current_vector);
+		}
+		// get the distance to the middle-point
+		Eigen::Matrix<float, 2, 1> middle_point = (fow_vectors[0] + fow_vectors[1] + fow_vectors[2] + fow_vectors[3]) / 4;
+		double distance_robot_fow_middlepoint = middle_point.norm();
+
 		for(std::vector<explorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
 		{
 			// 1. get the location of the results and open this file
@@ -480,9 +511,8 @@ public:
 
 			// 2. if the file could be opened, read out the given paths for all rooms
 			std::vector<std::vector<geometry_msgs::Pose2D> > paths;
-			std::vector<std::vector<double> > calculation_times;
+			std::vector<double> calculation_times;
 			std::vector<geometry_msgs::Pose2D> current_path;
-			std::vector<double> current_calculation_times;
 			if (reading_file.is_open()==true)
 			{
 				std::string line;
@@ -497,11 +527,9 @@ public:
 					{
 						// save the previously found calculation times and paths
 						paths.push_back(current_path);
-						calculation_times.push_back(current_calculation_times);
 
 						// reset temporary vectors
 						current_path.clear();
-						current_calculation_times.clear();
 
 						// set the flag to a new room
 						initial = true;
@@ -517,7 +545,12 @@ public:
 						if(line.find("exceeded")!=std::string::npos || line.find("bug")!=std::string::npos)
 						{
 //							std::cout << "exceeded calculation time" << std::endl;
-							calculation_time = -1;
+							// set max calculation time
+							if(config->exploration_algorithm_==5) // higher max time for flowNetwork explorator
+								calculation_time = 10800;
+							else
+								calculation_time = 1800;
+
 							// save a invalid pose, to show that this room has no coverage path
 							geometry_msgs::Pose2D false_pose;
 							false_pose.x = -1;
@@ -530,7 +563,7 @@ public:
 							sscanf(str, "%*[^0-9]%lf", &calculation_time);
 //							std::cout << calculation_time << std::endl;
 						}
-						current_calculation_times.push_back(calculation_time);
+						calculation_times.push_back(calculation_time);
 						initial = false;
 					}
 					// else read out x,y and theta and create a new Pose
@@ -585,10 +618,10 @@ public:
 			int robot_radius_in_pixel = (datas.robot_radius_ / datas.map_resolution_);
 			cv::erode(map, eroded_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
 			std::vector<double> pathlengths_for_map;
-			std::vector<std::vector<cv::Point> > interpolated_paths; // variable that stores the path points and the points between them
+			std::vector<std::vector<geometry_msgs::Pose2D> > interpolated_paths; // variable that stores the path points and the points between them
 			int nonzero_paths = 0;
 			std::vector<double> rotation_values;
-			std::vector<int> number_of_rotations = 0;
+			std::vector<int> number_of_rotations;
 			for(size_t room=0; room<paths.size(); ++room)
 			{
 //				std::cout << "room " << room << ", size of path: " << paths[room].size() << std::endl;
@@ -599,36 +632,109 @@ public:
 					++nonzero_paths;
 
 				double current_pathlength = 0.0;
-				std::vector<cv::Point> current_interpolated_path;
-				double previous_angle = 0.0;
+				std::vector<geometry_msgs::Pose2D> current_pose_path;
+				double previous_angle =paths[room].begin()->theta;
 				double current_rotation_abs = 0.0;
 				int current_number_of_rotations = 0;
-				for(std::vector<geometry_msgs::Pose2D>::iterator pose=paths[room].begin(); pose!=paths[room].end()-1; ++pose)
+				geometry_msgs::Pose2D robot_position;
+				robot_position = *paths[room].begin();
+				// initialize path
+				geometry_msgs::Pose2D initial_pose;
+				initial_pose.x = (robot_position.x*datas.map_resolution_)+datas.map_origin_.position.x;
+				initial_pose.y = (robot_position.y*datas.map_resolution_)+datas.map_origin_.position.y;
+				initial_pose.theta = robot_position.theta;
+				current_pose_path.push_back(initial_pose);
+				for(std::vector<geometry_msgs::Pose2D>::iterator pose=paths[room].begin()+1; pose!=paths[room].end(); ++pose)
 				{
+					// vector that stores the current path from one pose to another
+					std::vector<cv::Point> current_interpolated_path;
+
 					// if a false pose has been saved, ignore it
-					if(pose->x==-1 && pose->y==-1)
+					if(robot_position.x==-1 && robot_position.y==-1)
 						continue;
 
-					// get the angle and check if it the same as before, if not add the rotation
-					if(pose-paths[room].begin()!=1) // not for start pose
+					// find an accessible next pose
+					geometry_msgs::Pose2D next_pose;
+					if(map.at<uchar>(pose->y, pose->x)!=0) // if calculated pose is accessible, use it as next pose
+						next_pose = *pose;
+					else // use the map accessibility server to find another accessible pose
 					{
-						double angle_difference = previous_angle-pose->theta;
+						// get the desired fow-position
+						geometry_msgs::Pose2D relative_vector;
+						relative_vector.x = std::cos(pose->theta)*distance_robot_fow_middlepoint;
+						relative_vector.y = std::sin(pose->theta)*distance_robot_fow_middlepoint;
+						geometry_msgs::Pose2D center;
+						center.x = pose->x + relative_vector.x;
+						center.y = pose->y + relative_vector.y;
 
-						if(angle_difference!=0.0)
+						// check for another robot pose to reach the desired fow-position
+						std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";
+						cob_map_accessibility_analysis::CheckPerimeterAccessibility::Response response;
+						cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
+						check_request.center = center;
+
+						check_request.radius = distance_robot_fow_middlepoint;
+						check_request.rotational_sampling_step = PI/8;
+
+						// send request
+						if(ros::service::call(perimeter_service_name, check_request, response)==true)
 						{
-							++current_number_of_rotations;
-							current_rotation_abs += std::abs(angle_difference);
+							// find one point on this perimeter check that is accessible and set it as new desired pose
+							for(std::vector<geometry_msgs::Pose2D>::iterator new_pose=response.accessible_poses_on_perimeter.begin(); new_pose!=response.accessible_poses_on_perimeter.end(); ++new_pose)
+							{
+								// transform to image coordinates
+								geometry_msgs::Pose2D candidate;
+								candidate.x = (new_pose->x-datas.map_origin_.position.x)/datas.map_resolution_;
+								candidate.y = (new_pose->y-datas.map_origin_.position.y)/datas.map_resolution_;
+								candidate.theta = new_pose->theta;
+								// check if this pose is accessible
+								if(map.at<uchar>(candidate.y, candidate.x)!=0)
+								{
+									next_pose = candidate;
+									break;
+								}
+							}
 						}
 					}
+
+					// get the angle and check if it the same as before, if not add the rotation
+					double angle_difference = previous_angle-next_pose.theta;
+
+					if(angle_difference!=0.0)
+					{
+						++current_number_of_rotations;
+						current_rotation_abs += std::abs(angle_difference);
+					}
 					// save current angle of pose
-					previous_angle = pose->theta;
+					previous_angle = next_pose.theta;
 
 					// create output map to show path
-					cv::circle(eroded_map, cv::Point(pose->x, pose->y), 2, cv::Scalar(127), CV_FILLED);
-					cv::line(eroded_map, cv::Point(pose->x, pose->y), cv::Point((pose+1)->x, (pose+1)->y), cv::Scalar(100));
+					cv::circle(eroded_map, cv::Point(next_pose.x, next_pose.y), 2, cv::Scalar(127), CV_FILLED);
+					cv::line(eroded_map, cv::Point(next_pose.x, next_pose.y), cv::Point(robot_position.x, robot_position.y), cv::Scalar(100));
 
 					// find pathlength and path between two consecutive poses
-					current_pathlength += path_planner.planPath(map, cv::Point(pose->x, pose->y), cv::Point((pose+1)->x, (pose+1)->y), 1.0, 0.0, datas.map_resolution_, 0, &current_interpolated_path);
+					current_pathlength += path_planner.planPath(map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, datas.map_resolution_, 0, &current_interpolated_path);
+
+					// transform the cv::Point path to geometry_msgs::Pose2D --> last point has, first point was already gone a defined angle
+					for(std::vector<cv::Point>::iterator point=current_interpolated_path.begin()+1; point!=current_interpolated_path.end(); ++point)
+					{
+						// transform to world coordinates
+						geometry_msgs::Pose2D current_pose;
+						current_pose.x = (point->x*datas.map_resolution_)+datas.map_origin_.position.x;
+						current_pose.y = (point->y*datas.map_resolution_)+datas.map_origin_.position.y;
+
+						// if the current point is the last, use the provided angle
+						if(point-current_interpolated_path.begin()==current_interpolated_path.size()-1)
+							current_pose.theta = (pose+1)->theta;
+						else // calculate angle s.t. it points to the next point
+							current_pose.theta = std::atan2((point+1)->y-point->y, (point+1)->x-point->x);
+
+						// add the pose to the path
+						current_pose_path.push_back(current_pose);
+					}
+
+					// set robot_position to new one
+					robot_position = next_pose;
 				}
 
 				// save rotation values
@@ -636,7 +742,7 @@ public:
 				number_of_rotations.push_back(current_number_of_rotations);
 
 				// save the interpolated path between
-				interpolated_paths.push_back(current_interpolated_path);
+				interpolated_paths.push_back(current_pose_path);
 
 				// transform the pixel length to meter
 				current_pathlength *= datas.map_resolution_;
@@ -686,15 +792,123 @@ public:
 				execution_time_squared_variance += std::pow(rotation_times_in_rooms[room]+travel_times_in_rooms[room]-average_execution_time, 2.0);
 			}
 
-			// TODO: average initial coverage + deviation --> return room maps?
-			// 3. coverage when executing the coverage paths
+			// 3. calculate turn specific values
+			double number_of_turns_deviation = 0.0, turn_value_deviation = 0.0;
+			double average_number_of_turns = std::accumulate(number_of_rotations.begin(), number_of_rotations.end(), 0);
+			double average_turn_value = std::accumulate(rotation_values.begin(), rotation_values.end(), 0);
+			average_number_of_turns /= number_of_rotations.size();
+			average_turn_value /= rotation_values.size();
+			for(size_t room=0; room<number_of_rotations.size(); ++room)
+			{
+				number_of_turns_deviation += std::pow(number_of_rotations[room]-average_number_of_turns, 2.0);
+				turn_value_deviation += std::pow(rotation_values[room]-average_turn_value, 2.0);
+			}
+			number_of_turns_deviation /= number_of_rotations.size();
+			turn_value_deviation /= rotation_values.size();
+
+			// 4. coverage percentage and number of covering each pixel when executing the coverage paths
 			std::vector<double> area_covered_percentages;
+			std::vector<double> numbers_of_coverages;
+			std::string coverage_service_name = "/coverage_check_server/coverage_check";
+
+			geometry_msgs::Pose2D origin;
+			origin.x = datas.map_origin_.position.x;
+			origin.y = datas.map_origin_.position.y;
+			size_t path_index = 0;
+			for(size_t room=0; room<paths.size(); ++room)
+			{
+				// ignore paths with size 0
+				if(paths[room].size()==0)
+					continue;
+
+				// map that has the seen areas drawn in
+				cv::Mat seen_positions_map, number_of_coverages_map;
+
+				// use the provided server to check which areas have been seen
+				ipa_building_msgs::checkCoverageRequest coverage_request;
+				ipa_building_msgs::checkCoverageResponse coverage_response;
+				// fill request
+				sensor_msgs::ImageConstPtr service_image;
+				cv_bridge::CvImage cv_image;
+				cv_image.encoding = "mono8";
+				cv_image.image = datas.room_maps_[room];
+				service_image = cv_image.toImageMsg();
+				coverage_request.input_map = *service_image;
+				coverage_request.path = interpolated_paths[path_index];
+				coverage_request.field_of_view = datas.fow_points_;
+				coverage_request.map_origin = origin;
+				coverage_request.map_resolution = datas.map_resolution_;
+				coverage_request.check_for_footprint = false;
+				coverage_request.check_number_of_coverages = true;
+				// send request
+				if(ros::service::call(coverage_service_name, coverage_request, coverage_response)==true)
+				{
+					cv_bridge::CvImagePtr cv_ptr_obj;
+					cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.coverage_map, sensor_msgs::image_encodings::MONO8);
+					seen_positions_map = cv_ptr_obj->image;
+
+					cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.number_of_coverage_image, sensor_msgs::image_encodings::TYPE_32SC1);
+					number_of_coverages_map = cv_ptr_obj->image;
+				}
+				else
+				{
+					ROS_INFO("Error when calling the coverage check server.");
+				}
+
+				// get the area of the whole room
+				int white_room_pixels = cv::countNonZero(datas.room_maps_[room]);
+				double room_area = datas.map_resolution_ * datas.map_resolution_ * (double) white_room_pixels;
+
+				// get the covered area of the room
+				cv::threshold(seen_positions_map, seen_positions_map, 150, 255, cv::THRESH_BINARY); // covered area drawn in as 127 --> find still white pixels
+				int not_covered_pixels = cv::countNonZero(seen_positions_map);
+				double not_covered_area = datas.map_resolution_ * datas.map_resolution_ * (double) not_covered_pixels;
+
+				// get and save the percentage of coverage
+				double coverage_percentage = (room_area-not_covered_area)/room_area;
+				area_covered_percentages.push_back(coverage_percentage);
+
+				// check how often pixels have been covered
+				double average_coverage_number = 0.0, coverage_number_deviation = 0.0;
+				for(size_t u=0; u<number_of_coverages_map.rows; ++u)
+					for(size_t v=0; v<number_of_coverages_map.cols; ++v)
+						if(number_of_coverages_map.at<int>(u,v)!=0)
+							numbers_of_coverages.push_back(number_of_coverages_map.at<int>(u,v));
+
+				// increase index of interpolated path
+				++path_index;
+			}
+
+			// calculate average coverage and deviation
+			double average_coverage_percentage = std::accumulate(area_covered_percentages.begin(), area_covered_percentages.end(), 0.0);
+			average_coverage_percentage /= interpolated_paths.size();
+			double coverage_deviation = 0.0;
+			for(std::vector<double>::iterator perc=area_covered_percentages.begin(); perc!=area_covered_percentages.end(); ++perc)
+				coverage_deviation += std::pow(average_coverage_percentage-*perc, 2.0);
+			coverage_deviation /= interpolated_paths.size();
+			double average_coverage_number = std::accumulate(numbers_of_coverages.begin(), numbers_of_coverages.end(), 0.0);
+			average_coverage_number /= numbers_of_coverages.size();
+			double coverage_number_deviation = 0.0;
+			for(std::vector<double>::iterator cov=numbers_of_coverages.begin(); cov!=numbers_of_coverages.end(); ++cov)
+					coverage_number_deviation += std::pow(average_coverage_number-*cov, 2.0);
+			coverage_number_deviation /= numbers_of_coverages.size();
 
 			// TODO: average calculation time + deviation
+			// 5. compute average computation time and deviation
+			double average_computation_time = std::accumulate(calculation_times.begin(), calculation_times.end(), 0.0);
+			average_computation_time /= calculation_times.size();
+			double computation_time_devition = 0.0;
+			for(std::vector<double>::iterator tim=calculation_times.begin(); tim!=calculation_times.end(); ++tim)
+				computation_time_devition += std::pow(average_computation_time-*tim, 2.0);
+			computation_time_devition /= calculation_times.size();
 
-			// TODO: parallelity?
+			// TODO: parallelity --> to wall, to previous path
+			// TODO: subjective measure: crossings, length (?), turns, time difference to nearest path
+			// 6. for each part of the path calculate the parallelity regarding the nearest wall
 
 			// TODO: number of rooms
+
+			// TODO: print to file
 		}
 	}
 

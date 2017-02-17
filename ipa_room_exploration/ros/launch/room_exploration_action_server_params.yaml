@@ -5,6 +5,7 @@
 # 4 = convexSPP explorator
 # 5 = flowNetwork explorator
 # 6 = energyFunctional explorator
+# 7 = voronoi explorator
 # int
 room_exploration_algorithm: 1
 

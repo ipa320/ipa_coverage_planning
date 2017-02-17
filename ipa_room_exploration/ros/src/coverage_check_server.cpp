@@ -16,7 +16,8 @@ coverageCheckServer::coverageCheckServer(ros::NodeHandle nh)
 // what's behind it. This ensures that no Point is wrongly classified as seen.
 void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std::vector<geometry_msgs::Pose2D>& robot_poses,
 			const std::vector<geometry_msgs::Point32>& field_of_view_points, const Eigen::Matrix<float, 2, 1> raycasting_corner_1,
-			const Eigen::Matrix<float, 2, 1> raycasting_corner_2, const float map_resolution, const cv::Point2d map_origin)
+			const Eigen::Matrix<float, 2, 1> raycasting_corner_2, const float map_resolution, const cv::Point2d map_origin,
+			cv::Mat* number_of_coverages_image)
 {
 	// go trough each given robot pose
 	for(std::vector<geometry_msgs::Pose2D>::const_iterator current_pose = robot_poses.begin(); current_pose != robot_poses.end(); ++current_pose)
@@ -87,16 +88,28 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 
 			// go trough the points on the ray and draw them if they are inside the fow, stop the current for-step when a black
 			// pixel is hit (an obstacle stops the camera from seeing whats behind)
+			bool hit_white = false;
 			for(size_t point = 0; point < ray_points.count; point++, ++ray_points)
 			{
-				if(reachable_areas_map.at<uchar>(ray_points.pos()) == 0)
+				cv::Point current_point = ray_points.pos();
+
+				// stop raycasting, when a black pixel gets hit after at least one white pixel was found
+				if(reachable_areas_map.at<uchar>(current_point) == 0 && hit_white == true)
 				{
 					break;
 				}
-
-				if (reachable_areas_map.at<uchar>(ray_points.pos()) > 0 && cv::pointPolygonTest(transformed_fow_points, ray_points.pos(), false) >= 0)
+				else if (reachable_areas_map.at<uchar>(current_point) > 0 && cv::pointPolygonTest(transformed_fow_points, current_point, false) >= 0)
 				{
-					reachable_areas_map.at<uchar>(ray_points.pos()) = 127;
+					reachable_areas_map.at<uchar>(current_point) = 127;
+
+					// mark that at least one white pixel was found
+					hit_white = true;
+
+					// if wanted, count the coverage
+					if(number_of_coverages_image!=NULL)
+					{
+						number_of_coverages_image->at<int>(current_point) = number_of_coverages_image->at<int>(current_point)+1;
+					}
 				}
 			}
 		}
@@ -107,7 +120,7 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 // the server should plan a coverage path for the robot footprint.
 void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std::vector<geometry_msgs::Pose2D>& robot_poses,
 			const std::vector<geometry_msgs::Point32>& robot_footprint, const float map_resolution,
-			const cv::Point2d map_origin)
+			const cv::Point2d map_origin, cv::Mat* number_of_coverages_image)
 {
 	cv::Mat map_copy = reachable_areas_map.clone(); // copy to draw positions that get later drawn into free space of the original map
 	// iterate trough all poses and draw them into the given map
@@ -119,7 +132,7 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 		Eigen::Matrix<float, 2, 2> R;
 		R << cos_theta, -sin_theta, sin_theta, cos_theta;
 
-		// transform field of view points
+		// transform footprint points
 		std::vector<cv::Point> transformed_footprint_points;
 		Eigen::Matrix<float, 2, 1> pose_as_matrix;
 		pose_as_matrix << pose->x, pose->y;
@@ -144,6 +157,13 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 
 		// draw the transformed robot footprint
 		cv::fillConvexPoly(map_copy, transformed_footprint_points, cv::Scalar(127));
+
+		// update the number of visits at this location, if wanted
+		if(number_of_coverages_image!=NULL)
+		{
+			int current_value = number_of_coverages_image->at<int>(cv::Point((pose->x-map_origin.x)/map_resolution, (pose->y-map_origin.y)/map_resolution));
+			cv::fillConvexPoly(*number_of_coverages_image, transformed_footprint_points, cv::Scalar(current_value+1));
+		}
 	}
 
 	// draw visited areas into free space of the original map
@@ -229,24 +249,48 @@ bool coverageCheckServer::checkCoverage(ipa_building_msgs::checkCoverageRequest&
 	cv_ptr_obj = cv_bridge::toCvCopy(request.input_map, sensor_msgs::image_encodings::MONO8);
 	cv::Mat map = cv_ptr_obj->image;
 
+	// create a map that stores the number of coveragres during the execution, if wanted
+	cv::Mat black_image = cv::Mat(map.rows, map.cols, CV_32SC1, cv::Scalar(0));
+	cv::Mat* image_pointer;
+	if(request.check_number_of_coverages==true)
+	{
+		image_pointer = &black_image;
+		ROS_INFO("Checking number of coverages.");
+	}
+	else
+		image_pointer = NULL;
+
 	// check if the coverage check should be done for the footprint ot the field of view
 	cv::Mat covered_areas = map.clone();
 	cv::Point2d map_origin(request.map_origin.x, request.map_origin.y);
-	if(request.check_for_footprint==true)
+	if(request.check_for_footprint==false)
 	{
-		drawSeenPoints(covered_areas, request.path, request.field_of_view, corner_point_1, corner_point_2, request.map_resolution, map_origin);
+		ROS_INFO("Checking coverage for fow.");
+		drawSeenPoints(covered_areas, request.path, request.field_of_view, corner_point_1, corner_point_2, request.map_resolution, map_origin, image_pointer);
 	}
 	else
 	{
-		drawSeenPoints(covered_areas, request.path, request.footprint, request.map_resolution, map_origin);
+		ROS_INFO("Checking coverage for footprint.");
+		drawSeenPoints(covered_areas, request.path, request.footprint, request.map_resolution, map_origin, image_pointer);
 	}
+	ROS_INFO("Finished coverage check.");
 
-	// convert the map with the covered area back to the cv format
+	// convert the map with the covered area back to the sensor_msgs format
 	cv_bridge::CvImage cv_image;
 	cv_image.header.stamp = ros::Time::now();
 	cv_image.encoding = "mono8";
 	cv_image.image = covered_areas;
 	cv_image.toImageMsg(response.coverage_map);
+
+	// if needed, return the image with number of coverages drawn in
+	if(request.check_number_of_coverages==true)
+	{
+		cv_bridge::CvImage number_image;
+		number_image.header.stamp = ros::Time::now();
+		number_image.encoding = "32SC1";
+		number_image.image = *image_pointer;
+		number_image.toImageMsg(response.number_of_coverage_image);
+	}
 
 	return true;
 }

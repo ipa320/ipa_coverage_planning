@@ -12,6 +12,7 @@
 
 	<buildtool_depend>catkin</buildtool_depend>
 
+
 	<depend>boost</depend>
 	<depend>cmake_modules</depend>
 	<depend>cob_map_accessibility_analysis</depend>
@@ -26,6 +27,7 @@
 	<depend>geometry_msgs</depend>
 	<depend>ipa_building_msgs</depend>
 	<depend>ipa_building_navigation</depend>
+	<depend>laser_geometry</depend>
 	<depend>libconcorde_tsp_solver</depend>
 	<depend>libopencv-dev</depend>
 	<depend>move_base_msgs</depend>
@@ -35,5 +37,6 @@
 	<depend>sensor_msgs</depend>
 	<depend>std_msgs</depend>
 	<depend>tf</depend>
+	<depend>visualization_msgs</depend>
 
 </package>
