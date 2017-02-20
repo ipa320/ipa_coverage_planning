@@ -272,25 +272,25 @@ public:
 		// prepare relevant floor map data
 		std::vector< std::string > map_names;
 		map_names.push_back("lab_ipa");
-//		map_names.push_back("lab_c_scan");
-//		map_names.push_back("Freiburg52_scan");
-//		map_names.push_back("Freiburg79_scan");
-//		map_names.push_back("lab_b_scan");
-//		map_names.push_back("lab_intel");
-//		map_names.push_back("Freiburg101_scan");
-//		map_names.push_back("lab_d_scan");
-//		map_names.push_back("lab_f_scan");
-//		map_names.push_back("lab_a_scan");
-//		map_names.push_back("NLB");
-//		map_names.push_back("office_a");
-//		map_names.push_back("office_b");
-//		map_names.push_back("office_c");
-//		map_names.push_back("office_d");
-//		map_names.push_back("office_e");
-//		map_names.push_back("office_f");
-//		map_names.push_back("office_g");
-//		map_names.push_back("office_h");
-//		map_names.push_back("office_i");
+		map_names.push_back("lab_c_scan");
+		map_names.push_back("Freiburg52_scan");
+		map_names.push_back("Freiburg79_scan");
+		map_names.push_back("lab_b_scan");
+		map_names.push_back("lab_intel");
+		map_names.push_back("Freiburg101_scan");
+		map_names.push_back("lab_d_scan");
+		map_names.push_back("lab_f_scan");
+		map_names.push_back("lab_a_scan");
+		map_names.push_back("NLB");
+		map_names.push_back("office_a");
+		map_names.push_back("office_b");
+		map_names.push_back("office_c");
+		map_names.push_back("office_d");
+		map_names.push_back("office_e");
+		map_names.push_back("office_f");
+		map_names.push_back("office_g");
+		map_names.push_back("office_h");
+		map_names.push_back("office_i");
 //		map_names.push_back("lab_ipa_furnitures");
 //		map_names.push_back("lab_c_scan_furnitures");
 //		map_names.push_back("Freiburg52_scan_furnitures");
@@ -617,11 +617,38 @@ public:
 			cv::Mat eroded_map;
 			int robot_radius_in_pixel = (datas.robot_radius_ / datas.map_resolution_);
 			cv::erode(map, eroded_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
+			cv::Mat path_map = eroded_map.clone();
 			std::vector<double> pathlengths_for_map;
 			std::vector<std::vector<geometry_msgs::Pose2D> > interpolated_paths; // variable that stores the path points and the points between them
 			int nonzero_paths = 0;
 			std::vector<double> rotation_values;
 			std::vector<int> number_of_rotations, numbers_of_crossings;
+
+			// calculate the gradient directions for each pixel in the map
+			// generate matrices for gradient in x/y direction
+			cv::Mat gradient_x, gradient_y;
+			cv::Mat gradient_map = cv::Mat(map.rows, map.cols, CV_64F, cv::Scalar(0));
+
+			// compute gradient in x direction
+			cv::Sobel(map, gradient_x, CV_64F, 1, 0, 3, 1.0, 0.0, cv::BORDER_DEFAULT);
+
+			// compute gradient in y direction
+			cv::Sobel(map, gradient_y, CV_64F, 0, 1, 3, 1.0, 0.0, cv::BORDER_DEFAULT);
+
+			// compute the direction of the gradient for each pixel and save the occurring gradients
+			for(size_t y=0; y<map.rows; ++y)
+			{
+				for(size_t x=0; x<map.cols; ++x)
+				{
+					int dx= gradient_x.at<double>(y,x);
+					int dy= gradient_y.at<double>(y,x);
+					if(dy*dy+dx*dx!=0)
+					{
+						double current_gradient = std::atan2(dy, dx);
+						gradient_map.at<double>(y,x) = current_gradient;
+					}
+				}
+			}
 			for(size_t room=0; room<paths.size(); ++room)
 			{
 //				std::cout << "room " << room << ", size of path: " << paths[room].size() << std::endl;
@@ -719,6 +746,7 @@ public:
 
 					// create output map to show path --> also check if one point has already been visited
 					cv::LineIterator line(eroded_map, cv::Point(next_pose.x, next_pose.y), cv::Point(robot_position.x, robot_position.y), 8);
+					cv::circle(eroded_map, cv::Point(next_pose.x, next_pose.y), 2, cv::Scalar(100), CV_FILLED);
 					for(int pos=1; pos<line.count-1; pos++, ++line)
 					{
 						cv::Point current_point = line.pos();
@@ -729,7 +757,6 @@ public:
 //						cv::imshow("er", eroded_map);
 //						cv::waitKey();
 					}
-					cv::circle(eroded_map, cv::Point(next_pose.x, next_pose.y), 2, cv::Scalar(100), CV_FILLED);
 //					cv::line(eroded_map, cv::Point(next_pose.x, next_pose.y), cv::Point(robot_position.x, robot_position.y), cv::Scalar(100));
 
 					// find pathlength and path between two consecutive poses
@@ -743,6 +770,9 @@ public:
 					// transform the cv::Point path to geometry_msgs::Pose2D --> last point has, first point was already gone a defined angle
 					for(std::vector<cv::Point>::iterator point=current_interpolated_path.begin()+1; point!=current_interpolated_path.end(); ++point)
 					{
+						// mark in path map
+						path_map.at<uchar>(*point)=127;
+
 						// transform to world coordinates
 						geometry_msgs::Pose2D current_pose;
 						current_pose.x = (point->x*datas.map_resolution_)+datas.map_origin_.position.x;
@@ -883,6 +913,8 @@ public:
 				{
 					ROS_INFO("Error when calling the coverage check server.");
 				}
+//				cv::imshow("seen", seen_positions_map);
+//				cv::waitKey();
 
 				// get the area of the whole room
 				int white_room_pixels = cv::countNonZero(datas.room_maps_[room]);
@@ -907,6 +939,7 @@ public:
 				// increase index of interpolated path
 				++path_index;
 			}
+			std::cout << "checked coverage for all rooms" << std::endl;
 
 			// calculate average coverage and deviation
 			double average_coverage_percentage = std::accumulate(area_covered_percentages.begin(), area_covered_percentages.end(), 0.0);
@@ -930,14 +963,247 @@ public:
 				computation_time_devition += std::pow(average_computation_time-*tim, 2.0);
 			computation_time_devition /= calculation_times.size();
 
-			// TODO: parallelity --> to wall, to previous path
-			// TODO: subjective measure: length (?), turns, time difference to nearest path
-			// 6. for each part of the path calculate the parallelity regarding the nearest wall
+			// 6. for each part of the path calculate the parallelities with respect to the nearest wall and the nearest trajectory part
+			std::vector<std::vector<double> > wall_angle_differences, trajectory_angle_differeneces;
+			std::vector<std::vector<int> > revisit_times; // vector that stores the index-differences of the current pose and the point of its nearest neighboring trajectory
+			double eps = 20; // valid check-radius when checking for the parrallelity to another part of the trajectory, [pixels], TODO: !!!!param!!!!
+			int valid_room_index = 0; // used to find the interpolated paths, that are only computed for rooms with a valid path
+			for(size_t room=0; room<paths.size(); ++room)
+			{
+				if(paths[room].size()==0)
+					continue;
 
+				std::vector<double> current_wall_angle_differences, current_trajectory_angle_differeneces;
+				std::vector<int> current_revisit_times;
+				for(std::vector<geometry_msgs::Pose2D>::iterator pose=paths[room].begin(); pose!=paths[room].end()-1; ++pose)
+				{
+					double dy = (pose+1)->y - pose->y;
+					double dx = (pose+1)->x - pose->x;
+					double norm = std::sqrt(dy*dy + dx*dx);
+					if(norm==0)
+						continue;
+					dy = dy/norm;
+					dx = dx/norm;
+//					std::cout << "dx: " << dx << ", dy: " << dy << std::endl;
+
+					// go in the directions of both normals and find the nearest wall
+					int iteration_index = 0;
+					bool hit_wall = false, hit_trajectory = false, exceeded_check_range = false;
+					cv::Point2f n1(pose->x, pose->y), n2(pose->x, pose->y);
+					cv::Point wall_pixel, trajectory_pixel;
+					do
+					{
+						++iteration_index;
+
+						// update normals
+						n1.x -= dy;
+						n1.y += dx;
+						n2.x += dy;
+						n2.y -= dx;
+
+						// test if a wall/obstacle has been hit
+						if(map.at<uchar>(n1)==0 && hit_wall==false)
+						{
+							hit_wall = true;
+							wall_pixel = n1;
+						}
+						else if(map.at<uchar>(n2)==0 && hit_wall==false)
+						{
+							hit_wall = true;
+							wall_pixel = n2;
+						}
+
+						// only check the parallelity to another trajectory, if the range hasn't been exceeded yet
+						if(exceeded_check_range==false)
+						{
+							// test if another trajectory part has been hit, if the check-radius is still satisfied
+							double dist1 = cv::norm(n1-cv::Point2f(pose->x, pose->y));
+							double dist2 = cv::norm(n2-cv::Point2f(pose->x, pose->y));
+
+							if(path_map.at<uchar>(n1)==127 && dist1<=eps && hit_trajectory==false)
+							{
+								hit_trajectory = true;
+								trajectory_pixel = n1;
+							}
+							else if(path_map.at<uchar>(n2)==127 && dist2<=eps && hit_trajectory==false)
+							{
+								hit_trajectory = true;
+								trajectory_pixel = n2;
+							}
+
+							// if both distances exceed the valid check range, mark as finished
+							if(dist1>eps && dist2>eps)
+								exceeded_check_range = true;
+						}
+
+//						cv::Mat test_map = map.clone();
+//						cv::circle(test_map, cv::Point(pose->x, pose->y), 2, cv::Scalar(127), CV_FILLED);
+//						cv::circle(test_map, cv::Point((pose+1)->x, (pose+1)->y), 2, cv::Scalar(127), CV_FILLED);
+//						cv::circle(test_map, n1, 2, cv::Scalar(127), CV_FILLED);
+//						cv::circle(test_map, n2, 2, cv::Scalar(127), CV_FILLED);
+//						cv::imshow("normals", test_map);
+//						cv::waitKey();
+					}while((hit_wall==false || hit_trajectory==false) && iteration_index<=1000 && exceeded_check_range==false);
+
+					// if a wall/obstacle was found, determine the gradient at this position and compare it to the direction of the path
+//					double gradient;
+					if(hit_wall==true)
+					{
+						double gradient = gradient_map.at<double>(wall_pixel);
+						cv::Point2f grad_vector(std::cos(gradient), std::sin(gradient));
+						double delta_theta = std::acos(grad_vector.x*dx + grad_vector.y*dy);
+						current_wall_angle_differences.push_back(delta_theta);
+					}
+
+					// if another trajectory part could be found, determine the parallelity to it
+					if(hit_trajectory==true)
+					{
+						// find the trajectory point in the interpolated path
+						cv::Point2f world_neighbor((trajectory_pixel.x*datas.map_resolution_)+datas.map_origin_.position.x, (trajectory_pixel.y*datas.map_resolution_)+datas.map_origin_.position.y); // transform in world coordinates
+						int pose_index = pose-paths[room].begin();
+						int neighbor_index = -1;
+						for(std::vector<geometry_msgs::Pose2D>::const_iterator neighbor=interpolated_paths[valid_room_index].begin(); neighbor!=interpolated_paths[valid_room_index].end(); ++neighbor)
+						{
+//							std::cout << *neighbor << ", " << world_neighbor << std::endl;
+							if(world_neighbor.x==neighbor->x && world_neighbor.y==neighbor->y)
+							{
+//								std::cout << "gotz" << std::endl;
+								neighbor_index = neighbor-interpolated_paths[valid_room_index].begin();
+							}
+						}
+//						std::cout << "index: " << pose_index << ", n: " << neighbor_index << std::endl;
+
+						// save the found index difference
+						current_revisit_times.push_back(std::abs(pose_index-neighbor_index));
+
+						// calculate the gradient-angle at the neighbor to get the difference
+						// -->	check gradient to previous and next pose to get the minimal one
+						double n_dx, n_dy;
+						double delta_theta1 = 1e3, delta_theta2 = 1e3;
+						if(neighbor_index<interpolated_paths[valid_room_index].size()-1) // neighbor not last node
+						{
+							n_dx = interpolated_paths[valid_room_index][neighbor_index+1].x-world_neighbor.x;
+							n_dy = interpolated_paths[valid_room_index][neighbor_index+1].y-world_neighbor.y;
+							norm = std::sqrt(n_dx*n_dx + n_dy*n_dy);
+							n_dx = n_dx/norm;
+							n_dy = n_dy/norm;
+							delta_theta1 = std::acos(n_dx*dx + n_dy*dy);
+						}
+						if(neighbor_index>0) // neighbor not first node
+						{
+							n_dx = interpolated_paths[valid_room_index][neighbor_index-1].x-world_neighbor.x;
+							n_dy = interpolated_paths[valid_room_index][neighbor_index-1].y-world_neighbor.y;
+							norm = std::sqrt(n_dx*n_dx + n_dy*n_dy);
+							n_dx = n_dx/norm;
+							n_dy = n_dy/norm;
+							delta_theta2 = std::acos(n_dx*dx + n_dy*dy);
+						}
+						if(delta_theta1<delta_theta2 && delta_theta1!=1e3)
+						{
+							current_trajectory_angle_differeneces.push_back(delta_theta1);
+//							std::cout << delta_theta1 << std::endl;
+						}
+						else if(delta_theta2<=delta_theta1 && delta_theta2!=1e3)
+						{
+							current_trajectory_angle_differeneces.push_back(delta_theta2);
+//							std::cout << delta_theta2 << std::endl;
+						}
+					}
+				}
+//				std::cout << "got all gradients" << std::endl;
+
+				// save found values
+				wall_angle_differences.push_back(current_wall_angle_differences);
+				trajectory_angle_differeneces.push_back(current_trajectory_angle_differeneces);
+				revisit_times.push_back(current_revisit_times);
+
+				// increase path index
+				++valid_room_index;
+			}
+
+			// calculate the mean and deviation of the angle differences and revisit times for each room and overall
+			double average_wall_angle_difference = 0.0, average_trajectory_angle_difference = 0.0, average_revisit_times = 0.0;
+			std::vector<double> room_wall_averages, room_trajectory_averages, room_revisit_averages;
+			for(size_t room=0; room<wall_angle_differences.size(); ++room)
+			{
+				double current_room_average = std::accumulate(wall_angle_differences[room].begin(), wall_angle_differences[room].end(), 0.0);
+				current_room_average /= wall_angle_differences.size();
+				average_wall_angle_difference += current_room_average;
+				room_wall_averages.push_back(current_room_average);
+			}
+			for(size_t room=0; room<trajectory_angle_differeneces.size(); ++room)
+			{
+				double current_room_average = std::accumulate(trajectory_angle_differeneces[room].begin(), trajectory_angle_differeneces[room].end(), 0.0);
+				current_room_average /= trajectory_angle_differeneces.size();
+				average_trajectory_angle_difference += current_room_average;
+				room_trajectory_averages.push_back(current_room_average);
+			}
+			for(size_t room=0; room<revisit_times.size(); ++room)
+			{
+				double current_room_average = std::accumulate(revisit_times[room].begin(), revisit_times[room].end(), 0.0);
+				current_room_average /= revisit_times.size();
+				average_revisit_times += current_room_average;
+				room_revisit_averages.push_back(current_room_average);
+			}
+			average_wall_angle_difference /= wall_angle_differences.size();
+			average_trajectory_angle_difference /= trajectory_angle_differeneces.size();
+			average_revisit_times /= revisit_times.size();
+			double wall_deviation = 0.0, trajectory_deviation = 0.0, revisit_deviation = 0.0;
+			for(size_t room=0; room<room_wall_averages.size(); ++room)
+				wall_deviation += std::pow(room_wall_averages[room]-average_wall_angle_difference, 2.0);
+			for(size_t room=0; room<room_trajectory_averages.size(); ++room)
+				trajectory_deviation += std::pow(room_trajectory_averages[room]-average_trajectory_angle_difference, 2.0);
+			for(size_t room=0; room<room_revisit_averages.size(); ++room)
+				revisit_deviation += std::pow(room_revisit_averages[room]-average_revisit_times, 2.0);
+			wall_deviation /= room_wall_averages.size();
+			trajectory_deviation /= room_trajectory_averages.size();
+			revisit_deviation /= room_revisit_averages.size();
+
+			// 7. calculate the number of crossings related values
+			double average_crossings = std::accumulate(numbers_of_crossings.begin(), numbers_of_crossings.end(), 0.0);
+			average_crossings /= numbers_of_crossings.size();
+			double deviation_crossings = 0.0;
+			for(std::vector<int>::iterator cr=numbers_of_crossings.begin(); cr!=numbers_of_crossings.end(); ++cr)
+				deviation_crossings += *cr;
+			deviation_crossings /= numbers_of_crossings.size();
+
+			// 8. calculate the subjective measure for the paths
+			// TODO: !!!!!param!!!!!
+			double subjective_measure = 1.0*average_pathlength + 1.0*average_computation_time + 1.0*average_wall_angle_difference
+					+ 1.0*average_trajectory_angle_difference + 1.0*average_revisit_times + 1.0*average_crossings + 1.0*average_number_of_turns;
+			subjective_measure /= 7.0;
 
 			// TODO: number of rooms
 
 			// TODO: print to file
+			// print the found evaluation values to a local file
+			std::stringstream output;
+			output << "Expl" << config->exploration_algorithm_ << ", number of rooms: " << paths.size() << ", number of valid paths: "
+					<< nonzero_paths << std::endl;
+			output << "average calculation time [s]\t" << "calculation time deviation" << "overall pathlength [m]\t"
+					<< "average pathlength [m]\t" << "average execution time [s]\t" << "execution time variance\t"
+					<< "average number of turns\t" << "number of turns deviation\t" << "average covered area [m^2]\t"
+					<< "covered area deviation\t" << "average coverage per pixel\t" << "coverage per pixel deviation\t"
+					<< "average wall angle difference\t" << "wall angle difference deviation\t" << "average trajectory angle difference\t"
+					<< "trajectory angle difference deviation\t" << "average time until traj. is near previous traj.\t" << "deviation of previous\t"
+					<< "average number of crossings\t" << "deviation of crossings\t" << "subjective measure\t"<< std::endl;
+			output << average_computation_time << "\t" << computation_time_devition < "\t" << overall_pathlength << "\t"
+					<< average_pathlength << "\t" << average_execution_time << "\t" << execution_time_squared_variance << "\t"
+					<< average_number_of_turns << "\t" << number_of_turns_deviation << "\t" << average_coverage_percentage << "\t"
+					<< coverage_deviation << "\t" << average_coverage_number << "\t" << coverage_number_deviation << "\t"
+					<< average_wall_angle_difference << "\t" << wall_deviation << "\t" << average_trajectory_angle_difference << "\t"
+					<< trajectory_deviation << "\t" << average_revisit_times << "\t" << revisit_deviation << "\t"
+					<< average_crossings << "\t" << deviation_crossings << "\t" << subjective_measure;
+
+			std::string filename = data_storage_path + folder_path + datas.map_name_ + "_evaluations.txt";
+			std::ofstream file(filename.c_str(), std::ofstream::out);
+			if (file.is_open())
+			{
+				file << output.str();
+			}
+			else
+				ROS_ERROR("Could not write to file '%s'.", filename.c_str());
+			file.close();
 		}
 	}
 
@@ -992,6 +1258,11 @@ public:
 			drc_exp.setConfig("room_exploration_algorithm", 6);
 			ROS_INFO("You have chosen the energy functional exploration method.");
 		}
+		else if(evaluation_configuration.exploration_algorithm_==7)
+			{
+				drc_exp.setConfig("room_exploration_algorithm", 7);
+				ROS_INFO("You have chosen the voronoi exploration method.");
+			}
 
 		ipa_building_msgs::RoomExplorationGoal goal;
 		goal.input_map = map_msg;
