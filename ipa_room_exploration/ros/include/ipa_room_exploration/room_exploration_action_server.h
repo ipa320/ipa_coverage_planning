@@ -39,6 +39,7 @@
 #include <ipa_room_exploration/neural_network_explorator.h>
 #include <ipa_room_exploration/convex_sensor_placement_explorator.h>
 #include <ipa_room_exploration/flow_network_explorator.h>
+#include <ipa_room_exploration/fow_to_robot_mapper.h>
 #include <ipa_room_exploration/energy_functional_explorator.h>
 #include <ipa_room_exploration/voronoi.hpp>
 

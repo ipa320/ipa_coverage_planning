@@ -22,6 +22,7 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 	for(std::vector<geometry_msgs::Pose2D>::const_iterator pose=fow_path.begin(); pose!=fow_path.end(); ++pose)
 	{
 		geometry_msgs::Pose2D current_pose;
+		bool found_pose = false;
 
 		// get the rotation matrix
 		float sin_theta = std::sin(pose->theta);
@@ -41,6 +42,7 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 			current_pose.x = (robot_position(0,0) * map_resolution) + map_origin.x;
 			current_pose.y = (robot_position(1,0) * map_resolution) + map_origin.y;
 			current_pose.theta = pose->theta;
+			found_pose = true;
 			robot_path.push_back(current_pose);
 
 			// set robot position to computed pose s.t. further planning is possible
@@ -77,8 +79,13 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 					{
 						min_squared_distance = current_distance;
 						best_pose = *pose;
+						found_pose = true;
 					}
 				}
+
+				// if no pose could be found, ignore it
+				if(found_pose==false)
+					continue;
 
 				// add pose to path and set robot position to it
 				robot_path.push_back(best_pose);
@@ -97,9 +104,14 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 					if(cv::norm(*point-fow_position) <= robot_to_fow_vector_pixel.norm())
 					{
 						accessible_position = *point;
+						found_pose = true;
 						break;
 					}
 				}
+
+				// if no valid pose could be found, ignore it
+				if(found_pose==false)
+					continue;
 
 				// get the angle s.t. the pose points to the fow middlepoint and save it
 				current_pose.x = (accessible_position.x * map_resolution) + map_origin.x;

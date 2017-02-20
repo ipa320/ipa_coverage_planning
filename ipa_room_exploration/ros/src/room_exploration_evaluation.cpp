@@ -561,7 +561,7 @@ public:
 						{
 							const char* str = line.c_str();
 							sscanf(str, "%*[^0-9]%lf", &calculation_time);
-//							std::cout << calculation_time << std::endl;
+//							std::cout << "calculation time: " << calculation_time << "s" << std::endl;
 						}
 						calculation_times.push_back(calculation_time);
 						initial = false;
@@ -621,7 +621,7 @@ public:
 			std::vector<std::vector<geometry_msgs::Pose2D> > interpolated_paths; // variable that stores the path points and the points between them
 			int nonzero_paths = 0;
 			std::vector<double> rotation_values;
-			std::vector<int> number_of_rotations;
+			std::vector<int> number_of_rotations, numbers_of_crossings;
 			for(size_t room=0; room<paths.size(); ++room)
 			{
 //				std::cout << "room " << room << ", size of path: " << paths[room].size() << std::endl;
@@ -635,7 +635,7 @@ public:
 				std::vector<geometry_msgs::Pose2D> current_pose_path;
 				double previous_angle =paths[room].begin()->theta;
 				double current_rotation_abs = 0.0;
-				int current_number_of_rotations = 0;
+				int current_number_of_rotations = 0, current_number_of_crossings = 0;
 				geometry_msgs::Pose2D robot_position;
 				robot_position = *paths[room].begin();
 				// initialize path
@@ -655,8 +655,12 @@ public:
 
 					// find an accessible next pose
 					geometry_msgs::Pose2D next_pose;
+					bool found_next = false;
 					if(map.at<uchar>(pose->y, pose->x)!=0) // if calculated pose is accessible, use it as next pose
+					{
 						next_pose = *pose;
+						found_next = true;
+					}
 					else // use the map accessibility server to find another accessible pose
 					{
 						// get the desired fow-position
@@ -691,11 +695,16 @@ public:
 								if(map.at<uchar>(candidate.y, candidate.x)!=0)
 								{
 									next_pose = candidate;
+									found_next = true;
 									break;
 								}
 							}
 						}
 					}
+
+					// if no accessible position could be found, go to next possible path point
+					if(found_next==false)
+						continue;
 
 					// get the angle and check if it the same as before, if not add the rotation
 					double angle_difference = previous_angle-next_pose.theta;
@@ -708,12 +717,28 @@ public:
 					// save current angle of pose
 					previous_angle = next_pose.theta;
 
-					// create output map to show path
-					cv::circle(eroded_map, cv::Point(next_pose.x, next_pose.y), 2, cv::Scalar(127), CV_FILLED);
-					cv::line(eroded_map, cv::Point(next_pose.x, next_pose.y), cv::Point(robot_position.x, robot_position.y), cv::Scalar(100));
+					// create output map to show path --> also check if one point has already been visited
+					cv::LineIterator line(eroded_map, cv::Point(next_pose.x, next_pose.y), cv::Point(robot_position.x, robot_position.y), 8);
+					for(int pos=1; pos<line.count-1; pos++, ++line)
+					{
+						cv::Point current_point = line.pos();
+						if(eroded_map.at<uchar>(current_point)==127)
+							++current_number_of_crossings;
+						else
+							eroded_map.at<uchar>(current_point)=127;
+//						cv::imshow("er", eroded_map);
+//						cv::waitKey();
+					}
+					cv::circle(eroded_map, cv::Point(next_pose.x, next_pose.y), 2, cv::Scalar(100), CV_FILLED);
+//					cv::line(eroded_map, cv::Point(next_pose.x, next_pose.y), cv::Point(robot_position.x, robot_position.y), cv::Scalar(100));
 
 					// find pathlength and path between two consecutive poses
+//					cv::imshow("er", eroded_map);
+//					cv::waitKey();
 					current_pathlength += path_planner.planPath(map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, datas.map_resolution_, 0, &current_interpolated_path);
+
+					if(current_interpolated_path.size()==0)
+						continue;
 
 					// transform the cv::Point path to geometry_msgs::Pose2D --> last point has, first point was already gone a defined angle
 					for(std::vector<cv::Point>::iterator point=current_interpolated_path.begin()+1; point!=current_interpolated_path.end(); ++point)
@@ -737,6 +762,9 @@ public:
 					robot_position = next_pose;
 				}
 
+				// save number of crossings of the path
+				numbers_of_crossings.push_back(current_number_of_crossings);
+
 				// save rotation values
 				rotation_values.push_back(current_rotation_abs);
 				number_of_rotations.push_back(current_number_of_rotations);
@@ -751,6 +779,7 @@ public:
 //				cv::imshow("room paths", eroded_map);
 //				cv::waitKey();
 			}
+			std::cout << "got and drawn paths" << std::endl;
 
 			// save the map with the drawn in coverage paths
 			std::stringstream map_filename;
@@ -893,7 +922,6 @@ public:
 					coverage_number_deviation += std::pow(average_coverage_number-*cov, 2.0);
 			coverage_number_deviation /= numbers_of_coverages.size();
 
-			// TODO: average calculation time + deviation
 			// 5. compute average computation time and deviation
 			double average_computation_time = std::accumulate(calculation_times.begin(), calculation_times.end(), 0.0);
 			average_computation_time /= calculation_times.size();
@@ -903,8 +931,9 @@ public:
 			computation_time_devition /= calculation_times.size();
 
 			// TODO: parallelity --> to wall, to previous path
-			// TODO: subjective measure: crossings, length (?), turns, time difference to nearest path
+			// TODO: subjective measure: length (?), turns, time difference to nearest path
 			// 6. for each part of the path calculate the parallelity regarding the nearest wall
+
 
 			// TODO: number of rooms
 
@@ -1044,7 +1073,7 @@ int main(int argc, char **argv)
 //	const double robot_radius, const std::vector<int>& segmentation_algorithms, const std::vector<int>& exploration_algorithms,
 //	const std::vector<geometry_msgs::Point32>& fow_points)
 	std::vector<int> exploration_algorithms;
-	for(int i=1; i<=6; ++i)
+	for(int i=1; i<=7; ++i)
 	{
 		// choose which algorithms not to evaluate
 		if(i==5)

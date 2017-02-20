@@ -412,7 +412,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	}
 	else // if planning should be done for the footprint, read out the given coverage radius
 	{
-		grid_length = std::floor(goal->coverage_radius/map_resolution);
+		grid_length = (int) std::floor(goal->coverage_radius/map_resolution);
 	}
 
 	// ***************** II. plan the path using the wanted planner *****************
@@ -505,26 +505,66 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	}
 	else if(path_planning_algorithm_ == 7) // use voronoi explorator
 	{
-		// TODO: what does max_tracking_distance? --> finish
 		// create a usable occupancyGrid map out of the given room map
 		nav_msgs::OccupancyGrid room_gridmap;
 		matToMap(room_gridmap, room_map);
 
-		// create the object that plans the path, based on the room-map
-		VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, 100*robot_radius); // radius in cm
-
-		// get the exploration path
-		vm.generatePath(exploration_path, cv::Mat(), starting_position.x, starting_position.y);
-
-		// transform the image coordinates to global coordinates
-		cv::Mat test_map = room_map.clone();
-		for(std::vector<geometry_msgs::Pose2D>::iterator pose=exploration_path.begin(); pose!=exploration_path.end()-1; ++pose)
+		// TODO: find nearest pose to starting-position and start there
+		if(plan_for_footprint_==false)
 		{
-			cv::circle(test_map, cv::Point(pose->x, pose->y), 2, cv::Scalar(127), CV_FILLED);
-			cv::line(test_map, cv::Point(pose->x, pose->y), cv::Point((pose+1)->x, (pose+1)->y), cv::Scalar(100), 1);
+			// convert fow-radius to pixel integer
+			int fow_radius_as_int = (int) std::floor(fitting_circle_radius/map_resolution);
+			std::cout << "fow radius in pixel: " << fow_radius_as_int << std::endl;
+
+			// create the object that plans the path, based on the room-map
+			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, fow_radius_as_int); // radius in pixel
+
+			// get the exploration path
+			std::vector<geometry_msgs::Pose2D> fow_path;
+			vm.generatePath(fow_path, cv::Mat());
+
+			// map fow-path to robot-path
+			cv::Point start_pos(fow_path.begin()->x, fow_path.begin()->y);
+			mapPath(room_map, exploration_path, fow_path, middle_point, map_resolution, map_origin, start_pos);
+//			for(size_t pos=0; pos<fow_path.size(); ++pos)
+//			{
+//				geometry_msgs::Pose2D current_pose;
+//				current_pose.x = (fow_path[pos].x * map_resolution) + map_origin.x;
+//				current_pose.y = (fow_path[pos].y * map_resolution) + map_origin.y;
+//				current_pose.theta = fow_path[pos].theta;
+//				exploration_path.push_back(current_pose);
+//			}
 		}
-		cv::imshow("path", test_map);
-		cv::waitKey();
+		else
+		{
+			// convert coverage-radius to pixel integer
+			int coverage_radius = (int) std::floor(goal->coverage_radius/map_resolution);
+			std::cout << "coverage radius in pixel: " << coverage_radius << std::endl;
+
+			// create the object that plans the path, based on the room-map
+			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, coverage_radius); // radius in pixel
+
+			// get the exploration path
+			vm.generatePath(exploration_path, cv::Mat());
+
+			// transform to global coordinates
+			for(size_t pos=0; pos<exploration_path.size(); ++pos)
+			{
+				exploration_path[pos].x = (exploration_path[pos].x * map_resolution) + map_origin.x;
+				exploration_path[pos].y = (exploration_path[pos].y * map_resolution) + map_origin.y;
+			}
+		}
+
+//		cv::Mat test_map = room_map.clone();
+//		for(std::vector<geometry_msgs::Pose2D>::iterator pose=exploration_path.begin(); pose!=exploration_path.end()-1; ++pose)
+//		{
+//			cv::circle(test_map, cv::Point((pose->x-map_origin.x)/map_resolution, (pose->y-map_origin.y)/map_resolution), 2, cv::Scalar(127), CV_FILLED);
+//			cv::line(test_map, cv::Point((pose->x-map_origin.x)/map_resolution, (pose->y-map_origin.y)/map_resolution), cv::Point(((pose+1)->x-map_origin.x)/map_resolution, ((pose+1)->y-map_origin.y)/map_resolution), cv::Scalar(100), 1);
+////			cv::imshow("path", test_map);
+////			cv::waitKey();
+//		}
+//		cv::imshow("path", test_map);
+//		cv::waitKey();
 	}
 
 	// check if the size of the exploration path is larger then zero
