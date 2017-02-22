@@ -75,8 +75,6 @@
 //#include <ipa_room_segmentation/RoomSegmentationConfig.h>
 #include <ipa_room_segmentation/dynamic_reconfigure_client.h>
 
-#include <string>
-
 
 int main(int argc, char **argv)
 {
@@ -126,8 +124,6 @@ int main(int argc, char **argv)
 	map_names.push_back("office_h_furnitures");
 	map_names.push_back("office_i_furnitures");
 
-	for(int seg_alg = 3; seg_alg <= 4; ++seg_alg)
-	{
 	for (size_t image_index = 0; image_index<map_names.size(); ++image_index)
 	{
 		// import maps
@@ -169,7 +165,7 @@ int main(int argc, char **argv)
 
 		// test dynamic reconfigure
 		DynamicReconfigureClient drc(nh, "room_segmentation_server/set_parameters", "room_segmentation_server/parameter_updates");
-		drc.setConfig("room_segmentation_algorithm", seg_alg);
+		drc.setConfig("room_segmentation_algorithm", 3);
 //		drc.setConfig("display_segmented_map", true);
 		//drc.setConfig("room_area_factor_upper_limit_voronoi", 120.0);
 
@@ -219,20 +215,15 @@ int main(int argc, char **argv)
 				}
 			}
 			//draw the room centers into the map
-//			for(size_t i = 0; i < result_seg->room_information_in_pixel.size(); ++i)
-//			{
-//				cv::Point current_center (result_seg->room_information_in_pixel[i].room_center.x, result_seg->room_information_in_pixel[i].room_center.y);
-//				cv::circle(colour_segmented_map, current_center, 2, CV_RGB(0,0,255), CV_FILLED);
-//			}
+			for(size_t i = 0; i < result_seg->room_information_in_pixel.size(); ++i)
+			{
+				cv::Point current_center (result_seg->room_information_in_pixel[i].room_center.x, result_seg->room_information_in_pixel[i].room_center.y);
+				cv::circle(colour_segmented_map, current_center, 2, CV_RGB(0,0,255), CV_FILLED);
+			}
 
-//			cv::imshow("segmentation", colour_segmented_map);
-//			cv::waitKey();
-			std::stringstream ss;
-			ss << seg_alg;
-			std::string save_path = "/home/rmb/.ros/segmentation_080916/" + map_names[image_index] + "_" + ss.str() + ".png";
-			cv::imwrite(save_path.c_str(), colour_segmented_map);
+			cv::imshow("segmentation", colour_segmented_map);
+			cv::waitKey();
 		}
-	}
 	}
 
 	//exit
