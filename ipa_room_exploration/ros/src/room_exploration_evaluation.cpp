@@ -60,6 +60,7 @@ struct explorationConfig
 									// 4: convexSPP explorator
 									// 5: flowNetwork explorator
 									// 6: energyFunctional explorator
+									// 7: Voronoi explorator
 
 	// default values --> best ones?
 	explorationConfig()
@@ -820,7 +821,7 @@ public:
 //			cv::waitKey();
 
 			// calculate the overall pathlength, the average and the variance
-			double overall_pathlength = std::accumulate(pathlengths_for_map.begin(), pathlengths_for_map.end(), 0);
+			double overall_pathlength = std::accumulate(pathlengths_for_map.begin(), pathlengths_for_map.end(), 0.0);
 			double average_pathlength = overall_pathlength/nonzero_paths;
 			double pathlength_variance_squared = 0;
 			std::vector<double> travel_times_in_rooms;
@@ -1187,7 +1188,7 @@ public:
 					<< "average wall angle difference\t" << "wall angle difference deviation\t" << "average trajectory angle difference\t"
 					<< "trajectory angle difference deviation\t" << "average time until traj. is near previous traj.\t" << "deviation of previous\t"
 					<< "average number of crossings\t" << "deviation of crossings\t" << "subjective measure\t"<< std::endl;
-			output << average_computation_time << "\t" << computation_time_devition < "\t" << overall_pathlength << "\t"
+			output << average_computation_time << "\t" << computation_time_devition << "\t" << overall_pathlength << "\t"
 					<< average_pathlength << "\t" << average_execution_time << "\t" << execution_time_squared_variance << "\t"
 					<< average_number_of_turns << "\t" << number_of_turns_deviation << "\t" << average_coverage_percentage << "\t"
 					<< coverage_deviation << "\t" << average_coverage_number << "\t" << coverage_number_deviation << "\t"
@@ -1284,7 +1285,7 @@ public:
 		bool finished;
 		// higher timeout for the flowNetworkExplorator, because much slower than the others
 		if(evaluation_configuration.exploration_algorithm_==5)
-			finished = ac_exp.waitForResult(ros::Duration(10800));
+			finished = ac_exp.waitForResult(ros::Duration(3600));
 		else
 			finished = ac_exp.waitForResult(ros::Duration(1800));
 
@@ -1369,6 +1370,7 @@ int main(int argc, char **argv)
 	fow_points[1] = fow_point_2;
 	fow_points[2] = fow_point_3;
 	fow_points[3] = fow_point_4;
+	// todo: read robot radius or param
 	// radius=0.6m
 	explorationEvaluation ev(nh, test_map_path, data_storage_path, 0.6, exploration_algorithms, fow_points);
 	ros::shutdown();

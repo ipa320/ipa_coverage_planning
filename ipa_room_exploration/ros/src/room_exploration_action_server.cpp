@@ -90,9 +90,6 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	node_handle_(nh),
 	room_exploration_server_(node_handle_, name_of_the_action, boost::bind(&RoomExplorationServer::exploreRoom, this, _1), false)
 {
-	//Start action server
-	room_exploration_server_.start();
-
 	// dynamic reconfigure
 	room_exploration_dynamic_reconfigure_server_.setCallback(boost::bind(&RoomExplorationServer::dynamic_reconfigure_callback, this, _1, _2));
 
@@ -184,6 +181,9 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	// min area for revisiting left sections
 	node_handle_.param("left_sections_min_area", left_sections_min_area_, 10.0);
 	std::cout << "room_exploration/left_sections_min_area_ = " << left_sections_min_area_ << std::endl;
+
+	//Start action server
+	room_exploration_server_.start();
 }
 
 // Function to publish a navigation goal for move_base. It returns true, when the goal could be reached.
@@ -384,7 +384,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			current_vector << goal->field_of_view[i].x, goal->field_of_view[i].y;
 			fow_vectors.push_back(current_vector);
 		}
-		// Get the size of one grid s.t. the grid can be completely covered by the fow from all rotations around it. For this
+		// Get the size of one grid s.t. the grid can be completely covered by the field of view (fov) from all rotations around it. For this
 		// fit a circle in the fow, which gives the diagonal length of the square. Then use Pythagoras to get the
 		// fow middle point
 		middle_point = (fow_vectors[0] + fow_vectors[1] + fow_vectors[2] + fow_vectors[3]) / 4;

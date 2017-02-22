@@ -4,7 +4,4 @@
   <!--  -->
   <node ns="room_exploration" pkg="ipa_room_exploration" type="room_exploration_evaluation" name="room_exploration_evaluation" output="screen"/>
 
-  <!-- run cob_map_accessibility_analysis_server and coverage_check_server-->
-  <include file="$(find ipa_room_exploration)/ros/launch/cob_map_accessibility_analysis.launch"/>
-  <include file="$(find ipa_room_exploration)/ros/launch/coverage_check_server.launch"/>
 </launch>

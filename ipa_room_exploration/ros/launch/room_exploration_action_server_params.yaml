@@ -12,7 +12,7 @@ room_exploration_algorithm: 1
 # this variable sets if the path should be generated such that the robot footprint has to cover everything instead of the field of view
 plan_for_footprint: false
 
-# this variable turns the functionality on/off to revisit areas that haven't been seen during the execution of the coverage path, due to uncertainities or dynamical obstacles
+# this variable turns the functionality on/off to revisit areas that haven't been seen during the execution of the coverage path, due to uncertainties or dynamic obstacles
 revisit_areas: true
 
 # minimal area of not seen sections that they are revisited after the first go trough the room
@@ -21,20 +21,22 @@ revisit_areas: true
 left_sections_min_area: 0.01
 
 # min distance between the robot and the published navigation goal before the next goal in the path gets published
+# hack for slow turtle sim (publish new goals already when close to goal, then takes some time to command new goal)
+# can be turned off (0) when used with real robot
 # double
-# [pixel]
+# [pixel], where one pixel is the size of one cell in the navigation grid map
 goal_eps: 0.35
 
 # size of one cell when discretizing the free space, smaller value means a more detailed discretization
-# [pixel]
+# [pixel], where one pixel is the size of one cell in the navigation grid map
 cell_size: 7
 
 # line length of one cell in the grid, when using the grid point exploration method
-# [pixel]
+# [pixel], where one pixel is the size of one cell in the navigation grid map
 grid_line_length: 7
 
 # distance between two points when generating the path
-# [pixel]
+# [pixel], where one pixel is the size of one cell in the navigation grid map
 path_eps: 10.0
 
 # parameters specific for the boustrophedon explorator
@@ -66,7 +68,7 @@ delta_theta_weight: 0.15
 # [rad]
 delta_theta: 1.570796
 
-# parameters specfific for the flowNetwork explorator
+# parameters specific for the flowNetwork explorator
 #
 # factor, an arc can be longer than a straight arc, higher values allow more arcs to be considered in the optimization problem
 # Important: if too small, maybe the problem becomes infeasible and the optimizer won't work correctly
