@@ -6,7 +6,7 @@ set(catkin_RUN_PACKAGES
 	cv_bridge
 	ipa_building_msgs
 	libdlib
-	libopengm
+	opengm
 	roscpp
 	roslib
 	sensor_msgs
@@ -146,10 +146,11 @@ install(DIRECTORY ros/include/${PROJECT_NAME}/
 	PATTERN ".svn" EXCLUDE
 )
 
-#install(DIRECTORY ros/launch
-#	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/ros
-#	PATTERN ".svn" EXCLUDE
-#)
+##uncomment this if you use launch and yaml files
+install(DIRECTORY ros/launch
+	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/ros
+	PATTERN ".svn" EXCLUDE
+)
 
 #install(DIRECTORY common/files
 #	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/common

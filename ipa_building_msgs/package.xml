@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>ipa_building_msgs</name>
-  <version>0.0.1</version>
+  <version>0.2.0</version>
 
   <description>
      This package contains common message type definitions for building navigation tasks such as floor plan segmentation into rooms or the optimal trajectory through rooms of a building.

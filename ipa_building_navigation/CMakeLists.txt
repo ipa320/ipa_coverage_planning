@@ -151,6 +151,7 @@ install(DIRECTORY ros/include/${PROJECT_NAME}/
 #	PATTERN ".svn" EXCLUDE
 #)
 
+##uncomment this if you use launch and yaml files
 install(DIRECTORY ros/launch
 	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/ros
 	PATTERN ".svn" EXCLUDE

@@ -16,25 +16,21 @@ gridPointExplorator::gridPointExplorator(int grid_line_length)
 //			Poses are computed, by calculating a vector from the old node to the next and using the angle of this with the x-axis
 //			as angle for the Poses.
 void gridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
-		const float robot_radius, const float map_resolution, const geometry_msgs::Pose2D starting_position,
+		const float map_resolution, const cv::Point starting_position,
 		const geometry_msgs::Polygon room_min_max_coordinates, const cv::Point2d map_origin)
 {
+	// TODO: map to robot path
 	//******************* I. Get grid points *************************
 	// vector to store all found points
 	std::vector<cv::Point> grid_points;
-
-	// erode map so points that are too near to obstacels don't get chosen
-//	cv::Mat eroded_map;
-//	int number_of_erosions = (robot_radius / map_resolution);
-//	cv::erode(room_map, eroded_map, cv::Mat(), cv::Point(-1, -1), number_of_erosions);
 
 	// iterate trough the columns and rows with stepsize as the grid_size, start at the upper left point
 	//		the given min/max-Polygon stores the min/max coordinates in two points: the first showing the min and the other
 	//		showing the max coordinates
 	std::cout << "size of one grid line: " << grid_line_length_ << std::endl;
-	for(unsigned int u = room_min_max_coordinates.points[0].y; u < room_min_max_coordinates.points[1].y; u += grid_line_length_)
+	for(unsigned int u=room_min_max_coordinates.points[0].y+grid_line_length_; u<=room_min_max_coordinates.points[1].y; u+=grid_line_length_)
 	{
-		for(unsigned int v = room_min_max_coordinates.points[0].x; v < room_min_max_coordinates.points[1].x; v += grid_line_length_)
+		for(unsigned int v=room_min_max_coordinates.points[0].x+grid_line_length_; v<=room_min_max_coordinates.points[1].x; v+=grid_line_length_)
 		{
 			// check if point is in the free space
 			if(room_map.at<unsigned char>(u, v) == 255)
@@ -54,11 +50,10 @@ void gridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	// find the index of the point, which is closest to the starting position
 	int min_index = 0;
 	double min_distance = 1e7;
-	cv::Point starting_point(starting_position.x, starting_position.y); // conversion of Pose2D to cv::Point for convenience
 
 	for(std::vector<cv::Point>::iterator point = grid_points.begin(); point != grid_points.end(); ++point)
 	{
-		double distance = cv::norm(starting_point - *point);
+		double distance = cv::norm(starting_position - *point);
 
 		if(distance <= min_distance)
 		{
@@ -71,8 +66,8 @@ void gridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	// solve the Traveling Salesman Problem
 	std::cout << "Finding optimal order of the found points. Start-index: " << min_index << std::endl;
 	ConcordeTSPSolver tsp_solver;
-	double map_downsampling_factor = 0.25;
-	std::vector<int> optimal_order = tsp_solver.solveConcordeTSP(room_map, grid_points, map_downsampling_factor, robot_radius, map_resolution, min_index, 0);
+//	double map_downsampling_factor = 0.25;
+	std::vector<int> optimal_order = tsp_solver.solveConcordeTSP(room_map, grid_points, 0.25, 0.0, map_resolution, min_index, 0);
 
 	// resave the found points in the optimal order and convert them to the right format
 	for(unsigned int point_index = 0; point_index < optimal_order.size(); ++point_index)
@@ -82,13 +77,7 @@ void gridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		cv::Point next_point = grid_points[optimal_order[(point_index+1)%(optimal_order.size())]];
 		cv::Point vector = next_point - current_point;
 
-		float quotient = vector.x / (sqrtf(vector.x * vector.x + vector.y * vector.y));
-
-		float angle = std::acos(quotient);
-
-		// correct angle if robot moves in negative y-direction
-		if(vector.y < 0 && vector.x >= 0)
-			angle -= 3.14159;
+		float angle = std::atan2(vector.y, vector.x);//std::acos(quotient);
 
 		// add the next navigation goal to the path
 		geometry_msgs::Pose2D navigation_goal;
@@ -97,10 +86,6 @@ void gridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		navigation_goal.theta = angle;
 
 		path.push_back(navigation_goal);
-
-//		std::cout << "angle: " << angle << ", vector: " << vector << std::endl;
-
-		cv::line(point_map, current_point, next_point, cv::Scalar(127), 1);
 	}
 
 //	cv::imshow("grid", point_map);

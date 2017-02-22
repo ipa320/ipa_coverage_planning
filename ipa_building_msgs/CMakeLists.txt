@@ -37,6 +37,14 @@ add_message_files(
 		RoomSequence.msg
 )
 
+## Generate services in the 'srv' folder
+add_service_files(
+	DIRECTORY
+		srv
+	FILES 
+		checkCoverage.srv
+)
+
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
 	DEPENDENCIES
