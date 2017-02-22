@@ -72,7 +72,7 @@
 #include <math.h>
 #include <functional>
 
-#include <dlib/optimization.h>
+#include <libdlib/optimization.h>
 
 // OpenGM-library headers
 #include <opengm/graphicalmodel/graphicalmodel.hxx>

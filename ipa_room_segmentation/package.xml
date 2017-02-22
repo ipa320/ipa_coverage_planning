@@ -30,7 +30,7 @@
 	<depend>dynamic_reconfigure</depend>
 	<depend>ipa_building_msgs</depend>
 	<depend>libdlib</depend>
-	<depend>libopengm</depend>
+	<depend>opengm</depend>
 	<depend>libopencv-dev</depend>
 	<depend>roscpp</depend>
 	<depend>roslib</depend>

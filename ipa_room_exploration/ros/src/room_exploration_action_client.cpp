@@ -14,6 +14,7 @@
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>
 #include <geometry_msgs/Point32.h>
+#include <nav_msgs/OccupancyGrid.h>
 
 #include <ipa_building_msgs/RoomExplorationAction.h>
 
@@ -23,6 +24,15 @@
 
 #include <Eigen/Dense>
 
+// overload of << operator for geometry_msgs::Pose2D to wanted format
+std::ostream& operator<<(std::ostream& os, const geometry_msgs::Pose2D& obj)
+{
+	std::stringstream ss;
+	ss <<  "[" << obj.x << ", " << obj.y << ", " << obj.theta << "]";
+	os << ss.rdbuf();
+    return os;
+}
+
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "room_exploration_client");
@@ -31,7 +41,7 @@ int main(int argc, char **argv)
 	actionlib::SimpleActionClient<ipa_building_msgs::RoomExplorationAction> ac("room_exploration_server", true);
 
 	// read in test map
-	cv::Mat map = cv::imread("/home/florianj/git/care-o-bot-indigo/src/autopnp/ipa_room_exploration/maps/map.png", 0);
+	cv::Mat map = cv::imread("/home/rmbce/git/care-o-bot-indigo/src/autopnp/ipa_room_exploration/maps/map.png", 0);
 	//make non-white pixels black
 	int min_y = 1e5, max_y = 0, min_x = 1e5, max_x = 0;
 	for (int y = 0; y < map.rows; y++)
@@ -59,8 +69,35 @@ int main(int argc, char **argv)
 			}
 		}
 	}
-
+	min_y -= 1;
+	min_x -= 1;
+	max_y += 1;
+	max_x += 1;
+	std::cout << min_y << " " << max_y << " ," << min_x << " " << max_x << std::endl;
 	std::cout << "map-size: " << map.rows << "x" << map.cols << std::endl;
+
+//	const std::string topic = "/move_base/global_costmap/costmap";
+//	nav_msgs::OccupancyGrid grid;
+//	grid = *(ros::topic::waitForMessage<nav_msgs::OccupancyGrid>(topic, nh));
+//	ROS_INFO("got grid");
+//
+//	std::vector<signed char> dats;
+//	dats = grid.data;
+//
+//	std::cout << dats.size() << std::endl;
+//	int s = 200;
+//	cv::Mat test_map = cv::Mat(s, s, map.type());
+//
+//	for(size_t u = 0; u < test_map.cols; ++u)
+//	{
+//		for(size_t v = 0; v < test_map.rows; ++v)
+//		{
+//			test_map.at<uchar>(u,v) = (uchar) dats[v+u*s];
+//		}
+//	}
+//
+//	cv::imshow("testtt", test_map);
+//	cv::waitKey();
 
 	ROS_INFO("Waiting for action server to start.");
 	// wait for the action server to start
@@ -69,9 +106,15 @@ int main(int argc, char **argv)
 	ROS_INFO("Action server started, sending goal.");
 
 	DynamicReconfigureClient drc_exp(nh, "room_exploration_server/set_parameters", "room_exploration_server/parameter_updates");
-	drc_exp.setConfig("grid_line_length", 25);
+	drc_exp.setConfig("room_exploration_algorithm", 7);
+//	drc_exp.setConfig("grid_line_length", 15);
+//	drc_exp.setConfig("path_eps", 10);
+//	drc_exp.setConfig("cell_size", 10);
+//	drc_exp.setConfig("plan_for_footprint", true);
+//	drc_exp.setConfig("goal_eps", 0.0);
+//	drc_exp.setConfig("delta_theta", 0.005);
 
-	//	cv::Point2f src_center(map.cols/2.0F, map.rows/2.0F);
+//	cv::Point2f src_center(map.cols/2.0F, map.rows/2.0F);
 //	cv::Mat rot_mat = getRotationMatrix2D(src_center, 180, 1.0);
 //	cv::Mat dst;
 //	cv::warpAffine(map, dst, rot_mat, map.size());
@@ -86,9 +129,10 @@ int main(int argc, char **argv)
 	cv_image.image = map;
 	cv_image.toImageMsg(labeling);
 
+	// todo: necessary?
 	geometry_msgs::Polygon min_max_points;
 	geometry_msgs::Point32 min_point, max_point;
-	min_point.x = min_x+9;
+	min_point.x = min_x;
 	min_point.y = min_y;
 	max_point.x = max_x;
 	max_point.y = max_y;
@@ -96,13 +140,20 @@ int main(int argc, char **argv)
 	min_max_points.points.push_back(min_point);
 	min_max_points.points.push_back(max_point);
 
-	std::cout << min_max_points.points[0] << " " << min_max_points.points[1] << std::endl;
+	geometry_msgs::Polygon region_of_interest;
+	geometry_msgs::Point32 edge_point;
+	edge_point.x = 0;
+	edge_point.y = 0;
+	region_of_interest.points.push_back(edge_point);
+	edge_point.x = 200;
+	edge_point.y = 200;
+	region_of_interest.points.push_back(edge_point);
 
+	std::cout << min_max_points.points[0] << " " << min_max_points.points[1] << std::endl;
 
 	geometry_msgs::Pose2D map_origin;
 	map_origin.x = 0.0;
 	map_origin.y = 0.0;
-	map_origin.theta = 0.0;
 
 	geometry_msgs::Pose2D starting_position;
 	starting_position.x = 1.0;
@@ -126,18 +177,42 @@ int main(int argc, char **argv)
 	fow_points[1] = fow_point_2;
 	fow_points[2] = fow_point_3;
 	fow_points[3] = fow_point_4;
+	std::vector<geometry_msgs::Point32> footprint_points(4);
+	fow_point_1.x = -0.4;
+	fow_point_1.y = 0.4;
+	footprint_points[0] = fow_point_1;
+	fow_point_2.x = -0.4;
+	fow_point_2.y = -0.4;
+	footprint_points[1] = fow_point_2;
+	fow_point_3.x = 0.4;
+	fow_point_3.y = -0.4;
+	footprint_points[2] = fow_point_3;
+	fow_point_4.x = 0.4;
+	fow_point_4.y = 0.4;
+	footprint_points[3] = fow_point_4;
 
 	ipa_building_msgs::RoomExplorationGoal goal;
 	goal.input_map = labeling;
 	goal.map_origin = map_origin;
 	goal.starting_position = starting_position;
 	goal.map_resolution = 0.05;
-	goal.robot_radius = 0.3; // turtlebot, used for sim 0.177
+	goal.robot_radius = 0.2; // turtlebot, used for sim 0.177, 0.4
 	goal.room_min_max = min_max_points;
 	goal.camera_frame = "/base_footprint";
 	goal.map_frame = "/map";
 	goal.field_of_view = fow_points;
+	goal.footprint = footprint_points;
+	goal.coverage_radius = 0.2;
+	goal.region_of_interest_coordinates = region_of_interest;
+	goal.return_path = false;
+	goal.execute_path = true;
 	ac.sendGoal(goal);
+
+	ac.waitForResult(ros::Duration());
+//	ipa_building_msgs::RoomExplorationResultConstPtr action_result = ac.getResult();
+//
+//	std::cout << "Got a path with " << action_result->coverage_path.size() << " nodes." << std::endl;
+//	std::cout << action_result->coverage_path[0] << std::endl;
 
 ////	// testing
 //	std::vector<cv::Point> fow(5);

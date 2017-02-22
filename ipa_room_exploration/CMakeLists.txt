@@ -7,13 +7,16 @@ set(catkin_RUN_PACKAGES
 	geometry_msgs
 	ipa_building_msgs
 	ipa_building_navigation
+	laser_geometry
 	libconcorde_tsp_solver
 	move_base_msgs
+	nav_msgs
 	roscpp
 	roslib
 	sensor_msgs
 	std_msgs
 	tf
+	visualization_msgs
 )
 
 set(catkin_BUILD_PACKAGES
@@ -35,8 +38,21 @@ find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(Eigen REQUIRED)
 
-
-
+# Coin-Or and Cbc, included as ubuntu system package, without Cmake-module so include pkg-config file
+#	!!! Important note: the order of the libraries when linking your executable is important, if it is wrong you get undefined references !!!
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(CoinUtils REQUIRED coinutils)# coinutils osi-clp clp osi cbc cgl
+pkg_check_modules(OsiClp REQUIRED osi-clp)
+pkg_check_modules(Clp REQUIRED clp)
+pkg_check_modules(Osi REQUIRED osi)
+pkg_check_modules(Cbc-lib REQUIRED cbc)
+pkg_check_modules(Cgl REQUIRED cgl)
+Message(STATUS "coinutils include dirs: " ${CoinUtils_INCLUDE_DIRS})
+Message(STATUS "osi-clp include dirs: " ${OsiClp_INCLUDE_DIRS})
+Message(STATUS "clp include dirs: " ${Clp_INCLUDE_DIRS})
+Message(STATUS "osi include dirs: " ${Osi_INCLUDE_DIRS})
+Message(STATUS "cbc include dirs: " ${Cbc-lib_INCLUDE_DIRS})
+Message(STATUS "cgl include dirs: " ${Cgl_INCLUDE_DIRS})
 
 ###################################
 ## catkin specific configuration ##
@@ -58,6 +74,12 @@ CATKIN_DEPENDS
 DEPENDS
 	OpenCV
 	Boost
+	CoinUtils
+	OsiClp
+	Clp
+	Osi
+	Cgl
+	Cbc-lib
 )
 
 
@@ -71,45 +93,72 @@ DEPENDS
 include_directories(
 	common/include
 	ros/include
-	${include_INCLUDE_DIRS}
+	${catkin_INCLUDE_DIRS}
 	${OpenCV_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIRS}
 	${Eigen_INCLUDE_DIRS}
+	${CoinUtils_INCLUDE_DIRS}
+	${OsiClp_INCLUDE_DIRS}
+	${Clp_INCLUDE_DIRS}
+	${Osi_INCLUDE_DIRS}
+	${Cgl_INCLUDE_DIRS}
+	${Cbc-lib_INCLUDE_DIRS}
 )
 
-# turtlebot mover --> simulation, not relevant
-#add_executable(turtlebot_mover ros/src/turtlebot_mover.cpp) 
-#target_link_libraries(turtlebot_mover
-#	${catkin_LIBRARIES} 
-#	${OpenCV_LIBRARIES}
-#)
-#add_dependencies(turtlebot_mover ${catkin_EXPORTED_TARGETS} ${ipa_room_exploration_EXPORTED_TARGETS} ${Boost_LIBRARIES})
-
-# room exploration action server
+# room exploration action server, note: order of linking the Coin-Or packages important
 add_executable(room_exploration_server ros/src/room_exploration_action_server.cpp
 					common/src/grid_point_explorator.cpp
+					common/src/boustrophedon_explorator.cpp
+					common/src/neural_network_explorator.cpp
+					common/src/convex_sensor_placement_explorator.cpp
+					common/src/flow_network_explorator.cpp
+					common/src/energy_functional_explorator.cpp
+					common/src/meanshift2d.cpp
+					ros/src/fow_to_robot_mapper.cpp
 					common/src/A_star_pathplanner.cpp common/src/node.cpp
-					common/src/concorde_TSP.cpp)
+					common/src/concorde_TSP.cpp
+					common/src/nearest_neighbor_TSP.cpp)
 add_dependencies(room_exploration_server
 	${catkin_EXPORTED_TARGETS}
-	${${PROJECT_NAME}_EXPORTED_TARGETS}
 	${PROJECT_NAME}_gencfg)
 target_link_libraries(room_exploration_server
 	${catkin_LIBRARIES} 
-	${OpenCV_LIBRARIES}
+	${OpenCV_LIBS}
 	${Boost_LIBRARIES}
-	${Eigen_LIBRARIES}
+	${CoinUtils_LIBRARIES}
+	${OsiClp_LIBRARIES}
+	${Clp_LIBRARIES}
+	${Osi_LIBRARIES}
+	${Cgl_LIBRARIES}
+	${Cbc-lib_LIBRARIES}
 )
+
+# server for coverage checking
+add_executable(coverage_check_server ros/src/coverage_check_server.cpp)
+target_link_libraries(coverage_check_server
+	${catkin_LIBRARIES} 
+	${OpenCV_LIBS}
+	${Boost_LIBRARIES}
+)
+add_dependencies(coverage_check_server ${catkin_EXPORTED_TARGETS})
 
 # room exploration client
 add_executable(room_exploration_client ros/src/room_exploration_action_client.cpp)
 target_link_libraries(room_exploration_client
 	${catkin_LIBRARIES} 
-	${OpenCV_LIBRARIES}
+	${OpenCV_LIBS}
 	${Boost_LIBRARIES}
 )
 add_dependencies(room_exploration_client ${catkin_EXPORTED_TARGETS})
 
+# evaluation of room exploration algorithms
+add_executable(room_exploration_evaluation ros/src/room_exploration_evaluation.cpp
+						common/src/A_star_pathplanner.cpp common/src/node.cpp)
+target_link_libraries(room_exploration_evaluation
+	${catkin_LIBRARIES} 
+	${OpenCV_LIBS}
+)
+add_dependencies(room_exploration_client ${catkin_EXPORTED_TARGETS})
  
 #############
 ## Install ##
@@ -141,10 +190,10 @@ install(DIRECTORY ros/include/${PROJECT_NAME}/
 #)
 
 # uncomment this if you have launch files
-#install(DIRECTORY ros/launch
-#	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/ros
-#	PATTERN ".svn" EXCLUDE
-#)
+install(DIRECTORY ros/launch
+	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/ros
+	PATTERN ".svn" EXCLUDE
+)
 
 #install(DIRECTORY common/files
 #	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/common

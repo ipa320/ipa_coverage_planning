@@ -169,7 +169,11 @@ int main(int argc, char **argv)
 
 		// test dynamic reconfigure
 		DynamicReconfigureClient drc(nh, "room_segmentation_server/set_parameters", "room_segmentation_server/parameter_updates");
+<<<<<<< HEAD
 		drc.setConfig("room_segmentation_algorithm", seg_alg);
+=======
+		drc.setConfig("room_segmentation_algorithm", 5);
+>>>>>>> e4936ed1bbb8ec45ea8691135924d9c35e5b73bd
 //		drc.setConfig("display_segmented_map", true);
 		//drc.setConfig("room_area_factor_upper_limit_voronoi", 120.0);
 
