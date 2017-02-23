@@ -45,13 +45,13 @@ std::ostream& operator<<(std::ostream& os, const geometry_msgs::Pose2D& obj)
 	std::stringstream ss;
 	ss <<  "[" << obj.x << ", " << obj.y << ", " << obj.theta << "]";
 	os << ss.rdbuf();
-    return os;
+	return os;
 }
 
 
 // Struct used to define, which segmentation algorithm together with which exploration algorithm should be used. Also a function is
 // provided, that returns a string showing the current configuration --> used to save the results.
-struct explorationConfig
+struct ExplorationConfig
 {
 	int exploration_algorithm_;	// this variable selects, which exploration algorithm should be used
 									// 1: grid point explorator
@@ -63,13 +63,13 @@ struct explorationConfig
 									// 7: Voronoi explorator
 
 	// default values --> best ones?
-	explorationConfig()
+	ExplorationConfig()
 	{
 		exploration_algorithm_ = 2;
 	}
 
 	// create one configuration
-	explorationConfig(const int exploration_algorithm)
+	ExplorationConfig(const int exploration_algorithm)
 	{
 		exploration_algorithm_ = exploration_algorithm;
 	}
@@ -104,13 +104,13 @@ struct explorationConfig
 };
 
 // Struct that carries several parameters for the action servers
-struct explorationData
+struct ExplorationData
 {
 	std::string map_name_;		// without file type
 	cv::Mat floor_plan_;
 	std::vector<cv::Mat> room_maps_;
 	std::vector<cv::Rect> bounding_boxes_;
-	float map_resolution_;
+	float map_resolution_;	// [m/pixel]
 	geometry_msgs::Pose map_origin_;
 	geometry_msgs::Pose2D robot_start_position_;
 	double robot_radius_;
@@ -119,7 +119,7 @@ struct explorationData
 	std::vector<geometry_msgs::Point32> fow_points_;
 
 	// empty values as default
-	explorationData()
+	ExplorationData()
 	{
 		map_name_ = "";
 		floor_plan_ = cv::Mat();
@@ -132,7 +132,7 @@ struct explorationData
 	}
 
 	// set data used in this evaluation
-	explorationData(const std::string map_name, const cv::Mat floor_plan, const float map_resolution, const double robot_radius,
+	ExplorationData(const std::string map_name, const cv::Mat floor_plan, const float map_resolution, const double robot_radius,
 			const std::vector<geometry_msgs::Point32>& fow_points)
 	{
 		map_name_ = map_name;
@@ -161,7 +161,7 @@ struct explorationData
 	}
 };
 
-struct evaluationResults
+struct EvaluationResults
 {
 	double calculation_time;
 	double path_length;
@@ -171,16 +171,16 @@ struct evaluationResults
 };
 
 // class that segments the wanted maps, finds for each resulting room a coverage path and saves these paths
-class explorationEvaluation
+class ExplorationEvaluation
 {
 protected:
 
 	// function that creates configurations to get all possible combinations of segmentations and exploration algorithms
-	void setconfigurations(std::vector<explorationConfig>& configurations, const std::vector<int>& exploration_algorithms)
+	void setConfigurations(std::vector<ExplorationConfig>& configurations, const std::vector<int>& exploration_algorithms)
 	{
 		for(std::vector<int>::const_iterator expl=exploration_algorithms.begin(); expl!=exploration_algorithms.end(); ++expl)
 		{
-			explorationConfig current_config(*expl);
+			ExplorationConfig current_config(*expl);
 			configurations.push_back(current_config);
 		}
 	}
@@ -189,9 +189,122 @@ public:
 
 	ros::NodeHandle node_handle_;
 
-	void getRoomMaps(std::vector<explorationData>& data_saver)
+
+	ExplorationEvaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::string& data_storage_path,
+			const double robot_radius, const std::vector<int>& exploration_algorithms, const std::vector<geometry_msgs::Point32>& fow_points)
 	{
-		for(std::vector<explorationData>::iterator datas=data_saver.begin(); datas!=data_saver.end(); ++datas)
+		// set node-handle
+		node_handle_ = nh;
+
+		// prepare relevant floor map data
+		std::vector< std::string > map_names;
+		map_names.push_back("lab_ipa");
+		map_names.push_back("lab_c_scan");
+		map_names.push_back("Freiburg52_scan");
+		map_names.push_back("Freiburg79_scan");
+		map_names.push_back("lab_b_scan");
+		map_names.push_back("lab_intel");
+		map_names.push_back("Freiburg101_scan");
+		map_names.push_back("lab_d_scan");
+		map_names.push_back("lab_f_scan");
+		map_names.push_back("lab_a_scan");
+		map_names.push_back("NLB");
+		map_names.push_back("office_a");
+		map_names.push_back("office_b");
+		map_names.push_back("office_c");
+		map_names.push_back("office_d");
+		map_names.push_back("office_e");
+		map_names.push_back("office_f");
+		map_names.push_back("office_g");
+		map_names.push_back("office_h");
+		map_names.push_back("office_i");
+//		map_names.push_back("lab_ipa_furnitures");
+//		map_names.push_back("lab_c_scan_furnitures");
+//		map_names.push_back("Freiburg52_scan_furnitures");
+//		map_names.push_back("Freiburg79_scan_furnitures");
+//		map_names.push_back("lab_b_scan_furnitures");
+//		map_names.push_back("lab_intel_furnitures");
+//		map_names.push_back("Freiburg101_scan_furnitures");
+//		map_names.push_back("lab_d_scan_furnitures");
+//		map_names.push_back("lab_f_scan_furnitures");
+//		map_names.push_back("lab_a_scan_furnitures");
+//		map_names.push_back("NLB_furnitures");
+//		map_names.push_back("office_a_furnitures");
+//		map_names.push_back("office_b_furnitures");
+//		map_names.push_back("office_c_furnitures");
+//		map_names.push_back("office_d_furnitures");
+//		map_names.push_back("office_e_furnitures");
+//		map_names.push_back("office_f_furnitures");
+//		map_names.push_back("office_g_furnitures");
+//		map_names.push_back("office_h_furnitures");
+//		map_names.push_back("office_i_furnitures");
+
+		// create all needed configurations
+		std::vector<ExplorationConfig> configs;
+		setConfigurations(configs, exploration_algorithms);
+
+		// prepare images and evaluation datas
+		std::vector<ExplorationData> evaluation_datas;
+		for (size_t image_index = 0; image_index<map_names.size(); ++image_index)
+		{
+			std::string image_filename = test_map_path + map_names[image_index] + ".png";
+			std::cout << "loading image: " << image_filename << std::endl;
+			cv::Mat map = cv::imread(image_filename.c_str(), 0);
+			//make non-white pixels black
+			for (int y=0; y<map.rows; y++)
+			{
+				for (int x=0; x<map.cols; x++)
+				{
+					if (map.at<unsigned char>(y, x)>250)
+					{
+						map.at<unsigned char>(y, x)=255;
+					}
+					else //if (map.at<unsigned char>(y, x) != 255)
+					{
+						map.at<unsigned char>(y, x)=0;
+					}
+				}
+			}
+
+			// create evaluation data
+			evaluation_datas.push_back(ExplorationData(map_names[image_index], map, 0.05, robot_radius, fow_points));
+		}
+
+		// get the room maps for each evaluation data
+		getRoomMaps(evaluation_datas);
+
+		// compute exploration paths for each room in the maps
+		std::string bugfile = data_storage_path + "bugfile.txt";
+		std::ofstream failed_maps(bugfile.c_str(), std::ios::out);
+		if (failed_maps.is_open())
+			failed_maps << "Maps that had a bug during the simulation and couldn't be finished: " << std::endl;
+		ROS_INFO("Evaluating the maps.");
+		for (size_t i=0; i<evaluation_datas.size(); ++i)
+		{
+			if (planCoveragePaths(configs, evaluation_datas[i], data_storage_path)==false)
+			{
+				std::cout << "failed to simulate map " << evaluation_datas[i].map_name_ << std::endl;
+				if (failed_maps.is_open())
+					failed_maps << evaluation_datas[i].map_name_ << std::endl;
+			}
+		}
+		if (failed_maps.is_open())
+			failed_maps.close();
+
+//		// read out the computed paths and calculate the evaluation values
+//		ROS_INFO("Reading out all saved paths.");
+//		// TODO: finish
+//		std::vector<evaluationResults> results;
+//		for (size_t i=0; i<evaluation_datas.size(); ++i)
+//		{
+//			evaluateCoveragePaths(configs, evaluation_datas[i], results, data_storage_path);
+//		}
+
+	}
+
+	void getRoomMaps(std::vector<ExplorationData>& data_saver)
+	{
+		for(std::vector<ExplorationData>::iterator datas=data_saver.begin(); datas!=data_saver.end(); ++datas)
 		{
 			// 1. read out the ground truth map
 			std::string map_name_basic = datas->map_name_;
@@ -264,122 +377,11 @@ public:
 		}
 	}
 
-	explorationEvaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::string& data_storage_path,
-			const double robot_radius, const std::vector<int>& exploration_algorithms, const std::vector<geometry_msgs::Point32>& fow_points)
-	{
-		// set node-handle
-		node_handle_ = nh;
-
-		// prepare relevant floor map data
-		std::vector< std::string > map_names;
-		map_names.push_back("lab_ipa");
-		map_names.push_back("lab_c_scan");
-		map_names.push_back("Freiburg52_scan");
-		map_names.push_back("Freiburg79_scan");
-		map_names.push_back("lab_b_scan");
-		map_names.push_back("lab_intel");
-		map_names.push_back("Freiburg101_scan");
-		map_names.push_back("lab_d_scan");
-		map_names.push_back("lab_f_scan");
-		map_names.push_back("lab_a_scan");
-		map_names.push_back("NLB");
-		map_names.push_back("office_a");
-		map_names.push_back("office_b");
-		map_names.push_back("office_c");
-		map_names.push_back("office_d");
-		map_names.push_back("office_e");
-		map_names.push_back("office_f");
-		map_names.push_back("office_g");
-		map_names.push_back("office_h");
-		map_names.push_back("office_i");
-//		map_names.push_back("lab_ipa_furnitures");
-//		map_names.push_back("lab_c_scan_furnitures");
-//		map_names.push_back("Freiburg52_scan_furnitures");
-//		map_names.push_back("Freiburg79_scan_furnitures");
-//		map_names.push_back("lab_b_scan_furnitures");
-//		map_names.push_back("lab_intel_furnitures");
-//		map_names.push_back("Freiburg101_scan_furnitures");
-//		map_names.push_back("lab_d_scan_furnitures");
-//		map_names.push_back("lab_f_scan_furnitures");
-//		map_names.push_back("lab_a_scan_furnitures");
-//		map_names.push_back("NLB_furnitures");
-//		map_names.push_back("office_a_furnitures");
-//		map_names.push_back("office_b_furnitures");
-//		map_names.push_back("office_c_furnitures");
-//		map_names.push_back("office_d_furnitures");
-//		map_names.push_back("office_e_furnitures");
-//		map_names.push_back("office_f_furnitures");
-//		map_names.push_back("office_g_furnitures");
-//		map_names.push_back("office_h_furnitures");
-//		map_names.push_back("office_i_furnitures");
-
-		// create all needed configurations
-		std::vector<explorationConfig> configs;
-		setconfigurations(configs, exploration_algorithms);
-
-		// prepare images and evaluation datas
-		std::vector<explorationData> evaluation_datas;
-		for (size_t image_index = 0; image_index<map_names.size(); ++image_index)
-		{
-			std::string image_filename = test_map_path + map_names[image_index] + ".png";// + "_furnitures_trashbins.png";
-			std::cout << "loading image: " << image_filename << std::endl;
-			cv::Mat map = cv::imread(image_filename.c_str(), 0);
-			//make non-white pixels black
-			for (int y=0; y<map.rows; y++)
-			{
-				for (int x=0; x<map.cols; x++)
-				{
-					if (map.at<unsigned char>(y, x)>250)
-					{
-						map.at<unsigned char>(y, x)=255;
-					}
-					else //if (map.at<unsigned char>(y, x) != 255)
-					{
-						map.at<unsigned char>(y, x)=0;
-					}
-				}
-			}
-
-			// create evaluation data
-			evaluation_datas.push_back(explorationData(map_names[image_index], map, 0.05, robot_radius, fow_points));
-		}
-
-		// get the room maps for each evaluation data
-		getRoomMaps(evaluation_datas);
-
-		// do the evaluation
-//		std::string bugfile = data_storage_path + "bugfile.txt";
-//		std::ofstream failed_maps(bugfile.c_str(), std::ios::out);
-//		if(failed_maps.is_open())
-//			failed_maps << "maps that had a bug during the simulation and couldn't be finished: " << std::endl;
-//		ROS_INFO("Evaluating the maps.");
-//		for (size_t i=0; i<evaluation_datas.size(); ++i)
-//		{
-//			if (planCoveragePaths(configs, evaluation_datas[i], data_storage_path)==false)
-//			{
-//				std::cout << "failed to simulate map " << evaluation_datas[i].map_name_ << std::endl;
-//				if(failed_maps.is_open())
-//					failed_maps << evaluation_datas[i].map_name_ << std::endl;
-//			}
-//		}
-//		failed_maps.close();
-
-		// read out the computed paths and calculate the evaluation values
-		ROS_INFO("Reading out all saved paths.");
-		// TODO: finish
-		std::vector<evaluationResults> results;
-		for (size_t i=0; i<evaluation_datas.size(); ++i)
-		{
-			evaluateCoveragePaths(configs, evaluation_datas[i], results, data_storage_path);
-		}
-
-	}
-
 	// function that does the whole evaluation for all configs
-	bool planCoveragePaths(const std::vector<explorationConfig>& configs, explorationData& datas, const std::string data_storage_path)
+	bool planCoveragePaths(const std::vector<ExplorationConfig>& configs, ExplorationData& datas, const std::string data_storage_path)
 	{
 		// go trough all configs and do the evaluations
-		for(std::vector<explorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
+		for(std::vector<ExplorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
 		{
 			// create a folder for the log directory
 			std::string folder_path = config->generateConfigurationFolderString() + "/";
@@ -445,9 +447,10 @@ public:
 
 				// send the exploration goal
 				ipa_building_msgs::RoomExplorationResultConstPtr result_expl;
-				if(planCoveragePath(room_map, datas, *config, result_expl, t0, datas.robot_start_position_, min_max_points, region_of_interest)==false)
+				clock_gettime(CLOCK_MONOTONIC, &t0); //set time stamp before the path planning
+				if(planCoveragePath(room_map, datas, *config, result_expl, datas.robot_start_position_, min_max_points, region_of_interest)==false)
 				{
-					output << "room " << room_index << " exceeded the time limitation of 3 hours" << std::endl << std::endl;
+					output << "room " << room_index << " exceeded the time limitation for computation" << std::endl << std::endl;
 					continue;
 				}
 				clock_gettime(CLOCK_MONOTONIC,  &t1); //set time stamp after the path planning
@@ -487,8 +490,8 @@ public:
 	}
 
 	// function that reads out the calculated paths and does the evaluation of the calculated these
-	void evaluateCoveragePaths(const std::vector<explorationConfig>& configs, const explorationData& datas,
-			std::vector<evaluationResults>& results, const std::string data_storage_path)
+	void evaluateCoveragePaths(const std::vector<ExplorationConfig>& configs, const ExplorationData& datas,
+			std::vector<EvaluationResults>& results, const std::string data_storage_path)
 	{
 		// find the middle-point distance of the given field of view
 		std::vector<Eigen::Matrix<float, 2, 1> > fow_vectors;
@@ -502,7 +505,7 @@ public:
 		Eigen::Matrix<float, 2, 1> middle_point = (fow_vectors[0] + fow_vectors[1] + fow_vectors[2] + fow_vectors[3]) / 4;
 		double distance_robot_fow_middlepoint = middle_point.norm();
 
-		for(std::vector<explorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
+		for(std::vector<ExplorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
 		{
 			// 1. get the location of the results and open this file
 			std::string folder_path = config->generateConfigurationFolderString() + "/";
@@ -1209,12 +1212,11 @@ public:
 	}
 
 	// function that plans one coverage path for the given room map
-	bool planCoveragePath(const cv::Mat& room_map, const explorationData& evaluation_data, const explorationConfig& evaluation_configuration,
-				ipa_building_msgs::RoomExplorationResultConstPtr& result_expl, struct timespec& t0,
+	bool planCoveragePath(const cv::Mat& room_map, const ExplorationData& evaluation_data, const ExplorationConfig& evaluation_configuration,
+				ipa_building_msgs::RoomExplorationResultConstPtr& result_expl,
 				const geometry_msgs::Pose2D& starting_position, const geometry_msgs::Polygon& min_max_points,
 				const geometry_msgs::Polygon& region_of_interest)
 	{
-		clock_gettime(CLOCK_MONOTONIC, &t0); //set time stamp before the path planning
 		sensor_msgs::Image map_msg;
 		cv_bridge::CvImage cv_image;
 		cv_image.encoding = "mono8";
@@ -1281,7 +1283,7 @@ public:
 		goal.execute_path = false;
 		ac_exp.sendGoal(goal);
 
-		// wait for results for 3 hours
+		// wait for results for 1 hour
 		bool finished;
 		// higher timeout for the flowNetworkExplorator, because much slower than the others
 		if(evaluation_configuration.exploration_algorithm_==5)
@@ -1341,7 +1343,7 @@ int main(int argc, char **argv)
 
 	const std::string test_map_path = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/";
 	const std::string data_storage_path = "room_exploration_evaluation/";
-	//explorationEvaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::string& data_storage_path,
+	//ExplorationEvaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::string& data_storage_path,
 //	const double robot_radius, const std::vector<int>& segmentation_algorithms, const std::vector<int>& exploration_algorithms,
 //	const std::vector<geometry_msgs::Point32>& fow_points)
 	std::vector<int> exploration_algorithms;
@@ -1353,26 +1355,32 @@ int main(int argc, char **argv)
 
 		exploration_algorithms.push_back(i);
 	}
-	geometry_msgs::Point32 fow_point_1;// geometry_msgs::Point32(0.3, 0.3);
-	fow_point_1.x = 0.1;
-	fow_point_1.y = 0.5;
-	geometry_msgs::Point32 fow_point_2;// = geometry_msgs::Point32(0.3, -0.3);
-	fow_point_2.x = 0.1;
-	fow_point_2.y = -0.5;
-	geometry_msgs::Point32 fow_point_3;// = geometry_msgs::Point32(0.7, 0.7);
-	fow_point_3.x = 0.6;
-	fow_point_3.y = -0.75;
-	geometry_msgs::Point32 fow_point_4;// = geometry_msgs::Point32(0.7, -0.7);
-	fow_point_4.x = 0.6;
-	fow_point_4.y = 0.75;
-	std::vector<geometry_msgs::Point32> fow_points(4);
-	fow_points[0] = fow_point_1;
-	fow_points[1] = fow_point_2;
-	fow_points[2] = fow_point_3;
-	fow_points[3] = fow_point_4;
-	// todo: read robot radius or param
-	// radius=0.6m
-	explorationEvaluation ev(nh, test_map_path, data_storage_path, 0.6, exploration_algorithms, fow_points);
+//	geometry_msgs::Point32 fov_point_1;// geometry_msgs::Point32(0.3, 0.3);
+//	fov_point_1.x = 0.1;
+//	fov_point_1.y = 0.5;
+//	geometry_msgs::Point32 fov_point_2;// = geometry_msgs::Point32(0.3, -0.3);
+//	fov_point_2.x = 0.1;
+//	fov_point_2.y = -0.5;
+//	geometry_msgs::Point32 fov_point_3;// = geometry_msgs::Point32(0.7, 0.7);
+//	fov_point_3.x = 0.6;
+//	fov_point_3.y = -0.75;
+//	geometry_msgs::Point32 fov_point_4;// = geometry_msgs::Point32(0.7, -0.7);
+//	fov_point_4.x = 0.6;
+//	fov_point_4.y = 0.75;
+	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
+	// measures in [m]
+	std::vector<geometry_msgs::Point32> fov_points(4);
+	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
+	fov_points[0].y = 0.35;
+	fov_points[1].x = 0.15;
+	fov_points[1].y = -0.35;
+	fov_points[2].x = 1.15;
+	fov_points[2].y = -0.65;
+	fov_points[3].x = 1.15;
+	fov_points[3].y = 0.65;
+
+	double robot_radius = 0.325;		// [m]
+	ExplorationEvaluation ev(nh, test_map_path, data_storage_path, robot_radius, exploration_algorithms, fov_points);
 	ros::shutdown();
 
 	//exit
