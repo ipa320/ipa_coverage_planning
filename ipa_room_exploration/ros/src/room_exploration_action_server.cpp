@@ -119,6 +119,7 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	else if(path_planning_algorithm_ == 7)
 		ROS_INFO("You have chosen the voronoi exploration method.");
 
+	// todo: load all parameters --> remove ifs
 	if (path_planning_algorithm_ == 1) // get grid point exploration parameters
 	{
 		node_handle_.param("grid_line_length", grid_line_length_, 10);

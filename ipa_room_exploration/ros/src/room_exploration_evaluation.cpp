@@ -448,7 +448,7 @@ public:
 				// send the exploration goal
 				ipa_building_msgs::RoomExplorationResultConstPtr result_expl;
 				clock_gettime(CLOCK_MONOTONIC, &t0); //set time stamp before the path planning
-				if(planCoveragePath(room_map, datas, *config, result_expl, datas.robot_start_position_, min_max_points, region_of_interest)==false)
+				if(planCoveragePath(room_map, datas, *config, result_expl, min_max_points, region_of_interest)==false)
 				{
 					output << "room " << room_index << " exceeded the time limitation for computation" << std::endl << std::endl;
 					continue;
@@ -483,8 +483,8 @@ public:
 					if (point > 0)
 						cv::line(path_map, cv::Point(coverage_path[point].x, coverage_path[point].y), cv::Point(coverage_path[point-1].x, coverage_path[point-1].y), cv::Scalar(128), 1);
 				}
-//				cv::imshow("path", path_map);
-//				cv::waitKey();
+				cv::imshow("path", path_map);
+				cv::waitKey();
 			}
 			std::string log_filename = data_storage_path + folder_path + datas.map_name_ + "_results.txt";
 			std::cout << log_filename << std::endl;
@@ -1225,8 +1225,7 @@ public:
 	// function that plans one coverage path for the given room map
 	bool planCoveragePath(const cv::Mat& room_map, const ExplorationData& evaluation_data, const ExplorationConfig& evaluation_configuration,
 				ipa_building_msgs::RoomExplorationResultConstPtr& result_expl,
-				const geometry_msgs::Pose2D& starting_position, const geometry_msgs::Polygon& min_max_points,
-				const geometry_msgs::Polygon& region_of_interest)
+				const geometry_msgs::Polygon& min_max_points, const geometry_msgs::Polygon& region_of_interest)
 	{
 		sensor_msgs::Image map_msg;
 		cv_bridge::CvImage cv_image;

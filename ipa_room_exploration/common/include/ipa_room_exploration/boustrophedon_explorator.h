@@ -82,7 +82,7 @@
 // the edges are stored as vectors in a counter-clockwise manner. The constructor becomes a set of respectively sorted
 // points and computes the vectors out of them. Additionally the visible center of the polygon gets computed, to
 // simplify the visiting order later, by using a meanshift algorithm.
-class generalizedPolygon
+class GeneralizedPolygon
 {
 protected:
 	// vertexes
@@ -93,6 +93,7 @@ protected:
 
 	// longest edge of the current cell
 	cv::Point2d longest_edge_;
+	double longest_edge_angle_;
 
 	// center
 	cv::Point center_;
@@ -102,10 +103,27 @@ protected:
 
 public:
 	// constructor
-	generalizedPolygon(std::vector<cv::Point> vertexes)
+	GeneralizedPolygon(std::vector<cv::Point> vertexes)
 	{
 		// save given vertexes
 		vertexes_ = vertexes;
+
+		// get max/min x/y coordinates
+		max_x_ = 0;
+		min_x_ = 1e3;
+		max_y_ = 0;
+		min_y_ = 1e3;
+		for(size_t point=0; point<vertexes_.size(); ++point)
+		{
+			if(vertexes_[point].x > max_x_)
+				max_x_ = vertexes_[point].x;
+			if(vertexes_[point].y > max_y_)
+				max_y_ = vertexes_[point].y;
+			if(vertexes_[point].x < min_x_)
+				min_x_ = vertexes_[point].x;
+			if(vertexes_[point].y < min_y_)
+				min_y_ = vertexes_[point].y;
+		}
 
 		// compute vector to represent edges and find longest edge
 		double longest_squared_edge_length = 0.0;
@@ -126,22 +144,49 @@ public:
 			}
 		}
 
-		// get max/min x/y coordinates
-		max_x_ = 0;
-		min_x_ = 1e3;
-		max_y_ = 0;
-		min_y_ = 1e3;
-		for(size_t point=0; point<vertexes_.size(); ++point)
+		// generate matrices for gradient in x/y direction
+		cv::Mat gradient_x, gradient_y, room_map;
+		drawPolygon(room_map, cv::Scalar(255));
+		// compute gradient in x direction
+		cv::Sobel(room_map, gradient_x, CV_64F, 1, 0, 5, 1.0, 0.0, cv::BORDER_DEFAULT);
+		// compute gradient in y direction
+		cv::Sobel(room_map, gradient_y, CV_64F, 0, 1, 5, 1.0, 0.0, cv::BORDER_DEFAULT);
+		// compute the direction of the gradient for each pixel and save the occurring gradients
+		std::vector<double> gradient_directions;
+		for(size_t y=0; y<room_map.rows; ++y)
 		{
-			if(vertexes_[point].x > max_x_)
-				max_x_ = vertexes_[point].x;
-			if(vertexes_[point].y > max_y_)
-				max_y_ = vertexes_[point].y;
-			if(vertexes_[point].x < min_x_)
-				min_x_ = vertexes_[point].x;
-			if(vertexes_[point].y < min_y_)
-				min_y_ = vertexes_[point].y;
+			for(size_t x=0; x<room_map.cols; ++x)
+			{
+				// check if the gradient has a value larger than zero, to only take the edge-gradients into account
+				int dx = gradient_x.at<double>(y,x);
+				int dy = gradient_y.at<double>(y,x);
+				if(dy*dy+dx*dx > 0.0)
+				{
+					double current_gradient = std::atan2(dy, dx);
+					gradient_directions.push_back(0.1*(double)((int)((current_gradient*10)+0.5)));	// round to one digit
+				}
+			}
 		}
+		// find the gradient that occurs most often, this direction is used to rotate the map
+		int max_number = 0;
+		longest_edge_angle_ = 0.0;
+		std::set<double> done_gradients;
+		for(std::vector<double>::iterator grad=gradient_directions.begin(); grad!=gradient_directions.end(); ++grad)
+		{
+			// if gradient has been done, don't check it again
+			if(done_gradients.find(*grad)==done_gradients.end())
+			{
+				int current_count = std::count(gradient_directions.begin(), gradient_directions.end(), *grad);
+	//			std::cout << "current gradient: " << *grad << ", occurs " << current_count << " times." << std::endl;
+				if(current_count > max_number)
+				{
+					max_number = current_count;
+					longest_edge_angle_ = *grad;
+				}
+				done_gradients.insert(*grad);
+			}
+		}
+		longest_edge_angle_ -= PI/2;
 
 		// compute visible center
 		MeanShift2D ms;
@@ -184,6 +229,11 @@ public:
 		return longest_edge_;
 	}
 
+	double getLongestEdgeAngle()
+	{
+		return longest_edge_angle_;
+	}
+
 	void drawPolygon(cv::Mat& image, const cv::Scalar& color)
 	{
 		// draw polygon in an black image with necessary size
@@ -205,7 +255,7 @@ public:
 
 // Structure to save edges of a path on one row, that allows to easily get the order of the edges when planning the
 // boustrophedon path.
-struct boustrophedonHorizontalLine
+struct BoustrophedonHorizontalLine
 {
 	cv::Point left_edge_, right_edge_;
 };
