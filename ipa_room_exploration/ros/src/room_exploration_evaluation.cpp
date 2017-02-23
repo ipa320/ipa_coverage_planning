@@ -291,14 +291,14 @@ public:
 		if (failed_maps.is_open())
 			failed_maps.close();
 
-//		// read out the computed paths and calculate the evaluation values
-//		ROS_INFO("Reading out all saved paths.");
-//		// TODO: finish
-//		std::vector<evaluationResults> results;
-//		for (size_t i=0; i<evaluation_datas.size(); ++i)
-//		{
-//			evaluateCoveragePaths(configs, evaluation_datas[i], results, data_storage_path);
-//		}
+		// read out the computed paths and calculate the evaluation values
+		ROS_INFO("Reading out all saved paths.");
+		// TODO: finish
+		std::vector<EvaluationResults> results;
+		for (size_t i=0; i<evaluation_datas.size(); ++i)
+		{
+			evaluateCoveragePaths(configs, evaluation_datas[i], results, data_storage_path);
+		}
 
 	}
 
@@ -694,7 +694,7 @@ public:
 					}
 					else // use the map accessibility server to find another accessible pose
 					{
-						// get the desired fow-position
+						// get the desired fov-position
 						geometry_msgs::Pose2D relative_vector;
 						relative_vector.x = std::cos(pose->theta)*distance_robot_fow_middlepoint;
 						relative_vector.y = std::sin(pose->theta)*distance_robot_fow_middlepoint;
@@ -1316,7 +1316,7 @@ public:
 					}
 				}
 				pid_reader.close();
-				remove("rroom_exploration_evaluation/expl_srv_pid.txt");
+				remove("room_exploration_evaluation/expl_srv_pid.txt");
 			}
 			else
 			{
