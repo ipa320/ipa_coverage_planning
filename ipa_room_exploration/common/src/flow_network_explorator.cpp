@@ -781,10 +781,10 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	cv::Mat gradient_x, gradient_y;
 
 	// compute gradient in x direction
-	cv::Sobel(room_map, gradient_x, CV_64F, 1, 0, 3, 1.0, 0.0, cv::BORDER_DEFAULT);
+	cv::Sobel(room_map, gradient_x, CV_64F, 1, 0, 5, 1.0, 0.0, cv::BORDER_DEFAULT);
 
 	// compute gradient in y direction
-	cv::Sobel(room_map, gradient_y, CV_64F, 0, 1, 3, 1.0, 0.0, cv::BORDER_DEFAULT);
+	cv::Sobel(room_map, gradient_y, CV_64F, 0, 1, 5, 1.0, 0.0, cv::BORDER_DEFAULT);
 
 	// compute the direction of the gradient for each pixel and save the occurring gradients
 	std::vector<double> gradient_directions;
@@ -795,10 +795,10 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 			// check if the gradient has a value larger than zero, to only take the edge-gradients into account
 			int dx= gradient_x.at<double>(y,x);
 			int dy= gradient_y.at<double>(y,x);
-			if(dy*dy+dx*dx!=0)
+			if(dy*dy+dx*dx > 0.0)
 			{
 				double current_gradient = std::atan2(dy, dx);
-				gradient_directions.push_back(current_gradient);
+				gradient_directions.push_back(0.1*(double)((int)((current_gradient*10)+0.5)));	// round to one digit
 			}
 		}
 	}
