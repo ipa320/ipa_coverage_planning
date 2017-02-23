@@ -199,25 +199,25 @@ public:
 		// prepare relevant floor map data
 		std::vector< std::string > map_names;
 		map_names.push_back("lab_ipa");
-		map_names.push_back("lab_c_scan");
-		map_names.push_back("Freiburg52_scan");
-		map_names.push_back("Freiburg79_scan");
-		map_names.push_back("lab_b_scan");
-		map_names.push_back("lab_intel");
-		map_names.push_back("Freiburg101_scan");
-		map_names.push_back("lab_d_scan");
-		map_names.push_back("lab_f_scan");
-		map_names.push_back("lab_a_scan");
-		map_names.push_back("NLB");
-		map_names.push_back("office_a");
-		map_names.push_back("office_b");
-		map_names.push_back("office_c");
-		map_names.push_back("office_d");
-		map_names.push_back("office_e");
-		map_names.push_back("office_f");
-		map_names.push_back("office_g");
-		map_names.push_back("office_h");
-		map_names.push_back("office_i");
+//		map_names.push_back("lab_c_scan");
+//		map_names.push_back("Freiburg52_scan");
+//		map_names.push_back("Freiburg79_scan");
+//		map_names.push_back("lab_b_scan");
+//		map_names.push_back("lab_intel");
+//		map_names.push_back("Freiburg101_scan");
+//		map_names.push_back("lab_d_scan");
+//		map_names.push_back("lab_f_scan");
+//		map_names.push_back("lab_a_scan");
+//		map_names.push_back("NLB");
+//		map_names.push_back("office_a");
+//		map_names.push_back("office_b");
+//		map_names.push_back("office_c");
+//		map_names.push_back("office_d");
+//		map_names.push_back("office_e");
+//		map_names.push_back("office_f");
+//		map_names.push_back("office_g");
+//		map_names.push_back("office_h");
+//		map_names.push_back("office_i");
 //		map_names.push_back("lab_ipa_furnitures");
 //		map_names.push_back("lab_c_scan_furnitures");
 //		map_names.push_back("Freiburg52_scan_furnitures");
@@ -474,6 +474,17 @@ public:
 				for(size_t point=0; point<coverage_path.size(); ++point)
 					output << coverage_path[point] << std::endl;
 				output << std::endl;
+
+				// display path
+				cv::Mat path_map = room_map.clone();
+				for (size_t point=0; point<coverage_path.size(); ++point)
+				{
+					cv::circle(path_map, cv::Point(coverage_path[point].x, coverage_path[point].y), 2, cv::Scalar(128), -1);
+					if (point > 0)
+						cv::line(path_map, cv::Point(coverage_path[point].x, coverage_path[point].y), cv::Point(coverage_path[point-1].x, coverage_path[point-1].y), cv::Scalar(128), 1);
+				}
+//				cv::imshow("path", path_map);
+//				cv::waitKey();
 			}
 			std::string log_filename = data_storage_path + folder_path + datas.map_name_ + "_results.txt";
 			std::cout << log_filename << std::endl;
@@ -1347,7 +1358,7 @@ int main(int argc, char **argv)
 //	const double robot_radius, const std::vector<int>& segmentation_algorithms, const std::vector<int>& exploration_algorithms,
 //	const std::vector<geometry_msgs::Point32>& fow_points)
 	std::vector<int> exploration_algorithms;
-	for(int i=1; i<=7; ++i)
+	for(int i=2; i<=2; ++i)
 	{
 		// choose which algorithms not to evaluate
 		if(i==5)

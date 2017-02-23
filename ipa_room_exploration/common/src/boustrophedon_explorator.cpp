@@ -51,10 +51,10 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	cv::Mat gradient_x, gradient_y;
 
 	// compute gradient in x direction
-	cv::Sobel(room_map, gradient_x, CV_64F, 1, 0, 3, 1.0, 0.0, cv::BORDER_DEFAULT);
+	cv::Sobel(room_map, gradient_x, CV_64F, 1, 0, 5, 1.0, 0.0, cv::BORDER_DEFAULT);
 
 	// compute gradient in y direction
-	cv::Sobel(room_map, gradient_y, CV_64F, 0, 1, 3, 1.0, 0.0, cv::BORDER_DEFAULT);
+	cv::Sobel(room_map, gradient_y, CV_64F, 0, 1, 5, 1.0, 0.0, cv::BORDER_DEFAULT);
 
 	// compute the direction of the gradient for each pixel and save the occurring gradients
 	std::vector<double> gradient_directions;
@@ -65,10 +65,10 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 			// check if the gradient has a value larger than zero, to only take the edge-gradients into account
 			int dx= gradient_x.at<double>(y,x);
 			int dy= gradient_y.at<double>(y,x);
-			if(dy*dy+dx*dx!=0)
+			if(dy*dy+dx*dx > 0.0)
 			{
 				double current_gradient = std::atan2(dy, dx);
-				gradient_directions.push_back(current_gradient);
+				gradient_directions.push_back(0.1*(double)((int)((current_gradient*10)+0.5)));	// round to one digit
 			}
 		}
 	}
@@ -95,38 +95,42 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	std::cout << "most occurring gradient angle: " << most_occurring_gradient << std::endl;
 
 	// rotation angle of the map s.t. the most occurring gradient is in 90 degree to the x-axis
-    double rotation_angle = std::abs(most_occurring_gradient)-PI/2;
-    std::cout << "rotation angle: " << rotation_angle << std::endl;
+	double rotation_angle = most_occurring_gradient; //std::abs(most_occurring_gradient)-PI/2;
+	std::cout << "rotation angle: " << rotation_angle << std::endl;
 
-    // get rotation matrix R for rotating the image around the center of the room contour
-    //	Remark: rotation angle in degrees for opencv
-    std::vector < std::vector<cv::Point> > contour;
- 	cv::Mat contour_map = room_map.clone();
- 	cv::findContours(contour_map, contour, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+	// get rotation matrix R for rotating the image around the center of the room contour
+	//	Remark: rotation angle in degrees for opencv
+	std::vector < std::vector<cv::Point> > contour;
+	cv::Mat contour_map = room_map.clone();
+	cv::findContours(contour_map, contour, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 
-    // get the moment--> for a given map, there should only be one contour
-    cv::Moments moment = cv::moments(contour[0], false);
+	// get the moment--> for a given map, there should only be one contour
+	cv::Moments moment = cv::moments(contour[0], false);
 
-   	// calculate rotation center
-    cv::Point2f center = cv::Point(moment.m10/moment.m00 , moment.m01/moment.m00 );
-    cv::Mat R = cv::getRotationMatrix2D(center, (rotation_angle*180)/PI, 1.0);
+	// calculate rotation center
+	cv::Point2f center = cv::Point(moment.m10/moment.m00 , moment.m01/moment.m00 );
+	cv::Mat R = cv::getRotationMatrix2D(center, (rotation_angle*180)/PI, 1.0);
 
-    // determine bounding rectangle to find the size of the new image
-    cv::Rect bbox = cv::RotatedRect(center, room_map.size(), (rotation_angle*180)/PI).boundingRect();
+	// determine bounding rectangle to find the size of the new image
+	cv::Rect bbox = cv::RotatedRect(center, room_map.size(), (rotation_angle*180)/PI).boundingRect();
 
-    // adjust transformation matrix
-    R.at<double>(0,2) += bbox.width/2.0 - center.x;
-    R.at<double>(1,2) += bbox.height/2.0 - center.y;
+	// adjust transformation matrix
+	R.at<double>(0,2) += bbox.width/2.0 - center.x;
+	R.at<double>(1,2) += bbox.height/2.0 - center.y;
 
-    // rotate the image
-    cv::Mat rotated_room_map;
-    cv::warpAffine(room_map, rotated_room_map, R, bbox.size(), cv::INTER_AREA);
+	// rotate the image
+	cv::Mat rotated_room_map;
+	cv::warpAffine(room_map, rotated_room_map, R, bbox.size(), cv::INTER_AREA);
 
-    // apply a binary filter to create a binary image, also use a closing operator to smooth the output (the rotation might produce
-    // black pixels reaching into the white area that were not there before, causing new, wrong cells to open)
-    cv::threshold(rotated_room_map, rotated_room_map, 200, 255, CV_THRESH_BINARY);
-    cv::dilate(rotated_room_map, rotated_room_map, cv::Mat(), cv::Point(-1,-1), 1);
-    cv::erode(rotated_room_map, rotated_room_map, cv::Mat(), cv::Point(-1,-1), 1);
+	// apply a binary filter to create a binary image, also use a closing operator to smooth the output (the rotation might produce
+	// black pixels reaching into the white area that were not there before, causing new, wrong cells to open)
+	cv::threshold(rotated_room_map, rotated_room_map, 200, 255, CV_THRESH_BINARY);
+	cv::dilate(rotated_room_map, rotated_room_map, cv::Mat(), cv::Point(-1,-1), 1);
+	cv::erode(rotated_room_map, rotated_room_map, cv::Mat(), cv::Point(-1,-1), 1);
+
+	cv::imshow("room_map", room_map);
+	cv::imshow("rotated_room_map", rotated_room_map);
+	cv::waitKey();
 
 //  testing
 //    std::vector<cv::Point> tester;
