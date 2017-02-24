@@ -119,7 +119,6 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	else if(path_planning_algorithm_ == 7)
 		ROS_INFO("You have chosen the voronoi exploration method.");
 
-	// todo: load all parameters --> remove ifs
 	if (path_planning_algorithm_ == 1) // get grid point exploration parameters
 	{
 		node_handle_.param("grid_line_length", grid_line_length_, 10);
@@ -336,9 +335,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	map_origin.x = goal->map_origin.x + goal->region_of_interest_coordinates.points[0].x;
 	map_origin.y = goal->map_origin.y + goal->region_of_interest_coordinates.points[0].y;
 
-	float map_resolution = goal->map_resolution;
+	const float map_resolution = goal->map_resolution;
 
-	float robot_radius = goal->robot_radius;
+	const float robot_radius = goal->robot_radius;
 
 	std::cout << "******************* robot radius ********************" << robot_radius << std::endl;
 
@@ -364,7 +363,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 //	cv::Mat room_map = global_map;
 
 	// erode map so that not reachable areas are not considered
-	int robot_radius_in_pixel = (robot_radius / map_resolution);
+	const int robot_radius_in_pixel = (robot_radius / map_resolution);
 	cv::erode(room_map, room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
 //	cv::circle(room_map, cv::Point(min_max_coordinates.points[0].x, min_max_coordinates.points[0].y), 2, cv::Scalar(127), CV_FILLED);
 //	cv::circle(room_map, cv::Point(min_max_coordinates.points[1].x, min_max_coordinates.points[1].y), 2, cv::Scalar(127), CV_FILLED);
@@ -372,8 +371,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 //	cv::waitKey();
 
 	// get the grid size, to check the areas that should be revisited later
-	int grid_length;
-	float fitting_circle_radius;
+	int grid_length = 0;
+	double grid_length_as_double = 0.0;
+	float fitting_circle_radius = 0;
 	Eigen::Matrix<float, 2, 1> middle_point;
 	std::vector<Eigen::Matrix<float, 2, 1> > fov_vectors;
 	Eigen::Matrix<float, 2, 1> middle_point_1, middle_point_2, middle_point_3, middle_point_4;
@@ -385,9 +385,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			current_vector << goal->field_of_view[i].x, goal->field_of_view[i].y;
 			fov_vectors.push_back(current_vector);
 		}
-		// Get the size of one grid s.t. the grid can be completely covered by the field of view (fov) from all rotations around it. For this
-		// fit a circle in the fov, which gives the diagonal length of the square. Then use Pythagoras to get the
-		// fov middle point
+		// Get the size of one grid cell s.t. the grid can be completely covered by the field of view (fov) from all rotations around it.
+		// For this fit a circle in the fov, which gives the diagonal length of the square. Then use Pythagoras to get the fov middle point.
 		middle_point = (fov_vectors[0] + fov_vectors[1] + fov_vectors[2] + fov_vectors[3]) / 4;
 //		std::cout << "middle point: " << middle_point << std::endl;
 
@@ -404,24 +403,27 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		float distance_3 = (middle_point - middle_point_3).norm();
 		float distance_4 = (middle_point - middle_point_4).norm();
 		fitting_circle_radius = std::min(std::min(distance_1, distance_2), std::min(distance_3, distance_4));
-		std::cout << "min distance: " << fitting_circle_radius << std::endl;
+		std::cout << "fitting_circle_radius: " << fitting_circle_radius << std::endl;
 
 		// get the edge length of the grid square as float and map it to an int in pixel coordinates, using floor method
-		double grid_length_as_double = std::sqrt(fitting_circle_radius);
-		grid_length = std::floor(grid_length_as_double/map_resolution);
-		std::cout << "grid size: " << grid_length_as_double << ", as int: " << grid_length << std::endl;
+		grid_length_as_double = fitting_circle_radius*std::sqrt(2);
 	}
 	else // if planning should be done for the footprint, read out the given coverage radius
 	{
-		grid_length = (int) std::floor(goal->coverage_radius/map_resolution);
+		grid_length_as_double = goal->coverage_radius*std::sqrt(2);
 	}
+	grid_length = std::floor(grid_length_as_double/map_resolution);
+	std::cout << "grid size: " << grid_length_as_double << ", as int: " << grid_length << std::endl;
+
+
 
 	// ***************** II. plan the path using the wanted planner *****************
 	std::vector<geometry_msgs::Pose2D> exploration_path;
 	if(path_planning_algorithm_ == 1) // use grid point explorator
 	{
 		// set wanted grid size
-		grid_point_planner.setGridLineLength(grid_line_length_);
+		//grid_point_planner.setGridLineLength(grid_line_length_);	// todo: why not grid_length which is already computed to fit the working device
+		grid_point_planner.setGridLineLength(grid_length);
 
 		// plan path
 		grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, min_max_coordinates, map_origin);

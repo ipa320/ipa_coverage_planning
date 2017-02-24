@@ -31,6 +31,7 @@ goal_eps: 0.0     #0.35
 # [pixel], where one pixel is the size of one cell in the navigation grid map
 cell_size: 7      #7
 
+# todo: maybe obsolete, remove in that case
 # line length of one cell in the grid, when using the grid point exploration method
 # [pixel], where one pixel is the size of one cell in the navigation grid map
 grid_line_length: 7     #7

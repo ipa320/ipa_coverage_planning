@@ -75,7 +75,7 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		}
 	}
 
-	// todo: taking direction from Hough lines could be even more accurate
+	// todo: taking direction from Hough lines could be even more accurate, compute this in an external class
 
 	// find the gradient that occurs most often, this direction is used to rotate the map
 	int max_number = 0;
@@ -356,11 +356,10 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 
 	// go trough the cells and determine the boustrophedon paths
 	ROS_INFO("Starting to get the paths for each cell, number of cells: %d", (int)cell_polygons.size());
-	int coverage_radius_as_int = (int)std::floor(coverage_radius); // convert fov-radius to int
+	int fov_coverage_radius_as_int = (int)std::floor(coverage_radius); // convert fov-radius to int
 	std::vector<cv::Point> starting_point_vector(1, starting_point); // opencv syntax
 	cv::transform(starting_point_vector, starting_point_vector, R);
 	cv::Point robot_pos = starting_point_vector[0]; // Point that keeps track of the last point after the boustrophedon path in each cell
-	//cv::Point robot_pos = starting_point;
 	std::vector<cv::Point> fov_middlepoint_path;
 	for(size_t cell=0; cell<cell_polygons.size(); ++cell)
 	{
@@ -422,10 +421,10 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		int y, dx;
 
 		// check where to start the planning of the path (if the cell is smaller that the fov_diameter start in the middle of it)
-		if((max_y - min_y) <= 2.0*coverage_radius_as_int)
+		if((max_y - min_y) <= 2.0*fov_coverage_radius_as_int)
 			y = min_y + 0.5 * (max_y - min_y);
 		else
-			y = (min_y-1) + coverage_radius_as_int;
+			y = (min_y-1) + fov_coverage_radius_as_int;
 		do
 		{
 			BoustrophedonHorizontalLine current_line;
@@ -437,28 +436,28 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 			// get the leftmost edges of the path
 			do
 			{
-				if(rotated_cell_map.at<uchar>(y, dx) == 255 && rotated_cell_map.at<uchar>(y, dx+coverage_radius_as_int) == 255)
+				if(rotated_cell_map.at<uchar>(y, dx) == 255 && rotated_cell_map.at<uchar>(y, dx+fov_coverage_radius_as_int) == 255)
 				{
-					left_edge = cv::Point(dx+coverage_radius_as_int, y); // add coverage radius s.t. the edge is not on the wall
+					left_edge = cv::Point(dx+fov_coverage_radius_as_int, y); // add coverage radius s.t. the edge is not on the wall
 					found = true;
 				}
 				else
 					++dx;
-			}while(dx < (rotated_cell_map.cols-coverage_radius_as_int) && found == false); // dx < ... --> safety, should never hold
+			} while(dx < (rotated_cell_map.cols-fov_coverage_radius_as_int) && found == false); // dx < ... --> safety, should never hold
 
 			// get the rightmost edges of the path
 			dx = max_x;
 			found = false;
 			do
 			{
-				if(rotated_cell_map.at<uchar>(y, dx) == 255 && rotated_cell_map.at<uchar>(y, dx-coverage_radius_as_int) == 255)
+				if(rotated_cell_map.at<uchar>(y, dx) == 255 && rotated_cell_map.at<uchar>(y, dx-fov_coverage_radius_as_int) == 255)
 				{
-					right_edge = cv::Point(dx-coverage_radius_as_int, y); // subtract coverage radius s.t. edge is not on the wall
+					right_edge = cv::Point(dx-fov_coverage_radius_as_int, y); // subtract coverage radius s.t. edge is not on the wall
 					found = true;
 				}
 				else
 					--dx;
-			}while(dx >= coverage_radius_as_int && found == false);
+			} while(dx >= fov_coverage_radius_as_int && found == false);
 
 			// save found horizontal line, if one is found, transformed to the original orientation of the cell
 			if(left_edge.x>=0 && left_edge.y>=0 && right_edge.x>=0 && right_edge.y>=0)
@@ -469,9 +468,9 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 			}
 
 			// increase y by given coverage-radius value
-			y += 2*coverage_radius_as_int;
+			y += 2*fov_coverage_radius_as_int;
 
-		}while(y <= max_y);
+		} while(y <= max_y);
 
 #ifdef DEBUG_VISUALIZATION
 		// display
