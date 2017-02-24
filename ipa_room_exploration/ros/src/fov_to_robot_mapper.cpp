@@ -11,19 +11,18 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 {
 	AStarPlanner path_planner;
 
+	double map_resolution_inv = 1.0/map_resolution;
+
 	// initialize the robot position to enable the Astar planner to find a path from the beginning
 	cv::Point robot_pos = starting_point;
 
 	// map the given rob to fov vector into pixel coordinates
 	Eigen::Matrix<float, 2, 1> robot_to_fov_vector_pixel;
-	robot_to_fov_vector_pixel << (robot_to_fov_vector(0,0)-map_origin.x)/map_resolution, (robot_to_fov_vector(1,0)-map_origin.y)/map_resolution;
+	robot_to_fov_vector_pixel << (robot_to_fov_vector(0,0)-map_origin.x)*map_resolution_inv, (robot_to_fov_vector(1,0)-map_origin.y)*map_resolution_inv;
 
 	// go trough the given poses and calculate accessible robot poses
 	for(std::vector<geometry_msgs::Pose2D>::const_iterator pose=fov_path.begin(); pose!=fov_path.end(); ++pose)
 	{
-		geometry_msgs::Pose2D current_pose;
-		bool found_pose = false;
-
 		// get the rotation matrix
 		float sin_theta = std::sin(pose->theta);
 		float cos_theta = std::cos(pose->theta);
@@ -36,6 +35,8 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 		robot_position << pose->x-v_rel_rot(0,0), pose->y-v_rel_rot(1,0);
 
 		// check the accessibility of the found point
+		geometry_msgs::Pose2D current_pose;
+		bool found_pose = false;
 		if(room_map.at<uchar>((int)robot_position(1,0), (int)robot_position(0,0)) == 255 && robot_position(0,0) >= 0
 				&& robot_position(1,0) >= 0 && robot_position(0,0) < room_map.cols && robot_position(1,0) < room_map.rows) // position accessible
 		{
@@ -62,18 +63,18 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 			goal.y = (fov_position.y*map_resolution) + map_origin.y;
 			check_request.center = goal;
 			check_request.radius = robot_to_fov_vector.norm();
-			check_request.rotational_sampling_step = PI/8;
+			check_request.rotational_sampling_step = PI/16;
 
 			// send request
 			bool res = ros::service::call(perimeter_service_name, check_request, response);
 			if(res==true && response.accessible_poses_on_perimeter.size()!=0)
 			{
 				// go trough the found accessible positions and take the one that minimizes the distance to the last pose
-				double min_squared_distance = 1e5;
+				double min_squared_distance = 1e10;
 				geometry_msgs::Pose2D best_pose;
 				for(std::vector<geometry_msgs::Pose2D>::iterator pose = response.accessible_poses_on_perimeter.begin(); pose != response.accessible_poses_on_perimeter.end(); ++pose)
 				{
-					cv::Point diff = robot_pos - cv::Point((pose->x-map_origin.x)/map_resolution, (pose->y-map_origin.y)/map_resolution);
+					cv::Point diff = robot_pos - cv::Point((pose->x-map_origin.x)*map_resolution_inv, (pose->y-map_origin.y)*map_resolution_inv);
 					double current_distance = diff.x*diff.x+diff.y*diff.y;
 					if(current_distance<=min_squared_distance)
 					{
@@ -89,7 +90,7 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 
 				// add pose to path and set robot position to it
 				robot_path.push_back(best_pose);
-				robot_pos = cv::Point((best_pose.x-map_origin.x)/map_resolution, (best_pose.y-map_origin.y)/map_resolution);
+				robot_pos = cv::Point((best_pose.x-map_origin.x)*map_resolution_inv, (best_pose.y-map_origin.y)*map_resolution_inv);
 			}
 			else // try with the astar pathfinder to find a valid pose, if the accessibility server failed for some reason
 			{

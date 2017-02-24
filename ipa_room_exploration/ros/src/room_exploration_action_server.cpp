@@ -338,7 +338,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	const float map_resolution = goal->map_resolution;
 
 	const float robot_radius = goal->robot_radius;
-
 	std::cout << "******************* robot radius ********************" << robot_radius << std::endl;
 
 	cv::Point starting_position;
@@ -570,12 +569,15 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 //		cv::waitKey();
 	}
 
+	ipa_building_msgs::RoomExplorationResult action_result;
 	// check if the size of the exploration path is larger then zero
 	if(exploration_path.size()==0)
+	{
+		room_exploration_server_.setAborted(action_result);
 		return;
+	}
 
 	// if wanted, return the path as the result
-	ipa_building_msgs::RoomExplorationResult action_result;
 	if(goal->return_path == true)
 		action_result.coverage_path = exploration_path;
 

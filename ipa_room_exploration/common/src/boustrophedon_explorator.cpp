@@ -1,6 +1,6 @@
 #include <ipa_room_exploration/boustrophedon_explorator.h>
 
-#define DEBUG_VISUALIZATION
+//#define DEBUG_VISUALIZATION
 
 // Constructor
 BoustrophedonExplorer::BoustrophedonExplorer()
@@ -440,17 +440,9 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		cv::imshow("rotated_room_map", rotated_room_map_disp);
 #endif
 
-//		// todo: necessary?
-//		// map the robot position and the room map after the last cell path to the new rotated coordinates
-//		std::vector<cv::Point> current_pos_vector(1); // opencv syntax
-//		current_pos_vector[0] = robot_pos;
-//		cv::transform(current_pos_vector, current_pos_vector, R_cell);
-//		cv::Point cell_robot_pos = current_pos_vector[0];
-//		// set the robot position to the one in rotated coordinates
-//		robot_pos = cell_robot_pos;
-		cv::Point cell_robot_pos;
 
 		// calculate the points between the edge points and create the boustrophedon path with this
+		cv::Point cell_robot_pos;
 		bool start = true;
 		std::vector<cv::Point> current_fov_path;
 		if(start_from_upper_path == true) // plan the path starting from upper horizontal line

@@ -113,7 +113,8 @@ struct ExplorationData
 	float map_resolution_;	// [m/pixel]
 	geometry_msgs::Pose map_origin_;
 	geometry_msgs::Pose2D robot_start_position_;
-	double robot_radius_;
+	double robot_radius_;	// [m]
+	double coverage_radius_;	// [m]
 	double robot_speed_; // [m/s]
 	double rotation_speed_; // [rad/s]
 	std::vector<geometry_msgs::Point32> fov_points_;
@@ -126,19 +127,21 @@ struct ExplorationData
 		map_resolution_ = 0.05;
 		map_origin_.position.x = 0;
 		map_origin_.position.y = 0;
-		robot_radius_ = 0.8;
+		robot_radius_ = 0.35;
+		coverage_radius_ = 0.35;
 		robot_speed_ = 0.3;
 		rotation_speed_ = 0.1;
 	}
 
 	// set data used in this evaluation
 	ExplorationData(const std::string map_name, const cv::Mat floor_plan, const float map_resolution, const double robot_radius,
-			const std::vector<geometry_msgs::Point32>& fov_points)
+			const double coverage_radius, const std::vector<geometry_msgs::Point32>& fov_points)
 	{
 		map_name_ = map_name;
 		floor_plan_ = floor_plan;
 		map_resolution_ = map_resolution;
 		robot_radius_ = robot_radius;
+		coverage_radius_ = coverage_radius;
 		robot_speed_ = 0.3;
 		rotation_speed_ = 0.1;
 		fov_points_ = fov_points;
@@ -191,7 +194,8 @@ public:
 
 
 	ExplorationEvaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::string& data_storage_path,
-			const double robot_radius, const std::vector<int>& exploration_algorithms, const std::vector<geometry_msgs::Point32>& fov_points)
+			const double robot_radius, const double coverage_radius, const std::vector<int>& exploration_algorithms,
+			const std::vector<geometry_msgs::Point32>& fov_points)
 	{
 		// set node-handle
 		node_handle_ = nh;
@@ -267,7 +271,7 @@ public:
 			}
 
 			// create evaluation data
-			evaluation_datas.push_back(ExplorationData(map_names[image_index], map, 0.05, robot_radius, fov_points));
+			evaluation_datas.push_back(ExplorationData(map_names[image_index], map, 0.05, robot_radius, coverage_radius, fov_points));
 		}
 
 		// get the room maps for each evaluation data
@@ -291,14 +295,14 @@ public:
 		if (failed_maps.is_open())
 			failed_maps.close();
 
-		// read out the computed paths and calculate the evaluation values
-		ROS_INFO("Reading out all saved paths.");
-		// TODO: finish
-		std::vector<EvaluationResults> results;
-		for (size_t i=0; i<evaluation_datas.size(); ++i)
-		{
-			evaluateCoveragePaths(configs, evaluation_datas[i], results, data_storage_path);
-		}
+//		// read out the computed paths and calculate the evaluation values
+//		ROS_INFO("Reading out all saved paths.");
+//		// TODO: finish
+//		std::vector<EvaluationResults> results;
+//		for (size_t i=0; i<evaluation_datas.size(); ++i)
+//		{
+//			evaluateCoveragePaths(configs, evaluation_datas[i], results, data_storage_path);
+//		}
 
 	}
 
@@ -402,6 +406,7 @@ public:
 			edge_point.y = datas.floor_plan_.rows;
 			region_of_interest.points.push_back(edge_point);
 			std::stringstream output;
+			cv::Mat path_map = datas.floor_plan_.clone();
 			for(size_t room_index=0; room_index<datas.room_maps_.size(); ++room_index)
 			{
 				cv::Mat room_map = datas.room_maps_[room_index];
@@ -476,7 +481,7 @@ public:
 				output << std::endl;
 
 				// display path
-				cv::Mat path_map = room_map.clone();
+				//cv::Mat path_map = room_map.clone();
 				for (size_t point=0; point<coverage_path.size(); ++point)
 				{
 					cv::circle(path_map, cv::Point(coverage_path[point].x, coverage_path[point].y), 2, cv::Scalar(128), -1);
@@ -486,6 +491,9 @@ public:
 //				cv::imshow("path", path_map);
 //				cv::waitKey();
 			}
+			std::string img_filename = data_storage_path + folder_path + datas.map_name_ + "_paths.png";
+			cv::imwrite(img_filename.c_str(), path_map);
+
 			std::string log_filename = data_storage_path + folder_path + datas.map_name_ + "_results.txt";
 			std::cout << log_filename << std::endl;
 			std::ofstream file(log_filename.c_str(), std::ios::out);
@@ -828,7 +836,7 @@ public:
 
 			// save the map with the drawn in coverage paths
 			std::stringstream map_filename;
-			std::string image_path = data_storage_path + folder_path + datas.map_name_ + "_paths.png";
+			std::string image_path = data_storage_path + folder_path + datas.map_name_ + "_paths_eval.png";
 //			std::cout << image_path << std::endl;
 			cv::imwrite(image_path.c_str(), eroded_map);
 //			cv::imshow("room paths", room_map);
@@ -1285,7 +1293,7 @@ public:
 		map_origin.y = evaluation_data.map_origin_.position.y;
 		goal.map_origin = map_origin;
 		goal.robot_radius = evaluation_data.robot_radius_;
-		goal.coverage_radius = 0; // todo:
+		goal.coverage_radius = evaluation_data.coverage_radius_;
 		goal.field_of_view = evaluation_data.fov_points_;
 		//goal.footprint = ; // not necessary
 		goal.starting_position = evaluation_data.robot_start_position_;
@@ -1296,7 +1304,7 @@ public:
 		ac_exp.sendGoal(goal);
 
 		// wait for results for 1 hour
-		bool finished;
+		bool finished = false;
 		// higher timeout for the flowNetworkExplorator, because much slower than the others
 		if(evaluation_configuration.exploration_algorithm_==5)
 			finished = ac_exp.waitForResult(ros::Duration(3600));
@@ -1359,7 +1367,7 @@ int main(int argc, char **argv)
 //	const double robot_radius, const std::vector<int>& segmentation_algorithms, const std::vector<int>& exploration_algorithms,
 //	const std::vector<geometry_msgs::Point32>& fov_points)
 	std::vector<int> exploration_algorithms;
-	for(int i=2; i<=2; ++i)
+	for(int i=1; i<=7; ++i)
 	{
 		// choose which algorithms not to evaluate
 		if(i==5)
@@ -1371,17 +1379,26 @@ int main(int argc, char **argv)
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
 	// measures in [m]
 	std::vector<geometry_msgs::Point32> fov_points(4);
-	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
-	fov_points[0].y = 0.35;
-	fov_points[1].x = 0.15;
-	fov_points[1].y = -0.35;
-	fov_points[2].x = 1.15;
-	fov_points[2].y = -0.65;
-	fov_points[3].x = 1.15;
-	fov_points[3].y = 0.65;
+//	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
+//	fov_points[0].y = 0.35;
+//	fov_points[1].x = 0.15;
+//	fov_points[1].y = -0.35;
+//	fov_points[2].x = 1.15;
+//	fov_points[2].y = -0.65;
+//	fov_points[3].x = 1.15;
+//	fov_points[3].y = 0.65;
+	fov_points[0].x = -0.4;		// this is the working area of a vacuum cleaner with 80 cm width
+	fov_points[0].y = 0.4;
+	fov_points[1].x = -0.4;
+	fov_points[1].y = -0.4;
+	fov_points[2].x = 0.4;
+	fov_points[2].y = -0.4;
+	fov_points[3].x = 0.4;
+	fov_points[3].y = 0.4;
 
-	double robot_radius = 0.325;		// [m]
-	ExplorationEvaluation ev(nh, test_map_path, data_storage_path, robot_radius, exploration_algorithms, fov_points);
+	double robot_radius = 0.25;		// [m]
+	double coverage_radius = 0.25;	// [m]
+	ExplorationEvaluation ev(nh, test_map_path, data_storage_path, robot_radius, coverage_radius, exploration_algorithms, fov_points);
 	ros::shutdown();
 
 	//exit

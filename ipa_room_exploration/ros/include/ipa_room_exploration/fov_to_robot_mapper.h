@@ -1,25 +1,3 @@
-// c++ standard libraries
-#include <iostream>
-#include <list>
-#include <string>
-#include <vector>
-#include <algorithm>
-#include <cmath>
-// Ros
-#include <ros/ros.h>
-// service
-#include <cob_map_accessibility_analysis/CheckPerimeterAccessibility.h>
-// OpenCv
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
-// msgs
-#include <geometry_msgs/Pose2D.h>
-#include <geometry_msgs/Polygon.h>
-// Eigen library
-#include <Eigen/Dense>
-// specific from this package
-#include <ipa_room_exploration/A_star_pathplanner.h>
-
 /*!
  *****************************************************************
  * \file
@@ -80,6 +58,29 @@
  ****************************************************************/
 
 #pragma once
+
+// c++ standard libraries
+#include <iostream>
+#include <list>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <cmath>
+// Ros
+#include <ros/ros.h>
+// service
+#include <cob_map_accessibility_analysis/CheckPerimeterAccessibility.h>
+// OpenCv
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
+// msgs
+#include <geometry_msgs/Pose2D.h>
+#include <geometry_msgs/Polygon.h>
+// Eigen library
+#include <Eigen/Dense>
+// specific from this package
+#include <ipa_room_exploration/A_star_pathplanner.h>
+
 
 #define PI 3.14159265359
 
