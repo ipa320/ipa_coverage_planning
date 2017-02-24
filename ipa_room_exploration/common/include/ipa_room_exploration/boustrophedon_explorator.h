@@ -1,22 +1,3 @@
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
-#include <iostream>
-#include <vector>
-#include <cmath>
-#include <string>
-
-#include <Eigen/Dense>
-
-#include <ipa_room_exploration/concorde_TSP.h>
-#include <ipa_room_exploration/meanshift2d.h>
-#include <ipa_room_exploration/fov_to_robot_mapper.h>
-
-#include <geometry_msgs/Pose2D.h>
-#include <geometry_msgs/Polygon.h>
-#include <geometry_msgs/Point32.h>
-
-#define PI 3.14159265359
-
 /*!
  *****************************************************************
  * \file
@@ -78,6 +59,28 @@
 
 #pragma once
 
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <string>
+
+#include <Eigen/Dense>
+
+#include <ipa_room_exploration/concorde_TSP.h>
+#include <ipa_room_exploration/meanshift2d.h>
+#include <ipa_room_exploration/fov_to_robot_mapper.h>
+#include <ipa_room_exploration/room_rotator.h>
+
+#include <geometry_msgs/Pose2D.h>
+#include <geometry_msgs/Polygon.h>
+#include <geometry_msgs/Point32.h>
+
+#define PI 3.14159265359
+
+
+
 // Class that is used to store cells and obstacles in a certain manner. For this the vertexes are stored as points and
 // the edges are stored as vectors in a counter-clockwise manner. The constructor becomes a set of respectively sorted
 // points and computes the vectors out of them. Additionally the visible center of the polygon gets computed, to
@@ -88,13 +91,6 @@ protected:
 	// vertexes
 	std::vector<cv::Point> vertices_;
 
-	// edges
-	std::vector<cv::Point2d> edges_;
-
-	// longest edge of the current cell
-	cv::Point2d longest_edge_;
-	double longest_edge_angle_;
-
 	// center
 	cv::Point center_;
 
@@ -103,7 +99,7 @@ protected:
 
 public:
 	// constructor
-	GeneralizedPolygon(const std::vector<cv::Point>& vertices)
+	GeneralizedPolygon(const std::vector<cv::Point>& vertices, const double map_resolution)
 	{
 		// save given vertexes
 		vertices_ = vertices;
@@ -125,69 +121,6 @@ public:
 				min_y_ = vertices_[point].y;
 		}
 
-		// compute vector to represent edges and find longest edge
-		double longest_squared_edge_length = 0.0;
-		for(size_t point = 0; point < vertices.size(); ++point)
-		{
-			// construct edge
-			cv::Point2d current_vector;
-			current_vector.x = vertices[(point+1)%vertices.size()].x - vertices[point].x;
-			current_vector.y= vertices[(point+1)%vertices.size()].y - vertices[point].y;
-			edges_.push_back(current_vector);
-
-			// check if current edge is longer than the previous edges
-			double current_length = current_vector.x*current_vector.x+current_vector.y*current_vector.y;
-			if(current_length > longest_squared_edge_length)
-			{
-				longest_edge_ = current_vector;
-				longest_squared_edge_length = current_length;
-			}
-		}
-
-		// generate matrices for gradient in x/y direction
-		cv::Mat gradient_x, gradient_y, room_map;
-		drawPolygon(room_map, cv::Scalar(255));
-		// compute gradient in x direction
-		cv::Sobel(room_map, gradient_x, CV_64F, 1, 0, 5, 1.0, 0.0, cv::BORDER_DEFAULT);
-		// compute gradient in y direction
-		cv::Sobel(room_map, gradient_y, CV_64F, 0, 1, 5, 1.0, 0.0, cv::BORDER_DEFAULT);
-		// compute the direction of the gradient for each pixel and save the occurring gradients
-		std::vector<double> gradient_directions;
-		for(size_t y=0; y<room_map.rows; ++y)
-		{
-			for(size_t x=0; x<room_map.cols; ++x)
-			{
-				// check if the gradient has a value larger than zero, to only take the edge-gradients into account
-				int dx = gradient_x.at<double>(y,x);
-				int dy = gradient_y.at<double>(y,x);
-				if(dy*dy+dx*dx > 0.0)
-				{
-					double current_gradient = std::atan2(dy, dx);
-					gradient_directions.push_back(0.1*(double)((int)((current_gradient*10)+0.5)));	// round to one digit
-				}
-			}
-		}
-		// find the gradient that occurs most often, this direction is used to rotate the map
-		int max_number = 0;
-		longest_edge_angle_ = 0.0;
-		std::set<double> done_gradients;
-		for(std::vector<double>::iterator grad=gradient_directions.begin(); grad!=gradient_directions.end(); ++grad)
-		{
-			// if gradient has been done, don't check it again
-			if(done_gradients.find(*grad)==done_gradients.end())
-			{
-				int current_count = std::count(gradient_directions.begin(), gradient_directions.end(), *grad);
-	//			std::cout << "current gradient: " << *grad << ", occurs " << current_count << " times." << std::endl;
-				if(current_count > max_number)
-				{
-					max_number = current_count;
-					longest_edge_angle_ = *grad;
-				}
-				done_gradients.insert(*grad);
-			}
-		}
-		longest_edge_angle_ -= PI/2;
-
 		// compute visible center
 		MeanShift2D ms;
 		cv::Mat room = cv::Mat::zeros(max_y_+10, max_x_+10, CV_8UC1);
@@ -203,7 +136,7 @@ public:
 				if (distance_map.at<float>(v, u) > max_val * 0.95f)
 					room_cells.push_back(cv::Vec2d(u, v));
 		// use meanshift to find the modes in that set
-		cv::Vec2d room_center = ms.findRoomCenter(room, room_cells, 0.05);
+		cv::Vec2d room_center = ms.findRoomCenter(room, room_cells, map_resolution);
 		// save found center
 		center_.x = room_center[0];
 		center_.y = room_center[1];
@@ -217,21 +150,6 @@ public:
 	std::vector<cv::Point> getVertexes()
 	{
 		return vertices_;
-	}
-
-	std::vector<cv::Point2d> getEdges()
-	{
-		return edges_;
-	}
-
-	cv::Point2d getLongestEdge()
-	{
-		return longest_edge_;
-	}
-
-	double getLongestEdgeAngle()
-	{
-		return longest_edge_angle_;
 	}
 
 	void drawPolygon(cv::Mat& image, const cv::Scalar& color)
@@ -260,6 +178,7 @@ struct BoustrophedonHorizontalLine
 	cv::Point left_edge_, right_edge_;
 };
 
+
 // Class that generates a room exploration path by using the morse cellular decomposition method, proposed by
 //
 // "H. Choset, E. Acar, A. A. Rizzi and J. Luntz,
@@ -271,14 +190,14 @@ struct BoustrophedonHorizontalLine
 // This class only produces a static path, regarding the given map in form of a point series. To react on dynamic
 // obstacles, one has to do this in upper algorithms.
 //
-class boustrophedonExplorer
+class BoustrophedonExplorer
 {
 protected:
 	// pathplanner to check for the next nearest loocations
 	AStarPlanner path_planner_;
 public:
 	// constructor
-	boustrophedonExplorer();
+	BoustrophedonExplorer();
 
 	// Function that creates an exploration path for a given room. The room has to be drawn in a cv::Mat (filled with Bit-uchar),
 	// with free space drawn white (255) and obstacles as black (0). It returns a series of 2D poses that show to which positions

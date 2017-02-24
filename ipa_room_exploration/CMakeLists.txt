@@ -111,8 +111,9 @@ add_executable(room_exploration_server ros/src/room_exploration_action_server.cp
 					common/src/boustrophedon_explorator.cpp
 					common/src/neural_network_explorator.cpp
 					common/src/convex_sensor_placement_explorator.cpp
-					common/src/flow_network_explorator.cpp
 					common/src/energy_functional_explorator.cpp
+					common/src/flow_network_explorator.cpp
+					common/src/room_rotator.cpp
 					common/src/meanshift2d.cpp
 					ros/src/fov_to_robot_mapper.cpp
 					common/src/A_star_pathplanner.cpp common/src/node.cpp

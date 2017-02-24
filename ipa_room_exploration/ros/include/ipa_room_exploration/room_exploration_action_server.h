@@ -140,7 +140,7 @@ protected:
 	double delta_theta_;			// sampling angle when creating possible sensing poses in the convexSPP explorator
 
 	gridPointExplorator grid_point_planner; // object that uses the grid point method to plan a path trough a room
-	boustrophedonExplorer boustrophedon_explorer_; // object that uses the boustrophedon exploration method to plan a path trough the room
+	BoustrophedonExplorer boustrophedon_explorer_; // object that uses the boustrophedon exploration method to plan a path trough the room
 	neuralNetworkExplorator neural_network_explorator_; // object that uses the neural network method to create an exploration path
 	convexSPPExplorator convex_SPP_explorator_; // object that uses the convex spp exploration methd to create an exploration path
 	flowNetworkExplorator flow_network_explorator_; // object that uses the flow network exploration method to create an exploration path

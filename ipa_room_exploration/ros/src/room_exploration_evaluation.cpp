@@ -1284,11 +1284,12 @@ public:
 		map_origin.x = evaluation_data.map_origin_.position.x;
 		map_origin.y = evaluation_data.map_origin_.position.y;
 		goal.map_origin = map_origin;
-		goal.starting_position = evaluation_data.robot_start_position_;
 		goal.robot_radius = evaluation_data.robot_radius_;
 		goal.coverage_radius = 0; // todo:
-		goal.room_min_max = min_max_points;
 		goal.field_of_view = evaluation_data.fov_points_;
+		//goal.footprint = ; // not necessary
+		goal.starting_position = evaluation_data.robot_start_position_;
+		goal.room_min_max = min_max_points;
 		goal.region_of_interest_coordinates = region_of_interest;
 		goal.return_path = true;
 		goal.execute_path = false;
