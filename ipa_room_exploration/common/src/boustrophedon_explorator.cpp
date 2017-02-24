@@ -1,5 +1,7 @@
 #include <ipa_room_exploration/boustrophedon_explorator.h>
 
+#define DEBUG_VISUALIZATION
+
 // Constructor
 boustrophedonExplorer::boustrophedonExplorer()
 {
@@ -130,20 +132,19 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	cv::dilate(rotated_room_map, rotated_room_map, cv::Mat(), cv::Point(-1,-1), 1);
 	cv::erode(rotated_room_map, rotated_room_map, cv::Mat(), cv::Point(-1,-1), 1);
 
-	cv::Mat room_map_disp = room_map.clone();
-	cv::circle(room_map_disp, starting_position, 3, cv::Scalar(160), CV_FILLED);
-	cv::imshow("room_map", room_map_disp);
-
-//  testing
-//    std::vector<cv::Point> tester;
-//    tester.push_back(cv::Point(10,10));
-//    cv::Mat tester_map = room_map.clone();
-//    cv::circle(tester_map, tester[0], 3, cv::Scalar(127), CV_FILLED);
-//    cv::transform(tester, tester, R);
-//    cv::circle(rotated_room_map, tester[0], 3, cv::Scalar(127), CV_FILLED);
-//    cv::imshow("original", tester_map);
-//    cv::imshow("rotated_im.png", rotated_room_map);
-//    cv::waitKey();
+	// testing
+//	cv::Mat room_map_disp = room_map.clone();
+//	cv::circle(room_map_disp, starting_position, 3, cv::Scalar(160), CV_FILLED);
+//	cv::imshow("room_map", room_map_disp);
+//	std::vector<cv::Point> tester;
+//	tester.push_back(cv::Point(10,10));
+//	cv::Mat tester_map = room_map.clone();
+//	cv::circle(tester_map, tester[0], 3, cv::Scalar(127), CV_FILLED);
+//	cv::transform(tester, tester, R);
+//	cv::circle(rotated_room_map, tester[0], 3, cv::Scalar(127), CV_FILLED);
+//	cv::imshow("original", tester_map);
+//	cv::imshow("rotated_im.png", rotated_room_map);
+//	cv::waitKey();
 
 	ROS_INFO("Planning the boustrophedon path trough the room.");
 	// *********************** II. Sweep a slice trough the map and mark the found cell boundaries. ***********************
@@ -297,7 +298,9 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		previous_number_of_segments = number_of_segments;
 	}
 
+#ifdef DEBUG_VISUALIZATION
 	cv::imshow("cell_map", cell_map);
+#endif
 
 	// *********************** III. Find the separated cells. ***********************
 	std::vector<std::vector<cv::Point> > cells;
@@ -358,7 +361,7 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	cv::transform(starting_point_vector, starting_point_vector, R);
 	cv::Point robot_pos = starting_point_vector[0]; // Point that keeps track of the last point after the boustrophedon path in each cell
 	//cv::Point robot_pos = starting_point;
-	std::vector<cv::Point> fow_middlepoint_path;
+	std::vector<cv::Point> fov_middlepoint_path;
 	for(size_t cell=0; cell<cell_polygons.size(); ++cell)
 	{
 		// access current cell
@@ -470,12 +473,13 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 
 		}while(y <= max_y);
 
+#ifdef DEBUG_VISUALIZATION
 		// display
 		cv::Mat rotated_cell_map_disp = rotated_cell_map.clone();
 		for (size_t i=0; i<path_lines.size(); ++i)
 			cv::line(rotated_cell_map_disp, path_lines[i].left_edge_, path_lines[i].right_edge_, cv::Scalar(128), 1);
 		cv::imshow("rotated_cell_map", rotated_cell_map_disp);
-
+#endif
 
 		// if no edge could be found in the cell (e.g. if it is too small), ignore it
 		if(path_lines.size()==0)
@@ -524,9 +528,9 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 			else
 				cv::circle(rotated_room_map_disp, outer_edges[3], 3, cv::Scalar(64), CV_FILLED);
 		}
+#ifdef DEBUG_VISUALIZATION
 		cv::imshow("rotated_room_map", rotated_room_map_disp);
-		cv::waitKey();
-
+#endif
 
 //		// todo: necessary?
 //		// map the robot position and the room map after the last cell path to the new rotated coordinates
@@ -540,7 +544,7 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 
 		// calculate the points between the edge points and create the boustrophedon path with this
 		bool start = true;
-		std::vector<cv::Point> current_fow_path;
+		std::vector<cv::Point> current_fov_path;
 		if(start_from_upper_path == true) // plan the path starting from upper horizontal line
 		{
 			for(std::vector<BoustrophedonHorizontalLine>::iterator line=path_lines.begin(); line!=path_lines.end(); ++line)
@@ -563,20 +567,20 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 					{
 						if(cv::norm(cell_robot_pos - astar_path[path_point]) >= path_eps)
 						{
-							current_fow_path.push_back(astar_path[path_point]);
+							current_fov_path.push_back(astar_path[path_point]);
 							cell_robot_pos = astar_path[path_point];
 						}
 					}
-					current_fow_path.push_back(line->left_edge_);
+					current_fov_path.push_back(line->left_edge_);
 
 					// get points between left and right edge
 					int dx = path_eps;
 					while((line->left_edge_.x+dx) < line->right_edge_.x)
 					{
-						current_fow_path.push_back(cv::Point(line->left_edge_.x+dx, line->left_edge_.y));
+						current_fov_path.push_back(cv::Point(line->left_edge_.x+dx, line->left_edge_.y));
 						dx += path_eps;
 					}
-					current_fow_path.push_back(line->right_edge_);
+					current_fov_path.push_back(line->right_edge_);
 
 					// set robot position to right
 					cell_robot_pos = line->right_edge_;
@@ -591,20 +595,20 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 					{
 						if(cv::norm(cell_robot_pos - astar_path[path_point]) >= path_eps)
 						{
-							current_fow_path.push_back(astar_path[path_point]);
+							current_fov_path.push_back(astar_path[path_point]);
 							cell_robot_pos = astar_path[path_point];
 						}
 					}
-					current_fow_path.push_back(line->right_edge_);
+					current_fov_path.push_back(line->right_edge_);
 
 					// get points between left and right edge
 					int dx = -path_eps;
 					while((line->right_edge_.x+dx) > line->left_edge_.x)
 					{
-						current_fow_path.push_back(cv::Point(line->right_edge_.x+dx, line->right_edge_.y));
+						current_fov_path.push_back(cv::Point(line->right_edge_.x+dx, line->right_edge_.y));
 						dx -= path_eps;
 					}
-					current_fow_path.push_back(line->left_edge_);
+					current_fov_path.push_back(line->left_edge_);
 
 					// set robot position to right
 					cell_robot_pos = line->left_edge_;
@@ -634,20 +638,20 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 					{
 						if(cv::norm(cell_robot_pos - astar_path[path_point]) >= path_eps)
 						{
-							current_fow_path.push_back(astar_path[path_point]);
+							current_fov_path.push_back(astar_path[path_point]);
 							cell_robot_pos = astar_path[path_point];
 						}
 					}
-					current_fow_path.push_back(line->left_edge_);
+					current_fov_path.push_back(line->left_edge_);
 
 					// get points between left and right edge
 					int dx = path_eps;
 					while((line->left_edge_.x+dx) < line->right_edge_.x)
 					{
-						current_fow_path.push_back(cv::Point(line->left_edge_.x+dx, line->left_edge_.y));
+						current_fov_path.push_back(cv::Point(line->left_edge_.x+dx, line->left_edge_.y));
 						dx += path_eps;
 					}
-					current_fow_path.push_back(line->right_edge_);
+					current_fov_path.push_back(line->right_edge_);
 
 					// set robot position to right
 					cell_robot_pos = line->right_edge_;
@@ -662,20 +666,20 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 					{
 						if(cv::norm(cell_robot_pos - astar_path[path_point]) >= path_eps)
 						{
-							current_fow_path.push_back(astar_path[path_point]);
+							current_fov_path.push_back(astar_path[path_point]);
 							cell_robot_pos = astar_path[path_point];
 						}
 					}
-					current_fow_path.push_back(line->right_edge_);
+					current_fov_path.push_back(line->right_edge_);
 
 					// get points between left and right edge
 					int dx = -path_eps;
 					while((line->right_edge_.x+dx) > line->left_edge_.x)
 					{
-						current_fow_path.push_back(cv::Point(line->right_edge_.x+dx, line->right_edge_.y));
+						current_fov_path.push_back(cv::Point(line->right_edge_.x+dx, line->right_edge_.y));
 						dx -= path_eps;
 					}
-					current_fow_path.push_back(line->left_edge_);
+					current_fov_path.push_back(line->left_edge_);
 
 					// set robot position to right
 					cell_robot_pos = line->left_edge_;
@@ -685,9 +689,9 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		}
 
 		// remap the fov path to the originally rotated cell and add the found points to the global path
-		cv::transform(current_fow_path, current_fow_path, R_cell_inv);
-		for(std::vector<cv::Point>::iterator point=current_fow_path.begin(); point!=current_fow_path.end(); ++point)
-			fow_middlepoint_path.push_back(*point);
+		cv::transform(current_fov_path, current_fov_path, R_cell_inv);
+		for(std::vector<cv::Point>::iterator point=current_fov_path.begin(); point!=current_fov_path.end(); ++point)
+			fov_middlepoint_path.push_back(*point);
 
 		// also update the current robot position
 		std::vector<cv::Point> current_pos_vector(1, cell_robot_pos);
@@ -698,29 +702,32 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	// transform the calculated path back to the originally rotated map
 	cv::Mat R_inv;
 	cv::invertAffineTransform(R, R_inv);
-	cv::transform(fow_middlepoint_path, fow_middlepoint_path, R_inv);
+	cv::transform(fov_middlepoint_path, fov_middlepoint_path, R_inv);
 
-//	testing
-//	std::cout << "printing path" << std::endl;
-//	cv::Mat fow_path_map = room_map.clone();
-//	for(size_t i=0; i<fow_middlepoint_path.size()-1; ++i)
-//	{
-//		cv::circle(fow_path_map, fow_middlepoint_path[i], 2, cv::Scalar(200), CV_FILLED);
-//		cv::line(fow_path_map, fow_middlepoint_path[i], fow_middlepoint_path[i+1], cv::Scalar(100), 1);
-//	}
-//	cv::circle(fow_path_map, fow_middlepoint_path.back(), 2, cv::Scalar(200), CV_FILLED);
-////	for(size_t i=0; i<optimal_order.size()-1; ++i)
-////		cv::line(fow_path_map, polygon_centers[optimal_order[i]], polygon_centers[optimal_order[i+1]], cv::Scalar(100), 1);
-//	cv::imshow("cell path", fow_path_map);
-//	cv::waitKey();
+#ifdef DEBUG_VISUALIZATION
+	// testing
+	std::cout << "printing path" << std::endl;
+	cv::Mat room_map_path = room_map.clone();
+	cv::circle(room_map_path, starting_position, 3, cv::Scalar(160), CV_FILLED);
+	for(size_t i=0; i<fov_middlepoint_path.size()-1; ++i)
+	{
+		cv::circle(room_map_path, fov_middlepoint_path[i], 2, cv::Scalar(200), CV_FILLED);
+		cv::line(room_map_path, fov_middlepoint_path[i], fov_middlepoint_path[i+1], cv::Scalar(100), 1);
+	}
+	cv::circle(room_map_path, fov_middlepoint_path.back(), 2, cv::Scalar(200), CV_FILLED);
+//	for(size_t i=0; i<optimal_order.size()-1; ++i)
+//		cv::line(fow_path_map, polygon_centers[optimal_order[i]], polygon_centers[optimal_order[i+1]], cv::Scalar(100), 1);
+	cv::imshow("room_map_path", room_map_path);
+	cv::waitKey();
+#endif
 
 	// create poses with an angle
-	std::vector<geometry_msgs::Pose2D> fow_poses;
-	for(unsigned int point_index=0; point_index<fow_middlepoint_path.size(); ++point_index)
+	std::vector<geometry_msgs::Pose2D> fov_poses;
+	for(size_t point_index=0; point_index<fov_middlepoint_path.size(); ++point_index)
 	{
 		// get the vector from the current point to the next point
-		cv::Point current_point = fow_middlepoint_path[point_index];
-		cv::Point next_point = fow_middlepoint_path[(point_index+1)%(fow_middlepoint_path.size())];
+		cv::Point current_point = fov_middlepoint_path[point_index];
+		cv::Point next_point = fov_middlepoint_path[(point_index+1)%(fov_middlepoint_path.size())];
 		cv::Point vector = next_point - current_point;
 
 		float angle = std::atan2(vector.y, vector.x);
@@ -729,19 +736,20 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		geometry_msgs::Pose2D current_pose;
 		current_pose.x = current_point.x;
 		current_pose.y = current_point.y;
-		current_pose.theta = angle;
+		if (point_index < fov_middlepoint_path.size()-1)
+			current_pose.theta = angle;
+		else
+			current_pose.theta = fov_poses.back().theta;
 
-		fow_poses.push_back(current_pose);
+		fov_poses.push_back(current_pose);
 	}
-
-	// todo: crash before this point observed
 
 	ROS_INFO("Found the cell paths.");
 
 	// if the path should be planned for the robot footprint create the path and return here
 	if(plan_for_footprint == true)
 	{
-		for(std::vector<geometry_msgs::Pose2D>::iterator pose=fow_poses.begin(); pose != fow_poses.end(); ++pose)
+		for(std::vector<geometry_msgs::Pose2D>::iterator pose=fov_poses.begin(); pose != fov_poses.end(); ++pose)
 		{
 			geometry_msgs::Pose2D current_pose;
 			current_pose.x = (pose->x * map_resolution) + map_origin.x;
@@ -755,12 +763,12 @@ void boustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	// *********************** V. Get the robot path out of the fow path. ***********************
 	// go trough all computed fow poses and compute the corresponding robot pose
 	ROS_INFO("Starting to map from field of view pose to robot pose");
-	mapPath(room_map, path, fow_poses, robot_to_fow_vector, map_resolution, map_origin, starting_position);
+	mapPath(room_map, path, fov_poses, robot_to_fow_vector, map_resolution, map_origin, starting_position);
 
 //	testing
 //	std::cout << "printing path" << std::endl;
 //	cv::Mat fow_path_map = room_map.clone();
-//	for(size_t i=0; i<fow_middlepoint_path.size()-1; ++i)
+//	for(size_t i=0; i<fov_middlepoint_path.size()-1; ++i)
 //	{
 //		cv::circle(fow_path_map, cv::Point(path[i].x/map_resolution, path[i].y/map_resolution), 2, cv::Scalar(200), CV_FILLED);
 //		cv::line(fow_path_map, cv::Point(path[i].x/map_resolution, path[i].y/map_resolution), cv::Point(path[i+1].x/map_resolution, path[i+1].y/map_resolution), cv::Scalar(100), 1);

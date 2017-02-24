@@ -86,7 +86,7 @@ class GeneralizedPolygon
 {
 protected:
 	// vertexes
-	std::vector<cv::Point> vertexes_;
+	std::vector<cv::Point> vertices_;
 
 	// edges
 	std::vector<cv::Point2d> edges_;
@@ -103,36 +103,36 @@ protected:
 
 public:
 	// constructor
-	GeneralizedPolygon(std::vector<cv::Point> vertexes)
+	GeneralizedPolygon(const std::vector<cv::Point>& vertices)
 	{
 		// save given vertexes
-		vertexes_ = vertexes;
+		vertices_ = vertices;
 
 		// get max/min x/y coordinates
 		max_x_ = 0;
-		min_x_ = 1e3;
+		min_x_ = 100000;
 		max_y_ = 0;
-		min_y_ = 1e3;
-		for(size_t point=0; point<vertexes_.size(); ++point)
+		min_y_ = 100000;
+		for(size_t point=0; point<vertices_.size(); ++point)
 		{
-			if(vertexes_[point].x > max_x_)
-				max_x_ = vertexes_[point].x;
-			if(vertexes_[point].y > max_y_)
-				max_y_ = vertexes_[point].y;
-			if(vertexes_[point].x < min_x_)
-				min_x_ = vertexes_[point].x;
-			if(vertexes_[point].y < min_y_)
-				min_y_ = vertexes_[point].y;
+			if(vertices_[point].x > max_x_)
+				max_x_ = vertices_[point].x;
+			if(vertices_[point].y > max_y_)
+				max_y_ = vertices_[point].y;
+			if(vertices_[point].x < min_x_)
+				min_x_ = vertices_[point].x;
+			if(vertices_[point].y < min_y_)
+				min_y_ = vertices_[point].y;
 		}
 
 		// compute vector to represent edges and find longest edge
 		double longest_squared_edge_length = 0.0;
-		for(unsigned int point = 0; point < vertexes.size(); ++point)
+		for(size_t point = 0; point < vertices.size(); ++point)
 		{
 			// construct edge
 			cv::Point2d current_vector;
-			current_vector.x = vertexes[(point+1)%vertexes.size()].x - vertexes[point].x;
-			current_vector.y= vertexes[(point+1)%vertexes.size()].y - vertexes[point].y;
+			current_vector.x = vertices[(point+1)%vertices.size()].x - vertices[point].x;
+			current_vector.y= vertices[(point+1)%vertices.size()].y - vertices[point].y;
 			edges_.push_back(current_vector);
 
 			// check if current edge is longer than the previous edges
@@ -191,7 +191,7 @@ public:
 		// compute visible center
 		MeanShift2D ms;
 		cv::Mat room = cv::Mat::zeros(max_y_+10, max_x_+10, CV_8UC1);
-		cv::drawContours(room, std::vector<std::vector<cv::Point> >(1,vertexes), -1, cv::Scalar(255), CV_FILLED);
+		cv::drawContours(room, std::vector<std::vector<cv::Point> >(1,vertices), -1, cv::Scalar(255), CV_FILLED);
 		cv::Mat distance_map; //variable for the distance-transformed map, type: CV_32FC1
 		cv::distanceTransform(room, distance_map, CV_DIST_L2, 5);
 		// find point set with largest distance to obstacles
@@ -216,7 +216,7 @@ public:
 
 	std::vector<cv::Point> getVertexes()
 	{
-		return vertexes_;
+		return vertices_;
 	}
 
 	std::vector<cv::Point2d> getEdges()
@@ -238,7 +238,7 @@ public:
 	{
 		// draw polygon in an black image with necessary size
 		cv::Mat black_image = cv::Mat(max_y_+10, max_x_+10, CV_8UC1, cv::Scalar(0));
-		cv::drawContours(black_image, std::vector<std::vector<cv::Point> >(1,vertexes_), -1, color, CV_FILLED);
+		cv::drawContours(black_image, std::vector<std::vector<cv::Point> >(1,vertices_), -1, color, CV_FILLED);
 
 		// assign drawn map
 		image = black_image.clone();

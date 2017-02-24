@@ -43,7 +43,7 @@ path_eps: 10.0
 #
 # min area a cell must have to be determined for the path generation
 # [pixel^2]
-min_cell_size: 0.5
+min_cell_size: 10.0
 
 # parameters specific for the neural network explorator, see "A Neural Network Approach to Complete Coverage Path Planning" from Simon X. Yang and Chaomin Luo
 #
