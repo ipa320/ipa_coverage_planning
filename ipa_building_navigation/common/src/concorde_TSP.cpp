@@ -44,7 +44,8 @@ void ConcordeTSPSolver::writeToFile(const cv::Mat& pathlength_matrix)
 {
 	std::string path_for_saving_file = "TSPlib_file.txt";//ros::package::getPath("libconcorde_tsp_solver") + "/common/files/TSPlib_file.txt";
 	std::ofstream saving_file(path_for_saving_file.c_str());
-	if (saving_file.is_open()) {
+	if (saving_file.is_open())
+	{
 		std::cout << "Starting to create the TSPlib file." << std::endl;
 		//specify name of the Problem, Type (TSP = symmetrical TSP) and add a comment to the file. Name and Type are neccessary, comment is for better understanding when you open the file.
 		saving_file << "NAME: ipa-building-navigation" << std::endl
@@ -57,8 +58,10 @@ void ConcordeTSPSolver::writeToFile(const cv::Mat& pathlength_matrix)
 		saving_file << "EDGE_WEIGHT_FORMAT: FULL_MATRIX" << std::endl;
 		saving_file << "EDGE_WEIGHT_SECTION" << std::endl;
 
-		for (int row = 0; row < pathlength_matrix.rows; row++) {
-			for (int col = 0; col < pathlength_matrix.cols; col++) {
+		for (int row = 0; row < pathlength_matrix.rows; row++)
+		{
+			for (int col = 0; col < pathlength_matrix.cols; col++)
+			{
 				saving_file << " "
 						<< (int) pathlength_matrix.at<double>(row, col);
 			}
@@ -73,6 +76,19 @@ void ConcordeTSPSolver::writeToFile(const cv::Mat& pathlength_matrix)
 	else
 	{
 		std::cout << "Saving file '" << path_for_saving_file << "' for concorde could not be opened." << std::endl;
+	}
+
+	// clear results file
+	std::string path_for_order_file = "TSP_order.txt";
+	std::ofstream reading_file(path_for_order_file.c_str()); //open file
+	if (reading_file.is_open())
+	{
+		reading_file << "";
+		reading_file.close();
+	}
+	else
+	{
+		std::cout << "Could not clear results file '" << path_for_order_file << "'." << std::endl;
 	}
 }
 
@@ -92,20 +108,23 @@ std::vector<int> ConcordeTSPSolver::readFromFile()
 
 	int line_counter = 0; //variable to make sure that the first line isn't stored
 
-	if (reading_file.is_open()) {
+	if (reading_file.is_open())
+	{
 		//get new line in the file
-		while (getline(reading_file, line)) {
+		while (getline(reading_file, line))
+		{
 			std::istringstream iss(line);
-			while (iss >> value) {
+			while (iss >> value)
+			{
 				if (line_counter > 0) //first line shows the number of nodes and is not relevant
-						{
 					order_vector.push_back(value); //put the current node in the last position of the order
-				}
 				line_counter++;
 			}
 		}
 		reading_file.close();
-	} else {
+	}
+	else
+	{
 		std::cout << "TSP order file '" << path_for_order_file << "' could not be opened." << std::endl;
 	}
 	return order_vector;
@@ -119,15 +138,15 @@ std::vector<int> ConcordeTSPSolver::readFromFile()
 //Navigate to the build Solver and then ./TSP and type ./concorde -h for a short explanation.
 
 //with a given distance matrix
-std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_Matrix, const int start_Node)
+std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_matrix, const int start_Node)
 {
 	std::vector<int> unsorted_order;
 	std::cout << "finding optimal order" << std::endl;
-	std::cout << "number of nodes: " << path_length_Matrix.rows << " start node: " << start_Node << std::endl;
-	if (path_length_Matrix.rows > 2) //check if the TSP has at least 3 nodes
+	std::cout << "number of nodes: " << path_length_matrix.rows << " start node: " << start_Node << std::endl;
+	if (path_length_matrix.rows > 2) //check if the TSP has at least 3 nodes
 	{
 		//create the TSPlib file
-		writeToFile(path_length_Matrix);
+		writeToFile(path_length_matrix);
 
 		//use concorde to find optimal tour
 		std::string bin_folder = ros::package::command("libs-only-L libconcorde_tsp_solver");
@@ -141,12 +160,22 @@ std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_
 	}
 	else
 	{
-		for(int node = 0; node < path_length_Matrix.rows; node++)
+		for(int node = 0; node < path_length_matrix.rows; node++)
 		{
 			unsorted_order.push_back(node);
 		}
 	}
-	std::cout << "found unsorted order" << std::endl;
+	std::cout << "finished TSP" << std::endl;
+
+	// if there is an error, just set unsorted order to 1, 2, 3, ...
+	if (unsorted_order.size() != path_length_matrix.rows)
+	{
+		unsorted_order.clear();
+		unsorted_order.resize(path_length_matrix.rows);
+		for (int i=0; i<path_length_matrix.rows; ++i)
+			unsorted_order[i] = i;
+	}
+
 	//sort the order with the start_Node at the beginning
 	std::vector<int> sorted_order;
 	unsigned int start_node_position;

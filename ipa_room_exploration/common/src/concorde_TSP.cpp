@@ -44,7 +44,8 @@ void ConcordeTSPSolver::writeToFile(const cv::Mat& pathlength_matrix)
 {
 	std::string path_for_saving_file = "TSPlib_file.txt";//ros::package::getPath("libconcorde_tsp_solver") + "/common/files/TSPlib_file.txt";
 	std::ofstream saving_file(path_for_saving_file.c_str());
-	if (saving_file.is_open()) {
+	if (saving_file.is_open())
+	{
 		std::cout << "Starting to create the TSPlib file." << std::endl;
 		//specify name of the Problem, Type (TSP = symmetrical TSP) and add a comment to the file. Name and Type are neccessary, comment is for better understanding when you open the file.
 		saving_file << "NAME: ipa-room_exploration" << std::endl
@@ -57,8 +58,10 @@ void ConcordeTSPSolver::writeToFile(const cv::Mat& pathlength_matrix)
 		saving_file << "EDGE_WEIGHT_FORMAT: FULL_MATRIX" << std::endl;
 		saving_file << "EDGE_WEIGHT_SECTION" << std::endl;
 
-		for (int row = 0; row < pathlength_matrix.rows; row++) {
-			for (int col = 0; col < pathlength_matrix.cols; col++) {
+		for (int row = 0; row < pathlength_matrix.rows; row++)
+		{
+			for (int col = 0; col < pathlength_matrix.cols; col++)
+			{
 				saving_file << " "
 						<< (int) pathlength_matrix.at<double>(row, col);
 			}
@@ -108,7 +111,8 @@ std::vector<int> ConcordeTSPSolver::readFromFile()
 	if (reading_file.is_open())
 	{
 		//get new line in the file
-		while (getline(reading_file, line)) {
+		while (getline(reading_file, line))
+		{
 			std::istringstream iss(line);
 			while (iss >> value)
 			{
