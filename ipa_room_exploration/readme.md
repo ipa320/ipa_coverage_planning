@@ -2,8 +2,8 @@
 
 1. Change the algorithm parameters in ros/launch/room_room_exploration_action_server_params.yaml in ros/launch to the wanted algorithms and settings.
 	* room_exploration_algorithm: Choose which exploration algorithm you want to use. 
-	* plan_for_footprint: Choose if you want to plan the coverage path for the fieldof view (fow) or the robot footprint. When planning for the fow, the generated path is transformed to robot poses, s.t. the given fow follows the generated path. 
-	* revisit_areas: Choose if you want to revisit areas, that haven't been covered bythe robot or the fow during the execution of the coverage path.
+	* plan_for_footprint: Choose if you want to plan the coverage path for the field of view (fov) or the robot footprint. When planning for the fov, the generated path is transformed to robot poses, s.t. the given fov follows the generated path. 
+	* revisit_areas: Choose if you want to revisit areas, that haven't been covered bythe robot or the fov during the execution of the coverage path.
 	       * left_sections_min_area: When the revisiting of areas is enabled, this parameter defines how small not covered ares can be, before they will not be taken into account any further. This is useful, when you rather want a fast execution, than a very detailed coverage. This parameter is in [meter^2].
 	* goal_eps: This parameter allows the action server to publish a new navigation goal, when the robot is in a specific range around the current goal. This allows the path to be more smoother, but of course not so exactly. If you don't want this feature, then simpply set this parameter to 0. This parameter is in [pixel].
 	* Each exploration algorithm has it's own specific parameters, see the ros/launch/room_room_exploration_action_server_params.yaml for further descriptions of these. 

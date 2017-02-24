@@ -28,7 +28,7 @@ protected:
 	ros::NodeHandle node_handle_;
 
 	// function to draw the covered areas into the given map, when checking for the field of view, done by doing a raycasting between the
-	// fow origin and the fow
+	// fov origin and the fov
 	void drawSeenPoints(cv::Mat& reachable_areas_map, const std::vector<geometry_msgs::Pose2D>& robot_poses,
 			const std::vector<geometry_msgs::Point32>& field_of_view_points, const Eigen::Matrix<float, 2, 1> raycasting_corner_1,
 			const Eigen::Matrix<float, 2, 1> raycasting_corner_2, const float map_resolution, const cv::Point2d map_origin,

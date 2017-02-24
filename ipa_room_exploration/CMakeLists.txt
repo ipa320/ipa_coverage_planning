@@ -114,7 +114,7 @@ add_executable(room_exploration_server ros/src/room_exploration_action_server.cp
 					common/src/flow_network_explorator.cpp
 					common/src/energy_functional_explorator.cpp
 					common/src/meanshift2d.cpp
-					ros/src/fow_to_robot_mapper.cpp
+					ros/src/fov_to_robot_mapper.cpp
 					common/src/A_star_pathplanner.cpp common/src/node.cpp
 					common/src/concorde_TSP.cpp
 					common/src/nearest_neighbor_TSP.cpp)

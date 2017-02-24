@@ -8,7 +8,7 @@
 #include <Eigen/Dense>
 
 #include <ipa_room_exploration/meanshift2d.h>
-#include <ipa_room_exploration/fow_to_robot_mapper.h>
+#include <ipa_room_exploration/fov_to_robot_mapper.h>
 
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>
@@ -134,5 +134,5 @@ public:
 	// the robot should drive at.
 	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
 			const cv::Point starting_position, const cv::Point2d map_origin, const float fitting_circle_radius,
-			const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fow_vector);
+			const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector);
 };

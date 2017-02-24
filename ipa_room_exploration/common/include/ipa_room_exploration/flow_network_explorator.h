@@ -23,7 +23,7 @@
 #include <boost/graph/strong_components.hpp>
 #include <boost/graph/adjacency_list.hpp>
 // package specific includes
-#include <ipa_room_exploration/fow_to_robot_mapper.h>
+#include <ipa_room_exploration/fov_to_robot_mapper.h>
 #include <ipa_room_exploration/A_star_pathplanner.h>
 #include <ipa_room_exploration/distance_matrix.h>
 #include <ipa_room_exploration/contains.h>
@@ -165,7 +165,7 @@ public:
 	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
 				const cv::Point starting_position, const cv::Point2d map_origin,
 				const int cell_size, const geometry_msgs::Polygon& room_min_max_coordinates,
-				const Eigen::Matrix<float, 2, 1>& robot_to_fow_middlepoint_vector, const float coverage_radius,
+				const Eigen::Matrix<float, 2, 1>& robot_to_fov_middlepoint_vector, const float coverage_radius,
 				const bool plan_for_footprint, const double path_eps, const double curvature_factor);
 
 	// test function

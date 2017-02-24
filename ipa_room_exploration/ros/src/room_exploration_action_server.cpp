@@ -192,7 +192,7 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 // because it allows to calculate where the robot field of view has theoretically been and identify positions of the map that
 // the robot hasn't seen.
 bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& nav_goal, const std::string map_frame,
-		const std::string camera_frame, std::vector<geometry_msgs::Pose2D>& robot_poses, const double robot_to_fow_middlepoint_distance,
+		const std::string camera_frame, std::vector<geometry_msgs::Pose2D>& robot_poses, const double robot_to_fov_middlepoint_distance,
 		const double eps, const bool perimeter_check)
 {
 	// move base client, that sends navigation goals to a move_base action server
@@ -268,20 +268,20 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 		ROS_INFO("current goal could be reached.");
 		return true;
 	}
-	// if the goal couldn't be reached, find another point around the desired fow-position
+	// if the goal couldn't be reached, find another point around the desired fov-position
 	else if(perimeter_check == true)
 	{
 		ROS_INFO("current goal could not be reached, checking for other goal.");
 
-		// get the desired fow-position
+		// get the desired fov-position
 		geometry_msgs::Pose2D relative_vector;
-		relative_vector.x = std::cos(nav_goal.theta)*robot_to_fow_middlepoint_distance;
-		relative_vector.y = std::sin(nav_goal.theta)*robot_to_fow_middlepoint_distance;
+		relative_vector.x = std::cos(nav_goal.theta)*robot_to_fov_middlepoint_distance;
+		relative_vector.y = std::sin(nav_goal.theta)*robot_to_fov_middlepoint_distance;
 		geometry_msgs::Pose2D center;
 		center.x = nav_goal.x + relative_vector.x;
 		center.y = nav_goal.y + relative_vector.y;
 
-		// check for another robot pose to reach the desired fow-position
+		// check for another robot pose to reach the desired fov-position
 		std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";
 		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Response response;
 		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
@@ -289,7 +289,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 
 		if(plan_for_footprint_ == false)
 		{
-			check_request.radius = robot_to_fow_middlepoint_distance;
+			check_request.radius = robot_to_fov_middlepoint_distance;
 			check_request.rotational_sampling_step = PI/8;
 		}
 		else
@@ -375,30 +375,30 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	int grid_length;
 	float fitting_circle_radius;
 	Eigen::Matrix<float, 2, 1> middle_point;
-	std::vector<Eigen::Matrix<float, 2, 1> > fow_vectors;
+	std::vector<Eigen::Matrix<float, 2, 1> > fov_vectors;
 	Eigen::Matrix<float, 2, 1> middle_point_1, middle_point_2, middle_point_3, middle_point_4;
-	if(plan_for_footprint_ == false) // read out the given fow-vectors, if needed
+	if(plan_for_footprint_ == false) // read out the given fov-vectors, if needed
 	{
 		for(int i = 0; i < 4; ++i)
 		{
 			Eigen::Matrix<float, 2, 1> current_vector;
 			current_vector << goal->field_of_view[i].x, goal->field_of_view[i].y;
-			fow_vectors.push_back(current_vector);
+			fov_vectors.push_back(current_vector);
 		}
 		// Get the size of one grid s.t. the grid can be completely covered by the field of view (fov) from all rotations around it. For this
-		// fit a circle in the fow, which gives the diagonal length of the square. Then use Pythagoras to get the
-		// fow middle point
-		middle_point = (fow_vectors[0] + fow_vectors[1] + fow_vectors[2] + fow_vectors[3]) / 4;
+		// fit a circle in the fov, which gives the diagonal length of the square. Then use Pythagoras to get the
+		// fov middle point
+		middle_point = (fov_vectors[0] + fov_vectors[1] + fov_vectors[2] + fov_vectors[3]) / 4;
 //		std::cout << "middle point: " << middle_point << std::endl;
 
-		// get middle points of edges of the fow
-		middle_point_1 = (fow_vectors[0] + fow_vectors[1]) / 2;
-		middle_point_2 = (fow_vectors[1] + fow_vectors[2]) / 2;
-		middle_point_3 = (fow_vectors[2] + fow_vectors[3]) / 2;
-		middle_point_4 = (fow_vectors[3] + fow_vectors[0]) / 2;
+		// get middle points of edges of the fov
+		middle_point_1 = (fov_vectors[0] + fov_vectors[1]) / 2;
+		middle_point_2 = (fov_vectors[1] + fov_vectors[2]) / 2;
+		middle_point_3 = (fov_vectors[2] + fov_vectors[3]) / 2;
+		middle_point_4 = (fov_vectors[3] + fov_vectors[0]) / 2;
 //		std::cout << "middle-points: " << std::endl << middle_point_1 << " (" << middle_point - middle_point_1 << ")" << std::endl << middle_point_2 << " (" << middle_point - middle_point_2 << ")" << std::endl << middle_point_3 << " (" << middle_point - middle_point_3 << ")" << std::endl << middle_point_4 << " (" << middle_point - middle_point_4 << ")" << std::endl;
 
-		// get the radius of the circle in the fow as min distance from the fow-middle point to the edge middle points
+		// get the radius of the circle in the fov as min distance from the fov-middle point to the edge middle points
 		float distance_1 = (middle_point - middle_point_1).norm();
 		float distance_2 = (middle_point - middle_point_2).norm();
 		float distance_3 = (middle_point - middle_point_3).norm();
@@ -454,16 +454,16 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	{
 		// find the maximum angle that is spanned between the closer or more distant corners, used to determine the visibility of cells
 		float max_angle = 0.0;
-		float dot = fow_vectors[0].transpose()*fow_vectors[1];
-		float abs = fow_vectors[0].norm()*fow_vectors[1].norm();
+		float dot = fov_vectors[0].transpose()*fov_vectors[1];
+		float abs = fov_vectors[0].norm()*fov_vectors[1].norm();
 		float quotient = dot/abs;
 		if(quotient > 1) // prevent errors resulting from round errors
 			quotient = 1;
 		else if(quotient < -1)
 			quotient = -1;
 		float angle_1 = std::acos(quotient);
-		dot = fow_vectors[2].transpose()*fow_vectors[3];
-		abs = fow_vectors[2].norm()*fow_vectors[3].norm();
+		dot = fov_vectors[2].transpose()*fov_vectors[3];
+		abs = fov_vectors[2].norm()*fov_vectors[3].norm();
 		quotient = dot/abs;
 		if(quotient > 1) // prevent errors resulting from round errors
 			quotient = 1;
@@ -478,7 +478,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 		// plan coverage path
 		if(plan_for_footprint_ == false)
-			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, delta_theta_, min_max_coordinates, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fow_vectors[3].norm(), 7, false);
+			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, delta_theta_, min_max_coordinates, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fov_vectors[3].norm(), 7, false);
 		else
 			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, delta_theta_, min_max_coordinates, goal->footprint, middle_point, max_angle, 0.0, goal->coverage_radius/map_resolution, 7, true);
 	}
@@ -513,26 +513,26 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		// TODO: find nearest pose to starting-position and start there
 		if(plan_for_footprint_==false)
 		{
-			// convert fow-radius to pixel integer
-			int fow_radius_as_int = (int) std::floor(fitting_circle_radius/map_resolution);
-			std::cout << "fow radius in pixel: " << fow_radius_as_int << std::endl;
+			// convert fov-radius to pixel integer
+			int fov_radius_as_int = (int) std::floor(fitting_circle_radius/map_resolution);
+			std::cout << "fov radius in pixel: " << fov_radius_as_int << std::endl;
 
 			// create the object that plans the path, based on the room-map
-			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, fow_radius_as_int); // radius in pixel
+			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, fov_radius_as_int); // radius in pixel
 
 			// get the exploration path
-			std::vector<geometry_msgs::Pose2D> fow_path;
-			vm.generatePath(fow_path, cv::Mat());
+			std::vector<geometry_msgs::Pose2D> fov_path;
+			vm.generatePath(fov_path, cv::Mat());
 
-			// map fow-path to robot-path
-			cv::Point start_pos(fow_path.begin()->x, fow_path.begin()->y);
-			mapPath(room_map, exploration_path, fow_path, middle_point, map_resolution, map_origin, start_pos);
-//			for(size_t pos=0; pos<fow_path.size(); ++pos)
+			// map fov-path to robot-path
+			cv::Point start_pos(fov_path.begin()->x, fov_path.begin()->y);
+			mapPath(room_map, exploration_path, fov_path, middle_point, map_resolution, map_origin, start_pos);
+//			for(size_t pos=0; pos<fov_path.size(); ++pos)
 //			{
 //				geometry_msgs::Pose2D current_pose;
-//				current_pose.x = (fow_path[pos].x * map_resolution) + map_origin.x;
-//				current_pose.y = (fow_path[pos].y * map_resolution) + map_origin.y;
-//				current_pose.theta = fow_path[pos].theta;
+//				current_pose.x = (fov_path[pos].x * map_resolution) + map_origin.x;
+//				current_pose.y = (fov_path[pos].y * map_resolution) + map_origin.y;
+//				current_pose.theta = fov_path[pos].theta;
 //				exploration_path.push_back(current_pose);
 //			}
 		}
@@ -586,7 +586,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
 	// 1. publish navigation goals
-	double distance_robot_fow_middlepoint = middle_point.norm();
+	double distance_robot_fov_middlepoint = middle_point.norm();
 	std::vector<geometry_msgs::Pose2D> robot_poses;
 	for(size_t nav_goal = 0; nav_goal < exploration_path.size(); ++nav_goal)
 	{
@@ -608,7 +608,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			ROS_INFO("Interrupt order canceled, resuming coverage path now.");
 
 		// if no interrupt is wanted, publish the navigation goal
-		publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->camera_frame, robot_poses, distance_robot_fow_middlepoint, goal_eps_, true); // eps = 0.35
+		publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->camera_frame, robot_poses, distance_robot_fov_middlepoint, goal_eps_, true); // eps = 0.35
 	}
 
 	std::cout << "published all navigation goals, starting to check seen area" << std::endl;
@@ -711,8 +711,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		// apply a binary filter on the image, making the drawn seen areas black
 		cv::threshold(seen_positions_map, seen_positions_map, 150, 255, cv::THRESH_BINARY);
 
-		// ***************** IV. Find left areas and lay a grid over it, then plan a path trough all grids s.t. they can be covered by the fow. *****************
-		// 1. find regions with an area that is bigger than a defined value, which have not been seen by the fow.
+		// ***************** IV. Find left areas and lay a grid over it, then plan a path trough all grids s.t. they can be covered by the fov. *****************
+		// 1. find regions with an area that is bigger than a defined value, which have not been seen by the fov.
 		// 	  hierarchy[{0,1,2,3}]={next contour (same level), previous contour (same level), child contour, parent contour}
 		// 	  child-contour = 1 if it has one, = -1 if not, same for parent_contour
 		std::vector < std::vector<cv::Point> > left_areas, areas_to_revisit;
@@ -826,7 +826,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		std::vector<int> revisiting_order = tsp_solver.solveConcordeTSP(costmap_as_mat, area_centers, 0.25, 0.0, map_resolution, min_index, 0);
 
 		// 5. go to each center and use the map_accessability_server to find a robot pose around it s.t. it can be covered
-		//	  by the fow
+		//	  by the fov
 		double pi_8 = PI/8;
 		std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";
 	//	robot_poses.clear();
@@ -842,7 +842,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			check_request.center = current_center;
 			if(plan_for_footprint_ == false)
 			{
-				check_request.radius = distance_robot_fow_middlepoint;
+				check_request.radius = distance_robot_fov_middlepoint;
 				check_request.rotational_sampling_step = pi_8;
 			}
 			else

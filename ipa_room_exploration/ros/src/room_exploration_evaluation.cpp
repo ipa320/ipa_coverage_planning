@@ -116,7 +116,7 @@ struct ExplorationData
 	double robot_radius_;
 	double robot_speed_; // [m/s]
 	double rotation_speed_; // [rad/s]
-	std::vector<geometry_msgs::Point32> fow_points_;
+	std::vector<geometry_msgs::Point32> fov_points_;
 
 	// empty values as default
 	ExplorationData()
@@ -133,7 +133,7 @@ struct ExplorationData
 
 	// set data used in this evaluation
 	ExplorationData(const std::string map_name, const cv::Mat floor_plan, const float map_resolution, const double robot_radius,
-			const std::vector<geometry_msgs::Point32>& fow_points)
+			const std::vector<geometry_msgs::Point32>& fov_points)
 	{
 		map_name_ = map_name;
 		floor_plan_ = floor_plan;
@@ -141,7 +141,7 @@ struct ExplorationData
 		robot_radius_ = robot_radius;
 		robot_speed_ = 0.3;
 		rotation_speed_ = 0.1;
-		fow_points_ = fow_points;
+		fov_points_ = fov_points;
 		map_origin_.position.x = 0;
 		map_origin_.position.y = 0;
 		cv::Mat map_eroded;
@@ -191,7 +191,7 @@ public:
 
 
 	ExplorationEvaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::string& data_storage_path,
-			const double robot_radius, const std::vector<int>& exploration_algorithms, const std::vector<geometry_msgs::Point32>& fow_points)
+			const double robot_radius, const std::vector<int>& exploration_algorithms, const std::vector<geometry_msgs::Point32>& fov_points)
 	{
 		// set node-handle
 		node_handle_ = nh;
@@ -267,7 +267,7 @@ public:
 			}
 
 			// create evaluation data
-			evaluation_datas.push_back(ExplorationData(map_names[image_index], map, 0.05, robot_radius, fow_points));
+			evaluation_datas.push_back(ExplorationData(map_names[image_index], map, 0.05, robot_radius, fov_points));
 		}
 
 		// get the room maps for each evaluation data
@@ -505,16 +505,16 @@ public:
 			std::vector<EvaluationResults>& results, const std::string data_storage_path)
 	{
 		// find the middle-point distance of the given field of view
-		std::vector<Eigen::Matrix<float, 2, 1> > fow_vectors;
+		std::vector<Eigen::Matrix<float, 2, 1> > fov_vectors;
 		for(int i = 0; i < 4; ++i)
 		{
 			Eigen::Matrix<float, 2, 1> current_vector;
-			current_vector << datas.fow_points_[i].x, datas.fow_points_[i].y;
-			fow_vectors.push_back(current_vector);
+			current_vector << datas.fov_points_[i].x, datas.fov_points_[i].y;
+			fov_vectors.push_back(current_vector);
 		}
 		// get the distance to the middle-point
-		Eigen::Matrix<float, 2, 1> middle_point = (fow_vectors[0] + fow_vectors[1] + fow_vectors[2] + fow_vectors[3]) / 4;
-		double distance_robot_fow_middlepoint = middle_point.norm();
+		Eigen::Matrix<float, 2, 1> middle_point = (fov_vectors[0] + fov_vectors[1] + fov_vectors[2] + fov_vectors[3]) / 4;
+		double distance_robot_fov_middlepoint = middle_point.norm();
 
 		for(std::vector<ExplorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
 		{
@@ -707,19 +707,19 @@ public:
 					{
 						// get the desired fov-position
 						geometry_msgs::Pose2D relative_vector;
-						relative_vector.x = std::cos(pose->theta)*distance_robot_fow_middlepoint;
-						relative_vector.y = std::sin(pose->theta)*distance_robot_fow_middlepoint;
+						relative_vector.x = std::cos(pose->theta)*distance_robot_fov_middlepoint;
+						relative_vector.y = std::sin(pose->theta)*distance_robot_fov_middlepoint;
 						geometry_msgs::Pose2D center;
 						center.x = pose->x + relative_vector.x;
 						center.y = pose->y + relative_vector.y;
 
-						// check for another robot pose to reach the desired fow-position
+						// check for another robot pose to reach the desired fov-position
 						std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";
 						cob_map_accessibility_analysis::CheckPerimeterAccessibility::Response response;
 						cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
 						check_request.center = center;
 
-						check_request.radius = distance_robot_fow_middlepoint;
+						check_request.radius = distance_robot_fov_middlepoint;
 						check_request.rotational_sampling_step = PI/8;
 
 						// send request
@@ -909,7 +909,7 @@ public:
 				service_image = cv_image.toImageMsg();
 				coverage_request.input_map = *service_image;
 				coverage_request.path = interpolated_paths[path_index];
-				coverage_request.field_of_view = datas.fow_points_;
+				coverage_request.field_of_view = datas.fov_points_;
 				coverage_request.map_origin = origin;
 				coverage_request.map_resolution = datas.map_resolution_;
 				coverage_request.check_for_footprint = false;
@@ -1287,7 +1287,7 @@ public:
 		goal.map_resolution = evaluation_data.map_resolution_;
 		goal.robot_radius = evaluation_data.robot_radius_;
 		goal.room_min_max = min_max_points;
-		goal.field_of_view = evaluation_data.fow_points_;
+		goal.field_of_view = evaluation_data.fov_points_;
 		goal.region_of_interest_coordinates = region_of_interest;
 		goal.return_path = true;
 		goal.execute_path = false;
@@ -1355,7 +1355,7 @@ int main(int argc, char **argv)
 	const std::string data_storage_path = "room_exploration_evaluation/";
 	//ExplorationEvaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::string& data_storage_path,
 //	const double robot_radius, const std::vector<int>& segmentation_algorithms, const std::vector<int>& exploration_algorithms,
-//	const std::vector<geometry_msgs::Point32>& fow_points)
+//	const std::vector<geometry_msgs::Point32>& fov_points)
 	std::vector<int> exploration_algorithms;
 	for(int i=2; i<=2; ++i)
 	{
@@ -1365,18 +1365,7 @@ int main(int argc, char **argv)
 
 		exploration_algorithms.push_back(i);
 	}
-//	geometry_msgs::Point32 fov_point_1;// geometry_msgs::Point32(0.3, 0.3);
-//	fov_point_1.x = 0.1;
-//	fov_point_1.y = 0.5;
-//	geometry_msgs::Point32 fov_point_2;// = geometry_msgs::Point32(0.3, -0.3);
-//	fov_point_2.x = 0.1;
-//	fov_point_2.y = -0.5;
-//	geometry_msgs::Point32 fov_point_3;// = geometry_msgs::Point32(0.7, 0.7);
-//	fov_point_3.x = 0.6;
-//	fov_point_3.y = -0.75;
-//	geometry_msgs::Point32 fov_point_4;// = geometry_msgs::Point32(0.7, -0.7);
-//	fov_point_4.x = 0.6;
-//	fov_point_4.y = 0.75;
+
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
 	// measures in [m]
 	std::vector<geometry_msgs::Point32> fov_points(4);

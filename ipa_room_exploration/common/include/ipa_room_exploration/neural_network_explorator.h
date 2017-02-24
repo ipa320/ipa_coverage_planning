@@ -13,7 +13,7 @@
 #include <Eigen/Dense>
 
 #include <ipa_room_exploration/neuron_class.h>
-#include <ipa_room_exploration/fow_to_robot_mapper.h>
+#include <ipa_room_exploration/fov_to_robot_mapper.h>
 
 /*!
  *****************************************************************
@@ -97,7 +97,7 @@ inline bool operator==(const geometry_msgs::Pose2D& A, const geometry_msgs::Pose
 // neuron that needs to be visited. Going then trough the space over time produces a path that covers all neurons, see
 // the stated paper for reference.
 // This class provides the functionality to provide a room map and discretize it into several neurons, based on the given
-// sampling distance and the radius of the robot/field-of-view (assuming that the footprint/fow gets approximated by a
+// sampling distance and the radius of the robot/field-of-view (assuming that the footprint/fov gets approximated by a
 // inner circle). After this the coverage path gets computed based on the stated paper. This implementation only provides
 // a static path, any reaction to unexpected behavior (e.g. sudden obstacles) need to be done in an upper program.
 //
@@ -142,6 +142,6 @@ public:
 	// the robot should drive at.
 	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
 					 const cv::Point starting_position, const cv::Point2d map_origin, const float fitting_circle_radius,
-					 const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fow_vector,
+					 const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector,
 					 const geometry_msgs::Polygon room_min_max_coordinates, bool show_path_evolution=false);
 };

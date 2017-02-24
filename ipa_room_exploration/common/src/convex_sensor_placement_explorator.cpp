@@ -105,12 +105,12 @@ void convexSPPExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::
 //		path trough all of them. The path is created by applying a repetitive nearest neighbor algorithm. This algorithm
 //		solves a TSP for the chosen poses, with each pose being the start node once. Out of the computed paths then the
 //		shortest is chosen, which is an hamiltonian cycle trough the graph. After this path has been obtained, determine
-//		the pose in the cycle that is closest to the start position, which becomes the start of the fow-path.
+//		the pose in the cycle that is closest to the start position, which becomes the start of the fov-path.
 void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
 		const float map_resolution, const cv::Point starting_position, const cv::Point2d map_origin,
 		const int cell_size, const double delta_theta, const geometry_msgs::Polygon& room_min_max_coordinates,
-		const std::vector<geometry_msgs::Point32>& footprint, const Eigen::Matrix<float, 2, 1>& robot_to_fow_middlepoint_vector,
-		const double max_fow_angle, const double smallest_robot_to_footprint_distance, const double largest_robot_to_footprint_distance,
+		const std::vector<geometry_msgs::Point32>& footprint, const Eigen::Matrix<float, 2, 1>& robot_to_fov_middlepoint_vector,
+		const double max_fov_angle, const double smallest_robot_to_footprint_distance, const double largest_robot_to_footprint_distance,
 		const uint sparsity_check_range, const bool plan_for_footprint)
 {
 	// ************* I. Go trough the map and discretize it. *************
@@ -155,19 +155,19 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		R << cos_theta, -sin_theta, sin_theta, cos_theta;
 
 		// transform field of view points, if the planning should be done for the field of view
-		std::vector<cv::Point> transformed_fow_points;
+		std::vector<cv::Point> transformed_fov_points;
 		Eigen::Matrix<float, 2, 1> pose_as_matrix;
 		if(plan_for_footprint==false)
 		{
 			pose_as_matrix << (pose->x*map_resolution)+map_origin.x, (pose->y*map_resolution)+map_origin.y; // convert to [meter]
 			for(size_t point = 0; point < footprint.size(); ++point)
 			{
-				// transform fow-point from geometry_msgs::Point32 to Eigen::Matrix
-				Eigen::Matrix<float, 2, 1> fow_point;
-				fow_point << footprint[point].x, footprint[point].y;
+				// transform fov-point from geometry_msgs::Point32 to Eigen::Matrix
+				Eigen::Matrix<float, 2, 1> fov_point;
+				fov_point << footprint[point].x, footprint[point].y;
 
 				// linear transformation
-				Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R * fow_point;
+				Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R * fov_point;
 
 				// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
 				// values
@@ -176,18 +176,18 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 				current_point.y = std::max(current_point.y, 0);
 				current_point.x = std::min(current_point.x, room_map.cols);
 				current_point.y = std::min(current_point.y, room_map.rows);
-				transformed_fow_points.push_back(current_point);
+				transformed_fov_points.push_back(current_point);
 			}
 		}
 
-		// for each pose check the cells that are closer than the max distance from robot to fow-corner and more far away
-		// than the min distance, also only check points that span an angle to the robot-to-fow vector smaller than the
+		// for each pose check the cells that are closer than the max distance from robot to fov-corner and more far away
+		// than the min distance, also only check points that span an angle to the robot-to-fov vector smaller than the
 		// max found angle to the corners
 		// when planning for the robot footprint simply check if it is smaller away to the pose than the given coverage
 		// radius
 //		cv::Mat black_map = cv::Mat(room_map.rows, room_map.cols, room_map.type(), cv::Scalar(0));
 //		cv::circle(black_map, cv::Point(pose->x, pose->y), 3, cv::Scalar(200), CV_FILLED);
-//		cv::fillConvexPoly(black_map, transformed_fow_points, cv::Scalar(150));
+//		cv::fillConvexPoly(black_map, transformed_fov_points, cv::Scalar(150));
 		for(std::vector<cv::Point>::iterator neighbor=cell_centers.begin(); neighbor!=cell_centers.end(); ++neighbor)
 		{
 			// compute pose to neighbor vector
@@ -196,7 +196,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 			double distance = pose_to_neighbor.norm();
 
 			// if neighbor is in the possible distance range check it further, distances given in [meter], when planning
-			// for the fow
+			// for the fov
 			if(distance > smallest_robot_to_footprint_distance/map_resolution &&
 					distance <= largest_robot_to_footprint_distance/map_resolution && plan_for_footprint==false)
 			{
@@ -204,9 +204,9 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 
 
 				// rotate the vector from the robot to the field of view middle point
-				Eigen::Matrix<float, 2, 1> transformed_robot_to_middlepoint_vector = R * robot_to_fow_middlepoint_vector;
+				Eigen::Matrix<float, 2, 1> transformed_robot_to_middlepoint_vector = R * robot_to_fov_middlepoint_vector;
 
-				// compute angle between the rotated robot-to-fow vector and the robot-to-neighbor vector
+				// compute angle between the rotated robot-to-fov vector and the robot-to-neighbor vector
 				float dot = transformed_robot_to_middlepoint_vector.transpose()*pose_to_neighbor;
 				float abs = transformed_robot_to_middlepoint_vector.norm()*pose_to_neighbor.norm();
 				float quotient = dot/abs;
@@ -218,9 +218,9 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 
 				// if this angle is smaller than the given max angle then check if this point is inside the transformed
 				// field of view
-				if(angle <= max_fow_angle)
+				if(angle <= max_fov_angle)
 				{
-					if(cv::pointPolygonTest(transformed_fow_points, *neighbor, false) >= 0) // point inside
+					if(cv::pointPolygonTest(transformed_fov_points, *neighbor, false) >= 0) // point inside
 					{
 						// check if the line from the robot pose to the neighbor crosses an obstacle, if so it is not
 						// observable from the pose
@@ -241,7 +241,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 					else // point outside the field of view
 						V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 0;
 				}
-				else // point spans too big angle with middle point vector to be inside the fow
+				else // point spans too big angle with middle point vector to be inside the fov
 					V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 0;
 			}
 			// check if neighbor is covered by footprint when planning for it
@@ -249,7 +249,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 			{
 				V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 1;
 			}
-			else // point not in the right range to be inside the fow
+			else // point not in the right range to be inside the fov
 				V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 0;
 		}
 //		cv::imshow("observable cells", black_map);
@@ -458,17 +458,17 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 //		R << cos_theta, -sin_theta, sin_theta, cos_theta;
 //
 //		// transform field of view points
-//		std::vector<cv::Point> transformed_fow_points;
+//		std::vector<cv::Point> transformed_fov_points;
 //		Eigen::Matrix<float, 2, 1> pose_as_matrix;
 //		pose_as_matrix << (pose->x*map_resolution)+map_origin.x, (pose->y*map_resolution)+map_origin.y; // convert to [meter]
 //		for(size_t point = 0; point < footprint.size(); ++point)
 //		{
-//			// transform fow-point from geometry_msgs::Point32 to Eigen::Matrix
-//			Eigen::Matrix<float, 2, 1> fow_point;
-//			fow_point << footprint[point].x, footprint[point].y;
+//			// transform fov-point from geometry_msgs::Point32 to Eigen::Matrix
+//			Eigen::Matrix<float, 2, 1> fov_point;
+//			fov_point << footprint[point].x, footprint[point].y;
 //
 //			// linear transformation
-//			Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R * fow_point;
+//			Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R * fov_point;
 //
 //			// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
 //			// values
@@ -477,13 +477,13 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 //			current_point.y = std::max(current_point.y, 0);
 //			current_point.x = std::min(current_point.x, room_map.cols);
 //			current_point.y = std::min(current_point.y, room_map.rows);
-//			transformed_fow_points.push_back(current_point);
+//			transformed_fov_points.push_back(current_point);
 //		}
 //
 //		// rotate the vector from the robot to the field of view middle point
-//		Eigen::Matrix<float, 2, 1> transformed_robot_to_middlepoint_vector = R * robot_to_fow_middlepoint_vector;
+//		Eigen::Matrix<float, 2, 1> transformed_robot_to_middlepoint_vector = R * robot_to_fov_middlepoint_vector;
 //
-//		cv::fillConvexPoly(test_map, transformed_fow_points, cv::Scalar(200));
+//		cv::fillConvexPoly(test_map, transformed_fov_points, cv::Scalar(200));
 //	}
 //	for(size_t i=0; i<cell_centers.size(); ++i)
 //		cv::circle(test_map, cell_centers[i], 2, cv::Scalar(100), CV_FILLED);

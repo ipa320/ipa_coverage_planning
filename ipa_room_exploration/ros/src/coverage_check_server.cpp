@@ -29,17 +29,17 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 		R << cos_theta, -sin_theta, sin_theta, cos_theta;
 
 		// transform field of view points
-		std::vector<cv::Point> transformed_fow_points;
+		std::vector<cv::Point> transformed_fov_points;
 		Eigen::Matrix<float, 2, 1> pose_as_matrix;
 		pose_as_matrix << current_pose->x, current_pose->y;
 		for(size_t point = 0; point < field_of_view_points.size(); ++point)
 		{
-			// transform fow-point from geometry_msgs::Point32 to Eigen::Matrix
-			Eigen::Matrix<float, 2, 1> fow_point;
-			fow_point << field_of_view_points[point].x, field_of_view_points[point].y;
+			// transform fov-point from geometry_msgs::Point32 to Eigen::Matrix
+			Eigen::Matrix<float, 2, 1> fov_point;
+			fov_point << field_of_view_points[point].x, field_of_view_points[point].y;
 
 			// linear transformation
-			Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R * fow_point;
+			Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R * fov_point;
 
 			// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
 			// values
@@ -48,7 +48,7 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 			current_point.y = std::max(current_point.y, 0);
 			current_point.x = std::min(current_point.x, reachable_areas_map.cols);
 			current_point.y = std::min(current_point.y, reachable_areas_map.rows);
-			transformed_fow_points.push_back(current_point);
+			transformed_fov_points.push_back(current_point);
 //			std::cout << current_point << std::endl;
 		}
 //		std::cout << std::endl;
@@ -86,7 +86,7 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 			// use openCVs bresenham algorithm to find the points from the robot pose to the goal
 			cv::LineIterator ray_points(reachable_areas_map, pose_cv , *goal, 8);
 
-			// go trough the points on the ray and draw them if they are inside the fow, stop the current for-step when a black
+			// go trough the points on the ray and draw them if they are inside the fov, stop the current for-step when a black
 			// pixel is hit (an obstacle stops the camera from seeing whats behind)
 			bool hit_white = false;
 			for(size_t point = 0; point < ray_points.count; point++, ++ray_points)
@@ -98,7 +98,7 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 				{
 					break;
 				}
-				else if (reachable_areas_map.at<uchar>(current_point) > 0 && cv::pointPolygonTest(transformed_fow_points, current_point, false) >= 0)
+				else if (reachable_areas_map.at<uchar>(current_point) > 0 && cv::pointPolygonTest(transformed_fov_points, current_point, false) >= 0)
 				{
 					reachable_areas_map.at<uchar>(current_point) = 127;
 
@@ -138,7 +138,7 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 		pose_as_matrix << pose->x, pose->y;
 		for(size_t point = 0; point < robot_footprint.size(); ++point)
 		{
-			// transform fow-point from geometry_msgs::Point32 to Eigen::Matrix
+			// transform fov-point from geometry_msgs::Point32 to Eigen::Matrix
 			Eigen::Matrix<float, 2, 1> footprint_point;
 			footprint_point << robot_footprint[point].x, robot_footprint[point].y;
 
@@ -176,37 +176,37 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 // Callback function for the server.
 bool coverageCheckServer::checkCoverage(ipa_building_msgs::checkCoverageRequest& request, ipa_building_msgs::checkCoverageResponse& response)
 {
-	// When checking for the field of view, find two points behind the end of the fow to get raycasting goals. These two points span
-	// a line behind the fow, that provides the raycasting goals. By designing it this way, it is guaranteed to cover the whole fow with
-	// this procedure. The raycasting allows to check if the view was blocked by an obstacle and thus not the whole given fow-polygon has
+	// When checking for the field of view, find two points behind the end of the fov to get raycasting goals. These two points span
+	// a line behind the fov, that provides the raycasting goals. By designing it this way, it is guaranteed to cover the whole fov with
+	// this procedure. The raycasting allows to check if the view was blocked by an obstacle and thus not the whole given fov-polygon has
 	// to be drawn into the map.
 	//		Get points that define the edge-points of the line the raycasting should go to, by computing the intersection of two
-	//		lines: the line defined by the robot pose and the fow-point that spans the highest angle and a line parallel to the
-	//		front side of the fow with an offset.
+	//		lines: the line defined by the robot pose and the fov-point that spans the highest angle and a line parallel to the
+	//		front side of the fov with an offset.
 	Eigen::Matrix<float, 2, 1> corner_point_1, corner_point_2;
 	if(request.check_for_footprint==false)
 	{
-		// convert given fow to Eigen format
-		std::vector<Eigen::Matrix<float, 2, 1> > fow_vectors;
+		// convert given fov to Eigen format
+		std::vector<Eigen::Matrix<float, 2, 1> > fov_vectors;
 		for(int i = 0; i < 4; ++i)
 		{
 			Eigen::Matrix<float, 2, 1> current_vector;
 			current_vector << request.field_of_view[i].x, request.field_of_view[i].y;
-			fow_vectors.push_back(current_vector);
+			fov_vectors.push_back(current_vector);
 		}
 
-		// get angles between robot_pose and fow-corners in relative coordinates to find the edge that spans the largest angle with
+		// get angles between robot_pose and fov-corners in relative coordinates to find the edge that spans the largest angle with
 		// the robot-center --> the raycasting goals at least have to cover this angle
-		float dot = fow_vectors[0].transpose()*fow_vectors[1];
-		float abs = fow_vectors[0].norm()*fow_vectors[1].norm();
+		float dot = fov_vectors[0].transpose()*fov_vectors[1];
+		float abs = fov_vectors[0].norm()*fov_vectors[1].norm();
 		float quotient = dot/abs;
 		if(quotient > 1) // prevent errors resulting from round errors
 			quotient = 1;
 		else if(quotient < -1)
 			quotient = -1;
 		float angle_1 = std::acos(quotient);
-		dot = fow_vectors[2].transpose()*fow_vectors[3];
-		abs = fow_vectors[2].norm()*fow_vectors[3].norm();
+		dot = fov_vectors[2].transpose()*fov_vectors[3];
+		abs = fov_vectors[2].norm()*fov_vectors[3].norm();
 		quotient = dot/abs;
 		if(quotient > 1) // prevent errors resulting from round errors
 			quotient = 1;
@@ -214,33 +214,33 @@ bool coverageCheckServer::checkCoverage(ipa_building_msgs::checkCoverageRequest&
 			quotient = -1;
 		float angle_2 = std::acos(dot/abs);
 
-		if(angle_1 > angle_2) // do a line crossing s.t. the corners are guaranteed to be after the fow
+		if(angle_1 > angle_2) // do a line crossing s.t. the corners are guaranteed to be after the fov
 		{
 			float border_distance = 7;
-			Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_1 = fow_vectors[0];
-			Eigen::Matrix<float, 2, 1> pose_to_fow_edge_vector_2 = fow_vectors[1];
+			Eigen::Matrix<float, 2, 1> pose_to_fov_edge_vector_1 = fov_vectors[0];
+			Eigen::Matrix<float, 2, 1> pose_to_fov_edge_vector_2 = fov_vectors[1];
 
-			// get vectors showing the directions for for the lines from pose to edge of fow
-			Eigen::Matrix<float, 2, 1> normed_fow_vector_1 = fow_vectors[0]/fow_vectors[0].norm();
-			Eigen::Matrix<float, 2, 1> normed_fow_vector_2 = fow_vectors[1]/fow_vectors[1].norm();
+			// get vectors showing the directions for for the lines from pose to edge of fov
+			Eigen::Matrix<float, 2, 1> normed_fov_vector_1 = fov_vectors[0]/fov_vectors[0].norm();
+			Eigen::Matrix<float, 2, 1> normed_fov_vector_2 = fov_vectors[1]/fov_vectors[1].norm();
 
-			// get the offset point after the end of the fow
-			Eigen::Matrix<float, 2, 1> offset_point_after_fow = fow_vectors[2];
-			offset_point_after_fow(1, 0) = offset_point_after_fow(1, 0) + border_distance;
+			// get the offset point after the end of the fov
+			Eigen::Matrix<float, 2, 1> offset_point_after_fov = fov_vectors[2];
+			offset_point_after_fov(1, 0) = offset_point_after_fov(1, 0) + border_distance;
 
 			// find the parameters for the two different intersections (for each corner point)
-			float first_edge_parameter = (pose_to_fow_edge_vector_1(1, 0)/pose_to_fow_edge_vector_1(0, 0) * (fow_vectors[0](0, 0) - offset_point_after_fow(0, 0)) + offset_point_after_fow(1, 0) - fow_vectors[0](1, 0))/( pose_to_fow_edge_vector_1(1, 0)/pose_to_fow_edge_vector_1(0, 0) * (fow_vectors[3](0, 0) - fow_vectors[2](0, 0)) - (fow_vectors[3](1, 0) - fow_vectors[2](1, 0)) );
-			float second_edge_parameter = (pose_to_fow_edge_vector_2(1, 0)/pose_to_fow_edge_vector_2(0, 0) * (fow_vectors[1](0, 0) - offset_point_after_fow(0, 0)) + offset_point_after_fow(1, 0) - fow_vectors[1](1, 0))/( pose_to_fow_edge_vector_2(1, 0)/pose_to_fow_edge_vector_2(0, 0) * (fow_vectors[3](0, 0) - fow_vectors[2](0, 0)) - (fow_vectors[3](1, 0) - fow_vectors[2](1, 0)) );
+			float first_edge_parameter = (pose_to_fov_edge_vector_1(1, 0)/pose_to_fov_edge_vector_1(0, 0) * (fov_vectors[0](0, 0) - offset_point_after_fov(0, 0)) + offset_point_after_fov(1, 0) - fov_vectors[0](1, 0))/( pose_to_fov_edge_vector_1(1, 0)/pose_to_fov_edge_vector_1(0, 0) * (fov_vectors[3](0, 0) - fov_vectors[2](0, 0)) - (fov_vectors[3](1, 0) - fov_vectors[2](1, 0)) );
+			float second_edge_parameter = (pose_to_fov_edge_vector_2(1, 0)/pose_to_fov_edge_vector_2(0, 0) * (fov_vectors[1](0, 0) - offset_point_after_fov(0, 0)) + offset_point_after_fov(1, 0) - fov_vectors[1](1, 0))/( pose_to_fov_edge_vector_2(1, 0)/pose_to_fov_edge_vector_2(0, 0) * (fov_vectors[3](0, 0) - fov_vectors[2](0, 0)) - (fov_vectors[3](1, 0) - fov_vectors[2](1, 0)) );
 
 			// use the line equation and found parameters to actually find the corners
-			corner_point_1 = first_edge_parameter * (fow_vectors[3] - fow_vectors[2]) + offset_point_after_fow;
-			corner_point_2 = second_edge_parameter * (fow_vectors[3] - fow_vectors[2]) + offset_point_after_fow;
+			corner_point_1 = first_edge_parameter * (fov_vectors[3] - fov_vectors[2]) + offset_point_after_fov;
+			corner_point_2 = second_edge_parameter * (fov_vectors[3] - fov_vectors[2]) + offset_point_after_fov;
 		}
 		else
 		{
-			// follow the lines to the farthest points and go a little longer, this ensures that the whole fow is covered
-			corner_point_1 = 1.3 * fow_vectors[2];
-			corner_point_2 = 1.3 * fow_vectors[3];
+			// follow the lines to the farthest points and go a little longer, this ensures that the whole fov is covered
+			corner_point_1 = 1.3 * fov_vectors[2];
+			corner_point_2 = 1.3 * fov_vectors[3];
 		}
 	}
 
@@ -265,7 +265,7 @@ bool coverageCheckServer::checkCoverage(ipa_building_msgs::checkCoverageRequest&
 	cv::Point2d map_origin(request.map_origin.x, request.map_origin.y);
 	if(request.check_for_footprint==false)
 	{
-		ROS_INFO("Checking coverage for fow.");
+		ROS_INFO("Checking coverage for fov.");
 		drawSeenPoints(covered_areas, request.path, request.field_of_view, corner_point_1, corner_point_2, request.map_resolution, map_origin, image_pointer);
 	}
 	else

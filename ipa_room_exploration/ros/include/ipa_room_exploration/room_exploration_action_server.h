@@ -39,7 +39,7 @@
 #include <ipa_room_exploration/neural_network_explorator.h>
 #include <ipa_room_exploration/convex_sensor_placement_explorator.h>
 #include <ipa_room_exploration/flow_network_explorator.h>
-#include <ipa_room_exploration/fow_to_robot_mapper.h>
+#include <ipa_room_exploration/fov_to_robot_mapper.h>
 #include <ipa_room_exploration/energy_functional_explorator.h>
 #include <ipa_room_exploration/voronoi.hpp>
 
@@ -175,7 +175,7 @@ protected:
 	// 	--> may smooth the process, move_base often slows before and stops at the goal
 	bool publishNavigationGoal(const geometry_msgs::Pose2D& nav_goal, const std::string map_frame,
 			const std::string camera_frame, std::vector<geometry_msgs::Pose2D>& robot_poses,
-			const double robot_to_fow_middlepoint_distance, const double eps = 0.0,
+			const double robot_to_fov_middlepoint_distance, const double eps = 0.0,
 			const bool perimeter_check = false);
 
 	// converter-> Pixel to meter for X coordinate
