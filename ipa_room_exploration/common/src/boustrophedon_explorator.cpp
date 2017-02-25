@@ -281,6 +281,7 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	// go trough the cells and determine the boustrophedon paths
 	ROS_INFO("Starting to get the paths for each cell, number of cells: %d", (int)cell_polygons.size());
 	int fov_coverage_radius_as_int = (int)std::floor(coverage_radius); // convert fov-radius to int
+	std::cout << "Boustrophedon fov_coverage_radius_as_int=" << fov_coverage_radius_as_int << std::endl;
 	std::vector<cv::Point> starting_point_vector(1, starting_point); // opencv syntax
 	cv::transform(starting_point_vector, starting_point_vector, R);
 	cv::Point robot_pos = starting_point_vector[0]; // Point that keeps track of the last point after the boustrophedon path in each cell
@@ -599,49 +600,57 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		robot_pos = current_pos_vector[0];
 	}
 
+#ifdef DEBUG_VISUALIZATION
+	// testing
 	// transform the calculated path back to the originally rotated map
 	cv::Mat R_inv;
 	cv::invertAffineTransform(R, R_inv);
-	cv::transform(fov_middlepoint_path, fov_middlepoint_path, R_inv);
+	std::vector<cv::Point> rotated_fov_middlepoint_path;
+	cv::transform(fov_middlepoint_path, rotated_fov_middlepoint_path, R_inv);
 
-#ifdef DEBUG_VISUALIZATION
-	// testing
+
 	std::cout << "printing path" << std::endl;
 	cv::Mat room_map_path = room_map.clone();
 	cv::circle(room_map_path, starting_position, 3, cv::Scalar(160), CV_FILLED);
-	for(size_t i=0; i<fov_middlepoint_path.size()-1; ++i)
+	for(size_t i=0; i<rotated_fov_middlepoint_path.size()-1; ++i)
 	{
-		cv::circle(room_map_path, fov_middlepoint_path[i], 2, cv::Scalar(200), CV_FILLED);
-		cv::line(room_map_path, fov_middlepoint_path[i], fov_middlepoint_path[i+1], cv::Scalar(100), 1);
+		cv::circle(room_map_path, rotated_fov_middlepoint_path[i], 2, cv::Scalar(200), CV_FILLED);
+		cv::line(room_map_path, rotated_fov_middlepoint_path[i], rotated_fov_middlepoint_path[i+1], cv::Scalar(100), 1);
 	}
-	cv::circle(room_map_path, fov_middlepoint_path.back(), 2, cv::Scalar(200), CV_FILLED);
+	cv::circle(room_map_path, rotated_fov_middlepoint_path.back(), 2, cv::Scalar(200), CV_FILLED);
 //	for(size_t i=0; i<optimal_order.size()-1; ++i)
 //		cv::line(room_map_path, polygon_centers[optimal_order[i]], polygon_centers[optimal_order[i+1]], cv::Scalar(100), 1);
 	cv::imshow("room_map_path_intermediate", room_map_path);
 #endif
 
-	// create poses with an angle
+	// transform the calculated path back to the originally rotated map and create poses with an angle
 	std::vector<geometry_msgs::Pose2D> fov_poses;
-	for(size_t point_index=0; point_index<fov_middlepoint_path.size(); ++point_index)
-	{
-		// get the vector from the current point to the next point
-		const cv::Point& current_point = fov_middlepoint_path[point_index];
+	room_rotation.transformPathBackToOriginalRotation(fov_middlepoint_path, fov_poses, R);
 
-		// add the next navigation goal to the path
-		geometry_msgs::Pose2D current_pose;
-		current_pose.x = current_point.x;
-		current_pose.y = current_point.y;
-		if (point_index < fov_middlepoint_path.size()-1)
-		{
-			cv::Point next_point = fov_middlepoint_path[point_index+1];
-			cv::Point vector = next_point - current_point;
-			current_pose.theta = std::atan2(vector.y, vector.x);
-		}
-		else
-			current_pose.theta = fov_poses.back().theta;
-
-		fov_poses.push_back(current_pose);
-	}
+//	for(size_t point_index=0; point_index<fov_middlepoint_path.size(); ++point_index)
+//	{
+//		// get the vector from the previous to the current point
+//		const cv::Point& current_point = fov_middlepoint_path[point_index];
+//
+//		// add the next navigation goal to the path
+//		geometry_msgs::Pose2D current_pose;
+//		current_pose.x = current_point.x;
+//		current_pose.y = current_point.y;
+//		current_pose.theta = 0.;
+//		if (point_index > 0)
+//		{
+//			cv::Point previous_point = fov_middlepoint_path[point_index-1];
+//			cv::Point vector = current_point - previous_point;
+//			current_pose.theta = std::atan2(vector.y, vector.x);
+//		}
+//		else if (fov_middlepoint_path.size() >= 2)
+//		{
+//			cv::Point next_point = fov_middlepoint_path[point_index+1];
+//			cv::Point vector = next_point - current_point;
+//			current_pose.theta = std::atan2(vector.y, vector.x);
+//		}
+//		fov_poses.push_back(current_pose);
+//	}
 
 	ROS_INFO("Found the cell paths.");
 

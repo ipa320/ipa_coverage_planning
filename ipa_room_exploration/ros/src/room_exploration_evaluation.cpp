@@ -98,6 +98,8 @@ struct ExplorationConfig
 			s = "flow network exploration";
 		else if (exploration_algorithm_ == 6)
 			s = "energy functional exploration";
+		else if (exploration_algorithm_ == 7)
+			s = "voronoi exploration";
 
 		return s;
 	}
@@ -488,8 +490,8 @@ public:
 					if (point > 0)
 						cv::line(path_map, cv::Point(coverage_path[point].x, coverage_path[point].y), cv::Point(coverage_path[point-1].x, coverage_path[point-1].y), cv::Scalar(128), 1);
 				}
-//				cv::imshow("path", path_map);
-//				cv::waitKey();
+				cv::imshow("path", path_map);
+				cv::waitKey();
 			}
 			std::string img_filename = data_storage_path + folder_path + datas.map_name_ + "_paths.png";
 			cv::imwrite(img_filename.c_str(), path_map);
