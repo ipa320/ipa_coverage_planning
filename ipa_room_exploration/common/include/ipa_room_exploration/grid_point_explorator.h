@@ -5,7 +5,11 @@
 #include <cmath>
 #include <string>
 
+#include <Eigen/Dense>
+
 #include <ipa_room_exploration/concorde_TSP.h>
+#include <ipa_room_exploration/room_rotator.h>
+#include <ipa_room_exploration/fov_to_robot_mapper.h>
 
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>
@@ -75,7 +79,7 @@
 // all points, by defining an traveling salesman problem (TSP). This class only produces a static path, regarding the given map
 // in form of a point series. To react on dynamic obstacles, one has to do this in upper algorithms.
 //
-class gridPointExplorator
+class GridPointExplorator
 {
 protected:
 	// length of the grid cell lines [pixel]
@@ -83,14 +87,14 @@ protected:
 
 public:
 	// constructor
-	gridPointExplorator(int grid_line_length = 5);
+	GridPointExplorator(int grid_line_length = 5);
 
 	// Function that creates an exploration path for a given room. The room has to be drawn in a cv::Mat (filled with Bit-uchar),
 	// with free space drawn white (255) and obstacles as black (0). It returns a series of 2D poses that show to which positions
 	// the robot should drive at.
 	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
-			const float map_resolution, const cv::Point starting_position,
-			const geometry_msgs::Polygon room_min_max_coordinates, const cv::Point2d map_origin);
+			const float map_resolution, const cv::Point starting_position, const geometry_msgs::Polygon room_min_max_coordinates,
+			const cv::Point2d map_origin, const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector);
 
 	// function to set the grid size
 	void setGridLineLength(int new_line_length)

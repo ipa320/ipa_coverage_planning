@@ -98,6 +98,8 @@ struct ExplorationConfig
 			s = "flow network exploration";
 		else if (exploration_algorithm_ == 6)
 			s = "energy functional exploration";
+		else if (exploration_algorithm_ == 7)
+			s = "voronoi exploration";
 
 		return s;
 	}
@@ -488,8 +490,8 @@ public:
 					if (point > 0)
 						cv::line(path_map, cv::Point(coverage_path[point].x, coverage_path[point].y), cv::Point(coverage_path[point-1].x, coverage_path[point-1].y), cv::Scalar(128), 1);
 				}
-//				cv::imshow("path", path_map);
-//				cv::waitKey();
+				cv::imshow("path", path_map);
+				cv::waitKey();
 			}
 			std::string img_filename = data_storage_path + folder_path + datas.map_name_ + "_paths.png";
 			cv::imwrite(img_filename.c_str(), path_map);
@@ -1367,7 +1369,7 @@ int main(int argc, char **argv)
 //	const double robot_radius, const std::vector<int>& segmentation_algorithms, const std::vector<int>& exploration_algorithms,
 //	const std::vector<geometry_msgs::Point32>& fov_points)
 	std::vector<int> exploration_algorithms;
-	for(int i=1; i<=7; ++i)
+	for(int i=2; i<=2; ++i)
 	{
 		// choose which algorithms not to evaluate
 		if(i==5)
@@ -1387,14 +1389,14 @@ int main(int argc, char **argv)
 //	fov_points[2].y = -0.65;
 //	fov_points[3].x = 1.15;
 //	fov_points[3].y = 0.65;
-	fov_points[0].x = -0.4;		// this is the working area of a vacuum cleaner with 80 cm width
-	fov_points[0].y = 0.4;
-	fov_points[1].x = -0.4;
-	fov_points[1].y = -0.4;
-	fov_points[2].x = 0.4;
-	fov_points[2].y = -0.4;
-	fov_points[3].x = 0.4;
-	fov_points[3].y = 0.4;
+	fov_points[0].x = -0.25;		// this is the working area of a vacuum cleaner with 50 cm width
+	fov_points[0].y = 0.25;
+	fov_points[1].x = -0.25;
+	fov_points[1].y = -0.25;
+	fov_points[2].x = 0.25;
+	fov_points[2].y = -0.25;
+	fov_points[3].x = 0.25;
+	fov_points[3].y = 0.25;
 
 	double robot_radius = 0.25;		// [m]
 	double coverage_radius = 0.25;	// [m]

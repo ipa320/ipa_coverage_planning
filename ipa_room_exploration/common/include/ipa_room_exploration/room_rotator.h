@@ -66,6 +66,8 @@
 
 #include <vector>
 
+#include <geometry_msgs/Pose2D.h>
+
 
 class RoomRotator
 {
@@ -85,4 +87,7 @@ public:
 	// computes the major direction of the walls from a map (preferably one room)
 	// the map (room_map, CV_8UC1) is black (0) at impassable areas and white (255) on drivable areas
 	double computeRoomMainDirection(const cv::Mat& room_map, const double map_resolution);
+
+	// transforms a vector of points back to the original map and generates poses
+	void transformPathBackToOriginalRotation(const std::vector<cv::Point>& fov_middlepoint_path, std::vector<geometry_msgs::Pose2D>& path_fov_poses, const cv::Mat& R);
 };

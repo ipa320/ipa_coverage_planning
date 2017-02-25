@@ -150,3 +150,38 @@ double RoomRotator::computeRoomMainDirection(const cv::Mat& room_map, const doub
 	}
 	return direction_histogram.getMaxBinPreciseVal();
 }
+
+void RoomRotator::transformPathBackToOriginalRotation(const std::vector<cv::Point>& fov_middlepoint_path, std::vector<geometry_msgs::Pose2D>& path_fov_poses, const cv::Mat& R)
+{
+	// transform the calculated path back to the originally rotated map
+	cv::Mat R_inv;
+	cv::invertAffineTransform(R, R_inv);
+	std::vector<cv::Point> fov_middlepoint_path_transformed;
+	cv::transform(fov_middlepoint_path, fov_middlepoint_path_transformed, R_inv);
+
+	// create poses with an angle
+	for(unsigned int point_index = 0; point_index < fov_middlepoint_path_transformed.size(); ++point_index)
+	{
+		// get the vector from the previous to the current point
+		const cv::Point& current_point = fov_middlepoint_path_transformed[point_index];
+
+		// add the next navigation goal to the path
+		geometry_msgs::Pose2D current_pose;
+		current_pose.x = current_point.x;
+		current_pose.y = current_point.y;
+		current_pose.theta = 0.;
+		if (point_index > 0)
+		{
+			cv::Point previous_point = fov_middlepoint_path_transformed[point_index-1];
+			cv::Point vector = current_point - previous_point;
+			current_pose.theta = std::atan2(vector.y, vector.x);
+		}
+		else if (fov_middlepoint_path_transformed.size() >= 2)
+		{
+			cv::Point next_point = fov_middlepoint_path_transformed[point_index+1];
+			cv::Point vector = next_point - current_point;
+			current_pose.theta = std::atan2(vector.y, vector.x);
+		}
+		path_fov_poses.push_back(current_pose);
+	}
+}

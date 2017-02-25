@@ -376,7 +376,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	Eigen::Matrix<float, 2, 1> middle_point;
 	std::vector<Eigen::Matrix<float, 2, 1> > fov_vectors;
 	Eigen::Matrix<float, 2, 1> middle_point_1, middle_point_2, middle_point_3, middle_point_4;
-	if(plan_for_footprint_ == false) // read out the given fov-vectors, if needed
+	if(plan_for_footprint_ == false) // read out the given fov-vectors, if needed							// todo: set plan_for_footprint_ from action msg
 	{
 		for(int i = 0; i < 4; ++i)
 		{
@@ -404,19 +404,22 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		fitting_circle_radius = std::min(std::min(distance_1, distance_2), std::min(distance_3, distance_4));
 		std::cout << "fitting_circle_radius: " << fitting_circle_radius << std::endl;
 
-		// get the edge length of the grid square as float and map it to an int in pixel coordinates, using floor method
+		// get the edge length of the grid square that fits into the fitting_circle_radius
 		grid_length_as_double = fitting_circle_radius*std::sqrt(2);
 	}
 	else // if planning should be done for the footprint, read out the given coverage radius
 	{
 		grid_length_as_double = goal->coverage_radius*std::sqrt(2);
 	}
+	//  map the grid size to an int in pixel coordinates, using floor method
 	grid_length = std::floor(grid_length_as_double/map_resolution);
 	std::cout << "grid size: " << grid_length_as_double << ", as int: " << grid_length << std::endl;
 
 
 
 	// ***************** II. plan the path using the wanted planner *****************
+	Eigen::Matrix<float, 2, 1> zero_vector;
+	zero_vector << 0, 0;
 	std::vector<geometry_msgs::Pose2D> exploration_path;
 	if(path_planning_algorithm_ == 1) // use grid point explorator
 	{
@@ -425,7 +428,10 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		grid_point_planner.setGridLineLength(grid_length);
 
 		// plan path
-		grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, min_max_coordinates, map_origin);
+		if(plan_for_footprint_ == false)
+			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, min_max_coordinates, map_origin, plan_for_footprint_, middle_point);
+		else
+			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, min_max_coordinates, map_origin, plan_for_footprint_, zero_vector);
 	}
 	else if(path_planning_algorithm_ == 2) // use boustrophedon explorator
 	{
@@ -433,11 +439,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		if(plan_for_footprint_ == false)
 			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, path_eps_, plan_for_footprint_, middle_point, min_cell_size_);
 		else
-		{
-			Eigen::Matrix<float, 2, 1> zero_vector;
-			zero_vector << 0, 0;
 			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, goal->coverage_radius/map_resolution, path_eps_, plan_for_footprint_, zero_vector, min_cell_size_);
-		}
 	}
 	else if(path_planning_algorithm_ == 3) // use neural network explorator
 	{
@@ -445,11 +447,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		if(plan_for_footprint_ == false)
 			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, plan_for_footprint_, middle_point, min_max_coordinates, false);
 		else
-		{
-			Eigen::Matrix<float, 2, 1> zero_vector;
-			zero_vector << 0, 0;
 			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, goal->coverage_radius/map_resolution, plan_for_footprint_, zero_vector, min_max_coordinates, false);
-		}
 	}
 	else if(path_planning_algorithm_ == 4) // use convexSPP explorator
 	{
@@ -488,22 +486,14 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		if(plan_for_footprint_ == false)
 			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, min_max_coordinates, middle_point, fitting_circle_radius/map_resolution, false, path_eps_, curvature_factor_);
 		else
-		{
-			Eigen::Matrix<float, 2, 1> zero_vector;
-			zero_vector << 0, 0;
 			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, min_max_coordinates, zero_vector, goal->coverage_radius/map_resolution, true, path_eps_, curvature_factor_);
-		}
 	}
 	else if(path_planning_algorithm_ == 6) // use energy functional explorator
 	{
 		if(plan_for_footprint_ == false)
 			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, false, middle_point);
 		else
-		{
-			Eigen::Matrix<float, 2, 1> zero_vector;
-			zero_vector << 0, 0;
 			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, true, zero_vector);
-		}
 	}
 	else if(path_planning_algorithm_ == 7) // use voronoi explorator
 	{
