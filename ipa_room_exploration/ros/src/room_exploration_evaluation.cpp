@@ -322,6 +322,16 @@ public:
 			cv::Mat gt_map = cv::imread(gt_image_filename.c_str(), CV_8U);
 			cv::threshold(gt_map, gt_map, 250, 255, CV_THRESH_BINARY);
 
+			// combine real floor plan (maybe with furniture) and gt_map
+			for (int y = 0; y < gt_map.rows; y++)
+			{
+				for (int x = 0; x < gt_map.cols; x++)
+				{
+					if (datas->floor_plan_.at<uchar>(y,x) != 255)
+						gt_map.at<uchar>(y,x) = 0;
+				}
+			}
+
 			// 2. retrieve the rooms for each ground truth map and get the maps that show only one room each
 			int label = 1;
 			std::vector<cv::Rect> bounding_boxes;
@@ -490,8 +500,8 @@ public:
 					if (point > 0)
 						cv::line(path_map, cv::Point(coverage_path[point].x, coverage_path[point].y), cv::Point(coverage_path[point-1].x, coverage_path[point-1].y), cv::Scalar(128), 1);
 				}
-				cv::imshow("path", path_map);
-				cv::waitKey();
+//				cv::imshow("path", path_map);
+//				cv::waitKey();
 			}
 			std::string img_filename = data_storage_path + folder_path + datas.map_name_ + "_paths.png";
 			cv::imwrite(img_filename.c_str(), path_map);
@@ -1369,7 +1379,7 @@ int main(int argc, char **argv)
 //	const double robot_radius, const std::vector<int>& segmentation_algorithms, const std::vector<int>& exploration_algorithms,
 //	const std::vector<geometry_msgs::Point32>& fov_points)
 	std::vector<int> exploration_algorithms;
-	for(int i=2; i<=2; ++i)
+	for(int i=1; i<=1; ++i)
 	{
 		// choose which algorithms not to evaluate
 		if(i==5)
@@ -1389,17 +1399,17 @@ int main(int argc, char **argv)
 //	fov_points[2].y = -0.65;
 //	fov_points[3].x = 1.15;
 //	fov_points[3].y = 0.65;
-	fov_points[0].x = -0.25;		// this is the working area of a vacuum cleaner with 50 cm width
-	fov_points[0].y = 0.25;
-	fov_points[1].x = -0.25;
-	fov_points[1].y = -0.25;
-	fov_points[2].x = 0.25;
-	fov_points[2].y = -0.25;
-	fov_points[3].x = 0.25;
-	fov_points[3].y = 0.25;
+	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
+	fov_points[0].y = 0.3;
+	fov_points[1].x = -0.3;
+	fov_points[1].y = -0.3;
+	fov_points[2].x = 0.3;
+	fov_points[2].y = -0.3;
+	fov_points[3].x = 0.3;
+	fov_points[3].y = 0.3;
 
-	double robot_radius = 0.25;		// [m]
-	double coverage_radius = 0.25;	// [m]
+	double robot_radius = 0.3;		// [m]
+	double coverage_radius = 0.3;	// [m]
 	ExplorationEvaluation ev(nh, test_map_path, data_storage_path, robot_radius, coverage_radius, exploration_algorithms, fov_points);
 	ros::shutdown();
 
