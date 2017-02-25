@@ -203,45 +203,45 @@ public:
 		// prepare relevant floor map data
 		std::vector< std::string > map_names;
 		map_names.push_back("lab_ipa");
-//		map_names.push_back("lab_c_scan");
-//		map_names.push_back("Freiburg52_scan");
-//		map_names.push_back("Freiburg79_scan");
-//		map_names.push_back("lab_b_scan");
-//		map_names.push_back("lab_intel");
-//		map_names.push_back("Freiburg101_scan");
-//		map_names.push_back("lab_d_scan");
-//		map_names.push_back("lab_f_scan");
-//		map_names.push_back("lab_a_scan");
-//		map_names.push_back("NLB");
-//		map_names.push_back("office_a");
-//		map_names.push_back("office_b");
-//		map_names.push_back("office_c");
-//		map_names.push_back("office_d");
-//		map_names.push_back("office_e");
-//		map_names.push_back("office_f");
-//		map_names.push_back("office_g");
-//		map_names.push_back("office_h");
-//		map_names.push_back("office_i");
-//		map_names.push_back("lab_ipa_furnitures");
-//		map_names.push_back("lab_c_scan_furnitures");
-//		map_names.push_back("Freiburg52_scan_furnitures");
-//		map_names.push_back("Freiburg79_scan_furnitures");
-//		map_names.push_back("lab_b_scan_furnitures");
-//		map_names.push_back("lab_intel_furnitures");
-//		map_names.push_back("Freiburg101_scan_furnitures");
-//		map_names.push_back("lab_d_scan_furnitures");
-//		map_names.push_back("lab_f_scan_furnitures");
-//		map_names.push_back("lab_a_scan_furnitures");
-//		map_names.push_back("NLB_furnitures");
-//		map_names.push_back("office_a_furnitures");
-//		map_names.push_back("office_b_furnitures");
-//		map_names.push_back("office_c_furnitures");
-//		map_names.push_back("office_d_furnitures");
-//		map_names.push_back("office_e_furnitures");
-//		map_names.push_back("office_f_furnitures");
-//		map_names.push_back("office_g_furnitures");
-//		map_names.push_back("office_h_furnitures");
-//		map_names.push_back("office_i_furnitures");
+		map_names.push_back("lab_c_scan");
+		map_names.push_back("Freiburg52_scan");
+		map_names.push_back("Freiburg79_scan");
+		map_names.push_back("lab_b_scan");
+		map_names.push_back("lab_intel");
+		map_names.push_back("Freiburg101_scan");
+		map_names.push_back("lab_d_scan");
+		map_names.push_back("lab_f_scan");
+		map_names.push_back("lab_a_scan");
+		map_names.push_back("NLB");
+		map_names.push_back("office_a");
+		map_names.push_back("office_b");
+		map_names.push_back("office_c");
+		map_names.push_back("office_d");
+		map_names.push_back("office_e");
+		map_names.push_back("office_f");
+		map_names.push_back("office_g");
+		map_names.push_back("office_h");
+		map_names.push_back("office_i");
+		map_names.push_back("lab_ipa_furnitures");
+		map_names.push_back("lab_c_scan_furnitures");
+		map_names.push_back("Freiburg52_scan_furnitures");
+		map_names.push_back("Freiburg79_scan_furnitures");
+		map_names.push_back("lab_b_scan_furnitures");
+		map_names.push_back("lab_intel_furnitures");
+		map_names.push_back("Freiburg101_scan_furnitures");
+		map_names.push_back("lab_d_scan_furnitures");
+		map_names.push_back("lab_f_scan_furnitures");
+		map_names.push_back("lab_a_scan_furnitures");
+		map_names.push_back("NLB_furnitures");
+		map_names.push_back("office_a_furnitures");
+		map_names.push_back("office_b_furnitures");
+		map_names.push_back("office_c_furnitures");
+		map_names.push_back("office_d_furnitures");
+		map_names.push_back("office_e_furnitures");
+		map_names.push_back("office_f_furnitures");
+		map_names.push_back("office_g_furnitures");
+		map_names.push_back("office_h_furnitures");
+		map_names.push_back("office_i_furnitures");
 
 		// create all needed configurations
 		std::vector<ExplorationConfig> configs;
@@ -1367,7 +1367,7 @@ int main(int argc, char **argv)
 //	const double robot_radius, const std::vector<int>& segmentation_algorithms, const std::vector<int>& exploration_algorithms,
 //	const std::vector<geometry_msgs::Point32>& fov_points)
 	std::vector<int> exploration_algorithms;
-	for(int i=1; i<=7; ++i)
+	for(int i=2; i<=2; ++i)
 	{
 		// choose which algorithms not to evaluate
 		if(i==5)
@@ -1387,14 +1387,14 @@ int main(int argc, char **argv)
 //	fov_points[2].y = -0.65;
 //	fov_points[3].x = 1.15;
 //	fov_points[3].y = 0.65;
-	fov_points[0].x = -0.4;		// this is the working area of a vacuum cleaner with 80 cm width
-	fov_points[0].y = 0.4;
-	fov_points[1].x = -0.4;
-	fov_points[1].y = -0.4;
-	fov_points[2].x = 0.4;
-	fov_points[2].y = -0.4;
-	fov_points[3].x = 0.4;
-	fov_points[3].y = 0.4;
+	fov_points[0].x = -0.25;		// this is the working area of a vacuum cleaner with 50 cm width
+	fov_points[0].y = 0.25;
+	fov_points[1].x = -0.25;
+	fov_points[1].y = -0.25;
+	fov_points[2].x = 0.25;
+	fov_points[2].y = -0.25;
+	fov_points[3].x = 0.25;
+	fov_points[3].y = 0.25;
 
 	double robot_radius = 0.25;		// [m]
 	double coverage_radius = 0.25;	// [m]
