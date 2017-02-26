@@ -27,6 +27,7 @@
 #include <ipa_room_exploration/A_star_pathplanner.h>
 #include <ipa_room_exploration/distance_matrix.h>
 #include <ipa_room_exploration/contains.h>
+#include <ipa_room_exploration/room_rotator.h>
 // msgs
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>

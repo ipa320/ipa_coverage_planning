@@ -1319,7 +1319,7 @@ public:
 		bool finished = false;
 		// higher timeout for the flowNetworkExplorator, because much slower than the others
 		if(evaluation_configuration.exploration_algorithm_==5)
-			finished = ac_exp.waitForResult(ros::Duration(3600));
+			finished = ac_exp.waitForResult(ros::Duration(600));		// todo: adapt
 		else
 			finished = ac_exp.waitForResult(ros::Duration(1800));
 
@@ -1379,14 +1379,14 @@ int main(int argc, char **argv)
 //	const double robot_radius, const std::vector<int>& segmentation_algorithms, const std::vector<int>& exploration_algorithms,
 //	const std::vector<geometry_msgs::Point32>& fov_points)
 	std::vector<int> exploration_algorithms;
-	for(int i=1; i<=1; ++i)
-	{
-		// choose which algorithms not to evaluate
-		if(i==5)
-			continue;
+	exploration_algorithms.push_back(1);	// grid point exploration
+	exploration_algorithms.push_back(2);	// boustrophedon exploration
+	exploration_algorithms.push_back(3);	// neural network exploration
+	exploration_algorithms.push_back(4);	// convex SPP exploration
+	exploration_algorithms.push_back(5);	// flow network exploration
+	exploration_algorithms.push_back(6);	// energy functional exploration
+	exploration_algorithms.push_back(7);	// voronoi exploration
 
-		exploration_algorithms.push_back(i);
-	}
 
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
 	// measures in [m]

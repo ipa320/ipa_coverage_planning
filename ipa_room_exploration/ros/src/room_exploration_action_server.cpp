@@ -364,6 +364,41 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// erode map so that not reachable areas are not considered
 	const int robot_radius_in_pixel = (robot_radius / map_resolution);
 	cv::erode(room_map, room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
+
+	// remove unconnected, i.e. inaccessible, parts of the room (i.e. obstructed by furniture), only keep the room with the largest area
+	// create new map with segments labelled by increasing labels from 1,2,3,...
+	cv::Mat room_map_int(room_map.rows, room_map.cols, CV_32SC1);
+	for (int v=0; v<room_map.rows; ++v)
+	{
+		for (int u=0; u<room_map.cols; ++u)
+		{
+			if (room_map.at<uchar>(v,u) == 255)
+				room_map_int.at<int32_t>(v,u) = -100;
+			else
+				room_map_int.at<int32_t>(v,u) = 0;
+		}
+	}
+	std::map<int, int> area_to_label_map;	// maps area=number of segment pixels (keys) to the respective label (value)
+	int label = 1;
+	for (int v=0; v<room_map_int.rows; ++v)
+	{
+		for (int u=0; u<room_map_int.cols; ++u)
+		{
+			if (room_map_int.at<int32_t>(v,u) == -100)
+			{
+				const int area = cv::floodFill(room_map_int, cv::Point(u,v), cv::Scalar(label), 0, 0, 0, 8 | cv::FLOODFILL_FIXED_RANGE);
+				area_to_label_map[area] = label;
+				++label;
+			}
+		}
+	}
+	// remove all room pixels from room_map which are not accessible
+	const int label_of_biggest_room = area_to_label_map.rbegin()->second;
+	for (int v=0; v<room_map.rows; ++v)
+		for (int u=0; u<room_map.cols; ++u)
+			if (room_map_int.at<int32_t>(v,u) != label_of_biggest_room)
+				room_map.at<uchar>(v,u) = 0;
+
 //	cv::circle(room_map, cv::Point(min_max_coordinates.points[0].x, min_max_coordinates.points[0].y), 2, cv::Scalar(127), CV_FILLED);
 //	cv::circle(room_map, cv::Point(min_max_coordinates.points[1].x, min_max_coordinates.points[1].y), 2, cv::Scalar(127), CV_FILLED);
 //	cv::imshow("room", room_map);
