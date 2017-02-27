@@ -931,7 +931,8 @@ public:
 	}
 	
 	template<class PathVector>
-	void generatePath(PathVector &path, const cv::Mat &coverage) const {
+	void generatePath(PathVector &path, const cv::Mat &coverage) const
+	{
 		const int start_x=0;
 		const int start_y=0;
 		
@@ -951,7 +952,8 @@ public:
 		path.resize(num);
 		num = 0;
 		
-		for(size_t k=0; k<clouds.size(); k++) {
+		for(size_t k=0; k<clouds.size(); k++)
+		{
 			PointCloud<int> &cloud = clouds[k];
 			if(cloud.pts.size()<1) continue;
 			
@@ -960,11 +962,11 @@ public:
 			
 			for(size_t i=0; i<out.size(); i++)
 			{
-			   //std::cout << out[i] << " ";
-			   
-			   if(path.size()<num+1)
-				path.resize(num+1);
-			   
+				//std::cout << out[i] << " ";
+
+				if(path.size()<num+1)
+					path.resize(num+1);
+
 				path[num].x = cloud.pts[out[i]].x;
 				path[num].y = cloud.pts[out[i]].y;
 				++num;
@@ -972,4 +974,3 @@ public:
 		}
 	}
 };
-				

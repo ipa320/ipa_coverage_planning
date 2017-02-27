@@ -18,6 +18,8 @@
 #include <ipa_room_exploration/nearest_neighbor_TSP.h>
 #include <ipa_room_exploration/A_star_pathplanner.h>
 #include <ipa_room_exploration/distance_matrix.h>
+#include <ipa_room_exploration/room_rotator.h>
+#include <ipa_room_exploration/fov_to_robot_mapper.h>
 
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>
@@ -132,8 +134,8 @@ public:
 	// sensing pose. delta_theta provides an angular step to determine candidates for sensing poses.
 	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
 				const cv::Point starting_position, const cv::Point2d map_origin,
-				const int cell_size, const double delta_theta, const geometry_msgs::Polygon& room_min_max_coordinates,
-				const std::vector<geometry_msgs::Point32>& footprint, const Eigen::Matrix<float, 2, 1>& robot_to_fov_middlepoint_vector,
+				const int cell_size, const double delta_theta,
+				const std::vector<geometry_msgs::Point32>& footprint, const Eigen::Matrix<float, 2, 1>& robot_to_fov_vector,
 				const double max_fov_angle, const double smallest_robot_to_footprint_distance, const double largest_robot_to_footprint_distance,
 				const uint sparsity_check_range, const bool plan_for_footprint);
 };

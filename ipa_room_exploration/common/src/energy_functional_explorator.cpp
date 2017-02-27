@@ -58,6 +58,15 @@ void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 			const cv::Point starting_position, const cv::Point2d map_origin, const float fitting_circle_radius,
 			const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector)
 {
+	// todo: include the rotation!
+//	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
+//	cv::Mat R;
+//	cv::Rect bbox;
+//	cv::Mat rotated_room_map;
+//	RoomRotator room_rotation;
+//	room_rotation.computeRoomRotationMatrix(room_map, R, bbox, map_resolution);
+//	room_rotation.rotateRoom(room_map, rotated_room_map, R, bbox);
+
 	// *********************** I. Find the nodes and their neighbors ***********************
 	// get the nodes in the free space
 	std::vector<std::vector<energyExploratorNode> > nodes; // 2-dimensional vector to easily find the neighbors

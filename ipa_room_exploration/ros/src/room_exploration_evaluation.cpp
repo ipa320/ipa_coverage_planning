@@ -482,10 +482,11 @@ public:
 					output << "room " << room_index << " had a bug" << std::endl << std::endl;
 					continue;
 				}
+				const double map_resolution_inv = 1.0/datas.map_resolution_;
 				for(size_t point=0; point<coverage_path.size(); ++point)
 				{
-					coverage_path[point].x = (coverage_path[point].x-datas.map_origin_.position.x)/datas.map_resolution_;
-					coverage_path[point].y = (coverage_path[point].y-datas.map_origin_.position.y)/datas.map_resolution_;
+					coverage_path[point].x = (coverage_path[point].x-datas.map_origin_.position.x)*map_resolution_inv;
+					coverage_path[point].y = (coverage_path[point].y-datas.map_origin_.position.y)*map_resolution_inv;
 				}
 				output << "calculation time: " << calculation_time << "s" << std::endl;
 				for(size_t point=0; point<coverage_path.size(); ++point)
@@ -499,6 +500,9 @@ public:
 					cv::circle(path_map, cv::Point(coverage_path[point].x, coverage_path[point].y), 2, cv::Scalar(128), -1);
 					if (point > 0)
 						cv::line(path_map, cv::Point(coverage_path[point].x, coverage_path[point].y), cv::Point(coverage_path[point-1].x, coverage_path[point-1].y), cv::Scalar(128), 1);
+//					std::cout << "coverage_path[" << point << "]: x=" << coverage_path[point].x << ", y=" << coverage_path[point].y << ", theta=" << coverage_path[point].theta << std::endl;
+//					cv::imshow("path", path_map);
+//					cv::waitKey();
 				}
 //				cv::imshow("path", path_map);
 //				cv::waitKey();
@@ -1379,34 +1383,34 @@ int main(int argc, char **argv)
 //	const double robot_radius, const std::vector<int>& segmentation_algorithms, const std::vector<int>& exploration_algorithms,
 //	const std::vector<geometry_msgs::Point32>& fov_points)
 	std::vector<int> exploration_algorithms;
-	exploration_algorithms.push_back(1);	// grid point exploration
-	exploration_algorithms.push_back(2);	// boustrophedon exploration
-	exploration_algorithms.push_back(3);	// neural network exploration
+//	exploration_algorithms.push_back(1);	// grid point exploration
+//	exploration_algorithms.push_back(2);	// boustrophedon exploration
+//	exploration_algorithms.push_back(3);	// neural network exploration
 	exploration_algorithms.push_back(4);	// convex SPP exploration
-	exploration_algorithms.push_back(5);	// flow network exploration
-	exploration_algorithms.push_back(6);	// energy functional exploration
-	exploration_algorithms.push_back(7);	// voronoi exploration
+//	exploration_algorithms.push_back(5);	// flow network exploration
+//	exploration_algorithms.push_back(6);	// energy functional exploration
+//	exploration_algorithms.push_back(7);	// voronoi exploration
 
 
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
 	// measures in [m]
 	std::vector<geometry_msgs::Point32> fov_points(4);
-//	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
-//	fov_points[0].y = 0.35;
-//	fov_points[1].x = 0.15;
-//	fov_points[1].y = -0.35;
-//	fov_points[2].x = 1.15;
-//	fov_points[2].y = -0.65;
-//	fov_points[3].x = 1.15;
-//	fov_points[3].y = 0.65;
-	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
-	fov_points[0].y = 0.3;
-	fov_points[1].x = -0.3;
-	fov_points[1].y = -0.3;
-	fov_points[2].x = 0.3;
-	fov_points[2].y = -0.3;
-	fov_points[3].x = 0.3;
-	fov_points[3].y = 0.3;
+	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
+	fov_points[0].y = 0.35;
+	fov_points[1].x = 0.15;
+	fov_points[1].y = -0.35;
+	fov_points[2].x = 1.15;
+	fov_points[2].y = -0.65;
+	fov_points[3].x = 1.15;
+	fov_points[3].y = 0.65;
+//	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
+//	fov_points[0].y = 0.3;
+//	fov_points[1].x = -0.3;
+//	fov_points[1].y = -0.3;
+//	fov_points[2].x = 0.3;
+//	fov_points[2].y = -0.3;
+//	fov_points[3].x = 0.3;
+//	fov_points[3].y = 0.3;
 
 	double robot_radius = 0.3;		// [m]
 	double coverage_radius = 0.3;	// [m]

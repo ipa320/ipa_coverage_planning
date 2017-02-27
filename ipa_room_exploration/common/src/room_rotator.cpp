@@ -153,6 +153,8 @@ double RoomRotator::computeRoomMainDirection(const cv::Mat& room_map, const doub
 
 void RoomRotator::transformPathBackToOriginalRotation(const std::vector<cv::Point>& fov_middlepoint_path, std::vector<geometry_msgs::Pose2D>& path_fov_poses, const cv::Mat& R)
 {
+	path_fov_poses.clear();
+
 	// transform the calculated path back to the originally rotated map
 	cv::Mat R_inv;
 	cv::invertAffineTransform(R, R_inv);
@@ -160,10 +162,16 @@ void RoomRotator::transformPathBackToOriginalRotation(const std::vector<cv::Poin
 	cv::transform(fov_middlepoint_path, fov_middlepoint_path_transformed, R_inv);
 
 	// create poses with an angle
-	for(unsigned int point_index = 0; point_index < fov_middlepoint_path_transformed.size(); ++point_index)
+	transformPointPathToPosePath(fov_middlepoint_path_transformed, path_fov_poses);
+}
+
+void RoomRotator::transformPointPathToPosePath(const std::vector<cv::Point>& point_path, std::vector<geometry_msgs::Pose2D>& pose_path)
+{
+	// create poses with an angle
+	for(size_t point_index = 0; point_index < point_path.size(); ++point_index)
 	{
 		// get the vector from the previous to the current point
-		const cv::Point& current_point = fov_middlepoint_path_transformed[point_index];
+		const cv::Point& current_point = point_path[point_index];
 
 		// add the next navigation goal to the path
 		geometry_msgs::Pose2D current_pose;
@@ -172,16 +180,28 @@ void RoomRotator::transformPathBackToOriginalRotation(const std::vector<cv::Poin
 		current_pose.theta = 0.;
 		if (point_index > 0)
 		{
-			cv::Point previous_point = fov_middlepoint_path_transformed[point_index-1];
+			cv::Point previous_point = point_path[point_index-1];
 			cv::Point vector = current_point - previous_point;
 			current_pose.theta = std::atan2(vector.y, vector.x);
 		}
-		else if (fov_middlepoint_path_transformed.size() >= 2)
+		else if (point_path.size() >= 2)
 		{
-			cv::Point next_point = fov_middlepoint_path_transformed[point_index+1];
+			cv::Point next_point = point_path[point_index+1];
 			cv::Point vector = next_point - current_point;
 			current_pose.theta = std::atan2(vector.y, vector.x);
 		}
-		path_fov_poses.push_back(current_pose);
+		pose_path.push_back(current_pose);
 	}
+}
+
+void RoomRotator::transformPointPathToPosePath(std::vector<geometry_msgs::Pose2D>& pose_path)
+{
+	// create point vector
+	std::vector<cv::Point> point_path;
+	for (size_t i=0; i<pose_path.size(); ++i)
+		point_path.push_back(cv::Point(pose_path[i].x, pose_path[i].y));
+
+	// create poses with an angle
+	pose_path.clear();
+	transformPointPathToPosePath(point_path, pose_path);
 }

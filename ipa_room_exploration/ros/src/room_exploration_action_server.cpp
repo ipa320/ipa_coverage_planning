@@ -511,10 +511,12 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			max_angle = angle_2;
 
 		// plan coverage path
+		// todo: middle_point_1.norm() has implicit assumption that this is the closest edge to the robot center, same for fov_vectors[3]
+		// todo: decide whether user shall set the cell size or automatic cell size (e.g. only automatic if cell_size <= 0)
 		if(plan_for_footprint_ == false)
-			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, delta_theta_, min_max_coordinates, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fov_vectors[3].norm(), 7, false);
+			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_length/2/*cell_size_*/, delta_theta_, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fov_vectors[3].norm(), 7, false);
 		else
-			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, delta_theta_, min_max_coordinates, goal->footprint, middle_point, max_angle, 0.0, goal->coverage_radius/map_resolution, 7, true);
+			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_length/2/*cell_size_*/, delta_theta_, goal->footprint, zero_vector, max_angle, 0.0, goal->coverage_radius/map_resolution, 7, true);
 	}
 	else if(path_planning_algorithm_ == 5) // use flow network explorator
 	{
@@ -544,15 +546,37 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			std::cout << "fov radius in pixel: " << fov_radius_as_int << std::endl;
 
 			// create the object that plans the path, based on the room-map
-			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, fov_radius_as_int); // radius in pixel
+			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, 2*fov_radius_as_int); // radius in pixel
 
 			// get the exploration path
+			std::vector<geometry_msgs::Pose2D> fov_path_uncleaned;
+			vm.generatePath(fov_path_uncleaned, cv::Mat());
+
+			// clean path from double occurrences of the same pose in a row
 			std::vector<geometry_msgs::Pose2D> fov_path;
-			vm.generatePath(fov_path, cv::Mat());
+			fov_path.push_back(fov_path_uncleaned[0]);
+			cv::Point last_added_point(fov_path_uncleaned[0].x, fov_path_uncleaned[0].y);
+			const double min_dist_squared = 5 * 5;	// [pixel]
+			for (size_t i=1; i<fov_path_uncleaned.size(); ++i)
+			{
+				const cv::Point current_point(fov_path_uncleaned[i].x, fov_path_uncleaned[i].y);
+				cv::Point vector = current_point - last_added_point;
+				if (vector.x*vector.x+vector.y*vector.y > min_dist_squared || i==fov_path_uncleaned.size()-1)
+				{
+					fov_path.push_back(fov_path_uncleaned[i]);
+					last_added_point = current_point;
+				}
+			}
+
+			// convert to poses with angles
+			RoomRotator room_rotation;
+			room_rotation.transformPointPathToPosePath(fov_path);
 
 			// map fov-path to robot-path
 			cv::Point start_pos(fov_path.begin()->x, fov_path.begin()->y);
 			mapPath(room_map, exploration_path, fov_path, middle_point, map_resolution, map_origin, start_pos);
+
+
 //			for(size_t pos=0; pos<fov_path.size(); ++pos)
 //			{
 //				geometry_msgs::Pose2D current_pose;
@@ -569,10 +593,30 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			std::cout << "coverage radius in pixel: " << coverage_radius << std::endl;
 
 			// create the object that plans the path, based on the room-map
-			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, coverage_radius); // radius in pixel
+			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, 2*coverage_radius); // radius in pixel
 
 			// get the exploration path
-			vm.generatePath(exploration_path, cv::Mat());
+			std::vector<geometry_msgs::Pose2D> exploration_path_uncleaned;
+			vm.generatePath(exploration_path_uncleaned, cv::Mat());
+
+			// clean path from double occurrences of the same pose in a row
+			exploration_path.push_back(exploration_path_uncleaned[0]);
+			cv::Point last_added_point(exploration_path_uncleaned[0].x, exploration_path_uncleaned[0].y);
+			const double min_dist_squared = 3.5 * 3.5;	// [pixel]
+			for (size_t i=1; i<exploration_path_uncleaned.size(); ++i)
+			{
+				const cv::Point current_point(exploration_path_uncleaned[i].x, exploration_path_uncleaned[i].y);
+				cv::Point vector = current_point - last_added_point;
+				if (vector.x*vector.x+vector.y*vector.y > min_dist_squared || i==exploration_path_uncleaned.size()-1)
+				{
+					exploration_path.push_back(exploration_path_uncleaned[i]);
+					last_added_point = current_point;
+				}
+			}
+
+			// convert to poses with angles
+			RoomRotator room_rotation;
+			room_rotation.transformPointPathToPosePath(exploration_path);
 
 			// transform to global coordinates
 			for(size_t pos=0; pos<exploration_path.size(); ++pos)

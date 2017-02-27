@@ -50,32 +50,32 @@ void convexSPPExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::
 	}
 
 	// load the created LP problem to the solver
-		OsiClpSolverInterface LP_solver;
-		OsiClpSolverInterface* solver_pointer = &LP_solver;
+	OsiClpSolverInterface LP_solver;
+	OsiClpSolverInterface* solver_pointer = &LP_solver;
 
-		solver_pointer->loadFromCoinModel(problem_builder);
+	solver_pointer->loadFromCoinModel(problem_builder);
 
-		// testing
-		solver_pointer->writeLp("lin_cpp_prog", "lp");
+	// testing
+	solver_pointer->writeLp("lin_cpp_prog", "lp");
 
-		// solve the created optimization problem
-		CbcModel model(*solver_pointer);
-		model.solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
+	// solve the created optimization problem
+	CbcModel model(*solver_pointer);
+	model.solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
 
-	//	CbcHeuristicLocal heuristic2(model);
-	//	model.addHeuristic(&heuristic2);
+//	CbcHeuristicLocal heuristic2(model);
+//	model.addHeuristic(&heuristic2);
 
-		model.initialSolve();
-		model.branchAndBound();
+	model.initialSolve();
+	model.branchAndBound();
 
-		// retrieve solution
-		const double * solution = model.solver()->getColSolution();
+	// retrieve solution
+	const double * solution = model.solver()->getColSolution();
 
-		for(size_t res=0; res<C.size(); ++res)
-		{
-	//		std::cout << solution[i] << std::endl;
-			C[res] = solution[res];
-		}
+	for(size_t res=0; res<C.size(); ++res)
+	{
+//		std::cout << solution[i] << std::endl;
+		C[res] = solution[res];
+	}
 }
 
 // Function that is used to get a coverage path that covers the free space of the given map. It is programmed after
@@ -108,17 +108,45 @@ void convexSPPExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::
 //		the pose in the cycle that is closest to the start position, which becomes the start of the fov-path.
 void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
 		const float map_resolution, const cv::Point starting_position, const cv::Point2d map_origin,
-		const int cell_size, const double delta_theta, const geometry_msgs::Polygon& room_min_max_coordinates,
-		const std::vector<geometry_msgs::Point32>& footprint, const Eigen::Matrix<float, 2, 1>& robot_to_fov_middlepoint_vector,
+		const int cell_size, const double delta_theta,
+		const std::vector<geometry_msgs::Point32>& footprint, const Eigen::Matrix<float, 2, 1>& robot_to_fov_vector,
 		const double max_fov_angle, const double smallest_robot_to_footprint_distance, const double largest_robot_to_footprint_distance,
 		const uint sparsity_check_range, const bool plan_for_footprint)
 {
-	// ************* I. Go trough the map and discretize it. *************
+	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
+	cv::Mat R;
+	cv::Rect bbox;
+	cv::Mat rotated_room_map;
+	RoomRotator room_rotation;
+	room_rotation.computeRoomRotationMatrix(room_map, R, bbox, map_resolution);
+	room_rotation.rotateRoom(room_map, rotated_room_map, R, bbox);
+
+	int min_y = 1000000, max_y = 0, min_x = 1000000, max_x = 0;
+	for (int y=0; y<rotated_room_map.rows; y++)
+	{
+		for (int x=0; x<rotated_room_map.cols; x++)
+		{
+			//find not reachable regions and make them black
+			if (rotated_room_map.at<unsigned char>(y,x)==255)
+			{
+				if(y<min_y)
+					min_y = y;
+				if(y>max_y)
+					max_y = y;
+				if(x<min_x)
+					min_x = x;
+				if(x>max_x)
+					max_x = x;
+			}
+		}
+	}
+
+	// ************* II. Go trough the map and discretize it. *************
 	// get cells
 	std::vector<cv::Point> cell_centers;
-	for(size_t y=room_min_max_coordinates.points[0].y+0.5*cell_size; y<=room_min_max_coordinates.points[1].y; y+=cell_size)
-		for(size_t x=room_min_max_coordinates.points[0].x+0.5*cell_size; x<=room_min_max_coordinates.points[1].x; x+=cell_size)
-			if(room_map.at<uchar>(y,x)==255)
+	for(size_t y=min_y+0.5*cell_size; y<=max_y; y+=cell_size)
+		for(size_t x=min_x+0.5*cell_size; x<=max_x; x+=cell_size)
+			if(rotated_room_map.at<uchar>(y,x)==255)
 				cell_centers.push_back(cv::Point(x,y));
 
 	// get candidate sensing poses
@@ -136,7 +164,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		}
 	}
 
-	// ************* II. Construct the matrices needed in the linear program. *************
+	// ************* III. Construct the matrices needed in the linear program. *************
 	// construct W
 	int number_of_candidates=candidate_sensing_poses.size();
 	std::vector<double> W(number_of_candidates, 1.0); // initial weights
@@ -151,8 +179,8 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		// get the rotation matrix
 		float sin_theta = std::sin(pose->theta);
 		float cos_theta = std::cos(pose->theta);
-		Eigen::Matrix<float, 2, 2> R;
-		R << cos_theta, -sin_theta, sin_theta, cos_theta;
+		Eigen::Matrix<float, 2, 2> R_fov;
+		R_fov << cos_theta, -sin_theta, sin_theta, cos_theta;
 
 		// transform field of view points, if the planning should be done for the field of view
 		std::vector<cv::Point> transformed_fov_points;
@@ -167,15 +195,15 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 				fov_point << footprint[point].x, footprint[point].y;
 
 				// linear transformation
-				Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R * fov_point;
+				Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R_fov * fov_point;
 
 				// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
 				// values
 				cv::Point current_point = cv::Point((transformed_vector(0, 0) - map_origin.x)/map_resolution, (transformed_vector(1, 0) - map_origin.y)/map_resolution);
 				current_point.x = std::max(current_point.x, 0);
 				current_point.y = std::max(current_point.y, 0);
-				current_point.x = std::min(current_point.x, room_map.cols);
-				current_point.y = std::min(current_point.y, room_map.rows);
+				current_point.x = std::min(current_point.x, rotated_room_map.cols);
+				current_point.y = std::min(current_point.y, rotated_room_map.rows);
 				transformed_fov_points.push_back(current_point);
 			}
 		}
@@ -185,7 +213,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		// max found angle to the corners
 		// when planning for the robot footprint simply check if it is smaller away to the pose than the given coverage
 		// radius
-//		cv::Mat black_map = cv::Mat(room_map.rows, room_map.cols, room_map.type(), cv::Scalar(0));
+//		cv::Mat black_map = cv::Mat(rotated_room_map.rows, rotated_room_map.cols, rotated_room_map.type(), cv::Scalar(0));
 //		cv::circle(black_map, cv::Point(pose->x, pose->y), 3, cv::Scalar(200), CV_FILLED);
 //		cv::fillConvexPoly(black_map, transformed_fov_points, cv::Scalar(150));
 		for(std::vector<cv::Point>::iterator neighbor=cell_centers.begin(); neighbor!=cell_centers.end(); ++neighbor)
@@ -204,7 +232,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 
 
 				// rotate the vector from the robot to the field of view middle point
-				Eigen::Matrix<float, 2, 1> transformed_robot_to_middlepoint_vector = R * robot_to_fov_middlepoint_vector;
+				Eigen::Matrix<float, 2, 1> transformed_robot_to_middlepoint_vector = R_fov * robot_to_fov_vector;
 
 				// compute angle between the rotated robot-to-fov vector and the robot-to-neighbor vector
 				float dot = transformed_robot_to_middlepoint_vector.transpose()*pose_to_neighbor;
@@ -224,10 +252,10 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 					{
 						// check if the line from the robot pose to the neighbor crosses an obstacle, if so it is not
 						// observable from the pose
-						cv::LineIterator border_line(room_map, cv::Point(pose->x, pose->y), *neighbor, 8); // opencv implementation of bresenham algorithm, 8: color, irrelevant
+						cv::LineIterator border_line(rotated_room_map, cv::Point(pose->x, pose->y), *neighbor, 8); // opencv implementation of bresenham algorithm, 8: color, irrelevant
 						bool hit_obstacle = false;
 						for(size_t i = 0; i < border_line.count; i++, ++border_line)
-							if(room_map.at<uchar>(border_line.pos()) == 0)
+							if(rotated_room_map.at<uchar>(border_line.pos()) == 0)
 								hit_obstacle = true;
 
 						if(hit_obstacle == false)
@@ -273,7 +301,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 //		}
 //	}
 
-	// ************* III. Solve the different linear problems. *************
+	// ************* IV. Solve the different linear problems. *************
 	// 1. solve the weighted optimization problem until a convergence in the sparsity is reached or a defined number of
 	// 	  iterations is reached
 	std::vector<double> C(W.size()); //initialize the objective vector
@@ -281,7 +309,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	double weight_epsilon = 0.0; // parameter that is used to update the weights after one solution has been obtained
 	uint number_of_iterations = 0;
 	std::vector<uint> sparsity_measures; // vector that stores the computed sparsity measures to check convergence
-	double euler_constant = std::exp(1.0);
+	const double euler_constant = std::exp(1.0);
 	do
 	{
 		// increase number of iterations
@@ -291,8 +319,8 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		solveOptimizationProblem(C, V, &W);
 
 		// update epsilon and W
-		int exponent = 1 + (number_of_iterations - 1)*0.1;
-		weight_epsilon = std::pow(1/(euler_constant-1), exponent);
+		const int exponent = 1 + (number_of_iterations - 1)*0.1;
+		weight_epsilon = std::pow(1./(euler_constant-1.), exponent);
 		for(size_t weight=0; weight<W.size(); ++weight)
 			W[weight] = weight_epsilon/(weight_epsilon + C[weight]);
 
@@ -344,10 +372,12 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	V_reduced = V_reduced.colRange(1, V_reduced.cols);
 
 	// solve the final optimization problem
+	std::cout << "new_number_of_variables=" << new_number_of_variables << std::endl;
 	std::vector<int> C_reduced(new_number_of_variables);
 	solveOptimizationProblem(C_reduced, V_reduced, NULL);
 
-	// ************* IV. Retrieve solution and find a path trough the chosen poses. *************
+
+	// ************* V. Retrieve solution and find a path trough the chosen poses. *************
 	// read out solution
 	std::vector<cv::Point> chosen_positions; // vector to determine the tsp solution
 	std::vector<geometry_msgs::Pose2D> chosen_poses;
@@ -359,6 +389,18 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 			chosen_positions.push_back(cv::Point(reduced_sensing_candidates[result-C_reduced.begin()].x, reduced_sensing_candidates[result-C_reduced.begin()].y));
 		}
 	}
+
+	// rotate back the chosen view points to the original map
+	room_rotation.transformPathBackToOriginalRotation(chosen_positions, chosen_poses, R);
+	for (size_t i=0; i<chosen_poses.size(); ++i)
+		chosen_positions[i] = cv::Point(chosen_poses[i].x, chosen_poses[i].y);
+
+	if (chosen_positions.size()==0)
+	{
+		std::cout << "Convex SPP: chosen_positions is empty." << std::endl;
+		return;
+	}
+
 
 	// get the distance matrix
 	ROS_INFO("Constructing distance matrix");
@@ -432,6 +474,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	}
 
 	// create the path starting from the found start
+	std::vector<geometry_msgs::Pose2D> fov_poses;
 	std::vector<int>::iterator start = std::find(best_order.begin(), best_order.end(), starting_index); // obtain iterator to index in best order to start path creation from there
 	for(size_t pose=start-best_order.begin(); path.size()!=chosen_poses.size(); ++pose)
 	{
@@ -442,10 +485,28 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 
 		// insert pose mapped to global coordinates
 		geometry_msgs::Pose2D current_pose;
-		current_pose.x = (chosen_poses[best_order[pose]].x*map_resolution)+map_origin.x;
-		current_pose.y = (chosen_poses[best_order[pose]].y*map_resolution)+map_origin.y;
-		current_pose.theta = chosen_poses[best_order[pose]].theta;
-		path.push_back(current_pose);
+		if (plan_for_footprint == false)
+		{
+			current_pose.x = (chosen_poses[best_order[pose]].x*map_resolution)+map_origin.x;
+			current_pose.y = (chosen_poses[best_order[pose]].y*map_resolution)+map_origin.y;
+			current_pose.theta = chosen_poses[best_order[pose]].theta;
+			path.push_back(current_pose);
+		}
+		else
+		{
+			current_pose.x = chosen_poses[best_order[pose]].x;
+			current_pose.y = chosen_poses[best_order[pose]].y;
+			current_pose.theta = chosen_poses[best_order[pose]].theta;
+			fov_poses.push_back(current_pose);
+		}
+	}
+
+	// *********************** VI. Get the robot path out of the fov path. ***********************
+	if (plan_for_footprint == true)
+	{
+		// go trough all computed fov poses and compute the corresponding robot pose
+		ROS_INFO("Starting to map from field of view pose to robot pose");
+		mapPath(room_map, path, fov_poses, robot_to_fov_vector, map_resolution, map_origin, starting_position);
 	}
 
 //	testing
@@ -454,8 +515,8 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 //	{
 //		float sin_theta = std::sin(pose->theta);
 //		float cos_theta = std::cos(pose->theta);
-//		Eigen::Matrix<float, 2, 2> R;
-//		R << cos_theta, -sin_theta, sin_theta, cos_theta;
+//		Eigen::Matrix<float, 2, 2> R_fov;
+//		R_fov << cos_theta, -sin_theta, sin_theta, cos_theta;
 //
 //		// transform field of view points
 //		std::vector<cv::Point> transformed_fov_points;
@@ -468,7 +529,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 //			fov_point << footprint[point].x, footprint[point].y;
 //
 //			// linear transformation
-//			Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R * fov_point;
+//			Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R_fov * fov_point;
 //
 //			// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
 //			// values
@@ -481,7 +542,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 //		}
 //
 //		// rotate the vector from the robot to the field of view middle point
-//		Eigen::Matrix<float, 2, 1> transformed_robot_to_middlepoint_vector = R * robot_to_fov_middlepoint_vector;
+//		Eigen::Matrix<float, 2, 1> transformed_robot_to_middlepoint_vector = R_fov * robot_to_fov_middlepoint_vector;
 //
 //		cv::fillConvexPoly(test_map, transformed_fov_points, cv::Scalar(200));
 //	}

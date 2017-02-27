@@ -872,7 +872,7 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 
 	// *********** II. Discretize the free space and create the flow network ***********
 	// find the min/max coordinates
-	int min_y = 1e5, max_y = 0, min_x = 1e5, max_x = 0;
+	int min_y = 1000000, max_y = 0, min_x = 1000000, max_x = 0;
 	for (int y=0; y<rotated_room_map.rows; y++)
 	{
 		for (int x=0; x<rotated_room_map.cols; x++)

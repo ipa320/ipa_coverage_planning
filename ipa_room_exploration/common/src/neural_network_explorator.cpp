@@ -36,6 +36,17 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 					 const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector,
 					 const geometry_msgs::Polygon room_min_max_coordinates, bool show_path_computation)
 {
+	// todo: include the rotation!
+	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
+	cv::Mat R;
+	cv::Rect bbox;
+	cv::Mat rotated_room_map;
+	RoomRotator room_rotation;
+	room_rotation.computeRoomRotationMatrix(room_map, R, bbox, map_resolution);
+	room_rotation.rotateRoom(room_map, rotated_room_map, R, bbox);
+
+
+
 	// ****************** I. Create the neural network ******************
 	// reset previously computed neurons
 	neurons_.clear();
@@ -292,5 +303,6 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 	}
 
 	// ****************** III. Map the found fov path to the robot path ******************
+	// go trough all computed fov poses and compute the corresponding robot pose
 	mapPath(room_map, path, fov_path, robot_to_fov_vector, map_resolution, map_origin, starting_position);
 }

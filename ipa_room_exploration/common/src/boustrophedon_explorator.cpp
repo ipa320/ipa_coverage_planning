@@ -655,7 +655,7 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	ROS_INFO("Found the cell paths.");
 
 	// if the path should be planned for the robot footprint create the path and return here
-	if(plan_for_footprint == true)
+	if (plan_for_footprint == true)
 	{
 		for(std::vector<geometry_msgs::Pose2D>::iterator pose=fov_poses.begin(); pose != fov_poses.end(); ++pose)
 		{

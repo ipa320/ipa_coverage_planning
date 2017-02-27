@@ -67,7 +67,7 @@ delta_theta_weight: 0.15
 #
 # sampling angle when creating possible sensing poses
 # [rad]
-delta_theta: 1.570796
+delta_theta: 0.78539816339      #1.570796
 
 # parameters specific for the flowNetwork explorator
 #
