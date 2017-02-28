@@ -1,31 +1,43 @@
 #include <ipa_room_exploration/energy_functional_explorator.h>
 
 // Constructor
-energyFunctionalExplorator::energyFunctionalExplorator()
+EnergyFunctionalExplorator::EnergyFunctionalExplorator()
 {
 
 }
 
 // Function that computes the energy functional for each pair of nodes.
-float energyFunctionalExplorator::E(const energyExploratorNode& location, const energyExploratorNode& neighbor,
-		const std::set<cv::Point, cv_Point_cmp>& visited_nodes, const int cell_size, const double previous_travel_angle)
+double EnergyFunctionalExplorator::E(const EnergyExploratorNode& location, const EnergyExploratorNode& neighbor, const int cell_size, const double previous_travel_angle)
 {
 	float energy_functional = 0.0;
 
 	// 1. translational distance
-	cv::Point diff = location.center_ - neighbor.center_;
-	energy_functional += cv::norm(diff)/cell_size;
+	cv::Point diff = neighbor.center_ - location.center_;
+	energy_functional += cv::norm(diff)/(2*cell_size);
 
 	// 2. rotational distance
-	double travel_angle_to_node = std::atan2(diff.y, diff.x);
-	energy_functional += std::abs(previous_travel_angle - travel_angle_to_node)/PI_2;
+	const double travel_angle_to_node = std::atan2(diff.y, diff.x);
+	double diff_angle = travel_angle_to_node - previous_travel_angle;
+	while (diff_angle < -PI)
+		diff_angle += 2*PI;
+	while (diff_angle > PI)
+		diff_angle -= 2*PI;
+	energy_functional += std::abs(diff_angle)*PI_2_INV;	// 1.01 for punishing turns a little bit more on a tie
 
 	// 3. neighboring function, determining how many neighbors of the neighbor have been visited
 	int visited_neighbors = 0;
-	for(std::vector<energyExploratorNode*>::const_iterator n=neighbor.neighbors_.begin(); n!=neighbor.neighbors_.end(); ++n)
-		if(visited_nodes.find((*n)->center_)!=visited_nodes.end())
+	for(std::vector<EnergyExploratorNode*>::const_iterator n=neighbor.neighbors_.begin(); n!=neighbor.neighbors_.end(); ++n)
+		if ((*n)->obstacle_ == false && (*n)->visited_ == true)
 			++visited_neighbors;
-	energy_functional += 4 - visited_neighbors/2;
+	energy_functional += 4. - 0.5*visited_neighbors;
+
+	int wall_points = 0;
+	for(std::vector<EnergyExploratorNode*>::const_iterator n=neighbor.neighbors_.begin(); n!=neighbor.neighbors_.end(); ++n)
+		if ((*n)->obstacle_ == true)
+			++wall_points;
+	energy_functional += 0.72 - 0.09*wall_points;
+
+	//std::cout << "E: " << cv::norm(diff)/(2*cell_size) << " + " << std::abs(diff_angle)*PI_2_INV << " + " << 4. - 0.5*visited_neighbors << " + " << 0.72 - 0.09*wall_points << "                        angles: " << travel_angle_to_node << ", " << previous_travel_angle << "   diff ang: " << diff_angle << std::endl;
 
 	return energy_functional;
 }
@@ -54,45 +66,44 @@ float energyFunctionalExplorator::E(const energyExploratorNode& location, const 
 //		the distance to the last robot position is minimized. If this is not wanted one has to set the corresponding
 //		Boolean to false (shows that the path planning should be done for the robot footprint).
 //
-void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
+void EnergyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
 			const cv::Point starting_position, const cv::Point2d map_origin, const float fitting_circle_radius,
 			const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector)
 {
-	// todo: include the rotation!
-//	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
-//	cv::Mat R;
-//	cv::Rect bbox;
-//	cv::Mat rotated_room_map;
-//	RoomRotator room_rotation;
-//	room_rotation.computeRoomRotationMatrix(room_map, R, bbox, map_resolution);
-//	room_rotation.rotateRoom(room_map, rotated_room_map, R, bbox);
+	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
+	cv::Mat R;
+	cv::Rect bbox;
+	cv::Mat rotated_room_map;
+	RoomRotator room_rotation;
+	room_rotation.computeRoomRotationMatrix(room_map, R, bbox, map_resolution);
+	room_rotation.rotateRoom(room_map, rotated_room_map, R, bbox);
 
 	// *********************** I. Find the nodes and their neighbors ***********************
 	// get the nodes in the free space
-	std::vector<std::vector<energyExploratorNode> > nodes; // 2-dimensional vector to easily find the neighbors
-	std::set<cv::Point, cv_Point_cmp> visited_nodes; // vector that stores the already visited nodes
+	std::vector<std::vector<EnergyExploratorNode> > nodes; // 2-dimensional vector to easily find the neighbors
 	int radius_as_int = (int) std::floor(fitting_circle_radius);
 	int number_of_nodes = 0;
-	for(size_t y=0; y<room_map.rows; y+=2.0*radius_as_int)
+	for(size_t y=0; y<rotated_room_map.rows; y+=2.0*radius_as_int)
 	{
 		// for the current row create a new set of neurons to span the network over time
-		std::vector<energyExploratorNode> current_row;
-		for(size_t x=0; x<room_map.cols; x+=2.0*radius_as_int)
+		std::vector<EnergyExploratorNode> current_row;
+		for(size_t x=0; x<rotated_room_map.cols; x+=2.0*radius_as_int)
 		{
 			// create node if the current point is in the free space
-			energyExploratorNode current_node;
+			EnergyExploratorNode current_node;
 			current_node.center_ = cv::Point(x,y);
-			if(room_map.at<uchar>(y,x) == 255)
+			if(rotated_room_map.at<uchar>(y,x) == 255)				// todo: could make sense to test all pixels of the cell, not only the center
 			{
 				current_node.obstacle_ = false;
+				current_node.visited_ = false;
 				++number_of_nodes;
 			}
 			// add the obstacle nodes as already visited
 			else
 			{
 				current_node.obstacle_ = true;
+				current_node.visited_ = true;
 				++number_of_nodes;
-				visited_nodes.insert(current_node.center_);
 			}
 			current_row.push_back(current_node);
 		}
@@ -103,11 +114,13 @@ void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 	std::cout << "found " << number_of_nodes <<  " nodes" << std::endl;
 
 	// find the neighbors for each node
-	std::vector<energyExploratorNode> corner_nodes; // vector that stores the corner nodes, i.e. nodes with 3 or less neighbors
+	EnergyExploratorNode* first_accessible_node = 0;
+	std::vector<EnergyExploratorNode*> corner_nodes; // vector that stores the corner nodes, i.e. nodes with 3 or less neighbors
 	for(size_t row=0; row<nodes.size(); ++row)
 	{
 		for(size_t column=0; column<nodes[row].size(); ++column)
 		{
+			std::vector<EnergyExploratorNode*>& current_neighbors = nodes[row][column].neighbors_;
 			for(int dy=-1; dy<=1; ++dy)
 			{
 				// don't exceed the current row
@@ -116,25 +129,24 @@ void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 
 				// get the neighbors left from the current neuron
 				if(column > 0)
-					nodes[row][column].neighbors_.push_back(&nodes[row+dy][column-1]);
+					current_neighbors.push_back(&nodes[row+dy][column-1]);
 
 				// get the nodes on the same column as the current neuron
 				if(dy != 0)
-					nodes[row][column].neighbors_.push_back(&nodes[row+dy][column]);
+					current_neighbors.push_back(&nodes[row+dy][column]);
 
 				// get the nodes right from the current neuron
 				if(column < nodes[row].size()-1)
-					nodes[row][column].neighbors_.push_back(&nodes[row+dy][column+1]);
+					current_neighbors.push_back(&nodes[row+dy][column+1]);
 			}
 
 			// check if the current node is a corner, i.e. nodes that have 3 or less neighbors that are not obstacles
-			int non_obstacle_neighbors = 0;
-			for(std::vector<energyExploratorNode*>::iterator neighbor=nodes[row][column].neighbors_.begin(); neighbor!=nodes[row][column].neighbors_.end(); ++neighbor)
-				if((*neighbor)->obstacle_==false)
-					++non_obstacle_neighbors;
-
+			int non_obstacle_neighbors = nodes[row][column].countNonObstacleNeighbors();
 			if(non_obstacle_neighbors<=3 && nodes[row][column].obstacle_==false)
-				corner_nodes.push_back(nodes[row][column]);
+				corner_nodes.push_back(&nodes[row][column]);
+
+			if (first_accessible_node==0 && nodes[row][column].obstacle_==false)
+				first_accessible_node = &nodes[row][column];
 		}
 	}
 	std::cout << "found neighbors, corners: " << corner_nodes.size() << std::endl;
@@ -144,7 +156,7 @@ void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 //	{
 //		for(size_t j=0; j<nodes[i].size(); ++j)
 //		{
-//			cv::Mat test_map = room_map.clone();
+//			cv::Mat test_map = rotated_room_map.clone();
 //
 //			std::vector<energyExploratorNode*> neighbors = nodes[i][j].neighbors_;
 //			for(std::vector<energyExploratorNode*>::iterator n=neighbors.begin(); n!=neighbors.end(); ++n)
@@ -157,120 +169,138 @@ void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 
 	// *********************** II. Plan the coverage path ***********************
 	// i. find the start node of the path as a corner that is closest to the starting position
-	energyExploratorNode start_node;
-	float min_distance = 1e5;
-	for(std::vector<energyExploratorNode>::iterator corner=corner_nodes.begin(); corner!=corner_nodes.end(); ++corner)
+	std::vector<cv::Point> starting_point_vector(1, starting_position); // opencv syntax
+	cv::transform(starting_point_vector, starting_point_vector, R);
+	const cv::Point rotated_starting_point = starting_point_vector[0]; // Point that keeps track of the last point after the boustrophedon path in each cell
+	EnergyExploratorNode* start_node = first_accessible_node;
+	double min_distance = 1e10;
+	for(std::vector<EnergyExploratorNode*>::iterator corner=corner_nodes.begin(); corner!=corner_nodes.end(); ++corner)
 	{
-		cv::Point diff = corner->center_ - starting_position;
-		float current_distance = diff.x*diff.x+diff.y*diff.y;
+		cv::Point diff = (*corner)->center_ - rotated_starting_point;
+		double current_distance = diff.x*diff.x+diff.y*diff.y;
 		if(current_distance<=min_distance)
 		{
 			start_node = *corner;
 			min_distance = current_distance;
 		}
 	}
-	std::cout << "start: " << start_node.center_ << std::endl;
+	std::cout << "start node: " << start_node->center_ << std::endl;
 
 	// insert start node into coverage path
-	std::vector<geometry_msgs::Pose2D> fov_coverage_path;
-	geometry_msgs::Pose2D start_pose;
-	start_pose.x = start_node.center_.x;
-	start_pose.y = start_node.center_.y;
-	fov_coverage_path.push_back(start_pose);
+	std::vector<cv::Point> fov_coverage_path;
+	fov_coverage_path.push_back(cv::Point(start_node->center_.x, start_node->center_.y));
+	start_node->visited_ = true;	// mark visited nodes as obstacles
 
 	// ii. starting at the start node, find the coverage path, by choosing the node that min. the energy functional
-	energyExploratorNode last_node = start_node;
-	visited_nodes.insert(start_node.center_);
-	double previous_travel_angle = std::atan2(starting_position.y-start_node.center_.y, starting_position.x-start_node.center_.x);
+	EnergyExploratorNode* last_node = start_node;
+	double previous_travel_angle = 0;  //always use x-direction in the rotated map  //std::atan2(rotated_starting_point.y-start_node->center_.y, rotated_starting_point.x-start_node->center_.x);
+	for(std::vector<EnergyExploratorNode*>::iterator neighbor=last_node->neighbors_.begin(); neighbor!=last_node->neighbors_.end(); ++neighbor)
+	{
+		if ((*neighbor)->obstacle_==false && (*neighbor)->center_.y==start_node->center_.y && (*neighbor)->center_.x>start_node->center_.x)
+		{
+			previous_travel_angle = 0;
+			break;
+		}
+		if ((*neighbor)->obstacle_==false && (*neighbor)->center_.y==start_node->center_.y && (*neighbor)->center_.x<start_node->center_.x)
+		{
+			previous_travel_angle = PI;
+			break;
+		}
+		if ((*neighbor)->obstacle_==false && (*neighbor)->center_.y<start_node->center_.y && (*neighbor)->center_.x==start_node->center_.x)
+		{
+			previous_travel_angle = -0.5*PI;
+		}
+		if ((*neighbor)->obstacle_==false && (*neighbor)->center_.y>start_node->center_.y && (*neighbor)->center_.x==start_node->center_.x)
+		{
+			previous_travel_angle = 0.5*PI;
+		}
+	}
+//	cv::Mat path_map = rotated_room_map.clone();
+//	cv::circle(path_map, fov_coverage_path[0], 2, cv::Scalar(100), CV_FILLED);
 	do
 	{
+		//std::cout << "Point: " << last_node->center_ << std::endl;
 		// check the direct neighbors, if at least one is not already visited
-		std::vector<energyExploratorNode> not_visited_neighbors;
-		for(std::vector<energyExploratorNode*>::iterator neighbor=last_node.neighbors_.begin(); neighbor!=last_node.neighbors_.end(); ++neighbor)
-			if(visited_nodes.find((*neighbor)->center_)==visited_nodes.end())
-				not_visited_neighbors.push_back(**neighbor);
+		std::vector<EnergyExploratorNode*> not_visited_neighbors;
+		for(std::vector<EnergyExploratorNode*>::iterator neighbor=last_node->neighbors_.begin(); neighbor!=last_node->neighbors_.end(); ++neighbor)
+			if ((*neighbor)->obstacle_ == false && (*neighbor)->visited_ == false)
+				not_visited_neighbors.push_back(*neighbor);
 
 		// if there are not visited direct neighbors, find the one of them that minimizes the energy functional
-		if(not_visited_neighbors.size()>0)
+		double min_energy = 1e10;
+		EnergyExploratorNode* next_node = 0;
+		if (not_visited_neighbors.size() > 0)
 		{
 			// find best neighbor
-			float min_energy = 1e4;
-			energyExploratorNode next_node;
-			for(std::vector<energyExploratorNode>::iterator candidate=not_visited_neighbors.begin(); candidate!=not_visited_neighbors.end(); ++candidate)
+			for (std::vector<EnergyExploratorNode*>::iterator candidate=not_visited_neighbors.begin(); candidate!=not_visited_neighbors.end(); ++candidate)
 			{
-				float current_energy = E(last_node, *candidate, visited_nodes, radius_as_int, previous_travel_angle);
-
-				if(current_energy<min_energy)
+				const double current_energy = E(*last_node, **candidate, radius_as_int, previous_travel_angle);
+				//std::cout << "Neighbor: " << (*candidate)->center_ << "    energy: " << current_energy << std::endl;
+				if(current_energy < min_energy)
 				{
 					min_energy = current_energy;
 					next_node = *candidate;
 				}
 			}
-
-			// add neighbor position to fov path and save the current robot location
-			geometry_msgs::Pose2D current_pose;
-			current_pose.x = next_node.center_.x;
-			current_pose.y = next_node.center_.y;
-			fov_coverage_path.push_back(current_pose);
-			previous_travel_angle = std::atan2(last_node.center_.y-next_node.center_.y, last_node.center_.x-next_node.center_.x);
-			last_node = next_node;
-			visited_nodes.insert(next_node.center_);
 		}
 		// if no direct neighbor is unvisited, search for the next node in all unvisited nodes
 		else
 		{
-			float min_energy = 1e4;
-			energyExploratorNode next_node;
-
 			// find best next node
-			for(size_t row=0; row<nodes.size(); ++row)
+			for (size_t row=0; row<nodes.size(); ++row)
 			{
-				for(size_t col=0; col<nodes[row].size(); ++col)
+				for (size_t col=0; col<nodes[row].size(); ++col)
 				{
 					// only check free nodes and not visited ones
-					if(nodes[row][col].obstacle_==false && visited_nodes.find(nodes[row][col].center_)==visited_nodes.end())
+					if (nodes[row][col].obstacle_==false && nodes[row][col].visited_==false)
 					{
 						// check if current node has a better energy
-						float current_energy = E(last_node, nodes[row][col], visited_nodes, radius_as_int, previous_travel_angle);
-						if(current_energy<min_energy)
+						const double current_energy = E(*last_node, nodes[row][col], radius_as_int, previous_travel_angle);
+						if (current_energy < min_energy)
 						{
 							min_energy = current_energy;
-							next_node = nodes[row][col];
+							next_node = &nodes[row][col];
 						}
 					}
 				}
 			}
-
-			// add next node to path and set robot location
-			geometry_msgs::Pose2D current_pose;
-			current_pose.x = next_node.center_.x;
-			current_pose.y = next_node.center_.y;
-			fov_coverage_path.push_back(current_pose);
-			previous_travel_angle = std::atan2(last_node.center_.y-next_node.center_.y, last_node.center_.x-next_node.center_.x);
-			last_node = next_node;
-			visited_nodes.insert(next_node.center_);
+			if (next_node == 0)
+				break;				// stop if all nodes have been visited
 		}
+		// add next node to path and set robot location
+		previous_travel_angle = std::atan2(next_node->center_.y-last_node->center_.y, next_node->center_.x-last_node->center_.x);
+		fov_coverage_path.push_back(next_node->center_);
+		next_node->visited_ = true;	// mark visited nodes as obstacles
 
-//		std::cout << "covered nodes: " << visited_nodes.size() << std::endl;
-	}while(visited_nodes.size()<number_of_nodes);
+//		cv::circle(path_map, next_node->center_, 2, cv::Scalar(100), CV_FILLED);
+//		cv::line(path_map, next_node->center_, last_node->center_, cv::Scalar(127));
+//		cv::imshow("path", path_map);
+//		cv::waitKey();
 
-	// go trough the found fov-path and compute the angles of the poses s.t. it points to the next pose that should be visited
-	for(unsigned int point_index=0; point_index<fov_coverage_path.size(); ++point_index)
-	{
-		// get the vector from the current point to the next point
-		geometry_msgs::Pose2D current_point = fov_coverage_path[point_index];
-		geometry_msgs::Pose2D next_point = fov_coverage_path[(point_index+1)%(fov_coverage_path.size())];
+		last_node = next_node;
+	} while (true);
 
-		float angle = std::atan2(next_point.y-current_point.y, next_point.x-current_point.x);
+	// transform the calculated path back to the originally rotated map
+	std::vector<geometry_msgs::Pose2D> fov_poses;
+	room_rotation.transformPathBackToOriginalRotation(fov_coverage_path, fov_poses, R);
 
-		// save the found angle
-		fov_coverage_path[point_index].theta = angle;
-	}
+//	// go trough the found fov-path and compute the angles of the poses s.t. it points to the next pose that should be visited
+//	for(unsigned int point_index=0; point_index<fov_coverage_path.size(); ++point_index)
+//	{
+//		// get the vector from the current point to the next point
+//		geometry_msgs::Pose2D current_point = fov_coverage_path[point_index];
+//		geometry_msgs::Pose2D next_point = fov_coverage_path[(point_index+1)%(fov_coverage_path.size())];
+//
+//		float angle = std::atan2(next_point.y-current_point.y, next_point.x-current_point.x);
+//
+//		// save the found angle
+//		fov_coverage_path[point_index].theta = angle;
+//	}
 
 	// if the path should be planned for the footprint, transform the image points to the map coordinates
 	if(plan_for_footprint==true)
 	{
-		for(std::vector<geometry_msgs::Pose2D>::iterator pose=fov_coverage_path.begin(); pose!=fov_coverage_path.end(); ++pose)
+		for(std::vector<geometry_msgs::Pose2D>::iterator pose=fov_poses.begin(); pose!=fov_poses.end(); ++pose)
 		{
 			geometry_msgs::Pose2D current_pose;
 			current_pose.x = (pose->x * map_resolution) + map_origin.x;
@@ -281,14 +311,13 @@ void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 		return;
 	}
 
-//	testing
-//	cv::Mat path_map = room_map.clone();
-//	cv::circle(path_map, cv::Point(fov_coverage_path[0].x, fov_coverage_path[0].y), 2, cv::Scalar(100), CV_FILLED);
-//	std::cout << cv::Point(fov_coverage_path[0].x, fov_coverage_path[0].y) << std::endl;
-//	for(std::vector<geometry_msgs::Pose2D>::iterator path_node=fov_coverage_path.begin()+1; path_node!=fov_coverage_path.end(); ++path_node)
+//	// testing
+//	cv::Mat path_map = rotated_room_map.clone();
+//	cv::circle(path_map, fov_coverage_path[0], 2, cv::Scalar(100), CV_FILLED);
+//	for(std::vector<cv::Point>::iterator path_node=fov_coverage_path.begin()+1; path_node!=fov_coverage_path.end(); ++path_node)
 //	{
-//		cv::circle(path_map, cv::Point(path_node->x, path_node->y), 2, cv::Scalar(100), CV_FILLED);
-//		cv::line(path_map, cv::Point(path_node->x, path_node->y), cv::Point((path_node-1)->x, (path_node-1)->y), cv::Scalar(127));
+//		cv::circle(path_map, *path_node, 2, cv::Scalar(100), CV_FILLED);
+//		cv::line(path_map, *path_node, *(path_node-1), cv::Scalar(127));
 //		cv::imshow("path", path_map);
 //		cv::waitKey();
 //	}
@@ -296,5 +325,5 @@ void energyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 //	cv::waitKey();
 
 	// ****************** III. Map the found fov path to the robot path ******************
-	mapPath(room_map, path, fov_coverage_path, robot_to_fov_vector, map_resolution, map_origin, starting_position);
+	mapPath(room_map, path, fov_poses, robot_to_fov_vector, map_resolution, map_origin, starting_position);
 }

@@ -530,7 +530,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		if(plan_for_footprint_ == false)
 			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, false, middle_point);
 		else
-			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, true, zero_vector);
+			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, goal->coverage_radius/map_resolution, true, zero_vector);
 	}
 	else if(path_planning_algorithm_ == 7) // use voronoi explorator
 	{

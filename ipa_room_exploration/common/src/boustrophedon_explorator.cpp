@@ -260,18 +260,20 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	// *********************** IV. Determine the cell paths. ***********************
 	// determine the start cell that contains the start position
 	int start_cell_index = 0;
-	cv::Point starting_point(starting_position.x, starting_position.y); // conversion of Pose2D to cv::Point for convenience
+	std::vector<cv::Point> starting_point_vector(1, starting_position); // opencv syntax
+	cv::transform(starting_point_vector, starting_point_vector, R);
+	const cv::Point rotated_starting_point = starting_point_vector[0]; // Point that keeps track of the last point after the boustrophedon path in each cell
 
 //	testing
 //	cv::Mat center_map = room_map.clone();
 //	for(size_t i=0; i<cell_polygons.size(); ++i)
 //		cv::circle(center_map, cell_polygons[i].getCenter(), 2, cv::Scalar(127), CV_FILLED);
-//	cv::circle(center_map, starting_point, 4, cv::Scalar(100), CV_FILLED);
+//	cv::circle(center_map, starting_position, 4, cv::Scalar(100), CV_FILLED);
 //	cv::imshow("centers", center_map);
 //	cv::waitKey();
 
 	for(std::vector<GeneralizedPolygon>::iterator cell=cell_polygons.begin(); cell!=cell_polygons.end(); ++cell)
-		if(cv::pointPolygonTest(cell->getVertexes(), starting_point, false) >= 0)
+		if(cv::pointPolygonTest(cell->getVertexes(), rotated_starting_point, false) >= 0)
 			start_cell_index = cell - cell_polygons.begin();
 
 	// determine the optimal visiting order of the cells
@@ -282,9 +284,7 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	ROS_INFO("Starting to get the paths for each cell, number of cells: %d", (int)cell_polygons.size());
 	int fov_coverage_radius_as_int = (int)std::floor(coverage_radius); // convert fov-radius to int
 	std::cout << "Boustrophedon fov_coverage_radius_as_int=" << fov_coverage_radius_as_int << std::endl;
-	std::vector<cv::Point> starting_point_vector(1, starting_point); // opencv syntax
-	cv::transform(starting_point_vector, starting_point_vector, R);
-	cv::Point robot_pos = starting_point_vector[0]; // Point that keeps track of the last point after the boustrophedon path in each cell
+	cv::Point robot_pos = rotated_starting_point; // Point that keeps track of the last point after the boustrophedon path in each cell
 	std::vector<cv::Point> fov_middlepoint_path;
 	for(size_t cell=0; cell<cell_polygons.size(); ++cell)
 	{

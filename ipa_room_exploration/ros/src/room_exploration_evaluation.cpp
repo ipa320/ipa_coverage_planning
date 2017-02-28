@@ -1398,9 +1398,9 @@ int main(int argc, char **argv)
 //	exploration_algorithms.push_back(1);	// grid point exploration
 //	exploration_algorithms.push_back(2);	// boustrophedon exploration
 //	exploration_algorithms.push_back(3);	// neural network exploration
-	exploration_algorithms.push_back(4);	// convex SPP exploration
+//	exploration_algorithms.push_back(4);	// convex SPP exploration
 //	exploration_algorithms.push_back(5);	// flow network exploration
-//	exploration_algorithms.push_back(6);	// energy functional exploration
+	exploration_algorithms.push_back(6);	// energy functional exploration
 //	exploration_algorithms.push_back(7);	// voronoi exploration
 
 
@@ -1415,22 +1415,15 @@ int main(int argc, char **argv)
 //	fov_points[2].y = -0.65;
 //	fov_points[3].x = 1.15;
 //	fov_points[3].y = 0.65;
-//	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
-//	fov_points[0].y = 0.3;
-//	fov_points[1].x = -0.3;
-//	fov_points[1].y = -0.3;
-//	fov_points[2].x = 0.3;
-//	fov_points[2].y = -0.3;
-//	fov_points[3].x = 0.3;
-//	fov_points[3].y = 0.3;
-	fov_points[0].x = 0.0;		// this is the working area of a vacuum cleaner with 60 cm width
+	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
 	fov_points[0].y = 0.3;
-	fov_points[1].x = 0.0;
+	fov_points[1].x = -0.3;
 	fov_points[1].y = -0.3;
-	fov_points[2].x = 0.6;
+	fov_points[2].x = 0.3;
 	fov_points[2].y = -0.3;
-	fov_points[3].x = 0.6;
+	fov_points[3].x = 0.3;
 	fov_points[3].y = 0.3;
+
 
 	double robot_radius = 0.3;		// [m]
 	double coverage_radius = 0.3;	// [m]

@@ -145,7 +145,7 @@ protected:
 	neuralNetworkExplorator neural_network_explorator_; // object that uses the neural network method to create an exploration path
 	convexSPPExplorator convex_SPP_explorator_; // object that uses the convex spp exploration methd to create an exploration path
 	flowNetworkExplorator flow_network_explorator_; // object that uses the flow network exploration method to create an exploration path
-	energyFunctionalExplorator energy_functional_explorator_; // object that uses the energy functional exploration method to create an exploration path
+	EnergyFunctionalExplorator energy_functional_explorator_; // object that uses the energy functional exploration method to create an exploration path
 
 	// parameters for the different planners
 	int grid_line_length_; // size of the grid-lines that the grid-point-explorator lays over the map

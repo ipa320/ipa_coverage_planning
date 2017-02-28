@@ -1,22 +1,3 @@
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
-#include <iostream>
-#include <vector>
-#include <cmath>
-#include <string>
-
-#include <Eigen/Dense>
-
-#include <ipa_room_exploration/meanshift2d.h>
-#include <ipa_room_exploration/fov_to_robot_mapper.h>
-
-#include <geometry_msgs/Pose2D.h>
-#include <geometry_msgs/Polygon.h>
-#include <geometry_msgs/Point32.h>
-
-#define PI 3.14159265359
-#define PI_2 PI/2
-
 /*!
  *****************************************************************
  * \file
@@ -78,12 +59,44 @@
 
 #pragma once
 
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <string>
+
+#include <Eigen/Dense>
+
+#include <ipa_room_exploration/meanshift2d.h>
+#include <ipa_room_exploration/room_rotator.h>
+#include <ipa_room_exploration/fov_to_robot_mapper.h>
+
+#include <geometry_msgs/Pose2D.h>
+#include <geometry_msgs/Polygon.h>
+#include <geometry_msgs/Point32.h>
+
+#define PI 3.14159265359
+const double PI_2_INV = 1./(0.5*PI);
+
+
+
 // Struct that is used to create a node and save the corresponding neighbors.
-struct energyExploratorNode
+struct EnergyExploratorNode
 {
 	cv::Point center_;
 	bool obstacle_;
-	std::vector<energyExploratorNode*> neighbors_;
+	bool visited_;
+	std::vector<EnergyExploratorNode*> neighbors_;
+
+	int countNonObstacleNeighbors()
+	{
+		int non_obstacle_neighbors = 0;
+		for(std::vector<EnergyExploratorNode*>::iterator neighbor=neighbors_.begin(); neighbor!=neighbors_.end(); ++neighbor)
+			if((*neighbor)->obstacle_==false)
+				++non_obstacle_neighbors;
+		return non_obstacle_neighbors;
+	}
 };
 
 // Struct used to create sets of energyExplorationNodes
@@ -117,17 +130,15 @@ struct cv_Point_cmp
 // This class only produces a static path, regarding the given map in form of a point series. To react on dynamic
 // obstacles, one has to do this in upper algorithms.
 //
-class energyFunctionalExplorator
+class EnergyFunctionalExplorator
 {
 protected:
 	// function to compute the energy function for each pair of nodes
-	float E(const energyExploratorNode& location, const energyExploratorNode& neighbor,
-			const std::set<cv::Point, cv_Point_cmp>& visited_nodes, const int cell_size,
-			const double previous_travel_angle);
+	double E(const EnergyExploratorNode& location, const EnergyExploratorNode& neighbor, const int cell_size, const double previous_travel_angle);
 
 public:
 	// constructor
-	energyFunctionalExplorator();
+	EnergyFunctionalExplorator();
 
 	// Function that creates an exploration path for a given room. The room has to be drawn in a cv::Mat (filled with Bit-uchar),
 	// with free space drawn white (255) and obstacles as black (0). It returns a series of 2D poses that show to which positions
