@@ -67,11 +67,11 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 	int fitting_radius_as_int = (int) std::floor(fitting_circle_radius);
 	int number_of_free_neurons = 0;
 	// todo: in an eroded map, we should directly start with y=min_room.y without any further margin
-	for(size_t y=min_room.y+fitting_radius_as_int; y<max_room.y-fitting_radius_as_int; y+=2.0*fitting_radius_as_int)
+	for(size_t y=min_room.y+fitting_radius_as_int; y<max_room.y/*-fitting_radius_as_int*/; y+=2.0*fitting_radius_as_int)
 	{
 		// for the current row create a new set of neurons to span the network over time
 		std::vector<Neuron> current_network_row;
-		for(size_t x=min_room.x+fitting_radius_as_int; x<max_room.x-fitting_radius_as_int; x+=2.0*fitting_radius_as_int)
+		for(size_t x=min_room.x+fitting_radius_as_int; x<max_room.x/*-fitting_radius_as_int*/; x+=2.0*fitting_radius_as_int)
 		{
 			// create free neuron
 			if(rotated_room_map.at<uchar>(y,x) == 255)
@@ -136,7 +136,7 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 
 	// ****************** III. Find the coverage path ******************
 	// mark the first non-obstacle neuron as starting node
-	Neuron* starting_neuron;
+	Neuron* starting_neuron = 0;
 	bool found = false;
 	for(size_t row=0; row<neurons_.size(); ++row)
 	{
@@ -152,6 +152,11 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 
 		if(found == true)
 			break;
+	}
+	if (starting_neuron==0)
+	{
+		std::cout << "Warning: there are no accessible points in this room." << std::endl;
+		return;
 	}
 	starting_neuron->markAsVisited();
 
@@ -265,7 +270,8 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 				}
 			}
 
-			if(number_of_previous_neuron_in_path >= number_of_neuron_in_path)
+			//if(number_of_previous_neuron_in_path >= number_of_neuron_in_path)
+			if(number_of_previous_neuron_in_path >= 20)
 			{
 				std::cout << "Warning: the algorithm is probably stuck in a cycle. Aborting." << std::endl;
 				stuck_in_cycle = true;
