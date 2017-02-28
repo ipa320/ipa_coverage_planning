@@ -1291,9 +1291,25 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	}
 
 	// *********************** V. Get the robot path out of the fov path. ***********************
+	// clean path from double occurrences of the same pose in a row
+	std::vector<geometry_msgs::Pose2D> fov_path;
+	fov_path.push_back(fov_poses[0]);
+	cv::Point last_added_point(fov_poses[0].x, fov_poses[0].y);
+	const double min_dist_squared = 5 * 5;	// [pixel]
+	for (size_t i=1; i<fov_poses.size(); ++i)
+	{
+		const cv::Point current_point(fov_poses[i].x, fov_poses[i].y);
+		cv::Point vector = current_point - last_added_point;
+		if (vector.x*vector.x+vector.y*vector.y > min_dist_squared || i==fov_poses.size()-1)
+		{
+			fov_path.push_back(fov_poses[i]);
+			last_added_point = current_point;
+		}
+	}
+
 	// go trough all computed fov poses and compute the corresponding robot pose
 	std::cout << "mapping path" << std::endl;
-	mapPath(room_map, path, fov_poses, robot_to_fov_middlepoint_vector, map_resolution, map_origin, starting_position);
+	mapPath(room_map, path, fov_path, robot_to_fov_middlepoint_vector, map_resolution, map_origin, starting_position);
 
 ////	testing
 //	cv::Mat path_map = room_map.clone();
