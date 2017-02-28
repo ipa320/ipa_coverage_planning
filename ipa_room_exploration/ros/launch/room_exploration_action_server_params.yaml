@@ -60,7 +60,7 @@ D: 7
 E: 80
 # parameter to set the importance of the states of neighboring neurons to the dynamics, higher value means higher influence
 mu: 1.03
-# parameter to set the importance of the traveleing direction from the previous step and the next step, a higher value means that the robot should turn less
+# parameter to set the importance of the traveling direction from the previous step and the next step, a higher value means that the robot should turn less
 delta_theta_weight: 0.15
 
 # parameters specific for the convexSPP explorator

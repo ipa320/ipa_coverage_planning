@@ -120,7 +120,7 @@ protected:
 public:
 
 	// constructor
-	Neuron(cv::Point position, double A, double B, double D, double E, double mu, double step_size, bool visited, bool cleaned=false)
+	Neuron(cv::Point position, double A, double B, double D, double E, double mu, double step_size, bool obstacle, bool visited=false)
 	{
 		state_ = 0;
 		previous_state_ = 0;
@@ -131,8 +131,8 @@ public:
 		E_ = E;
 		mu_ = mu;
 		step_size_ = step_size;
-		obstacle_ = visited;
-		visited_ = cleaned;
+		obstacle_ = obstacle;
+		visited_ = visited;
 	}
 
 	// function to insert a neighbor
@@ -143,7 +143,7 @@ public:
 
 		// calculate distance and corresponding weight to it
 		cv::Point difference = position_ - new_neighbor->position_;
-		float distance = cv::norm(difference);
+		double distance = cv::norm(difference);
 		weights_.push_back(mu_/distance);
 	}
 
@@ -195,7 +195,7 @@ public:
 	void updateState()
 	{
 		// get external input
-		double input = I();
+		const double input = I();
 
 		// get the current sum of weights times the state of the neighbor
 		double weight_sum = 0;
@@ -203,7 +203,7 @@ public:
 			weight_sum += weights_[neighbor]*std::max(neighbors_[neighbor]->getState(true), 0.0);
 
 		// calculate current gradient --> see stated paper from the beginning
-		float gradient = -A_*state_ + (B_-state_)*(std::max(input, 0.0) + weight_sum) - (D_+state_)*std::max(-1.0*input, 0.0);
+		double gradient = -A_*state_ + (B_-state_)*(std::max(input, 0.0) + weight_sum) - (D_+state_)*std::max(-1.0*input, 0.0);
 
 		// update state using euler method
 		state_ += step_size_*gradient;

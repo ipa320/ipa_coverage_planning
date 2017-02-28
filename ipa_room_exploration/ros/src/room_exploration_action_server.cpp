@@ -464,9 +464,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 		// plan path
 		if(plan_for_footprint_ == false)
-			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, min_max_coordinates, map_origin, plan_for_footprint_, middle_point);
+			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, plan_for_footprint_, middle_point);
 		else
-			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, min_max_coordinates, map_origin, plan_for_footprint_, zero_vector);
+			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, plan_for_footprint_, zero_vector);
 	}
 	else if(path_planning_algorithm_ == 2) // use boustrophedon explorator
 	{
@@ -478,11 +478,12 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	}
 	else if(path_planning_algorithm_ == 3) // use neural network explorator
 	{
+		neural_network_explorator_.setParameters(A_, B_, D_, E_, mu_, step_size_, delta_theta_weight_);
 		// plan path
 		if(plan_for_footprint_ == false)
-			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, plan_for_footprint_, middle_point, min_max_coordinates, false);
+			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, plan_for_footprint_, middle_point, false);
 		else
-			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, goal->coverage_radius/map_resolution, plan_for_footprint_, zero_vector, min_max_coordinates, false);
+			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, goal->coverage_radius/map_resolution, plan_for_footprint_, zero_vector, false);
 	}
 	else if(path_planning_algorithm_ == 4) // use convexSPP explorator
 	{
@@ -521,9 +522,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	else if(path_planning_algorithm_ == 5) // use flow network explorator
 	{
 		if(plan_for_footprint_ == false)
-			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, min_max_coordinates, middle_point, fitting_circle_radius/map_resolution, false, path_eps_, curvature_factor_);
+			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, middle_point, fitting_circle_radius/map_resolution, false, path_eps_, curvature_factor_);
 		else
-			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, min_max_coordinates, zero_vector, goal->coverage_radius/map_resolution, true, path_eps_, curvature_factor_);
+			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, zero_vector, goal->coverage_radius/map_resolution, true, path_eps_, curvature_factor_);
 	}
 	else if(path_planning_algorithm_ == 6) // use energy functional explorator
 	{

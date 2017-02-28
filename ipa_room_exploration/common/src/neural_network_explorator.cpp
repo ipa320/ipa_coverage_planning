@@ -33,10 +33,8 @@ neuralNetworkExplorator::neuralNetworkExplorator()
 //		Boolean to false (shows that the path planning should be done for the robot footprint).
 void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
 					 const cv::Point starting_position, const cv::Point2d map_origin, const float fitting_circle_radius,
-					 const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector,
-					 const geometry_msgs::Polygon room_min_max_coordinates, bool show_path_computation)
+					 const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector, bool show_path_computation)
 {
-	// todo: include the rotation!
 	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
 	cv::Mat R;
 	cv::Rect bbox;
@@ -45,27 +43,42 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 	room_rotation.computeRoomRotationMatrix(room_map, R, bbox, map_resolution);
 	room_rotation.rotateRoom(room_map, rotated_room_map, R, bbox);
 
+	// compute min/max room coordinates
+	cv::Point min_room(1000000, 1000000), max_room(0, 0);
+	for (int v=0; v<rotated_room_map.rows; ++v)
+	{
+		for (int u=0; u<rotated_room_map.cols; ++u)
+		{
+			if (rotated_room_map.at<uchar>(v,u)==255)
+			{
+				min_room.x = std::min(min_room.x, u);
+				min_room.y = std::min(min_room.y, v);
+				max_room.x = std::max(max_room.x, u);
+				max_room.y = std::max(max_room.y, v);
+			}
+		}
+	}
 
-
-	// ****************** I. Create the neural network ******************
+	// ****************** II. Create the neural network ******************
 	// reset previously computed neurons
 	neurons_.clear();
 
 	// go trough the map and create the neurons
 	int fitting_radius_as_int = (int) std::floor(fitting_circle_radius);
-	int number_of_neurons = 0;
-	for(size_t y=room_min_max_coordinates.points[0].y+fitting_radius_as_int; y<room_min_max_coordinates.points[1].y-fitting_radius_as_int; y+=2.0*fitting_radius_as_int)
+	int number_of_free_neurons = 0;
+	// todo: in an eroded map, we should directly start with y=min_room.y without any further margin
+	for(size_t y=min_room.y+fitting_radius_as_int; y<max_room.y-fitting_radius_as_int; y+=2.0*fitting_radius_as_int)
 	{
 		// for the current row create a new set of neurons to span the network over time
 		std::vector<Neuron> current_network_row;
-		for(size_t x=room_min_max_coordinates.points[0].x+fitting_radius_as_int; x<room_min_max_coordinates.points[1].x-fitting_radius_as_int; x+=2.0*fitting_radius_as_int)
+		for(size_t x=min_room.x+fitting_radius_as_int; x<max_room.x-fitting_radius_as_int; x+=2.0*fitting_radius_as_int)
 		{
 			// create free neuron
-			if(room_map.at<uchar>(y,x) == 255)
+			if(rotated_room_map.at<uchar>(y,x) == 255)
 			{
 				Neuron current_neuron(cv::Point(x,y), A_, B_, D_, E_, mu_, step_size_, false);
 				current_network_row.push_back(current_neuron);
-				++number_of_neurons;
+				++number_of_free_neurons;
 			}
 			else // obstacle neuron
 			{
@@ -105,7 +118,7 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 	}
 
 //	testing
-//	cv::Mat black_map = cv::Mat(room_map.rows, room_map.cols, room_map.type(), cv::Scalar(0));
+//	cv::Mat black_map = cv::Mat(rotated_room_map.rows, rotated_room_map.cols, rotated_room_map.type(), cv::Scalar(0));
 //	for(size_t i=0; i<neurons_.size(); ++i)
 //	{
 //		for(size_t j=0; j<neurons_[i].size(); ++j)
@@ -121,7 +134,7 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 //	cv::imshow("neighbors", black_map);
 //	cv::waitKey();
 
-	// ****************** II. Find the coverage path ******************
+	// ****************** III. Find the coverage path ******************
 	// mark the first non-obstacle neuron as starting node
 	Neuron* starting_neuron;
 	bool found = false;
@@ -143,7 +156,7 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 	starting_neuron->markAsVisited();
 
 	// initial updates of the states to mark obstacles and unvisited free neurons as such
-	for(size_t init=1; init<=3; ++init)
+	for(size_t init=1; init<=100; ++init)
 	{
 		for(size_t row=0; row<neurons_.size(); ++row)
 			for(size_t column=0; column<neurons_[row].size(); ++column)
@@ -154,7 +167,7 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 	}
 
 //	testing
-//	cv::Mat black_map = cv::Mat(room_map.rows, room_map.cols, CV_32F, cv::Scalar(0));
+//	cv::Mat black_map = cv::Mat(rotated_room_map.rows, rotated_room_map.cols, CV_32F, cv::Scalar(0));
 //	for(size_t row=0; row<neurons_.size(); ++row)
 //	{
 //		for(size_t column=0; column<neurons_[row].size(); ++column)
@@ -174,37 +187,41 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 	// limit cycle like path (i.e. the same neurons get visited over and over)
 	int visited_neurons = 1;
 	bool stuck_in_cycle = false;
-	std::vector<geometry_msgs::Pose2D> fov_path; // vector that stores the computed path, that is generated for the field of view (fov)
-	geometry_msgs::Pose2D initial_pose;
-	initial_pose.x = starting_neuron->getPosition().x;
-	initial_pose.y = starting_neuron->getPosition().y;
-//	initial_pose.theta = 0.0;
-	fov_path.push_back(initial_pose);
+	std::vector<cv::Point> fov_coverage_path;
+	fov_coverage_path.push_back(cv::Point(starting_neuron->getPosition().x, starting_neuron->getPosition().y));
 	double previous_traveling_angle = 0.0; // save the travel direction to the current neuron to determine the next neuron
-	cv::Mat black_map = room_map.clone();
+	cv::Mat black_map = rotated_room_map.clone();
 	Neuron* previous_neuron = starting_neuron;
 	do
 	{
+		//std::cout << "Point: " << previous_neuron->getPosition() << std::endl;
+
 		// get the current neighbors and choose the next out of them
 		std::vector<Neuron*> neighbors;
 		previous_neuron->getNeighbors(neighbors);
 		Neuron* next_neuron;
 
-		// go trough the neighbors and find the next one
-		double max_value = -1e3, travel_angle = 0.0, best_angle = 0.0;
+		// go through the neighbors and find the next one
+		double max_value = -1e10, travel_angle = 0.0, best_angle = 0.0;
 		for(size_t neighbor=0; neighbor<neighbors.size(); ++neighbor)
 		{
 			// get travel angle to this neuron
 			travel_angle = std::atan2(neighbors[neighbor]->getPosition().y-previous_neuron->getPosition().y, neighbors[neighbor]->getPosition().x-previous_neuron->getPosition().x);
 
 			// compute penalizing function y_j
-			double y = 1 - (std::abs(previous_traveling_angle - travel_angle)/PI);
+			double diff_angle = travel_angle - previous_traveling_angle;
+			while (diff_angle < -PI)
+				diff_angle += 2*PI;
+			while (diff_angle > PI)
+				diff_angle -= 2*PI;
+			double y = 1 - (std::abs(diff_angle)/PI);
 
 			// compute transition function value
+			//std::cout << " Neighbor: " << neighbors[neighbor]->getPosition() << "   " << neighbors[neighbor]->getState(false) << ", " << delta_theta_weight_ * y << std::endl;
 			double trans_fct_value = neighbors[neighbor]->getState(false) + delta_theta_weight_ * y;
 
 			// check if neighbor is next neuron to be visited
-			if(trans_fct_value > max_value && room_map.at<uchar>(neighbors[neighbor]->getPosition()) != 0)
+			if(trans_fct_value > max_value && rotated_room_map.at<uchar>(neighbors[neighbor]->getPosition()) != 0)
 			{
 				max_value = trans_fct_value;
 				next_neuron = neighbors[neighbor];
@@ -221,24 +238,22 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 		previous_traveling_angle = best_angle;
 
 		// add neuron to path
-		geometry_msgs::Pose2D current_pose;
-		current_pose.x = next_neuron->getPosition().x;
-		current_pose.y = next_neuron->getPosition().y;
-		fov_path.push_back(current_pose);
+		const cv::Point current_pose(next_neuron->getPosition().x, next_neuron->getPosition().y);
+		fov_coverage_path.push_back(current_pose);
 
 		// check the fov path for a limit cycle by searching the path for the next neuron, if it occurs too often
-		// and the previous/after neuron is always the same the algorithm probably is stuck in a cycle
+		// and the previous/following neuron is always the same the algorithm probably is stuck in a cycle
 		int number_of_neuron_in_path = 0;
-		for(std::vector<geometry_msgs::Pose2D>::iterator pose=fov_path.begin(); pose!=fov_path.end(); ++pose)
+		for(std::vector<cv::Point>::iterator pose=fov_coverage_path.begin(); pose!=fov_coverage_path.end(); ++pose)
 			if(*pose==current_pose)
 				++number_of_neuron_in_path;
 
 		if(number_of_neuron_in_path >= 20)
 		{
 			// check number of previous neuron
-			geometry_msgs::Pose2D previous_pose = fov_path[fov_path.size()-2];
+			cv::Point previous_pose = fov_coverage_path[fov_coverage_path.size()-2];
 			int number_of_previous_neuron_in_path = 0;
-			for(std::vector<geometry_msgs::Pose2D>::iterator pose=fov_path.begin(); pose!=fov_path.end()-1; ++pose)
+			for(std::vector<cv::Point>::iterator pose=fov_coverage_path.begin()+1; pose!=fov_coverage_path.end()-1; ++pose)
 			{
 				// check if the the previous pose always has the current pose as neighbor
 				if(*pose==previous_pose)
@@ -251,47 +266,57 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 			}
 
 			if(number_of_previous_neuron_in_path >= number_of_neuron_in_path)
+			{
+				std::cout << "Warning: the algorithm is probably stuck in a cycle. Aborting." << std::endl;
 				stuck_in_cycle = true;
+			}
 		}
 
 		// update the states of the network
-		for(size_t row=0; row<neurons_.size(); ++row)
-			for(size_t column=0; column<neurons_[row].size(); ++column)
-				neurons_[row][column].saveState();
-		for(size_t row=0; row<neurons_.size(); ++row)
-			for(size_t column=0; column<neurons_[row].size(); ++column)
-				neurons_[row][column].updateState();
-
-		// save neuron that has been visited
-		previous_neuron = next_neuron;
+		for (int i=0; i<100; ++i)
+		{
+			for(size_t row=0; row<neurons_.size(); ++row)
+				for(size_t column=0; column<neurons_[row].size(); ++column)
+					neurons_[row][column].saveState();
+			for(size_t row=0; row<neurons_.size(); ++row)
+				for(size_t column=0; column<neurons_[row].size(); ++column)
+					neurons_[row][column].updateState();
+		}
 
 //		printing of the path computation
 		if(show_path_computation == true)
 		{
 			cv::circle(black_map, next_neuron->getPosition(), 2, cv::Scalar((visited_neurons*5)%250), CV_FILLED);
+			cv::line(black_map, previous_neuron->getPosition(), next_neuron->getPosition(), cv::Scalar(128), 1);
 			cv::imshow("next_neuron", black_map);
-			cv::waitKey(20);
+			cv::waitKey();
 		}
 
-	}while(visited_neurons < number_of_neurons && stuck_in_cycle == false); //TODO: test terminal condition
+		// save neuron that has been visited
+		previous_neuron = next_neuron;
+	} while(visited_neurons < number_of_free_neurons && stuck_in_cycle == false); //TODO: test terminal condition
 
-	// go trough the found fov-path and compute the angles of the poses s.t. it points to the next pose that should be visited
-	for(unsigned int point_index=0; point_index<fov_path.size(); ++point_index)
-	{
-		// get the vector from the current point to the next point
-		geometry_msgs::Pose2D current_point = fov_path[point_index];
-		geometry_msgs::Pose2D next_point = fov_path[(point_index+1)%(fov_path.size())];
+	// transform the calculated path back to the originally rotated map
+	std::vector<geometry_msgs::Pose2D> fov_poses;
+	room_rotation.transformPathBackToOriginalRotation(fov_coverage_path, fov_poses, R);
 
-		float angle = std::atan2(next_point.y - current_point.y, next_point.x - current_point.x);
-
-		// save the found angle
-		fov_path[point_index].theta = angle;
-	}
+//	// go trough the found fov-path and compute the angles of the poses s.t. it points to the next pose that should be visited
+//	for(unsigned int point_index=0; point_index<fov_path.size(); ++point_index)
+//	{
+//		// get the vector from the current point to the next point
+//		geometry_msgs::Pose2D current_point = fov_path[point_index];
+//		geometry_msgs::Pose2D next_point = fov_path[(point_index+1)%(fov_path.size())];
+//
+//		float angle = std::atan2(next_point.y - current_point.y, next_point.x - current_point.x);
+//
+//		// save the found angle
+//		fov_path[point_index].theta = angle;
+//	}
 
 	// if the path should be planned for the robot footprint create the path and return here
 	if(plan_for_footprint == true)
 	{
-		for(std::vector<geometry_msgs::Pose2D>::iterator pose=fov_path.begin(); pose != fov_path.end(); ++pose)
+		for(std::vector<geometry_msgs::Pose2D>::iterator pose=fov_poses.begin(); pose != fov_poses.end(); ++pose)
 		{
 			geometry_msgs::Pose2D current_pose;
 			current_pose.x = (pose->x * map_resolution) + map_origin.x;
@@ -304,5 +329,5 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 
 	// ****************** III. Map the found fov path to the robot path ******************
 	// go trough all computed fov poses and compute the corresponding robot pose
-	mapPath(room_map, path, fov_path, robot_to_fov_vector, map_resolution, map_origin, starting_position);
+	mapPath(room_map, path, fov_poses, robot_to_fov_vector, map_resolution, map_origin, starting_position);
 }

@@ -15,9 +15,8 @@ GridPointExplorator::GridPointExplorator(int grid_line_length)
 //			a path that covers all nodes and ends at the node where the path started. depending on this series the angle of the
 //			Poses are computed, by calculating a vector from the old node to the next and using the angle of this with the x-axis
 //			as angle for the Poses.
-void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
-		const float map_resolution, const cv::Point starting_position, const geometry_msgs::Polygon room_min_max_coordinates,
-		const cv::Point2d map_origin, const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector)
+void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
+		const cv::Point starting_position, const cv::Point2d map_origin, const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector)
 {
 	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
 	// rotate map
@@ -57,6 +56,7 @@ void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	//		the given min/max-Polygon stores the min/max coordinates in two points: the first showing the min and the other
 	//		showing the max coordinates
 	std::cout << "size of one grid line: " << grid_line_length_ << std::endl;
+	// todo: in an eroded map, we should directly start with y=min_room.y without any further margin
 	for(unsigned int v=min_room.y+grid_line_length_/2; v<=max_room.y; v+=grid_line_length_)
 	{
 		for(unsigned int u=min_room.x+grid_line_length_/2; u<=max_room.x; u+=grid_line_length_)

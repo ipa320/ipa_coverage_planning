@@ -78,7 +78,7 @@ void EnergyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 	room_rotation.computeRoomRotationMatrix(room_map, R, bbox, map_resolution);
 	room_rotation.rotateRoom(room_map, rotated_room_map, R, bbox);
 
-	// *********************** I. Find the nodes and their neighbors ***********************
+	// *********************** II. Find the nodes and their neighbors ***********************
 	// get the nodes in the free space
 	std::vector<std::vector<EnergyExploratorNode> > nodes; // 2-dimensional vector to easily find the neighbors
 	int radius_as_int = (int) std::floor(fitting_circle_radius);
@@ -150,6 +150,11 @@ void EnergyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 		}
 	}
 	std::cout << "found neighbors, corners: " << corner_nodes.size() << std::endl;
+	if (first_accessible_node == 0)
+	{
+		std::cout << "Warning: there are no accessible points in this room." << std::endl;
+		return;
+	}
 
 //	testing
 //	for(size_t i=0; i<nodes.size(); ++i)
@@ -167,7 +172,7 @@ void EnergyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 //		}
 //	}
 
-	// *********************** II. Plan the coverage path ***********************
+	// *********************** III. Plan the coverage path ***********************
 	// i. find the start node of the path as a corner that is closest to the starting position
 	std::vector<cv::Point> starting_point_vector(1, starting_position); // opencv syntax
 	cv::transform(starting_point_vector, starting_point_vector, R);
@@ -324,6 +329,6 @@ void EnergyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 //	cv::imshow("path", path_map);
 //	cv::waitKey();
 
-	// ****************** III. Map the found fov path to the robot path ******************
+	// ****************** IV. Map the found fov path to the robot path ******************
 	mapPath(room_map, path, fov_poses, robot_to_fov_vector, map_resolution, map_origin, starting_position);
 }
