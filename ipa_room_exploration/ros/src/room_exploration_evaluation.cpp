@@ -275,38 +275,39 @@ public:
 			}
 
 			// create evaluation data
+			//                                                                      todo: param
 			evaluation_datas.push_back(ExplorationData(map_names[image_index], map, 0.05, robot_radius, coverage_radius, fov_points, footprint_points));
 		}
 
 		// get the room maps for each evaluation data
 		getRoomMaps(evaluation_datas);
 
-		// compute exploration paths for each room in the maps
-		std::string bugfile = data_storage_path + "bugfile.txt";
-		std::ofstream failed_maps(bugfile.c_str(), std::ios::out);
-		if (failed_maps.is_open())
-			failed_maps << "Maps that had a bug during the simulation and couldn't be finished: " << std::endl;
-		ROS_INFO("Evaluating the maps.");
-		for (size_t i=0; i<evaluation_datas.size(); ++i)
-		{
-			if (planCoveragePaths(configs, evaluation_datas[i], data_storage_path)==false)
-			{
-				std::cout << "failed to simulate map " << evaluation_datas[i].map_name_ << std::endl;
-				if (failed_maps.is_open())
-					failed_maps << evaluation_datas[i].map_name_ << std::endl;
-			}
-		}
-		if (failed_maps.is_open())
-			failed_maps.close();
-
-//		// read out the computed paths and calculate the evaluation values
-//		ROS_INFO("Reading out all saved paths.");
-//		// TODO: finish
-//		std::vector<EvaluationResults> results;
+//		// compute exploration paths for each room in the maps
+//		std::string bugfile = data_storage_path + "bugfile.txt";
+//		std::ofstream failed_maps(bugfile.c_str(), std::ios::out);
+//		if (failed_maps.is_open())
+//			failed_maps << "Maps that had a bug during the simulation and couldn't be finished: " << std::endl;
+//		ROS_INFO("Evaluating the maps.");
 //		for (size_t i=0; i<evaluation_datas.size(); ++i)
 //		{
-//			evaluateCoveragePaths(configs, evaluation_datas[i], results, data_storage_path);
+//			if (planCoveragePaths(configs, evaluation_datas[i], data_storage_path)==false)
+//			{
+//				std::cout << "failed to simulate map " << evaluation_datas[i].map_name_ << std::endl;
+//				if (failed_maps.is_open())
+//					failed_maps << evaluation_datas[i].map_name_ << std::endl;
+//			}
 //		}
+//		if (failed_maps.is_open())
+//			failed_maps.close();
+
+		// read out the computed paths and calculate the evaluation values
+		ROS_INFO("Reading out all saved paths.");
+		// TODO: finish
+		std::vector<EvaluationResults> results;
+		for (size_t i=0; i<evaluation_datas.size(); ++i)
+		{
+			evaluateCoveragePaths(configs, evaluation_datas[i], results, data_storage_path);
+		}
 
 	}
 
@@ -540,7 +541,7 @@ public:
 		}
 		// get the distance to the middle-point
 		Eigen::Matrix<float, 2, 1> middle_point = (fov_vectors[0] + fov_vectors[1] + fov_vectors[2] + fov_vectors[3]) / 4;
-		double distance_robot_fov_middlepoint = middle_point.norm();
+		const double distance_robot_fov_middlepoint = middle_point.norm();
 
 		for(std::vector<ExplorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
 		{
@@ -560,9 +561,6 @@ public:
 				bool initial = true;
 				while(getline(reading_file, line))
 				{
-					double calculation_time;
-					double x, y, theta;
-
 					// check if the current line is empty --> shows a new room
 					if(line.empty()==true)
 					{
@@ -582,10 +580,11 @@ public:
 					// if the new line is the first after an empty line, it contains the calculation time
 					if(initial==true)
 					{
+						double calculation_time = 0.;
 						// if the time limit was exceeded or a bug appeared, save a -1
 						if(line.find("exceeded")!=std::string::npos || line.find("bug")!=std::string::npos)
 						{
-//							std::cout << "exceeded calculation time" << std::endl;
+							//std::cout << "bug or exceeded calculation time" << std::endl;
 							// set max calculation time
 							if(config->exploration_algorithm_==5) // higher max time for flowNetwork explorator
 								calculation_time = 10800;
@@ -602,7 +601,7 @@ public:
 						{
 							const char* str = line.c_str();
 							sscanf(str, "%*[^0-9]%lf", &calculation_time);
-//							std::cout << "calculation time: " << calculation_time << "s" << std::endl;
+							//std::cout << "calculation time: " << calculation_time << "s" << std::endl;
 						}
 						calculation_times.push_back(calculation_time);
 						initial = false;
@@ -610,6 +609,7 @@ public:
 					// else read out x,y and theta and create a new Pose
 					else
 					{
+						double x=0., y=0., theta=0.;
 						std::istringstream iss(line);
 						int pos_counter = 0;
 						std::string buffer;
@@ -633,7 +633,7 @@ public:
 							++pos_counter;
 
 						}
-//						std::cout << "x: " << x << ", y: " << y << ", theta: " << theta << std::endl;
+						//std::cout << "   x: " << x << ", y: " << y << ", theta: " << theta << std::endl;
 
 						// save the found pose
 						if(x>0 && y>0)
@@ -648,8 +648,12 @@ public:
 				}
 			}
 			else
+			{
 				ROS_WARN("Error on reading file '%s'", log_filename.c_str());
+				continue;
+			}
 			reading_file.close();
+
 
 			// 3. do the evaluations
 			AStarPlanner path_planner;
@@ -681,8 +685,8 @@ public:
 			{
 				for(size_t x=0; x<map.cols; ++x)
 				{
-					int dx= gradient_x.at<double>(y,x);
-					int dy= gradient_y.at<double>(y,x);
+					int dx = gradient_x.at<double>(y,x);
+					int dy = gradient_y.at<double>(y,x);
 					if(dy*dy+dx*dx!=0)
 					{
 						double current_gradient = std::atan2(dy, dx);
@@ -690,9 +694,10 @@ public:
 					}
 				}
 			}
+			cv::Mat map_copy = map.clone();
 			for(size_t room=0; room<paths.size(); ++room)
 			{
-//				std::cout << "room " << room << ", size of path: " << paths[room].size() << std::endl;
+				std::cout << "room " << room << ", size of path: " << paths[room].size() << std::endl;
 
 				if(paths[room].size()==0)
 					continue;
@@ -701,7 +706,7 @@ public:
 
 				double current_pathlength = 0.0;
 				std::vector<geometry_msgs::Pose2D> current_pose_path;
-				double previous_angle =paths[room].begin()->theta;
+				double previous_angle = paths[room].begin()->theta;
 				double current_rotation_abs = 0.0;
 				int current_number_of_rotations = 0, current_number_of_crossings = 0;
 				geometry_msgs::Pose2D robot_position;
@@ -786,15 +791,15 @@ public:
 					previous_angle = next_pose.theta;
 
 					// create output map to show path --> also check if one point has already been visited
-					cv::LineIterator line(eroded_map, cv::Point(next_pose.x, next_pose.y), cv::Point(robot_position.x, robot_position.y), 8);
-					cv::circle(eroded_map, cv::Point(next_pose.x, next_pose.y), 2, cv::Scalar(100), CV_FILLED);
+					cv::LineIterator line(map_copy, cv::Point(next_pose.x, next_pose.y), cv::Point(robot_position.x, robot_position.y), 8);
+					cv::circle(map_copy, cv::Point(next_pose.x, next_pose.y), 2, cv::Scalar(100), CV_FILLED);
 					for(int pos=1; pos<line.count-1; pos++, ++line)
 					{
 						cv::Point current_point = line.pos();
-						if(eroded_map.at<uchar>(current_point)==127)
+						if(map_copy.at<uchar>(current_point)==127)
 							++current_number_of_crossings;
 						else
-							eroded_map.at<uchar>(current_point)=127;
+							map_copy.at<uchar>(current_point)=127;
 //						cv::imshow("er", eroded_map);
 //						cv::waitKey();
 					}
@@ -856,7 +861,7 @@ public:
 			std::stringstream map_filename;
 			std::string image_path = data_storage_path + folder_path + datas.map_name_ + "_paths_eval.png";
 //			std::cout << image_path << std::endl;
-			cv::imwrite(image_path.c_str(), eroded_map);
+			cv::imwrite(image_path.c_str(), map_copy);
 //			cv::imshow("room paths", room_map);
 //			cv::waitKey();
 
@@ -1397,10 +1402,10 @@ int main(int argc, char **argv)
 	std::vector<int> exploration_algorithms;
 //	exploration_algorithms.push_back(1);	// grid point exploration
 //	exploration_algorithms.push_back(2);	// boustrophedon exploration
-	exploration_algorithms.push_back(3);	// neural network exploration
+//	exploration_algorithms.push_back(3);	// neural network exploration
 //	exploration_algorithms.push_back(4);	// convex SPP exploration
 //	exploration_algorithms.push_back(5);	// flow network exploration
-//	exploration_algorithms.push_back(6);	// energy functional exploration
+	exploration_algorithms.push_back(6);	// energy functional exploration
 //	exploration_algorithms.push_back(7);	// voronoi exploration
 
 
