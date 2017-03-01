@@ -460,7 +460,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	{
 		// set wanted grid size
 		//grid_point_planner.setGridLineLength(grid_line_length_);	// todo: why not grid_length which is already computed to fit the working device
-		grid_point_planner.setGridLineLength(grid_length);
+		//grid_point_planner.setGridLineLength(grid_length); // todo: this is the correct version, but all the others have been tested with the limit grid with no guarantees on coverage
+		grid_point_planner.setGridLineLength(grid_length*std::sqrt(2));
 
 		// plan path
 		if(plan_for_footprint_ == false)
