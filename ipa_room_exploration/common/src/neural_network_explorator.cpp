@@ -197,14 +197,16 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 	double previous_traveling_angle = 0.0; // save the travel direction to the current neuron to determine the next neuron
 	cv::Mat black_map = rotated_room_map.clone();
 	Neuron* previous_neuron = starting_neuron;
+	int loop_counter = 0;
 	do
 	{
 		//std::cout << "Point: " << previous_neuron->getPosition() << std::endl;
+		++loop_counter;
 
 		// get the current neighbors and choose the next out of them
 		std::vector<Neuron*> neighbors;
 		previous_neuron->getNeighbors(neighbors);
-		Neuron* next_neuron;
+		Neuron* next_neuron = 0;
 
 		// go through the neighbors and find the next one
 		double max_value = -1e10, travel_angle = 0.0, best_angle = 0.0;
@@ -233,6 +235,15 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 				best_angle = travel_angle;
 			}
 		}
+		// catch errors
+		if (next_neuron == 0)
+		{
+			if (loop_counter <= 20)
+				continue;
+			else
+				break;
+		}
+		loop_counter = 0;
 
 		// if the next neuron was previously uncleaned, increase number of visited neurons
 		if(next_neuron->visitedNeuron() == false)
