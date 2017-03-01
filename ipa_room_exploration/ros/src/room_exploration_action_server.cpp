@@ -419,6 +419,11 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			current_vector << goal->field_of_view[i].x, goal->field_of_view[i].y;
 			fov_vectors.push_back(current_vector);
 		}
+
+		// todo: this is only correct in this special case of a symmetric trapezoid --> the general solution for the largest incircle
+		// is to find the critical points of a Voronoi graph and select the one with largest distance to the sides as circle center
+		// and its closest distance to the quadrilateral sides as radius
+		// see: http://math.stackexchange.com/questions/1948356/largest-incircle-inside-a-quadrilateral-radius-calculation
 		// Get the size of one grid cell s.t. the grid can be completely covered by the field of view (fov) from all rotations around it.
 		// For this fit a circle in the fov, which gives the diagonal length of the square. Then use Pythagoras to get the fov middle point.
 		middle_point = (fov_vectors[0] + fov_vectors[1] + fov_vectors[2] + fov_vectors[3]) / 4;
@@ -461,7 +466,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		// set wanted grid size
 		//grid_point_planner.setGridLineLength(grid_line_length_);	// todo: why not grid_length which is already computed to fit the working device
 		//grid_point_planner.setGridLineLength(grid_length); // todo: this is the correct version, but all the others have been tested with the limit grid with no guarantees on coverage
-		grid_point_planner.setGridLineLength(grid_length*std::sqrt(2));
+		grid_point_planner.setGridLineLength(std::floor(grid_length_as_double*std::sqrt(2)/map_resolution));
 
 		// plan path
 		if(plan_for_footprint_ == false)
