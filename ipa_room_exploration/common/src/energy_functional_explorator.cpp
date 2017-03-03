@@ -7,13 +7,13 @@ EnergyFunctionalExplorator::EnergyFunctionalExplorator()
 }
 
 // Function that computes the energy functional for each pair of nodes.
-double EnergyFunctionalExplorator::E(const EnergyExploratorNode& location, const EnergyExploratorNode& neighbor, const int cell_size, const double previous_travel_angle)
+double EnergyFunctionalExplorator::E(const EnergyExploratorNode& location, const EnergyExploratorNode& neighbor, const double cell_size_in_pixel, const double previous_travel_angle)
 {
 	float energy_functional = 0.0;
 
 	// 1. translational distance
 	cv::Point diff = neighbor.center_ - location.center_;
-	energy_functional += cv::norm(diff)/(2*cell_size);
+	energy_functional += cv::norm(diff)/cell_size_in_pixel;
 
 	// 2. rotational distance
 	const double travel_angle_to_node = std::atan2(diff.y, diff.x);
@@ -37,7 +37,7 @@ double EnergyFunctionalExplorator::E(const EnergyExploratorNode& location, const
 			++wall_points;
 	energy_functional += 0.72 - 0.09*wall_points;
 
-	//std::cout << "E: " << cv::norm(diff)/(2*cell_size) << " + " << std::abs(diff_angle)*PI_2_INV << " + " << 4. - 0.5*visited_neighbors << " + " << 0.72 - 0.09*wall_points << "                        angles: " << travel_angle_to_node << ", " << previous_travel_angle << "   diff ang: " << diff_angle << std::endl;
+	//std::cout << "E: " << cv::norm(diff)/cell_size << " + " << std::abs(diff_angle)*PI_2_INV << " + " << 4. - 0.5*visited_neighbors << " + " << 0.72 - 0.09*wall_points << "                        angles: " << travel_angle_to_node << ", " << previous_travel_angle << "   diff ang: " << diff_angle << std::endl;
 
 	return energy_functional;
 }
@@ -67,7 +67,7 @@ double EnergyFunctionalExplorator::E(const EnergyExploratorNode& location, const
 //		Boolean to false (shows that the path planning should be done for the robot footprint).
 //
 void EnergyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
-			const cv::Point starting_position, const cv::Point2d map_origin, const float fitting_circle_radius,
+			const cv::Point starting_position, const cv::Point2d map_origin, const double grid_spacing_in_pixel,
 			const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector)
 {
 	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
@@ -81,13 +81,14 @@ void EnergyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 	// *********************** II. Find the nodes and their neighbors ***********************
 	// get the nodes in the free space
 	std::vector<std::vector<EnergyExploratorNode> > nodes; // 2-dimensional vector to easily find the neighbors
-	int radius_as_int = (int) std::floor(fitting_circle_radius);
 	int number_of_nodes = 0;
-	for(size_t y=0; y<rotated_room_map.rows; y+=2.0*radius_as_int)
+	// todo: create grid in external class - it is the same in all approaches
+	// todo: if first/last row or column in grid has accessible areas but center is inaccessible, create a node in the accessible area
+	for(size_t y=0; y<rotated_room_map.rows; y+=grid_spacing_in_pixel)
 	{
 		// for the current row create a new set of neurons to span the network over time
 		std::vector<EnergyExploratorNode> current_row;
-		for(size_t x=0; x<rotated_room_map.cols; x+=2.0*radius_as_int)
+		for(size_t x=0; x<rotated_room_map.cols; x+=grid_spacing_in_pixel)
 		{
 			// create node if the current point is in the free space
 			EnergyExploratorNode current_node;
@@ -239,7 +240,7 @@ void EnergyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 			// find best neighbor
 			for (std::vector<EnergyExploratorNode*>::iterator candidate=not_visited_neighbors.begin(); candidate!=not_visited_neighbors.end(); ++candidate)
 			{
-				const double current_energy = E(*last_node, **candidate, radius_as_int, previous_travel_angle);
+				const double current_energy = E(*last_node, **candidate, grid_spacing_in_pixel, previous_travel_angle);
 				//std::cout << "Neighbor: " << (*candidate)->center_ << "    energy: " << current_energy << std::endl;
 				if(current_energy < min_energy)
 				{
@@ -260,7 +261,7 @@ void EnergyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 					if (nodes[row][col].obstacle_==false && nodes[row][col].visited_==false)
 					{
 						// check if current node has a better energy
-						const double current_energy = E(*last_node, nodes[row][col], radius_as_int, previous_travel_angle);
+						const double current_energy = E(*last_node, nodes[row][col], grid_spacing_in_pixel, previous_travel_angle);
 						if (current_energy < min_energy)
 						{
 							min_energy = current_energy;

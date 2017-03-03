@@ -45,7 +45,7 @@ BoustrophedonExplorer::BoustrophedonExplorer()
 //		corresponding Boolean to false (shows that the path planning should be done for the robot footprint).
 void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
 		const float map_resolution, const cv::Point starting_position, const cv::Point2d map_origin,
-		const float coverage_radius, const double path_eps, const bool plan_for_footprint,
+		const double grid_spacing_in_pixel, const double path_eps, const bool plan_for_footprint,
 		const Eigen::Matrix<float, 2, 1> robot_to_fov_vector, const double min_cell_area)
 {
 	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
@@ -282,8 +282,9 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 
 	// go trough the cells and determine the boustrophedon paths
 	ROS_INFO("Starting to get the paths for each cell, number of cells: %d", (int)cell_polygons.size());
-	int fov_coverage_radius_as_int = (int)std::floor(coverage_radius); // convert fov-radius to int
-	std::cout << "Boustrophedon fov_coverage_radius_as_int=" << fov_coverage_radius_as_int << std::endl;
+	int grid_spacing_as_int = (int)std::floor(grid_spacing_in_pixel); // convert fov-radius to int
+	int half_grid_spacing_as_int = (int)std::floor(0.5*grid_spacing_in_pixel); // convert fov-radius to int
+	std::cout << "Boustrophedon grid_spacing_as_int=" << grid_spacing_as_int << std::endl;
 	cv::Point robot_pos = rotated_starting_point; // Point that keeps track of the last point after the boustrophedon path in each cell
 	std::vector<cv::Point> fov_middlepoint_path;
 	for(size_t cell=0; cell<cell_polygons.size(); ++cell)
@@ -330,11 +331,13 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		std::vector<BoustrophedonHorizontalLine> path_lines;
 		int y, dx;
 
+		// todo: create grid in external class - it is the same in all approaches
+		// todo: if first/last row or column in grid has accessible areas but center is inaccessible, create a node in the accessible area
 		// check where to start the planning of the path (if the cell is smaller that the fov_diameter start in the middle of it)
-		if((max_y - min_y) <= 2.0*fov_coverage_radius_as_int)
+		if((max_y - min_y) <= grid_spacing_as_int)
 			y = min_y + 0.5 * (max_y - min_y);
 		else
-			y = (min_y-1) + fov_coverage_radius_as_int;
+			y = min_y;	//(min_y-1) + fov_coverage_radius_as_int;	// directly start driving at the border of the accessible room area
 		do
 		{
 			BoustrophedonHorizontalLine current_line;
@@ -346,28 +349,28 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 			// get the leftmost edges of the path
 			do
 			{
-				if(rotated_cell_map.at<uchar>(y, dx) == 255 && rotated_cell_map.at<uchar>(y, dx+fov_coverage_radius_as_int) == 255)
+				if(rotated_cell_map.at<uchar>(y, dx) == 255 && rotated_cell_map.at<uchar>(y, dx+half_grid_spacing_as_int) == 255)
 				{
-					left_edge = cv::Point(dx+fov_coverage_radius_as_int, y); // add coverage radius s.t. the edge is not on the wall
+					left_edge = cv::Point(dx+half_grid_spacing_as_int, y); // add coverage radius s.t. the edge is not on the wall
 					found = true;
 				}
 				else
 					++dx;
-			} while(dx < (rotated_cell_map.cols-fov_coverage_radius_as_int) && found == false); // dx < ... --> safety, should never hold
+			} while(dx < (rotated_cell_map.cols-half_grid_spacing_as_int) && found == false); // dx < ... --> safety, should never hold
 
 			// get the rightmost edges of the path
 			dx = max_x;
 			found = false;
 			do
 			{
-				if(rotated_cell_map.at<uchar>(y, dx) == 255 && rotated_cell_map.at<uchar>(y, dx-fov_coverage_radius_as_int) == 255)
+				if(rotated_cell_map.at<uchar>(y, dx) == 255 && rotated_cell_map.at<uchar>(y, dx-half_grid_spacing_as_int) == 255)
 				{
-					right_edge = cv::Point(dx-fov_coverage_radius_as_int, y); // subtract coverage radius s.t. edge is not on the wall
+					right_edge = cv::Point(dx-half_grid_spacing_as_int, y); // subtract coverage radius s.t. edge is not on the wall
 					found = true;
 				}
 				else
 					--dx;
-			} while(dx >= fov_coverage_radius_as_int && found == false);
+			} while(dx >= half_grid_spacing_as_int && found == false);
 
 			// save found horizontal line, if one is found, transformed to the original orientation of the cell
 			if(left_edge.x>=0 && left_edge.y>=0 && right_edge.x>=0 && right_edge.y>=0)
@@ -378,7 +381,7 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 			}
 
 			// increase y by given coverage-radius value
-			y += 2*fov_coverage_radius_as_int;
+			y += grid_spacing_as_int;
 
 		} while(y <= max_y);
 

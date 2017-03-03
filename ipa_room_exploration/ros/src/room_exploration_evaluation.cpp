@@ -1010,7 +1010,7 @@ public:
 //				cv::waitKey();
 
 				// get the area of the whole room
-				const int white_room_pixels = cv::countNonZero(eroded_room_map);//datas.room_maps_[room]);	// todo: change back when the path planning algorithms plan right from the rim of the eroded map without marging
+				const int white_room_pixels = cv::countNonZero(datas.room_maps_[room]);
 				const double room_area = datas.map_resolution_ * datas.map_resolution_ * (double) white_room_pixels;
 				room_areas.push_back(room_area);
 
@@ -1270,14 +1270,13 @@ public:
 
 			// 8. calculate the subjective measure for the paths
 			// TODO: !!!!!param!!!!! --> external computation so far
-			double subjective_measure = 1.0*average_pathlength + 1.0*average_computation_time + 1.0*average_wall_angle_difference
-					+ 1.0*average_trajectory_angle_difference + 1.0*average_revisit_times + 1.0*average_crossings + 1.0*average_number_of_turns;
+			double subjective_measure = average_wall_angle_difference + average_trajectory_angle_difference
+					- 1.0*average_pathlength - 1.0*average_computation_time - 1.0*average_revisit_times - 1.0/3.0*average_crossings - 1.0*average_number_of_turns;
 			subjective_measure /= 7.0;
 
 			// TODO: number of rooms
 
-			// TODO: print to file
-			// print the found evaluation values to a local file
+			// print the found average evaluation values to a local file
 			std::stringstream output;
 			output << "Expl" << config->exploration_algorithm_ << ", number of rooms: " << paths.size() << ", number of valid paths: "
 					<< nonzero_paths << std::endl;
@@ -1306,7 +1305,7 @@ public:
 				ROS_ERROR("Could not write to file '%s'.", filename.c_str());
 			file.close();
 
-			// print detailed information to file
+			// print detailed information for each room to a separate file
 			if (calculation_times.size()!=pathlengths_for_map.size() || calculation_times.size()!=rotation_values.size() ||
 				calculation_times.size()!= area_covered_percentages.size() || calculation_times.size()!= room_areas.size() ||
 				calculation_times.size()!= room_trajectory_averages.size() || calculation_times.size()!= room_wall_averages.size() || calculation_times.size()!= room_revisit_averages.size() ||
@@ -1497,8 +1496,8 @@ int main(int argc, char **argv)
 	exploration_algorithms.push_back(2);	// boustrophedon exploration
 	exploration_algorithms.push_back(3);	// neural network exploration
 	exploration_algorithms.push_back(4);	// convex SPP exploration
-//	exploration_algorithms.push_back(5);	// flow network exploration
-//	exploration_algorithms.push_back(6);	// energy functional exploration
+	exploration_algorithms.push_back(5);	// flow network exploration
+	exploration_algorithms.push_back(6);	// energy functional exploration
 	exploration_algorithms.push_back(7);	// voronoi exploration
 
 

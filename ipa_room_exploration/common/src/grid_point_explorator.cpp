@@ -56,10 +56,11 @@ void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	//		the given min/max-Polygon stores the min/max coordinates in two points: the first showing the min and the other
 	//		showing the max coordinates
 	std::cout << "size of one grid line: " << grid_line_length_ << std::endl;
-	// todo: in an eroded map, we should directly start with y=min_room.y without any further margin
-	for(unsigned int v=min_room.y+grid_line_length_/2; v<=max_room.y; v+=grid_line_length_)
+	// todo: create grid in external class - it is the same in all approaches
+	// todo: if first/last row or column in grid has accessible areas but center is inaccessible, create a node in the accessible area
+	for(unsigned int v=min_room.y; v<=max_room.y; v+=grid_line_length_)
 	{
-		for(unsigned int u=min_room.x+grid_line_length_/2; u<=max_room.x; u+=grid_line_length_)
+		for(unsigned int u=min_room.x; u<=max_room.x; u+=grid_line_length_)
 		{
 			// check if point is in the free space
 			if(rotated_room_map.at<unsigned char>(v, u) == 255)

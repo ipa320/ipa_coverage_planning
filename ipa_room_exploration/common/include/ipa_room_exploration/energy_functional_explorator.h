@@ -134,7 +134,7 @@ class EnergyFunctionalExplorator
 {
 protected:
 	// function to compute the energy function for each pair of nodes
-	double E(const EnergyExploratorNode& location, const EnergyExploratorNode& neighbor, const int cell_size, const double previous_travel_angle);
+	double E(const EnergyExploratorNode& location, const EnergyExploratorNode& neighbor, const double cell_size_in_pixel, const double previous_travel_angle);
 
 public:
 	// constructor
@@ -144,6 +144,6 @@ public:
 	// with free space drawn white (255) and obstacles as black (0). It returns a series of 2D poses that show to which positions
 	// the robot should drive at.
 	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
-			const cv::Point starting_position, const cv::Point2d map_origin, const float fitting_circle_radius,
+			const cv::Point starting_position, const cv::Point2d map_origin, const double grid_spacing_in_pixel,
 			const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector);
 };

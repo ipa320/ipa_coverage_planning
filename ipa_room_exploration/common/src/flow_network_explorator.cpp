@@ -901,10 +901,12 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 //    cv::imshow("rotated", rotated_room_map);
 //    cv::waitKey();
 
+	// todo: create grid in external class - it is the same in all approaches
+	// todo: if first/last row or column in grid has accessible areas but center is inaccessible, create a node in the accessible area
 	// find cell centers that need to be covered
 	std::vector<cv::Point> cell_centers;
-	for(size_t y=min_y+0.5*cell_size; y<=max_y; y+=cell_size)
-		for(size_t x=min_x+0.5*cell_size; x<=max_x; x+=cell_size)
+	for(size_t y=min_y; y<=max_y; y+=cell_size)
+		for(size_t x=min_x; x<=max_x; x+=cell_size)
 			if(rotated_room_map.at<uchar>(y,x)==255)
 				cell_centers.push_back(cv::Point(x,y));
 

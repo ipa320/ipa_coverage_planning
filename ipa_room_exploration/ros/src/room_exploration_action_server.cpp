@@ -405,7 +405,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 //	cv::waitKey();
 
 	// get the grid size, to check the areas that should be revisited later
-	int grid_length = 0;
+	double grid_spacing_in_pixel = 0;
 	double grid_length_as_double = 0.0;
 	float fitting_circle_radius = 0;
 	Eigen::Matrix<float, 2, 1> middle_point;
@@ -451,9 +451,10 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	{
 		grid_length_as_double = goal->coverage_radius*std::sqrt(2);
 	}
+	// todo: decide whether to take the grid size from parameters of the correctly computed on --> e.g. make another parameter switch for this
 	//  map the grid size to an int in pixel coordinates, using floor method
-	grid_length = std::floor(grid_length_as_double/map_resolution);
-	std::cout << "grid size: " << grid_length_as_double << ", as int: " << grid_length << std::endl;
+	grid_spacing_in_pixel = grid_length_as_double/map_resolution;
+	std::cout << "grid size: " << grid_length_as_double << " m   (" << grid_spacing_in_pixel << " px)" << std::endl;
 
 
 
@@ -465,8 +466,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	{
 		// set wanted grid size
 		//grid_point_planner.setGridLineLength(grid_line_length_);	// todo: why not grid_length which is already computed to fit the working device
-		//grid_point_planner.setGridLineLength(grid_length); // todo: this is the correct version, but all the others have been tested with the limit grid with no guarantees on coverage
-		grid_point_planner.setGridLineLength(std::floor(grid_length_as_double*std::sqrt(2)/map_resolution));
+		grid_point_planner.setGridLineLength(std::floor(grid_spacing_in_pixel)); // this is the version with coverage guarantees
+		//grid_point_planner.setGridLineLength(std::floor(grid_length_as_double*std::sqrt(2)/map_resolution)); // this the extreme version with coverage in most cases but not guaranteed
 
 		// plan path
 		if(plan_for_footprint_ == false)
@@ -478,18 +479,18 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	{
 		// plan path
 		if(plan_for_footprint_ == false)
-			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, path_eps_, plan_for_footprint_, middle_point, min_cell_size_);
+			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, path_eps_, plan_for_footprint_, middle_point, min_cell_size_);
 		else
-			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, goal->coverage_radius/map_resolution, path_eps_, plan_for_footprint_, zero_vector, min_cell_size_);
+			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, path_eps_, plan_for_footprint_, zero_vector, min_cell_size_);
 	}
 	else if(path_planning_algorithm_ == 3) // use neural network explorator
 	{
 		neural_network_explorator_.setParameters(A_, B_, D_, E_, mu_, step_size_, delta_theta_weight_);
 		// plan path
 		if(plan_for_footprint_ == false)
-			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, plan_for_footprint_, middle_point, false);
+			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, plan_for_footprint_, middle_point, false);
 		else
-			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, goal->coverage_radius/map_resolution, plan_for_footprint_, zero_vector, false);
+			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, plan_for_footprint_, zero_vector, false);
 	}
 	else if(path_planning_algorithm_ == 4) // use convexSPP explorator
 	{
@@ -521,23 +522,24 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		// todo: middle_point_1.norm() has implicit assumption that this is the closest edge to the robot center, same for fov_vectors[3]
 		// todo: decide whether user shall set the cell size or automatic cell size (e.g. only automatic if cell_size <= 0)
 		if(plan_for_footprint_ == false)
-			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_length/2/*cell_size_*/, delta_theta_, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fov_vectors[3].norm(), 7, false);
+			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel)/*cell_size_*/, delta_theta_, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fov_vectors[3].norm(), 7, false);
 		else
-			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_length/2/*cell_size_*/, delta_theta_, goal->footprint, zero_vector, max_angle, 0.0, goal->coverage_radius/map_resolution, 7, true);
+			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel)/*cell_size_*/, delta_theta_, goal->footprint, zero_vector, max_angle, 0.0, goal->coverage_radius/map_resolution, 7, true);
 	}
 	else if(path_planning_algorithm_ == 5) // use flow network explorator
 	{
+		// todo: decide whether user shall set the cell size or automatic cell size for the grid (e.g. only automatic if cell_size <= 0)
 		if(plan_for_footprint_ == false)
-			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, middle_point, fitting_circle_radius/map_resolution, false, path_eps_, curvature_factor_);
+			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, middle_point, grid_spacing_in_pixel, false, path_eps_, curvature_factor_);
 		else
-			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, zero_vector, goal->coverage_radius/map_resolution, true, path_eps_, curvature_factor_);
+			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, zero_vector, grid_spacing_in_pixel, true, path_eps_, curvature_factor_);
 	}
 	else if(path_planning_algorithm_ == 6) // use energy functional explorator
 	{
 		if(plan_for_footprint_ == false)
-			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, fitting_circle_radius/map_resolution, false, middle_point);
+			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, false, middle_point);
 		else
-			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, goal->coverage_radius/map_resolution, true, zero_vector);
+			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, true, zero_vector);
 	}
 	else if(path_planning_algorithm_ == 7) // use voronoi explorator
 	{
@@ -549,11 +551,11 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		if(plan_for_footprint_==false)
 		{
 			// convert fov-radius to pixel integer
-			int fov_radius_as_int = (int) std::floor(fitting_circle_radius/map_resolution);
-			std::cout << "fov radius in pixel: " << fov_radius_as_int << std::endl;
+			const int fov_diameter_as_int = (int)std::floor(2.*fitting_circle_radius/map_resolution);
+			std::cout << "fov diameter in pixel: " << fov_diameter_as_int << std::endl;
 
 			// create the object that plans the path, based on the room-map
-			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, 2*fov_radius_as_int); // radius in pixel
+			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, fov_diameter_as_int); // diameter in pixel (full working width can be used here because tracks are planned in parallel motion)
 
 			// get the exploration path
 			std::vector<geometry_msgs::Pose2D> fov_path_uncleaned;
@@ -596,11 +598,11 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		else
 		{
 			// convert coverage-radius to pixel integer
-			int coverage_radius = (int) std::floor(goal->coverage_radius/map_resolution);
-			std::cout << "coverage radius in pixel: " << coverage_radius << std::endl;
+			int coverage_diameter = (int)std::floor(2.*goal->coverage_radius/map_resolution);
+			std::cout << "coverage radius in pixel: " << coverage_diameter << std::endl;
 
 			// create the object that plans the path, based on the room-map
-			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, 2*coverage_radius); // radius in pixel
+			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, coverage_diameter); // diameter in pixel (full working width can be used here because tracks are planned in parallel motion)
 
 			// get the exploration path
 			std::vector<geometry_msgs::Pose2D> exploration_path_uncleaned;
@@ -840,9 +842,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 				cv::drawContours(black_map, left_areas, contour, cv::Scalar(0), CV_FILLED);
 
 		// 2. Intersect the left areas with respect to the calculated grid length.
-		for(size_t i =  min_max_coordinates.points[0].y; i < black_map.cols; i += grid_length)
+		for(size_t i =  min_max_coordinates.points[0].y; i < black_map.cols; i += std::floor(grid_spacing_in_pixel))
 			cv::line(black_map, cv::Point(0, i), cv::Point(black_map.cols, i), cv::Scalar(0), 1);
-		for(size_t i =  min_max_coordinates.points[0].x; i < black_map.rows; i += grid_length)
+		for(size_t i =  min_max_coordinates.points[0].x; i < black_map.rows; i += std::floor(grid_spacing_in_pixel))
 			cv::line(black_map, cv::Point(i, 0), cv::Point(i, black_map.rows), cv::Scalar(0), 1);
 
 		// 3. find the centers of the global_costmap areas

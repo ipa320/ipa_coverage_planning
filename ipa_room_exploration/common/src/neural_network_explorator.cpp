@@ -32,7 +32,7 @@ neuralNetworkExplorator::neuralNetworkExplorator()
 //		the distance to the last robot position is minimized. If this is not wanted one has to set the corresponding
 //		Boolean to false (shows that the path planning should be done for the robot footprint).
 void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
-					 const cv::Point starting_position, const cv::Point2d map_origin, const float fitting_circle_radius,
+					 const cv::Point starting_position, const cv::Point2d map_origin, const double grid_spacing_in_pixel,
 					 const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector, bool show_path_computation)
 {
 	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
@@ -64,14 +64,14 @@ void neuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 	neurons_.clear();
 
 	// go trough the map and create the neurons
-	int fitting_radius_as_int = (int) std::floor(fitting_circle_radius);
 	int number_of_free_neurons = 0;
-	// todo: in an eroded map, we should directly start with y=min_room.y without any further margin
-	for(size_t y=min_room.y+fitting_radius_as_int; y<max_room.y/*-fitting_radius_as_int*/; y+=2.0*fitting_radius_as_int)
+	// todo: create grid in external class - it is the same in all approaches
+	// todo: if first/last row or column in grid has accessible areas but center is inaccessible, create a node in the accessible area
+	for(size_t y=min_room.y; y<max_room.y; y+=std::floor(grid_spacing_in_pixel))
 	{
 		// for the current row create a new set of neurons to span the network over time
 		std::vector<Neuron> current_network_row;
-		for(size_t x=min_room.x+fitting_radius_as_int; x<max_room.x/*-fitting_radius_as_int*/; x+=2.0*fitting_radius_as_int)
+		for(size_t x=min_room.x; x<max_room.x; x+=std::floor(grid_spacing_in_pixel))
 		{
 			// create free neuron
 			if(rotated_room_map.at<uchar>(y,x) == 255)
