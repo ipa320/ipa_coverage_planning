@@ -8,6 +8,7 @@
 #include <cmath>
 #include <string>
 #include <fstream>
+#include <iostream>
 #include <stdio.h>
 // Eigen library for matrix/vector computations
 #include <Eigen/Dense>
@@ -134,9 +135,29 @@ typedef boost::adjacency_list <boost::vecS, boost::vecS, boost::directedS > dire
 
 #define PI 3.14159265359
 
-class flowNetworkExplorator
+class FlowNetworkExplorator
 {
 protected:
+	// functions that are used to split a string into several substrings, divided by the given char
+	template<typename Out>
+	void split(const std::string &s, char delim, Out result) {
+	    std::stringstream ss;
+	    ss.str(s);
+	    std::string item;
+	    while (std::getline(ss, item, delim)) {
+	        *(result++) = item;
+	    }
+	}
+
+	std::vector<std::string> split(const std::string &s, char delim) {
+	    std::vector<std::string> elems;
+	    split(s, delim, std::back_inserter(elems));
+	    return elems;
+	}
+
+	// function that reads and solves the linear program using gurobi and then reads out the provided solution
+	void useGurobiSolver(const std::string filename, std::vector<double>& C);
+
 	// function that is used to create and solve a Cbc optimization problem out of the given matrices and vectors, using
 	// the three-stage ansatz and single-flow cycle prevention constraints
 	void solveThreeStageOptimizationProblem(std::vector<double>& C, const cv::Mat& V, const std::vector<double>& weights,
@@ -147,7 +168,7 @@ protected:
 	// the three-stage ansatz and lazy generalized cutset inequalities (GCI)
 	void solveLazyConstraintOptimizationProblem(std::vector<double>& C, const cv::Mat& V, const std::vector<double>& weights,
 			const std::vector<std::vector<uint> >& flows_into_nodes, const std::vector<std::vector<uint> >& flows_out_of_nodes,
-			const std::vector<uint>& start_arcs);
+			const std::vector<uint>& start_arcs, bool use_gurobi=false);
 
 	// function that checks if the given point is more close enough to any point in the given vector
 	bool pointClose(const std::vector<cv::Point>& points, const cv::Point& point, const double min_distance);
@@ -157,7 +178,7 @@ protected:
 
 public:
 	// constructor
-	flowNetworkExplorator();
+	FlowNetworkExplorator();
 
 	// Function that creates an exploration path for a given room. The room has to be drawn in a cv::Mat (filled with Bit-uchar),
 	// with free space drawn white (255) and obstacles as black (0). It returns a series of 2D poses that show to which positions

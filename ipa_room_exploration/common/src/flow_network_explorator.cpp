@@ -1,7 +1,7 @@
 #include <ipa_room_exploration/flow_network_explorator.h>
 
 // Constructor
-flowNetworkExplorator::flowNetworkExplorator()
+FlowNetworkExplorator::FlowNetworkExplorator()
 {
 
 }
@@ -10,7 +10,7 @@ flowNetworkExplorator::flowNetworkExplorator()
 // ansatz, that takes an initial step going from the start node and then a coverage stage assuming that the number of
 // flows into and out of a node must be the same. At last a final stage is gone, that terminates the path in one of the
 // possible nodes.
-void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<double>& C, const cv::Mat& V, const std::vector<double>& weights,
+void FlowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<double>& C, const cv::Mat& V, const std::vector<double>& weights,
 			const std::vector<std::vector<uint> >& flows_into_nodes, const std::vector<std::vector<uint> >& flows_out_of_nodes,
 			const std::vector<uint>& start_arcs)
 {
@@ -267,6 +267,40 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<doubl
 	}
 }
 
+// Function that uses Gurobi to read out and solve the created linear program, using a system call. It also reads out
+// the solution that has been saved to the specified file.
+void FlowNetworkExplorator::useGurobiSolver(const std::string filename, std::vector<double>& C)
+{
+	// use a system call and solve the created linear program
+	std::string solution_filename = filename+".sol";
+	std::string command = "gurobi_cl Result_file=" + solution_filename + " " + filename + ".lp";
+	int result = system(command.c_str());
+
+	// read out the provided solution, REMARK: when writing the solution file Gurobi mixes the order of the variables
+	std::ifstream sol_reader(solution_filename.c_str(), std::ios::in);
+	if(sol_reader.is_open()==true)
+	{
+		std::string line;
+		for (int k=0; k<3; ++k)
+			getline(sol_reader, line);
+		std::cout << line << std::endl;
+		while(getline(sol_reader, line))
+		{
+			// split the current line in variable name and value
+			std::vector<std::string> line_strings = split(line, ' ');
+
+			// read the variable name until a nonzero value has been found --> start of the variable index
+			for(size_t i=0; i<2; ++i)
+				std::cout << line_strings[i] << std::endl;
+		}
+	}
+	else
+	{
+		std::cout << "error on opening solution file!" << std::endl;
+	}
+}
+
+
 // Function that creates a Cbc optimization problem and solves it, using the given matrices and vectors and the 3-stage
 // ansatz, that takes an initial step going from the start node and then a coverage stage assuming that the number of
 // flows into and out of a node must be the same. At last a final stage is gone, that terminates the path in one of the
@@ -275,9 +309,9 @@ void flowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<doubl
 // then additional constraints are added and a new solution is determined. This procedure gets repeated until no cycle
 // is detected in the solution or the only cycle contains all visited nodes, because such a solution is a traveling
 // salesman like solution, which is a valid solution.
-void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<double>& C, const cv::Mat& V, const std::vector<double>& weights,
+void FlowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<double>& C, const cv::Mat& V, const std::vector<double>& weights,
 		const std::vector<std::vector<uint> >& flows_into_nodes, const std::vector<std::vector<uint> >& flows_out_of_nodes,
-		const std::vector<uint>& start_arcs)
+		const std::vector<uint>& start_arcs, bool use_gurobi)
 {
 	// initialize the problem
 	CoinModel problem_builder;
@@ -423,9 +457,16 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 
 	CbcHeuristicFPump heuristic(model);
 	model.addHeuristic(&heuristic);
-
-	model.initialSolve();
-	model.branchAndBound();
+	std::vector<double> gurobi_sol(number_of_variables);
+	if(use_gurobi==false)
+	{
+		model.initialSolve();
+		model.branchAndBound();
+	}
+	else
+	{
+		useGurobiSolver("lin_flow_prog", gurobi_sol);
+	}
 
 //	testing
 //	std::vector<int> test_row(2);
@@ -441,7 +482,16 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 //	solver_pointer->resolve();
 
 	// retrieve solution
-	const double* solution = model.solver()->getColSolution();
+	std::vector<double> solution_vector;
+	if(use_gurobi==false)
+	{
+		const double* solution;
+		solution = model.solver()->getColSolution();
+		for(size_t var=0; var<number_of_variables; ++var)
+			solution_vector.push_back(solution[var]);
+	}
+	else
+		solution_vector = gurobi_sol;
 
 	// search for cycles in the retrieved solution, if one is found add a constraint to prevent this cycle
 	bool cycle_free = false;
@@ -454,7 +504,7 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 		// go trough the start arcs
 		for(size_t start_arc=0; start_arc<start_arcs.size(); ++start_arc)
 		{
-			if(solution[start_arc]!=0)
+			if(solution_vector[start_arc]!=0)
 			{
 				// insert start index
 				used_arcs.insert(start_arcs[start_arc]);
@@ -464,7 +514,7 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 		// go trough the coverage stage
 		for(size_t arc=start_arcs.size(); arc<start_arcs.size()+V.cols; ++arc)
 		{
-			if(solution[arc]!=0)
+			if(solution_vector[arc]!=0)
 			{
 				// insert index, relative to the first coverage variable
 				used_arcs.insert(arc-start_arcs.size());
@@ -477,7 +527,7 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 		{
 			for(size_t flow=0; flow<flows_out_of_nodes[node].size(); ++flow)
 			{
-				if(solution[flows_out_of_nodes[node][flow]+start_arcs.size()+V.cols]!=0)
+				if(solution_vector[flows_out_of_nodes[node][flow]+start_arcs.size()+V.cols]!=0)
 				{
 					// insert saved outgoing flow index
 					used_arcs.insert(flows_out_of_nodes[node][flow]);
@@ -703,34 +753,46 @@ void flowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 //			testing
 			solver_pointer->writeLp("lin_flow_prog", "lp");
 
-			// resolve the problem with the new constraints
-			solver_pointer->resolve();
+			if(use_gurobi==false)
+			{
+				// resolve the problem with the new constraints
+				solver_pointer->resolve();
 
-			// create a new model with the updated optimization problem and solve it
-			CbcModel new_model(*solver_pointer);
-			new_model.solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
+				// create a new model with the updated optimization problem and solve it
+				CbcModel new_model(*solver_pointer);
+				new_model.solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
 
-			CbcHeuristicFPump heuristic_new(new_model);
-			new_model.addHeuristic(&heuristic_new);
+				CbcHeuristicFPump heuristic_new(new_model);
+				new_model.addHeuristic(&heuristic_new);
 
-//			new_model.initialSolve();
-			new_model.branchAndBound();
+	//			new_model.initialSolve();
+				new_model.branchAndBound();
 
-			// retrieve new solution
-			solution = new_model.solver()->getColSolution();
+				// retrieve new solution
+				const double* solution;
+				solution = new_model.solver()->getColSolution();
+				for(size_t var=0; var<number_of_variables; ++var)
+					solution_vector[var] = solution[var];
+			}
+			else
+			{
+				useGurobiSolver("lin_flow_prog", gurobi_sol);
+				solution_vector = gurobi_sol;
+			}
+
 		}
 	}while(cycle_free == false);
 
 	for(size_t res=0; res<number_of_variables; ++res)
 	{
 //		std::cout << solution[res] << std::endl;
-		C[res] = solution[res];
+		C[res] = solution_vector[res];
 	}
 }
 
 // This Function checks if the given cv::Point is close enough to one cv::Point in the given vector. If one point gets found
 // that this Point is nearer than the defined min_distance the function returns false to stop it immediately.
-bool flowNetworkExplorator::pointClose(const std::vector<cv::Point>& points, const cv::Point& point, const double min_distance)
+bool FlowNetworkExplorator::pointClose(const std::vector<cv::Point>& points, const cv::Point& point, const double min_distance)
 {
 	double square_distance = min_distance * min_distance;
 	for(std::vector<cv::Point>::const_iterator current_point = points.begin(); current_point != points.end(); ++current_point)
@@ -770,7 +832,7 @@ bool flowNetworkExplorator::pointClose(const std::vector<cv::Point>& points, con
 //		pose is not in the free space, another accessible point is generated by finding it on the radius around the fov
 //		middlepoint s.t. the distance to the last robot position is minimized. If this is not wanted one has to set the
 //		corresponding Boolean to false (shows that the path planning should be done for the robot footprint).
-void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
+void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
 		const float map_resolution, const cv::Point starting_position, const cv::Point2d map_origin,
 		const int cell_size, const Eigen::Matrix<float, 2, 1>& robot_to_fov_middlepoint_vector, const float coverage_radius,
 		const bool plan_for_footprint, const double path_eps, const double curvature_factor)
@@ -988,7 +1050,7 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 				arcStruct current_backward_arc;
 				current_backward_arc.start_point = edges[end];
 				current_backward_arc.end_point = edges[start];
-				current_forward_arc.weight = distance_matrix.at<double>(end, start);
+				current_backward_arc.weight = distance_matrix.at<double>(end, start);
 				cv::Point vector = current_forward_arc.start_point - current_forward_arc.end_point;
 				// don't add too long arcs to reduce dimensionality, because they certainly won't get chosen anyway
 				// also don't add arcs that are too far away from the straight line (start-end) because they are likely
@@ -1127,7 +1189,8 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	std::vector<double> C(2.0*(flows_out_of_nodes[start_index].size()+number_of_candidates) + number_of_outflows + edges.size());
 	std::cout << "number of outgoing arcs: " << number_of_outflows << std::endl;
 
-	solveLazyConstraintOptimizationProblem(C, V, w, flows_into_nodes, flows_out_of_nodes, flows_out_of_nodes[start_index]);
+	// TODO: Gurobi
+	solveLazyConstraintOptimizationProblem(C, V, w, flows_into_nodes, flows_out_of_nodes, flows_out_of_nodes[start_index], true);
 
 //	testing
 	for(size_t i=0; i<C.size(); ++i)
@@ -1327,7 +1390,7 @@ void flowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 }
 
 // test function for an easy case to check correctness
-void flowNetworkExplorator::testFunc()
+void FlowNetworkExplorator::testFunc()
 {
 //	std::vector<double> w(6, 1.0);
 //	std::vector<int> C(2+6+6);
