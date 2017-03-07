@@ -85,7 +85,6 @@ CATKIN_DEPENDS
 DEPENDS
 	OpenCV
 	Boost
-	GUROBI
 	CoinUtils
 	OsiClp
 	Clp
@@ -163,7 +162,9 @@ target_link_libraries(room_exploration_client
 	${OpenCV_LIBS}
 	${Boost_LIBRARIES}
 )
-add_dependencies(room_exploration_client ${catkin_EXPORTED_TARGETS})
+add_dependencies(room_exploration_client 
+			${catkin_EXPORTED_TARGETS}
+			${PROJECT_NAME}_gencfg)
 
 # evaluation of room exploration algorithms
 add_executable(room_exploration_evaluation ros/src/room_exploration_evaluation.cpp
@@ -172,11 +173,10 @@ target_link_libraries(room_exploration_evaluation
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBS}
 )
-add_dependencies(room_exploration_client ${catkin_EXPORTED_TARGETS})
+add_dependencies(room_exploration_evaluation 
+			${catkin_EXPORTED_TARGETS}
+			${PROJECT_NAME}_gencfg)
 
-#set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -stdlib=libstdc++")
-#set(CMAKE_SHARED_LINKER_FLAGS "-lgurobi_c++ -lgurobi70, --as-needed")
- 
 #############
 ## Install ##
 #############
