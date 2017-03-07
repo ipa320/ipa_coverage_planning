@@ -207,45 +207,45 @@ public:
 		// prepare relevant floor map data
 		std::vector< std::string > map_names;
 		map_names.push_back("lab_ipa");
-		map_names.push_back("lab_c_scan");
-		map_names.push_back("Freiburg52_scan");
-		map_names.push_back("Freiburg79_scan");
-		map_names.push_back("lab_b_scan");
-		map_names.push_back("lab_intel");
-		map_names.push_back("Freiburg101_scan");
-		map_names.push_back("lab_d_scan");
-		map_names.push_back("lab_f_scan");
-		map_names.push_back("lab_a_scan");
-		map_names.push_back("NLB");
-		map_names.push_back("office_a");
-		map_names.push_back("office_b");
-		map_names.push_back("office_c");
-		map_names.push_back("office_d");
-		map_names.push_back("office_e");
-		map_names.push_back("office_f");
-		map_names.push_back("office_g");
-		map_names.push_back("office_h");
-		map_names.push_back("office_i");
-		map_names.push_back("lab_ipa_furnitures");
-		map_names.push_back("lab_c_scan_furnitures");
-		map_names.push_back("Freiburg52_scan_furnitures");
-		map_names.push_back("Freiburg79_scan_furnitures");
-		map_names.push_back("lab_b_scan_furnitures");
-		map_names.push_back("lab_intel_furnitures");
-		map_names.push_back("Freiburg101_scan_furnitures");
-		map_names.push_back("lab_d_scan_furnitures");
-		map_names.push_back("lab_f_scan_furnitures");
-		map_names.push_back("lab_a_scan_furnitures");
-		map_names.push_back("NLB_furnitures");
-		map_names.push_back("office_a_furnitures");
-		map_names.push_back("office_b_furnitures");
-		map_names.push_back("office_c_furnitures");
-		map_names.push_back("office_d_furnitures");
-		map_names.push_back("office_e_furnitures");
-		map_names.push_back("office_f_furnitures");
-		map_names.push_back("office_g_furnitures");
-		map_names.push_back("office_h_furnitures");
-		map_names.push_back("office_i_furnitures");
+//		map_names.push_back("lab_c_scan");
+//		map_names.push_back("Freiburg52_scan");
+//		map_names.push_back("Freiburg79_scan");
+//		map_names.push_back("lab_b_scan");
+//		map_names.push_back("lab_intel");
+//		map_names.push_back("Freiburg101_scan");
+//		map_names.push_back("lab_d_scan");
+//		map_names.push_back("lab_f_scan");
+//		map_names.push_back("lab_a_scan");
+//		map_names.push_back("NLB");
+//		map_names.push_back("office_a");
+//		map_names.push_back("office_b");
+//		map_names.push_back("office_c");
+//		map_names.push_back("office_d");
+//		map_names.push_back("office_e");
+//		map_names.push_back("office_f");
+//		map_names.push_back("office_g");
+//		map_names.push_back("office_h");
+//		map_names.push_back("office_i");
+//		map_names.push_back("lab_ipa_furnitures");
+//		map_names.push_back("lab_c_scan_furnitures");
+//		map_names.push_back("Freiburg52_scan_furnitures");
+//		map_names.push_back("Freiburg79_scan_furnitures");
+//		map_names.push_back("lab_b_scan_furnitures");
+//		map_names.push_back("lab_intel_furnitures");
+//		map_names.push_back("Freiburg101_scan_furnitures");
+//		map_names.push_back("lab_d_scan_furnitures");
+//		map_names.push_back("lab_f_scan_furnitures");
+//		map_names.push_back("lab_a_scan_furnitures");
+//		map_names.push_back("NLB_furnitures");
+//		map_names.push_back("office_a_furnitures");
+//		map_names.push_back("office_b_furnitures");
+//		map_names.push_back("office_c_furnitures");
+//		map_names.push_back("office_d_furnitures");
+//		map_names.push_back("office_e_furnitures");
+//		map_names.push_back("office_f_furnitures");
+//		map_names.push_back("office_g_furnitures");
+//		map_names.push_back("office_h_furnitures");
+//		map_names.push_back("office_i_furnitures");
 
 		// create all needed configurations
 		std::vector<ExplorationConfig> configs;
@@ -282,23 +282,23 @@ public:
 		// get the room maps for each evaluation data
 		getRoomMaps(evaluation_datas);
 
-//		// compute exploration paths for each room in the maps
-//		std::string bugfile = data_storage_path + "bugfile.txt";
-//		std::ofstream failed_maps(bugfile.c_str(), std::ios::out);
-//		if (failed_maps.is_open())
-//			failed_maps << "Maps that had a bug during the simulation and couldn't be finished: " << std::endl;
-//		ROS_INFO("Evaluating the maps.");
-//		for (size_t i=0; i<evaluation_datas.size(); ++i)
-//		{
-//			if (planCoveragePaths(configs, evaluation_datas[i], data_storage_path)==false)
-//			{
-//				std::cout << "failed to simulate map " << evaluation_datas[i].map_name_ << std::endl;
-//				if (failed_maps.is_open())
-//					failed_maps << evaluation_datas[i].map_name_ << std::endl;
-//			}
-//		}
-//		if (failed_maps.is_open())
-//			failed_maps.close();
+		// compute exploration paths for each room in the maps
+		std::string bugfile = data_storage_path + "bugfile.txt";
+		std::ofstream failed_maps(bugfile.c_str(), std::ios::out);
+		if (failed_maps.is_open())
+			failed_maps << "Maps that had a bug during the simulation and couldn't be finished: " << std::endl;
+		ROS_INFO("Evaluating the maps.");
+		for (size_t i=0; i<evaluation_datas.size(); ++i)
+		{
+			if (planCoveragePaths(configs, evaluation_datas[i], data_storage_path)==false)
+			{
+				std::cout << "failed to simulate map " << evaluation_datas[i].map_name_ << std::endl;
+				if (failed_maps.is_open())
+					failed_maps << evaluation_datas[i].map_name_ << std::endl;
+			}
+		}
+		if (failed_maps.is_open())
+			failed_maps.close();
 
 		// read out the computed paths and calculate the evaluation values
 		ROS_INFO("Reading out all saved paths.");
@@ -1492,13 +1492,13 @@ int main(int argc, char **argv)
 //	const double robot_radius, const std::vector<int>& segmentation_algorithms, const std::vector<int>& exploration_algorithms,
 //	const std::vector<geometry_msgs::Point32>& fov_points)
 	std::vector<int> exploration_algorithms;
-	exploration_algorithms.push_back(1);	// grid point exploration
-	exploration_algorithms.push_back(2);	// boustrophedon exploration
-	exploration_algorithms.push_back(3);	// neural network exploration
-	exploration_algorithms.push_back(4);	// convex SPP exploration
+//	exploration_algorithms.push_back(1);	// grid point exploration
+//	exploration_algorithms.push_back(2);	// boustrophedon exploration
+//	exploration_algorithms.push_back(3);	// neural network exploration
+//	exploration_algorithms.push_back(4);	// convex SPP exploration
 	exploration_algorithms.push_back(5);	// flow network exploration
-	exploration_algorithms.push_back(6);	// energy functional exploration
-	exploration_algorithms.push_back(7);	// voronoi exploration
+//	exploration_algorithms.push_back(6);	// energy functional exploration
+//	exploration_algorithms.push_back(7);	// voronoi exploration
 
 
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.

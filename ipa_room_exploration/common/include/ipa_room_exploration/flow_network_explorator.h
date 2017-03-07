@@ -139,7 +139,7 @@ typedef boost::adjacency_list <boost::vecS, boost::vecS, boost::directedS > dire
 
 #define PI 3.14159265359
 
-//#ifdef GUROBI_FOUND
+#ifdef GUROBI_FOUND
 	class CyclePreventionCallbackClass: public GRBCallback
 	{
 	  public:
@@ -167,10 +167,11 @@ typedef boost::adjacency_list <boost::vecS, boost::vecS, boost::directedS > dire
 			{
 			  // Found an integer feasible solution
 			  std::vector<double> solution(vars->size());
-			  for (int var=0; var<n; var++)
+			  for (int var=0; var<vars->size(); var++)
 			  {
 				  double current_value = GRBCallback::getSolution(vars->operator[](var));
 				  solution[var] = (current_value>=0) ? current_value : 0.0;
+//				  std::cout << solution[var] << std::endl;
 			  }
 
 			  // check if cycles appear in the solution
@@ -178,35 +179,39 @@ typedef boost::adjacency_list <boost::vecS, boost::vecS, boost::directedS > dire
 			  std::set<uint> used_arcs; // set that stores the indices of the arcs corresponding to non-zero elements in the solution
 
 			  // go trough the start arcs
-			  for(size_t start_arc=0; start_arc<start_arcs.size(); ++start_arc)
+			  std::cout << "getting used arcs: ";
+			  for(uint start_arc=0; start_arc<start_arcs.size(); ++start_arc)
 			  {
-				  if(solution[start_arc]!=0)
+				  if(solution[start_arc]>0)
 				  {
 					  // insert start index
 					  used_arcs.insert(start_arcs[start_arc]);
+					  std::cout << start_arcs[start_arc] << " ";
 				  }
 			  }
 
 			  // go trough the coverage stage
-			  for(size_t arc=start_arcs.size(); arc<start_arcs.size()+n; ++arc)
+			  std::cout << "| ";
+			  for(uint cover_arc=start_arcs.size(); cover_arc<start_arcs.size()+n; ++cover_arc)
 			  {
-				  if(solution[arc]!=0)
+//				  std::cout << cover_arc << std::endl;
+				  if(solution[cover_arc]>0)
 				  {
 					  // insert index, relative to the first coverage variable
-					  used_arcs.insert(arc-start_arcs.size());
+					  used_arcs.insert(cover_arc-start_arcs.size());
+					  std::cout << cover_arc-start_arcs.size() << " ";
 				  }
 			  }
 
+			  std::cout << "| ";
 			  // go trough the final stage and find the remaining used arcs
-			  for(size_t node=0; node<flows_out_of_nodes.size(); ++node)
+			  for(uint flow=start_arcs.size()+n; flow<start_arcs.size()+2*n; ++flow)
 			  {
-				  for(size_t flow=0; flow<flows_out_of_nodes[node].size(); ++flow)
+				  if(solution[flow]>0)
 				  {
-					  if(solution[flows_out_of_nodes[node][flow]+start_arcs.size()+n]!=0)
-					  {
-						  // insert saved outgoing flow index
-						  used_arcs.insert(flows_out_of_nodes[node][flow]);
-					  }
+					  // insert saved outgoing flow index
+					  used_arcs.insert(flow-start_arcs.size()-n);
+					  std::cout << flow-start_arcs.size()-n << " ";
 				  }
 			  }
 
@@ -257,11 +262,10 @@ typedef boost::adjacency_list <boost::vecS, boost::vecS, boost::directedS > dire
 			  int number_of_not_used_nodes = 0;
 			  for(size_t start=0; start<directed_edges.size(); ++start)
 			  {
-				  std::cout << "node " << start << " has destinations: " << std::endl;
+//				  std::cout << "node " << start << " has destinations: " << std::endl;
 				  for(size_t end=0; end<directed_edges[start].size(); ++end)
 				  {
-					  std::cout << directed_edges[start][end] << std::endl;
-
+//					  std::cout << directed_edges[start][end] << std::endl;
 					  // if no destination starting from this node could be found ignore this node
 					  if(directed_edges[start][end]==-1)
 					  {
@@ -278,8 +282,8 @@ typedef boost::adjacency_list <boost::vecS, boost::vecS, boost::directedS > dire
 			  std::vector<int> c(flows_into_nodes.size());
 			  int number_of_strong_components = boost::strong_components(support_graph, boost::make_iterator_property_map(c.begin(), boost::get(boost::vertex_index, support_graph), c[0]));
 			  std::cout << "got " << number_of_strong_components << " strongly connected components" << std::endl;
-			  for (std::vector <int>::iterator i = c.begin(); i != c.end(); ++i)
-			  		std::cout << "Vertex " << i - c.begin() << " is in component " << *i << std::endl;
+//			  for (std::vector <int>::iterator i = c.begin(); i != c.end(); ++i)
+//			  		std::cout << "Vertex " << i - c.begin() << " is in component " << *i << std::endl;
 
 			  // check how many cycles there are in the solution (components with a size >= 2)
 			  int number_of_cycles = 0;
@@ -320,7 +324,7 @@ typedef boost::adjacency_list <boost::vecS, boost::vecS, boost::directedS > dire
 //						  std::cout << c[component] << std::endl;
 						  if(elements>=2)
 						  {
-							  std::cout << "size: " << elements << std::endl;
+//							  std::cout << "size: " << elements << std::endl;
 							  for(std::vector<int>::iterator element=c.begin(); element!=c.end(); ++element)
 							  {
 								  if(*element==c[component])
@@ -343,21 +347,22 @@ typedef boost::adjacency_list <boost::vecS, boost::vecS, boost::directedS > dire
 				  for(size_t cycle=0; cycle<cycle_nodes.size(); ++cycle)
 				  {
 					  // for each cycle find the arcs that lie in it
-//					  std::cout << "searching for outflows" << std::endl;
+//					  std::cout << "size: " << cycle_nodes[cycle].size() << std::endl;
+//					  std::cout << "constraint: " << std::endl;
+					  std::vector<int> cpc_indices;
+					  std::vector<double> cpc_coefficients;
 					  for(size_t node=0; node<cycle_nodes[cycle].size(); ++node)
 					  {
-						  std::vector<int> cpc_indices;
-						  std::vector<double> cpc_coefficients;
 
-						  for(std::vector<uint>::const_iterator outflow=flows_out_of_nodes[node].begin(); outflow!=flows_out_of_nodes[node].end(); ++outflow)
+						  for(std::vector<uint>::iterator outflow=flows_out_of_nodes[cycle_nodes[cycle][node]].begin(); outflow!=flows_out_of_nodes[cycle_nodes[cycle][node]].end(); ++outflow)
 						  {
-							  for(size_t neighbor=0; neighbor<cycle_nodes.size(); ++neighbor)
+							  for(size_t neighbor=0; neighbor<cycle_nodes[cycle].size(); ++neighbor)
 							  {
 								  if(neighbor==node)
 									  continue;
 
-								  // if a cycle-node contains this arc is incoming node, it belongs to the subset
-								  if(contains(flows_into_nodes[cycle_nodes[cycle][neighbor]], *outflow)==true)
+								  // if a cycle-node contains this arc is incoming node and was used in the solution, it belongs to the subset
+								  if(contains(flows_into_nodes[cycle_nodes[cycle][neighbor]], *outflow)==true && used_arcs.find(*outflow)!=used_arcs.end())
 								  {
 									  cpc_indices.push_back(*outflow+start_arcs.size());
 									  cpc_coefficients.push_back(1.0);
@@ -414,14 +419,18 @@ typedef boost::adjacency_list <boost::vecS, boost::vecS, boost::directedS > dire
 //								  }
 //							  }
 //						  }
-
-//						  std::cout << "adding constraint" << std::endl;
-						  // add the constraint
-						  GRBLinExpr current_cpc_constraint;
-						  for(size_t var=0; var<cpc_indices.size(); ++var)
-							  current_cpc_constraint += cpc_coefficients[var]*vars->operator[](cpc_indices[var]);
-						  addLazy(current_cpc_constraint<=cycle_nodes[cycle].size()-1);
 					  }
+
+//					  std::cout << "adding constraint" << std::endl;
+
+					  // add the constraint
+					  GRBLinExpr current_cpc_constraint;
+					  for(size_t var=0; var<cpc_indices.size(); ++var)
+					  {
+						  current_cpc_constraint += cpc_coefficients[var]*vars->operator[](cpc_indices[var]);
+//						  std::cout << cpc_coefficients[var] << "*" << cpc_indices[var] << std::endl;
+					  }
+					  addLazy(current_cpc_constraint<=cycle_nodes[cycle].size()-1);
 				  }
 			  }
 			}
@@ -437,7 +446,7 @@ typedef boost::adjacency_list <boost::vecS, boost::vecS, boost::directedS > dire
 		  }
 		}
 	};
-//#endif
+#endif
 
 class FlowNetworkExplorator
 {
