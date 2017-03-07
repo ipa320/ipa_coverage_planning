@@ -257,8 +257,11 @@ typedef boost::adjacency_list <boost::vecS, boost::vecS, boost::directedS > dire
 			  int number_of_not_used_nodes = 0;
 			  for(size_t start=0; start<directed_edges.size(); ++start)
 			  {
+				  std::cout << "node " << start << " has destinations: " << std::endl;
 				  for(size_t end=0; end<directed_edges[start].size(); ++end)
 				  {
+					  std::cout << directed_edges[start][end] << std::endl;
+
 					  // if no destination starting from this node could be found ignore this node
 					  if(directed_edges[start][end]==-1)
 					  {
