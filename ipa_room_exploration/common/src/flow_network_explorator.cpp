@@ -267,41 +267,7 @@ void FlowNetworkExplorator::solveThreeStageOptimizationProblem(std::vector<doubl
 	}
 }
 
-// Function that uses Gurobi to read out and solve the created linear program, using a system call. It also reads out
-// the solution that has been saved to the specified file.
-void FlowNetworkExplorator::useGurobiSolver(const std::string filename, std::vector<double>& C)
-{
-	// use a system call and solve the created linear program
-	std::string solution_filename = filename+".sol";
-	std::string command = "gurobi_cl Result_file=" + solution_filename + " " + filename + ".lp";
-	int result = system(command.c_str());
-
-	// read out the provided solution, REMARK: when writing the solution file Gurobi mixes the order of the variables
-	std::ifstream sol_reader(solution_filename.c_str(), std::ios::in);
-	if(sol_reader.is_open()==true)
-	{
-		std::string line;
-		for (int k=0; k<3; ++k)
-			getline(sol_reader, line);
-		std::cout << line << std::endl;
-		while(getline(sol_reader, line))
-		{
-			// split the current line in variable name and value
-			std::vector<std::string> line_strings = split(line, ' ');
-
-			// read the variable name until a nonzero value has been found --> start of the variable index
-			for(size_t i=0; i<2; ++i)
-				std::cout << line_strings[i] << std::endl;
-		}
-	}
-	else
-	{
-		std::cout << "error on opening solution file!" << std::endl;
-	}
-}
-
-
-// Function that creates a Cbc optimization problem and solves it, using the given matrices and vectors and the 3-stage
+// Function that creates a Gurobi optimization problem and solves it, using the given matrices and vectors and the 3-stage
 // ansatz, that takes an initial step going from the start node and then a coverage stage assuming that the number of
 // flows into and out of a node must be the same. At last a final stage is gone, that terminates the path in one of the
 // possible nodes. This function uses lazy generalized cutset inequalities (GCI) to prevent cycles. For that a solution
@@ -309,14 +275,15 @@ void FlowNetworkExplorator::useGurobiSolver(const std::string filename, std::vec
 // then additional constraints are added and a new solution is determined. This procedure gets repeated until no cycle
 // is detected in the solution or the only cycle contains all visited nodes, because such a solution is a traveling
 // salesman like solution, which is a valid solution.
-void FlowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<double>& C, const cv::Mat& V, const std::vector<double>& weights,
+void FlowNetworkExplorator::solveGurobiOptimizationProblem(std::vector<double>& C, const cv::Mat& V, const std::vector<double>& weights,
 		const std::vector<std::vector<uint> >& flows_into_nodes, const std::vector<std::vector<uint> >& flows_out_of_nodes,
-		const std::vector<uint>& start_arcs, bool use_gurobi)
+		const std::vector<uint>& start_arcs)
 {
+#ifdef GUROBI_FOUND
 	// initialize the problem
 	CoinModel problem_builder;
 
-	std::cout << "Creating and solving linear program." << std::endl;
+	std::cout << "Creating and solving linear program for Gurobi." << std::endl;
 
 	// add the optimization variables to the problem
 	int number_of_variables = 0;
@@ -457,16 +424,8 @@ void FlowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 
 	CbcHeuristicFPump heuristic(model);
 	model.addHeuristic(&heuristic);
-	std::vector<double> gurobi_sol(number_of_variables);
-	if(use_gurobi==false)
-	{
-		model.initialSolve();
-		model.branchAndBound();
-	}
-	else
-	{
-		useGurobiSolver("lin_flow_prog", gurobi_sol);
-	}
+	model.initialSolve();
+	model.branchAndBound();
 
 //	testing
 //	std::vector<int> test_row(2);
@@ -482,16 +441,7 @@ void FlowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 //	solver_pointer->resolve();
 
 	// retrieve solution
-	std::vector<double> solution_vector;
-	if(use_gurobi==false)
-	{
-		const double* solution;
-		solution = model.solver()->getColSolution();
-		for(size_t var=0; var<number_of_variables; ++var)
-			solution_vector.push_back(solution[var]);
-	}
-	else
-		solution_vector = gurobi_sol;
+	const double* solution = model.solver()->getColSolution();
 
 	// search for cycles in the retrieved solution, if one is found add a constraint to prevent this cycle
 	bool cycle_free = false;
@@ -504,7 +454,7 @@ void FlowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 		// go trough the start arcs
 		for(size_t start_arc=0; start_arc<start_arcs.size(); ++start_arc)
 		{
-			if(solution_vector[start_arc]!=0)
+			if(solution[start_arc]!=0)
 			{
 				// insert start index
 				used_arcs.insert(start_arcs[start_arc]);
@@ -514,7 +464,7 @@ void FlowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 		// go trough the coverage stage
 		for(size_t arc=start_arcs.size(); arc<start_arcs.size()+V.cols; ++arc)
 		{
-			if(solution_vector[arc]!=0)
+			if(solution[arc]!=0)
 			{
 				// insert index, relative to the first coverage variable
 				used_arcs.insert(arc-start_arcs.size());
@@ -527,7 +477,7 @@ void FlowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 		{
 			for(size_t flow=0; flow<flows_out_of_nodes[node].size(); ++flow)
 			{
-				if(solution_vector[flows_out_of_nodes[node][flow]+start_arcs.size()+V.cols]!=0)
+				if(solution[flows_out_of_nodes[node][flow]+start_arcs.size()+V.cols]!=0)
 				{
 					// insert saved outgoing flow index
 					used_arcs.insert(flows_out_of_nodes[node][flow]);
@@ -753,32 +703,21 @@ void FlowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 //			testing
 			solver_pointer->writeLp("lin_flow_prog", "lp");
 
-			if(use_gurobi==false)
-			{
-				// resolve the problem with the new constraints
-				solver_pointer->resolve();
+			// resolve the problem with the new constraints
+			solver_pointer->resolve();
 
-				// create a new model with the updated optimization problem and solve it
-				CbcModel new_model(*solver_pointer);
-				new_model.solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
+			// create a new model with the updated optimization problem and solve it
+			CbcModel new_model(*solver_pointer);
+			new_model.solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
 
-				CbcHeuristicFPump heuristic_new(new_model);
-				new_model.addHeuristic(&heuristic_new);
+			CbcHeuristicFPump heuristic_new(new_model);
+			new_model.addHeuristic(&heuristic_new);
 
-	//			new_model.initialSolve();
-				new_model.branchAndBound();
+//			new_model.initialSolve();
+			new_model.branchAndBound();
 
-				// retrieve new solution
-				const double* solution;
-				solution = new_model.solver()->getColSolution();
-				for(size_t var=0; var<number_of_variables; ++var)
-					solution_vector[var] = solution[var];
-			}
-			else
-			{
-				useGurobiSolver("lin_flow_prog", gurobi_sol);
-				solution_vector = gurobi_sol;
-			}
+			// retrieve new solution
+			solution = new_model.solver()->getColSolution();
 
 		}
 	}while(cycle_free == false);
@@ -786,7 +725,470 @@ void FlowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<d
 	for(size_t res=0; res<number_of_variables; ++res)
 	{
 //		std::cout << solution[res] << std::endl;
-		C[res] = solution_vector[res];
+		C[res] = solution[res];
+	}
+#endif
+}
+
+// Function that creates a Cbc optimization problem and solves it, using the given matrices and vectors and the 3-stage
+// ansatz, that takes an initial step going from the start node and then a coverage stage assuming that the number of
+// flows into and out of a node must be the same. At last a final stage is gone, that terminates the path in one of the
+// possible nodes. This function uses lazy generalized cutset inequalities (GCI) to prevent cycles. For that a solution
+// without cycle prevention constraints is determined and then cycles are detected in this solution. For these cycles
+// then additional constraints are added and a new solution is determined. This procedure gets repeated until no cycle
+// is detected in the solution or the only cycle contains all visited nodes, because such a solution is a traveling
+// salesman like solution, which is a valid solution.
+void FlowNetworkExplorator::solveLazyConstraintOptimizationProblem(std::vector<double>& C, const cv::Mat& V, const std::vector<double>& weights,
+		const std::vector<std::vector<uint> >& flows_into_nodes, const std::vector<std::vector<uint> >& flows_out_of_nodes,
+		const std::vector<uint>& start_arcs)
+{
+	// initialize the problem
+	CoinModel problem_builder;
+
+	std::cout << "Creating and solving linear program." << std::endl;
+
+	// add the optimization variables to the problem
+	int number_of_variables = 0;
+	for(size_t arc=0; arc<start_arcs.size(); ++arc) // initial stage
+	{
+		problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
+		problem_builder.setObjective(number_of_variables, weights[start_arcs[arc]]);
+		problem_builder.setInteger(number_of_variables);
+		++number_of_variables;
+//		}
+	}
+	for(size_t variable=0; variable<V.cols; ++variable) // coverage stage
+	{
+		problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
+		problem_builder.setObjective(number_of_variables, weights[variable]);
+		problem_builder.setInteger(number_of_variables);
+		++number_of_variables;
+	}
+	for(size_t variable=0; variable<V.cols; ++variable) // final stage
+	{
+		problem_builder.setColBounds(number_of_variables, 0.0, 1.0);
+		problem_builder.setObjective(number_of_variables, weights[variable]);
+		problem_builder.setInteger(number_of_variables);
+		++number_of_variables;
+	}
+	std::cout << "number of variables in the problem: " << number_of_variables << std::endl;
+
+	// inequality constraints to ensure that every position has been seen at least once:
+	//		for each center that should be covered, find the arcs of the three stages that cover it
+	for(size_t row=0; row<V.rows; ++row)
+	{
+		std::vector<int> variable_indices;
+
+		for(size_t col=0; col<start_arcs.size(); ++col)
+			if(V.at<uchar>(row, start_arcs[col])==1)
+				variable_indices.push_back((int) col);
+
+		// coverage and final stage
+		for(size_t col=0; col<V.cols; ++col)
+		{
+			if(V.at<uchar>(row, col)==1)
+			{
+				variable_indices.push_back((int) col + start_arcs.size()); // coverage stage
+				variable_indices.push_back((int) col + start_arcs.size() + V.cols); // final stage
+			}
+		}
+
+		// all indices are 1 in this constraint
+		std::vector<double> variable_coefficients(variable_indices.size(), 1.0);
+
+		// add the constraint, if the current cell can be covered by the given arcs
+		if(variable_indices.size()>0)
+			problem_builder.addRow((int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 1.0);
+	}
+
+
+	// equality constraint to ensure that the number of flows out of one node is the same as the number of flows into the
+	// node during the coverage stage
+	//	Remark: for initial stage ensure that exactly one arc is gone, because there only the outgoing flows are taken
+	//			into account
+	// initial stage
+	std::vector<int> start_indices(start_arcs.size());
+	std::vector<double> start_coefficients(start_arcs.size());
+	for(size_t start=0; start<start_arcs.size(); ++start)
+	{
+		start_indices[start] = start;
+		start_coefficients[start] = 1.0;
+	}
+	problem_builder.addRow((int) start_indices.size(), &start_indices[0], &start_coefficients[0], 1.0, 1.0);
+
+	// coverage stage
+	for(size_t node=0; node<flows_into_nodes.size(); ++node)
+	{
+		std::vector<int> variable_indices;
+		std::vector<double> variable_coefficients;
+
+		// gather flows into node
+		for(size_t inflow=0; inflow<flows_into_nodes[node].size(); ++inflow)
+		{
+			// if a start arcs flows into the node, additionally take the index of the arc in the start_arc vector
+			if(contains(start_arcs, flows_into_nodes[node][inflow])==true)
+			{
+				// conservativity
+				variable_indices.push_back(std::find(start_arcs.begin(), start_arcs.end(), flows_into_nodes[node][inflow])-start_arcs.begin());
+				variable_coefficients.push_back(1.0);
+			}
+			// get the index of the arc in the optimization vector
+			// conservativity
+			variable_indices.push_back(flows_into_nodes[node][inflow] + start_arcs.size());
+			variable_coefficients.push_back(1.0);
+		}
+
+		// gather flows out of node, also include flows into final nodes (for conservativity)
+		for(size_t outflow=0; outflow<flows_out_of_nodes[node].size(); ++outflow)
+		{
+			// coverage stage variable
+			// conservativity
+			variable_indices.push_back(flows_out_of_nodes[node][outflow] + start_arcs.size());
+			variable_coefficients.push_back(-1.0);
+			// final stage variable
+			variable_indices.push_back(flows_out_of_nodes[node][outflow] + start_arcs.size() + V.cols);
+			variable_coefficients.push_back(-1.0);
+		}
+
+//		testing
+//		std::cout << "number of flows: " << variable_indices.size() << std::endl;
+//		for(size_t i=0; i<variable_indices.size(); ++i)
+//			std::cout << variable_indices[i] << std::endl;
+
+		// add conservativity constraint
+		problem_builder.addRow((int) variable_indices.size(), &variable_indices[0], &variable_coefficients[0], 0.0, 0.0);
+	}
+
+	// equality constraint to ensure that the path only once goes to the final stage
+	std::vector<int> final_indices(V.cols);
+	std::vector<double> final_coefficients(final_indices.size());
+	// gather indices
+	for(size_t node=0; node<final_indices.size(); ++node)
+	{
+		final_indices[node] = node + start_arcs.size() + V.cols;
+		final_coefficients[node] = 1.0;
+	}
+	// add constraint
+	problem_builder.addRow((int) final_indices.size(), &final_indices[0], &final_coefficients[0], 1.0, 1.0);
+
+	// load the created LP problem to the solver
+	OsiClpSolverInterface LP_solver;
+	OsiClpSolverInterface* solver_pointer = &LP_solver;
+
+	solver_pointer->loadFromCoinModel(problem_builder);
+
+	// testing
+	solver_pointer->writeLp("lin_flow_prog", "lp");
+
+	// solve the created integer optimization problem
+	CbcModel model(*solver_pointer);
+	model.solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
+
+	CbcHeuristicFPump heuristic(model);
+	model.addHeuristic(&heuristic);
+	std::vector<double> gurobi_sol(number_of_variables);
+	model.initialSolve();
+	model.branchAndBound();
+
+//	testing
+//	std::vector<int> test_row(2);
+//	std::vector<double> test_coeff(2);
+//
+//	test_row[0] = 0;
+//	test_row[1] = 1;
+//
+//	test_coeff[0] = 1.0;
+//	test_coeff[1] = 1.0;
+//	solver_pointer->addRow(2, &test_row[0], &test_coeff[0], 0.0, 0.0);
+//	solver_pointer->writeLp("lin_flow_prog", "lp");
+//	solver_pointer->resolve();
+
+	// retrieve solution
+	const double* solution = model.solver()->getColSolution();
+
+	// search for cycles in the retrieved solution, if one is found add a constraint to prevent this cycle
+	bool cycle_free = false;
+
+	do
+	{
+		// get the arcs that are used in the previously calculated solution
+		std::set<uint> used_arcs; // set that stores the indices of the arcs corresponding to non-zero elements in the solution
+
+		// go trough the start arcs
+		for(size_t start_arc=0; start_arc<start_arcs.size(); ++start_arc)
+		{
+			if(solution[start_arc]!=0)
+			{
+				// insert start index
+				used_arcs.insert(start_arcs[start_arc]);
+			}
+		}
+
+		// go trough the coverage stage
+		for(size_t arc=start_arcs.size(); arc<start_arcs.size()+V.cols; ++arc)
+		{
+			if(solution[arc]!=0)
+			{
+				// insert index, relative to the first coverage variable
+				used_arcs.insert(arc-start_arcs.size());
+			}
+		}
+
+		// go trough the final stage and find the remaining used arcs
+		std::vector<std::vector<uint> > reduced_outflows(flows_out_of_nodes.size());
+		for(size_t node=0; node<flows_out_of_nodes.size(); ++node)
+		{
+			for(size_t flow=0; flow<flows_out_of_nodes[node].size(); ++flow)
+			{
+				if(solution[flows_out_of_nodes[node][flow]+start_arcs.size()+V.cols]!=0)
+				{
+					// insert saved outgoing flow index
+					used_arcs.insert(flows_out_of_nodes[node][flow]);
+				}
+			}
+		}
+
+		std::cout << "got " << used_arcs.size() << " used arcs" << std::endl;
+//		std::cout << "got the used arcs:" << std::endl;
+//		for(std::set<uint>::iterator sol=used_arcs.begin(); sol!=used_arcs.end(); ++sol)
+//			std::cout << *sol << std::endl;
+//		std::cout << std::endl;
+
+		// construct the directed edges out of the used arcs
+		std::vector<std::vector<int> > directed_edges; // vector that stores the directed edges for each node
+		for(uint start_node=0; start_node<flows_out_of_nodes.size(); ++start_node)
+		{
+			// check if a used arc is flowing out of the current start node
+			std::vector<uint> originating_flows;
+			bool originating = false;
+			for(std::set<uint>::iterator arc=used_arcs.begin(); arc!=used_arcs.end(); ++arc)
+			{
+				if(contains(flows_out_of_nodes[start_node], *arc)==true)
+				{
+					originating = true;
+					originating_flows.push_back(*arc);
+				}
+			}
+
+			// if the arc is originating from this node, find its destination
+			std::vector<int> current_directed_edges;
+			if(originating==true)
+			{
+				for(uint end_node=0; end_node<flows_into_nodes.size(); ++end_node)
+				{
+					if(end_node==start_node)
+						continue;
+
+					for(std::vector<uint>::iterator arc=originating_flows.begin(); arc!=originating_flows.end(); ++arc)
+						if(contains(flows_into_nodes[end_node], *arc)==true)
+							current_directed_edges.push_back(end_node);
+				}
+			}
+
+			// if the current node doesn't flow into another node insert a vector storing -1
+			if(current_directed_edges.size()==0)
+				current_directed_edges.push_back(-1);
+
+			// save the found used directed edges
+			directed_edges.push_back(current_directed_edges);
+		}
+
+//		// testing
+//		std::cout << "used destinations: " << std::endl;
+////		directed_edges[1].push_back(0);
+//		for(size_t i=0; i<directed_edges.size(); ++i)
+//		{
+//			for(size_t j=0; j<directed_edges[i].size(); ++j)
+//			{
+//				std::cout << directed_edges[i][j] << " ";
+//			}
+//			std::cout << std::endl;
+//		}
+//		std::cout << std::endl;
+
+		// construct the support graph out of the directed edges
+		directedGraph support_graph(flows_out_of_nodes.size()); // initialize with the right number of edges
+
+		int number_of_not_used_nodes = 0;
+		for(size_t start=0; start<directed_edges.size(); ++start)
+		{
+			for(size_t end=0; end<directed_edges[start].size(); ++end)
+			{
+				// if no destination starting from this node could be found ignore this node
+				if(directed_edges[start][end]==-1)
+				{
+					break;
+					++number_of_not_used_nodes;
+				}
+
+				// add the directed edge
+				boost::add_edge(start, directed_edges[start][end], support_graph);
+			}
+		}
+
+		// search for the strongly connected components
+		std::vector<int> c(flows_into_nodes.size());
+		int number_of_strong_components = boost::strong_components(support_graph, boost::make_iterator_property_map(c.begin(), boost::get(boost::vertex_index, support_graph), c[0]));
+		std::cout << "got " << number_of_strong_components << " strongly connected components" << std::endl;
+//		for (std::vector <int>::iterator i = c.begin(); i != c.end(); ++i)
+//		  std::cout << "Vertex " << i - c.begin() << " is in component " << *i << std::endl;
+
+		// check how many cycles there are in the solution (components with a size >= 2)
+		int number_of_cycles = 0;
+		for(std::vector<int>::iterator comp=c.begin(); comp!=c.end(); ++comp)
+		{
+			int elements = std::count(c.begin(), c.end(), *comp);
+			if(elements>=2)
+				++number_of_cycles;
+			// check if a tsp path is computed (number of arcs is same as number of nodes)
+			if(elements==used_arcs.size())
+				--number_of_cycles;
+		}
+
+		// check if no cycle appears in the solution, i.e. if not each node is a component of its own or a traveling
+		// salesman path has been computed (not_used_nodes+1) or each arc flows to another node
+		if(number_of_cycles==0)
+			cycle_free = true;
+
+		// if a cycle appears find it and add the prevention constraint to the problem and resolve it
+		if(cycle_free==false)
+		{
+			// go trough the components and find components with more than 1 element in it
+			std::vector<std::vector<uint> > cycle_nodes;
+			std::set<int> done_components; // set that stores the component indices for that the nodes already were found
+			for (int component=0; component<c.size(); ++component)
+			{
+				// check if component hasn't been done yet
+				if(done_components.find(c[component])==done_components.end())
+				{
+					std::vector<uint> current_component_nodes;
+					int elements = std::count(c.begin(), c.end(), c[component]);
+//					std::cout << c[component] << std::endl;
+					if(elements>=2)
+					{
+						for(std::vector<int>::iterator element=c.begin(); element!=c.end(); ++element)
+						{
+							if(*element==c[component])
+							{
+								current_component_nodes.push_back(element-c.begin());
+							}
+						}
+
+						// save the found cycle
+						if(current_component_nodes.size()>0)
+							cycle_nodes.push_back(current_component_nodes);
+
+						// add it to done components
+						done_components.insert(c[component]);
+					}
+				}
+			}
+
+//			std::cout << "found nodes that are part of a cycle: " << std::endl;
+//			for(size_t i=0; i<cycle_nodes.size(); ++i)
+//			{
+//				for(size_t j=0; j<cycle_nodes[i].size(); ++j)
+//				{
+//					std::cout << cycle_nodes[i][j] << " ";
+//				}
+//				std::cout << std::endl;
+//			}
+
+			// add the cycle prevention constraints for each found cycle to the optimization problem and resolve it
+			for(size_t cycle=0; cycle<cycle_nodes.size(); ++cycle)
+			{
+				// for each node in this cycle only use the outgoing arcs that are part of the cycle and the outflows
+				// out of the cycle that don't start at the current node
+//				std::cout << "searching for outflows" << std::endl;
+				for(size_t node=0; node<cycle_nodes[cycle].size(); ++node)
+				{
+					std::vector<int> cpc_indices;
+					std::vector<double> cpc_coefficients;
+
+					// gather the arcs in outgoing from all neighbors
+					for(size_t neighbor=0; neighbor<cycle_nodes[cycle].size(); ++neighbor)
+					{
+						// for the node itself gather the outflows that belong to the cycle
+						if(neighbor==node)
+						{
+//							std::cout << "node itself: " << cycle_nodes[cycle][neighbor] << std::endl;
+							int flow_index = -1;
+							for(std::vector<uint>::const_iterator outflow=flows_out_of_nodes[cycle_nodes[cycle][neighbor]].begin(); outflow!=flows_out_of_nodes[cycle_nodes[cycle][neighbor]].end(); ++outflow)
+							{
+								// if the current arc is used in the solution, search for it in the incoming flows of
+								// the other nodes in the cycle
+								if(used_arcs.find(*outflow)!=used_arcs.end())
+									for(size_t new_node=0; new_node<cycle_nodes[cycle].size(); ++new_node)
+										if(contains(flows_into_nodes[cycle_nodes[cycle][new_node]], *outflow)==true)
+											flow_index=*outflow;
+							}
+
+							// if the outflow is an inflow of another cycle node, add its index to the constraint
+							if(flow_index!=-1)
+							{
+								cpc_indices.push_back(flow_index+start_arcs.size());
+								cpc_coefficients.push_back(-1.0);
+							}
+
+						}
+						// for other nodes gather outflows that are not part of the cycle
+						else
+						{
+//							std::cout << "neighbor" << std::endl;
+							bool in_cycle = false;
+							for(std::vector<uint>::const_iterator outflow=flows_out_of_nodes[cycle_nodes[cycle][neighbor]].begin(); outflow!=flows_out_of_nodes[cycle_nodes[cycle][neighbor]].end(); ++outflow)
+							{
+								// search for the current flow in the incoming flows of the other nodes in the cycle
+								for(size_t new_node=0; new_node<cycle_nodes[cycle].size(); ++new_node)
+									if(contains(flows_into_nodes[cycle_nodes[cycle][new_node]], *outflow)==true)
+										in_cycle=true;
+
+								// if the arc is not in the cycle add its index
+								if(in_cycle==false)
+								{
+									cpc_indices.push_back(*outflow+start_arcs.size());
+									cpc_coefficients.push_back(1.0);
+								}
+
+								// reset the indication boolean
+								in_cycle = false;
+							}
+						}
+					}
+
+//					std::cout << "adding constraint" << std::endl;
+					// add the constraint
+					solver_pointer->addRow((int) cpc_indices.size(), &cpc_indices[0], &cpc_coefficients[0], 0.0, COIN_DBL_MAX);
+				}
+
+			}
+
+//			testing
+			solver_pointer->writeLp("lin_flow_prog", "lp");
+
+			// resolve the problem with the new constraints
+			solver_pointer->resolve();
+
+			// create a new model with the updated optimization problem and solve it
+			CbcModel new_model(*solver_pointer);
+			new_model.solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
+
+			CbcHeuristicFPump heuristic_new(new_model);
+			new_model.addHeuristic(&heuristic_new);
+
+//			new_model.initialSolve();
+			new_model.branchAndBound();
+
+			// retrieve new solution
+			solution = new_model.solver()->getColSolution();
+
+		}
+	}while(cycle_free == false);
+
+	for(size_t res=0; res<number_of_variables; ++res)
+	{
+//		std::cout << solution[res] << std::endl;
+		C[res] = solution[res];
 	}
 }
 
@@ -1185,12 +1587,16 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 		}
 	}
 
-	// 2. solve the optimization problem
+	// 2. solve the optimization problem, using the available optimization library
 	std::vector<double> C(2.0*(flows_out_of_nodes[start_index].size()+number_of_candidates) + number_of_outflows + edges.size());
 	std::cout << "number of outgoing arcs: " << number_of_outflows << std::endl;
 
 	// TODO: Gurobi
-	solveLazyConstraintOptimizationProblem(C, V, w, flows_into_nodes, flows_out_of_nodes, flows_out_of_nodes[start_index], true);
+#ifdef GUROBI_FOUND
+	solveGurobiOptimizationProblem(C, V, w, flows_into_nodes, flows_out_of_nodes, flows_out_of_nodes[start_index]);
+#else
+	solveLazyConstraintOptimizationProblem(C, V, w, flows_into_nodes, flows_out_of_nodes, flows_out_of_nodes[start_index]);
+#endif
 
 //	testing
 	for(size_t i=0; i<C.size(); ++i)

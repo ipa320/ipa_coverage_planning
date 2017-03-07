@@ -38,6 +38,17 @@ find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(Eigen REQUIRED)
 
+# include the FindGUROBI.cmake file to search for Gurobi on the system
+set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${PROJECT_SOURCE_DIR}/cmake/")  
+find_package(GUROBI) 
+
+# if Gurobi was found, set a flag to use it
+if(GUROBI_FOUND)
+	add_definitions(-DGUROBI_FOUND=${GUROBI_FOUND})
+endif(GUROBI_FOUND)
+Message(STATUS "Gurobi include dirs: " ${GUROBI_INCLUDE_DIRS})
+Message(STATUS "Gurobi lib dirs: " ${GUROBI_LIBRARIES})
+
 # Coin-Or and Cbc, included as ubuntu system package, without Cmake-module so include pkg-config file
 #	!!! Important note: the order of the libraries when linking your executable is important, if it is wrong you get undefined references !!!
 find_package(PkgConfig REQUIRED)
@@ -74,6 +85,7 @@ CATKIN_DEPENDS
 DEPENDS
 	OpenCV
 	Boost
+	GUROBI
 	CoinUtils
 	OsiClp
 	Clp
@@ -88,8 +100,7 @@ DEPENDS
 ###########
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-# include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
-# important: common/include also needs to be here if you have it
+# important: common/include also needs to be here if you have it, order of including the coinor-packages relevant, not working when including in wrong order
 include_directories(
 	common/include
 	ros/include
@@ -97,6 +108,7 @@ include_directories(
 	${OpenCV_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIRS}
 	${Eigen_INCLUDE_DIRS}
+	${GUROBI_INCLUDE_DIRS}
 	${CoinUtils_INCLUDE_DIRS}
 	${OsiClp_INCLUDE_DIRS}
 	${Clp_INCLUDE_DIRS}
@@ -132,6 +144,7 @@ target_link_libraries(room_exploration_server
 	${Osi_LIBRARIES}
 	${Cgl_LIBRARIES}
 	${Cbc-lib_LIBRARIES}
+	${GUROBI_LIBRARIES}
 )
 
 # server for coverage checking
@@ -160,6 +173,9 @@ target_link_libraries(room_exploration_evaluation
 	${OpenCV_LIBS}
 )
 add_dependencies(room_exploration_client ${catkin_EXPORTED_TARGETS})
+
+#set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -stdlib=libstdc++")
+#set(CMAKE_SHARED_LINKER_FLAGS "-lgurobi_c++ -lgurobi70, --as-needed")
  
 #############
 ## Install ##
