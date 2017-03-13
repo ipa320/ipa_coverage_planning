@@ -302,7 +302,6 @@ public:
 
 		// read out the computed paths and calculate the evaluation values
 //		ROS_INFO("Reading out all saved paths.");
-//		// TODO: finish
 //		std::vector<EvaluationResults> results;
 //		for (size_t i=0; i<evaluation_datas.size(); ++i)
 //		{
@@ -757,7 +756,10 @@ public:
 					// if a false pose has been saved, ignore it
 					// TODO: does not recover from a fault --> whole (remaining) path is neglected (but this should not happen anyways)
 					if(robot_position.x==-1 && robot_position.y==-1)
+					{
+						ROS_WARN("ExplorationEvaluation:evaluateCoveragePaths: robot_position.x==-1 && robot_position.y==-1 --> this should never happen.");
 						continue;
+					}
 
 					// find an accessible next pose
 					geometry_msgs::Pose2D next_pose;
@@ -1009,7 +1011,7 @@ public:
 				{
 					ROS_INFO("Error when calling the coverage check server.");
 				}
-				// todo: error handling
+				// todo: error handling necessary?
 //				cv::imshow("seen", seen_positions_map);
 //				cv::waitKey();
 
@@ -1064,10 +1066,10 @@ public:
 				computation_time_devition += std::pow(average_computation_time-*tim, 2);
 			computation_time_devition /= calculation_times.size();
 
-			// 6. for each part of the path calculate the parallelities with respect to the nearest wall and the nearest trajectory part
+			// 6. for each part of the path calculate the parallelism with respect to the nearest wall and the nearest trajectory part
 			std::vector<std::vector<double> > wall_angle_differences, trajectory_angle_differences;
 			std::vector<std::vector<double> > revisit_times; // vector that stores the index-differences of the current pose and the point of its nearest neighboring trajectory
-			double eps = 20; // valid check-radius when checking for the parrallelity to another part of the trajectory, [pixels], TODO: !!!!param!!!!
+			const double trajectory_parallelism_check_range = 1.0/datas.map_resolution_; // valid check-radius when checking for the parallelism to another part of the trajectory, [pixels], TODO: use 1.5*grid_spacing_in_pixel
 			int valid_room_index = 0; // used to find the interpolated paths, that are only computed for rooms with a valid path
 			for(size_t room=0; room<paths.size(); ++room)
 			{
@@ -1089,7 +1091,7 @@ public:
 
 					// go in the directions of both normals and find the nearest wall
 					int iteration_index = 0;
-					bool hit_wall = false, hit_trajectory = false, exceeded_check_range = false;
+					bool hit_wall = false, hit_trajectory = false, exceeded_trajectory_parallelism_check_range = false;
 					cv::Point2f n1(pose->x, pose->y), n2(pose->x, pose->y);
 					cv::Point wall_pixel, trajectory_pixel;
 					do
@@ -1114,27 +1116,27 @@ public:
 							wall_pixel = n2;
 						}
 
-						// only check the parallelity to another trajectory, if the range hasn't been exceeded yet
-						if(exceeded_check_range==false)
+						// only check the parallelism to another trajectory, if the range hasn't been exceeded yet
+						if(exceeded_trajectory_parallelism_check_range==false)
 						{
 							// test if another trajectory part has been hit, if the check-radius is still satisfied
 							const double dist1 = cv::norm(n1-cv::Point2f(pose->x, pose->y));
 							const double dist2 = cv::norm(n2-cv::Point2f(pose->x, pose->y));
 
-							if(path_map.at<uchar>(n1)==127 && dist1<=eps && hit_trajectory==false)
+							if(path_map.at<uchar>(n1)==127 && dist1<=trajectory_parallelism_check_range && hit_trajectory==false)
 							{
 								hit_trajectory = true;
 								trajectory_pixel = n1;
 							}
-							else if(path_map.at<uchar>(n2)==127 && dist2<=eps && hit_trajectory==false)
+							else if(path_map.at<uchar>(n2)==127 && dist2<=trajectory_parallelism_check_range && hit_trajectory==false)
 							{
 								hit_trajectory = true;
 								trajectory_pixel = n2;
 							}
 
 							// if both distances exceed the valid check range, mark as finished
-							if(dist1>eps && dist2>eps)
-								exceeded_check_range = true;
+							if(dist1>trajectory_parallelism_check_range && dist2>trajectory_parallelism_check_range)
+								exceeded_trajectory_parallelism_check_range = true;
 						}
 
 //						cv::Mat test_map = map.clone();
@@ -1144,7 +1146,7 @@ public:
 //						cv::circle(test_map, n2, 2, cv::Scalar(127), CV_FILLED);
 //						cv::imshow("normals", test_map);
 //						cv::waitKey();
-					} while((hit_wall==false  && iteration_index<=1000) || (hit_trajectory==false && exceeded_check_range==false));
+					} while ((hit_wall==false  && iteration_index<=1000) || (hit_trajectory==false && exceeded_trajectory_parallelism_check_range==false));
 
 					// if a wall/obstacle was found, determine the gradient at this position and compare it to the direction of the path
 //					double gradient;
@@ -1158,7 +1160,7 @@ public:
 						current_wall_angle_differences.push_back(delta_theta_score);
 					}
 
-					// if another trajectory part could be found, determine the parallelity to it
+					// if another trajectory part could be found, determine the parallelism to it
 					if(hit_trajectory==true)
 					{
 						// find the trajectory point in the interpolated path
@@ -1174,6 +1176,8 @@ public:
 								neighbor_index = neighbor-interpolated_paths[valid_room_index].begin();
 							}
 						}
+						if (neighbor_index == -1)
+							ROS_WARN("ExplorationEvaluation:evaluateCoveragePaths: parallelism check to trajectory, neighbor_index==-1 --> did not find the neighbor.");
 //						std::cout << "index: " << pose_index << ", n: " << neighbor_index << std::endl;
 
 						// save the found index difference, i.e. the difference in percentage of path completion between current node and neighboring path point
@@ -1185,7 +1189,7 @@ public:
 						double delta_theta1 = 1e3, delta_theta2 = 1e3;
 						if(neighbor_index<interpolated_paths[valid_room_index].size()-1) // neighbor not last node
 						{
-							n_dx = interpolated_paths[valid_room_index][neighbor_index+1].x-world_neighbor.x;
+							n_dx = interpolated_paths[valid_room_index][neighbor_index+1].x-world_neighbor.x;		// todo: interpolate angle with broader horizon (this only yields 45deg steps)
 							n_dy = interpolated_paths[valid_room_index][neighbor_index+1].y-world_neighbor.y;
 							norm = std::sqrt(n_dx*n_dx + n_dy*n_dy);
 							n_dx = n_dx/norm;
@@ -1273,12 +1277,11 @@ public:
 			deviation_crossings /= numbers_of_crossings.size();
 
 			// 8. calculate the subjective measure for the paths
-			// TODO: !!!!!param!!!!! --> external computation so far
+			// TODO: set up the correct computation --> external computation so far
 			double subjective_measure = average_wall_angle_difference + average_trajectory_angle_difference
 					- 1.0*average_pathlength - 1.0*average_computation_time - 1.0*average_revisit_times - 1.0/3.0*average_crossings - 1.0*average_number_of_turns;
 			subjective_measure /= 7.0;
 
-			// TODO: number of rooms
 
 			// print the found average evaluation values to a local file
 			std::stringstream output;

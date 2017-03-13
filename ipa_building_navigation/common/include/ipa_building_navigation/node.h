@@ -16,7 +16,7 @@
 #pragma once //make sure this header gets included only one time when multiple classes need it in the same project
 			 //regarding to https://en.wikipedia.org/wiki/Pragma_once this is more efficient than #define
 
-class nodeAstar
+class NodeAstar
 {
 protected:
 	// current position
@@ -28,7 +28,7 @@ protected:
 	int priority_; // smaller: higher priority
 
 public:
-	nodeAstar(int xp, int yp, int d, int p);
+	NodeAstar(int xp, int yp, int d, int p);
 	int getxPos() const;
 	int getyPos() const;
 	int getLevel() const;

@@ -1352,8 +1352,6 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	// 2. solve the optimization problem, using the available optimization library
 	std::vector<double> C(2.0*(flows_out_of_nodes[start_index].size()+number_of_candidates) + number_of_outflows + edges.size());
 	std::cout << "number of outgoing arcs: " << number_of_outflows << std::endl;
-
-	// TODO: Gurobi
 #ifdef GUROBI_FOUND
 	solveGurobiOptimizationProblem(C, V, w, flows_into_nodes, flows_out_of_nodes, flows_out_of_nodes[start_index]);
 #else

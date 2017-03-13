@@ -102,7 +102,7 @@ inline bool operator==(const geometry_msgs::Pose2D& A, const geometry_msgs::Pose
 // inner circle). After this the coverage path gets computed based on the stated paper. This implementation only provides
 // a static path, any reaction to unexpected behavior (e.g. sudden obstacles) need to be done in an upper program.
 //
-class neuralNetworkExplorator
+class NeuralNetworkExplorator
 {
 protected:
 
@@ -118,7 +118,7 @@ protected:
 public:
 
 	// constructor
-	neuralNetworkExplorator();
+	NeuralNetworkExplorator();
 
 	// function to set the step size to a certain value
 	void setStepSize(double step_size)
