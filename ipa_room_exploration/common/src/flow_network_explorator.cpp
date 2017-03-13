@@ -999,7 +999,7 @@ bool FlowNetworkExplorator::pointClose(const std::vector<cv::Point>& points, con
 void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
 		const float map_resolution, const cv::Point starting_position, const cv::Point2d map_origin,
 		const int cell_size, const Eigen::Matrix<float, 2, 1>& robot_to_fov_middlepoint_vector, const float coverage_radius,
-		const bool plan_for_footprint, const double path_eps, const double curvature_factor)
+		const bool plan_for_footprint, const double path_eps, const double curvature_factor, const double max_distance_factor)
 {
 	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
 	cv::Mat R;
@@ -1008,8 +1008,6 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	RoomRotator room_rotation;
 	room_rotation.computeRoomRotationMatrix(room_map, R, bbox, map_resolution);
 	room_rotation.rotateRoom(room_map, rotated_room_map, R, bbox);
-
-
 
 //	// generate matrices for gradient in x/y direction
 //	cv::Mat gradient_x, gradient_y;
@@ -1192,6 +1190,12 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 //	}
 	std::cout << "found " << edges.size() << " edges" << std::endl;
 
+//	cv::Mat edges_map = rotated_room_map.clone();
+//	for(std::vector<cv::Point>::iterator p=edges.begin(); p!=edges.end(); ++p)
+//		cv::circle(edges_map, *p, 2, cv::Scalar(100), CV_FILLED);
+//	cv::imshow("edges", edges_map);
+//	cv::waitKey();
+
 	// create the arcs for the flow network
 	std::cout << "Constructing distance matrix" << std::endl;
 	cv::Mat distance_matrix; // determine weights
@@ -1199,6 +1203,8 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	std::cout << "Constructed distance matrix, defining arcs" << std::endl;
 	std::vector<arcStruct> arcs;
 	double max_distance = max_y - min_y; // arcs should at least go the maximal room distance to allow straight arcs
+	if(max_x-min_x>max_distance)
+		max_distance=max_x-min_x;
 	for(size_t start=0; start<distance_matrix.rows; ++start)
 	{
 		for(size_t end=0; end<distance_matrix.cols; ++end)
@@ -1219,7 +1225,7 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 				// don't add too long arcs to reduce dimensionality, because they certainly won't get chosen anyway
 				// also don't add arcs that are too far away from the straight line (start-end) because they are likely
 				// to go completely around obstacles and are not good
-				if(current_forward_arc.weight <= max_distance && current_forward_arc.weight <= curvature_factor*cv::norm(vector))
+				if(current_forward_arc.weight <= max_distance_factor*max_distance && current_forward_arc.weight <= curvature_factor*cv::norm(vector))
 				{
 					std::vector<cv::Point> astar_path;
 					path_planner_.planPath(rotated_room_map, current_forward_arc.start_point, current_forward_arc.end_point, 1.0, 0.0, map_resolution, 0, &astar_path);
@@ -1233,6 +1239,7 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 			}
 		}
 	}
+	// TODO: exclude nodes that aren't connected to the rest of the edges
 	std::cout << "arcs: " << arcs.size() << std::endl;
 
 //	testing

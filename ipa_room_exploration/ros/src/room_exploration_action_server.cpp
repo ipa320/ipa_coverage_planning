@@ -61,6 +61,8 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
 		curvature_factor_ = config.curvature_factor;
 		std::cout << "room_exploration/delta_theta_ = " << delta_theta_ << std::endl;
+		max_distance_factor_ = config.max_distance_factor;
+		std::cout << "room_exploration/max_distance_factor_ = " << max_distance_factor_ << std::endl;
 	}
 	else if(path_planning_algorithm_ == 6) // set energyFunctional explorator parameters
 	{
@@ -163,6 +165,8 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
 		node_handle_.param("curvature_factor", curvature_factor_, 1.1);
 		std::cout << "room_exploration/curvature_factor = " << curvature_factor_ << std::endl;
+		node_handle_.param("max_distance_factor", max_distance_factor_, 1.0);
+		std::cout << "room_exploration/max_distance_factor_ = " << max_distance_factor_ << std::endl;
 	}
 	else if(path_planning_algorithm_ == 6) // set energyfunctional explorator parameters
 	{
@@ -533,9 +537,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		// todo: decide whether user shall set the cell size or automatic cell size for the grid (e.g. only automatic if cell_size <= 0)
 //		flow_network_explorator_.testFunc();
 		if(plan_for_footprint_ == false)
-			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, middle_point, grid_spacing_in_pixel, false, path_eps_, curvature_factor_);
+			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, middle_point, grid_spacing_in_pixel, false, path_eps_, curvature_factor_, max_distance_factor_);
 		else
-			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, zero_vector, grid_spacing_in_pixel, true, path_eps_, curvature_factor_);
+			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, zero_vector, grid_spacing_in_pixel, true, path_eps_, curvature_factor_, max_distance_factor_);
 	}
 	else if(path_planning_algorithm_ == 6) // use energy functional explorator
 	{

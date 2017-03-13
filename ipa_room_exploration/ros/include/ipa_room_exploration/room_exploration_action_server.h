@@ -152,6 +152,7 @@ protected:
 	double path_eps_; // the distance between points when generating a path
 	bool plan_for_footprint_; // boolean that implies if the path should be planned for the footprint and not for the field of view
 	double curvature_factor_; // double that shows the factor, an arc can be longer than a straight arc when using the flowNetwork explorator
+	double max_distance_factor_; // double that shows how much an arc can be longer than the maximal distance of the room, which is determined by the min/max coordinates that are set in the goal
 
 	// neural network explorator specific parameters
 	double step_size_; // step size for integrating the state dynamics

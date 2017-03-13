@@ -73,4 +73,6 @@ delta_theta: 0.78539816339      #1.570796
 #
 # factor, an arc can be longer than a straight arc, higher values allow more arcs to be considered in the optimization problem
 # Important: if too small, maybe the problem becomes infeasible and the optimizer won't work correctly
-curvature_factor: 1.1 # 1.1
+curvature_factor: 3 # 1.1
+# factor, an arc can be longer than the maximal distance of the room, which is determined by the min/max coordinates that are set in the goal
+max_distance_factor: 3 # 1.0
