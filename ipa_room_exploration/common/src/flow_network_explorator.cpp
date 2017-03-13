@@ -417,13 +417,31 @@ void FlowNetworkExplorator::solveGurobiOptimizationProblem(std::vector<double>& 
 
 	// testing
 	model.write("lin_flow_prog_gurobi.lp");
+	std::string filename_out = "lazy_constraints.txt";
+	std::ofstream file_out(filename_out.c_str(), std::ofstream::out);
+	if (file_out.is_open())
+	{
+//		file_out << cumulative_statistics.str();
+		for(size_t l=0; l<callback_object.lhs.size(); ++l)
+		{
+			for(size_t i=0; i<callback_object.lhs[l].size(); ++i)
+			{
+				file_out << callback_object.lhs[l][i] << " + ";
+			}
+			file_out << " <= " << callback_object.rhs[l] << std::endl;
+		}
+	}
+	else
+		ROS_ERROR("Could not open file '%s' for writing cumulative data.", filename_out.c_str());
+	file_out.close();
 
 	// retrieve solution
 	std::cout << "retrieving solution" << std::endl;
 	for(size_t var=0; var<number_of_variables; ++var)
 	{
 		C[var]= optimization_variables[var].get(GRB_DoubleAttr_X);
-//		std::cout << C[var] << std::endl;
+//		if(C[var]>0.01)
+//			std::cout << var << std::endl;
 	}
 
 	// garbage collection
@@ -1348,12 +1366,13 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 //			std::cout << "var" << i << ": " << C[i] << std::endl;
 
 	// 3. retrieve the solution and create a path
-	cv::Mat test_map = rotated_room_map.clone();
-	for(std::vector<cv::Point>::iterator p=edges.begin(); p!=edges.end(); ++p)
-		cv::circle(test_map, *p, 2, cv::Scalar(100), CV_FILLED);
+//	cv::Mat test_map = rotated_room_map.clone();
+//	for(std::vector<cv::Point>::iterator p=edges.begin(); p!=edges.end(); ++p)
+//		cv::circle(test_map, *p, 2, cv::Scalar(100), CV_FILLED);
 
 	std::set<uint> used_arcs; // set that stores the indices of the arcs corresponding to non-zero elements in the solution
 	// go trough the start arcs and determine the new start arcs
+	uint path_start = 0;
 	for(size_t start_arc=0; start_arc<flows_out_of_nodes[start_index].size(); ++start_arc)
 	{
 //		cv::Mat test_map = rotated_room_map.clone();
@@ -1362,14 +1381,15 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 		if(C[start_arc]>0.01) // taking integer precision in solver into account
 		{
 			// insert start index
-			used_arcs.insert(flows_out_of_nodes[start_index][start_arc]);
+//			used_arcs.insert(flows_out_of_nodes[start_index][start_arc]);
+			path_start = flows_out_of_nodes[start_index][start_arc];
 
-			std::vector<cv::Point> path=arcs[flows_out_of_nodes[start_index][start_arc]].edge_points;
-			for(size_t j=0; j<path.size(); ++j)
-				test_map.at<uchar>(path[j])=50;
-
-			cv::imshow("discretized", test_map);
-			cv::waitKey();
+//			std::vector<cv::Point> path=arcs[flows_out_of_nodes[start_index][start_arc]].edge_points;
+//			for(size_t j=0; j<path.size(); ++j)
+//				test_map.at<uchar>(path[j])=50;
+//
+//			cv::imshow("discretized", test_map);
+//			cv::waitKey();
 		}
 	}
 
@@ -1381,21 +1401,23 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 //			cv::circle(test_map, *p, 2, cv::Scalar(100), CV_FILLED);
 		if(C[cover_arc]>0.01) // taking integer precision in solver into account
 		{
+//			std::cout << cover_arc-flows_out_of_nodes[start_index].size() << std::endl;
+
 			// insert index, relative to the first coverage variable
 			used_arcs.insert(cover_arc-flows_out_of_nodes[start_index].size());
 
-			std::vector<cv::Point> path=arcs[cover_arc-flows_out_of_nodes[start_index].size()].edge_points;
-			for(size_t j=0; j<path.size(); ++j)
-				test_map.at<uchar>(path[j])=100;
-
-			cv::imshow("discretized", test_map);
-			cv::waitKey();
+//			std::vector<cv::Point> path=arcs[cover_arc-flows_out_of_nodes[start_index].size()].edge_points;
+//			for(size_t j=0; j<path.size(); ++j)
+//				test_map.at<uchar>(path[j])=100;
+//
+//			cv::imshow("discretized", test_map);
+//			cv::waitKey();
 		}
 	}
 
 	// go trough the final stage and find the remaining used arcs
-	std::vector<std::vector<uint> > reduced_outflows(flows_out_of_nodes.size());
 	std::cout << "final: " << std::endl;
+	uint path_end = 0;
 	for(uint final_arc=flows_out_of_nodes[start_index].size()+arcs.size(); final_arc<flows_out_of_nodes[start_index].size()+2*arcs.size(); ++final_arc)
 	{
 //		cv::Mat test_map = rotated_room_map.clone();
@@ -1404,14 +1426,15 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 		if(C[final_arc]>0.01)
 		{
 			// insert saved outgoing flow index
-			used_arcs.insert(final_arc-flows_out_of_nodes[start_index].size()-V.cols);
+//			used_arcs.insert(final_arc-flows_out_of_nodes[start_index].size()-V.cols);
+			path_end = final_arc-flows_out_of_nodes[start_index].size()-V.cols;
 
-			std::vector<cv::Point> path=arcs[final_arc-flows_out_of_nodes[start_index].size()-arcs.size()].edge_points;
-			for(size_t j=0; j<path.size(); ++j)
-				test_map.at<uchar>(path[j])=150;
-
-			cv::imshow("discretized", test_map);
-			cv::waitKey();
+//			std::vector<cv::Point> path=arcs[final_arc-flows_out_of_nodes[start_index].size()-arcs.size()].edge_points;
+//			for(size_t j=0; j<path.size(); ++j)
+//				test_map.at<uchar>(path[j])=150;
+//
+//			cv::imshow("discretized", test_map);
+//			cv::waitKey();
 		}
 	}
 //	for(size_t node=0; node<flows_out_of_nodes.size(); ++node)
@@ -1433,8 +1456,36 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 //	}
 //	cv::imshow("discretized", test_map);
 //	cv::waitKey();
-
 	std::cout << "got " << used_arcs.size() << " used arcs" << std::endl;
+
+//	// testing --> check how often a node is a start/end-node of the arcs
+//	std::cout << "appereances of the nodes: " << std::endl;
+//	cv::Mat node_map = rotated_room_map.clone();
+//	for(size_t i=0; i<edges.size(); ++i)
+//	{
+//		int number=0;
+//		for(std::set<uint>::iterator used=used_arcs.begin(); used!=used_arcs.end(); ++used)
+//			if(contains(flows_out_of_nodes[i], *used)==true || contains(flows_into_nodes[i], *used)==true)
+//				++number;
+//		std::cout << "n" << i << ": " << number << std::endl;
+//
+//		if(i==5)
+//		{
+//			cv::circle(node_map, edges[i], 2, cv::Scalar(127), CV_FILLED);
+//			for(std::set<uint>::iterator used=used_arcs.begin(); used!=used_arcs.end(); ++used)
+//			{
+//				if(contains(flows_out_of_nodes[i], *used)==true || contains(flows_into_nodes[i], *used)==true)
+//				{
+//					std::vector<cv::Point> points=arcs[*used].edge_points;
+//					for(size_t j=0; j<points.size(); ++j)
+//						node_map.at<uchar>(points[j])=150;
+//				}
+//			}
+//			cv::imshow("node", node_map);
+//			cv::waitKey();
+//		}
+//	}
+
 
 	// starting from the start node, go trough the arcs and create a coverage path
 	std::vector<cv::Point> path_positions;
@@ -1443,6 +1494,21 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	int last_index = start_index;
 	std::set<uint> gone_arcs;
 	std::cout << "getting path using arcs" << std::endl;
+	// start path at start node
+	std::vector<cv::Point> start_edge = arcs[path_start].edge_points;
+	for(std::vector<cv::Point>::iterator pos=start_edge.begin(); pos!=start_edge.end(); ++pos)
+	{
+		cv::Point difference = last_point - *pos;
+		// if the next point is far enough away from the last point insert it into the coverage path
+		if(difference.x*difference.x+difference.y*difference.y<=path_eps*path_eps)
+		{
+			path_positions.push_back(*pos);
+			last_point = *pos;
+		}
+	}
+	// get index of the start arcs end-node
+	cv::Point end_start_node = arcs[path_start].end_point;
+	last_index = std::find(edges.begin(), edges.end(), end_start_node)-edges.begin();
 	int number_of_gone_arcs = 0, loopcounter = 0;
 	do
 	{
@@ -1495,10 +1561,25 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 
 				// increase number of gone arcs
 				++number_of_gone_arcs;
+
+				// reset the loop-counter
+				loopcounter = 0;
 			}
-			std::cout << number_of_gone_arcs << std::endl;
+//			std::cout << number_of_gone_arcs << std::endl;
 		}
 	}while(number_of_gone_arcs<used_arcs.size() && loopcounter<=100);
+	// end the path at the final stage
+	std::vector<cv::Point> final_edge = arcs[path_end].edge_points;
+	for(std::vector<cv::Point>::iterator pos=final_edge.begin(); pos!=final_edge.end(); ++pos)
+	{
+		cv::Point difference = last_point - *pos;
+		// if the next point is far enough away from the last point insert it into the coverage path
+		if(difference.x*difference.x+difference.y*difference.y<=path_eps*path_eps)
+		{
+			path_positions.push_back(*pos);
+			last_point = *pos;
+		}
+	}
 	std::cout << "got path" << std::endl;
 
 	// transform the found path back to the original map

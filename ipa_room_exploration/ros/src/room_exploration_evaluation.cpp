@@ -207,45 +207,45 @@ public:
 		// prepare relevant floor map data
 		std::vector< std::string > map_names;
 		map_names.push_back("lab_ipa");
-//		map_names.push_back("lab_c_scan");
-//		map_names.push_back("Freiburg52_scan");
-//		map_names.push_back("Freiburg79_scan");
-//		map_names.push_back("lab_b_scan");
-//		map_names.push_back("lab_intel");
-//		map_names.push_back("Freiburg101_scan");
-//		map_names.push_back("lab_d_scan");
-//		map_names.push_back("lab_f_scan");
-//		map_names.push_back("lab_a_scan");
-//		map_names.push_back("NLB");
-//		map_names.push_back("office_a");
-//		map_names.push_back("office_b");
-//		map_names.push_back("office_c");
-//		map_names.push_back("office_d");
-//		map_names.push_back("office_e");
-//		map_names.push_back("office_f");
-//		map_names.push_back("office_g");
-//		map_names.push_back("office_h");
-//		map_names.push_back("office_i");
-//		map_names.push_back("lab_ipa_furnitures");
-//		map_names.push_back("lab_c_scan_furnitures");
-//		map_names.push_back("Freiburg52_scan_furnitures");
-//		map_names.push_back("Freiburg79_scan_furnitures");
-//		map_names.push_back("lab_b_scan_furnitures");
-//		map_names.push_back("lab_intel_furnitures");
-//		map_names.push_back("Freiburg101_scan_furnitures");
-//		map_names.push_back("lab_d_scan_furnitures");
-//		map_names.push_back("lab_f_scan_furnitures");
-//		map_names.push_back("lab_a_scan_furnitures");
-//		map_names.push_back("NLB_furnitures");
-//		map_names.push_back("office_a_furnitures");
-//		map_names.push_back("office_b_furnitures");
-//		map_names.push_back("office_c_furnitures");
-//		map_names.push_back("office_d_furnitures");
-//		map_names.push_back("office_e_furnitures");
-//		map_names.push_back("office_f_furnitures");
-//		map_names.push_back("office_g_furnitures");
-//		map_names.push_back("office_h_furnitures");
-//		map_names.push_back("office_i_furnitures");
+		map_names.push_back("lab_c_scan");
+		map_names.push_back("Freiburg52_scan");
+		map_names.push_back("Freiburg79_scan");
+		map_names.push_back("lab_b_scan");
+		map_names.push_back("lab_intel");
+		map_names.push_back("Freiburg101_scan");
+		map_names.push_back("lab_d_scan");
+		map_names.push_back("lab_f_scan");
+		map_names.push_back("lab_a_scan");
+		map_names.push_back("NLB");
+		map_names.push_back("office_a");
+		map_names.push_back("office_b");
+		map_names.push_back("office_c");
+		map_names.push_back("office_d");
+		map_names.push_back("office_e");
+		map_names.push_back("office_f");
+		map_names.push_back("office_g");
+		map_names.push_back("office_h");
+		map_names.push_back("office_i");
+		map_names.push_back("lab_ipa_furnitures");
+		map_names.push_back("lab_c_scan_furnitures");
+		map_names.push_back("Freiburg52_scan_furnitures");
+		map_names.push_back("Freiburg79_scan_furnitures");
+		map_names.push_back("lab_b_scan_furnitures");
+		map_names.push_back("lab_intel_furnitures");
+		map_names.push_back("Freiburg101_scan_furnitures");
+		map_names.push_back("lab_d_scan_furnitures");
+		map_names.push_back("lab_f_scan_furnitures");
+		map_names.push_back("lab_a_scan_furnitures");
+		map_names.push_back("NLB_furnitures");
+		map_names.push_back("office_a_furnitures");
+		map_names.push_back("office_b_furnitures");
+		map_names.push_back("office_c_furnitures");
+		map_names.push_back("office_d_furnitures");
+		map_names.push_back("office_e_furnitures");
+		map_names.push_back("office_f_furnitures");
+		map_names.push_back("office_g_furnitures");
+		map_names.push_back("office_h_furnitures");
+		map_names.push_back("office_i_furnitures");
 
 		// create all needed configurations
 		std::vector<ExplorationConfig> configs;
@@ -301,42 +301,42 @@ public:
 			failed_maps.close();
 
 		// read out the computed paths and calculate the evaluation values
-		ROS_INFO("Reading out all saved paths.");
-		// TODO: finish
-		std::vector<EvaluationResults> results;
-		for (size_t i=0; i<evaluation_datas.size(); ++i)
-		{
-			evaluateCoveragePaths(configs, evaluation_datas[i], results, data_storage_path);
-		}
-
-		// accumulate all statistics in one file
-		for(std::vector<ExplorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
-		{
-			std::string folder_path = config->generateConfigurationFolderString() + "/";
-			std::stringstream cumulative_statistics;
-			for (size_t i=0; i<evaluation_datas.size(); ++i)
-			{
-				std::string filename = data_storage_path + folder_path + evaluation_datas[i].map_name_ + "_evaluations_per_room.txt";
-				std::ifstream file(filename.c_str(), std::ifstream::in);
-				if (file.is_open())
-				{
-					std::string line;
-					while(getline(file, line))
-						if (line.length()>0)
-							cumulative_statistics << line << std::endl;
-				}
-				else
-					ROS_ERROR("Could not open file '%s' for reading cumulative data.", filename.c_str());
-				file.close();
-			}
-			std::string filename_out = data_storage_path + folder_path + "all_evaluations_per_room.txt";
-			std::ofstream file_out(filename_out.c_str(), std::ofstream::out);
-			if (file_out.is_open())
-				file_out << cumulative_statistics.str();
-			else
-				ROS_ERROR("Could not open file '%s' for writing cumulative data.", filename_out.c_str());
-			file_out.close();
-		}
+//		ROS_INFO("Reading out all saved paths.");
+//		// TODO: finish
+//		std::vector<EvaluationResults> results;
+//		for (size_t i=0; i<evaluation_datas.size(); ++i)
+//		{
+//			evaluateCoveragePaths(configs, evaluation_datas[i], results, data_storage_path);
+//		}
+//
+//		// accumulate all statistics in one file
+//		for(std::vector<ExplorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
+//		{
+//			std::string folder_path = config->generateConfigurationFolderString() + "/";
+//			std::stringstream cumulative_statistics;
+//			for (size_t i=0; i<evaluation_datas.size(); ++i)
+//			{
+//				std::string filename = data_storage_path + folder_path + evaluation_datas[i].map_name_ + "_evaluations_per_room.txt";
+//				std::ifstream file(filename.c_str(), std::ifstream::in);
+//				if (file.is_open())
+//				{
+//					std::string line;
+//					while(getline(file, line))
+//						if (line.length()>0)
+//							cumulative_statistics << line << std::endl;
+//				}
+//				else
+//					ROS_ERROR("Could not open file '%s' for reading cumulative data.", filename.c_str());
+//				file.close();
+//			}
+//			std::string filename_out = data_storage_path + folder_path + "all_evaluations_per_room.txt";
+//			std::ofstream file_out(filename_out.c_str(), std::ofstream::out);
+//			if (file_out.is_open())
+//				file_out << cumulative_statistics.str();
+//			else
+//				ROS_ERROR("Could not open file '%s' for writing cumulative data.", filename_out.c_str());
+//			file_out.close();
+//		}
 	}
 
 	void getRoomMaps(std::vector<ExplorationData>& data_saver)
@@ -452,6 +452,10 @@ public:
 			cv::Mat path_map = datas.floor_plan_.clone();
 			for(size_t room_index=0; room_index<datas.room_maps_.size(); ++room_index)
 			{
+				// testing of the algorithm --> select a few rooms so specificaly look at
+//				if(room_index!=2)
+//					continue;
+
 				cv::Mat room_map = datas.room_maps_[room_index];
 
 				// find min/max coordinates for this room by using the saved bounding box

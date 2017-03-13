@@ -147,6 +147,8 @@ typedef boost::adjacency_list <boost::vecS, boost::vecS, boost::directedS > dire
 		int n;
 		std::vector<std::vector<uint> > flows_out_of_nodes, flows_into_nodes;
 		std::vector<uint> start_arcs;
+		std::vector<std::vector<double> > lhs;
+		std::vector<double> rhs;
 
 		CyclePreventionCallbackClass(std::vector<GRBVar>* xvars, int xn, const std::vector<std::vector<uint> >& outflows,
 				const std::vector<std::vector<uint> >& inflows, const std::vector<uint>& start_indices)
@@ -182,7 +184,8 @@ typedef boost::adjacency_list <boost::vecS, boost::vecS, boost::directedS > dire
 			  std::cout << "getting used arcs: ";
 			  for(uint start_arc=0; start_arc<start_arcs.size(); ++start_arc)
 			  {
-				  if(solution[start_arc]>0)
+//				  std::cout << solution[start_arc] << std::endl;
+				  if(solution[start_arc]>0.01) // precision of the solver
 				  {
 					  // insert start index
 					  used_arcs.insert(start_arcs[start_arc]);
@@ -195,7 +198,7 @@ typedef boost::adjacency_list <boost::vecS, boost::vecS, boost::directedS > dire
 			  for(uint cover_arc=start_arcs.size(); cover_arc<start_arcs.size()+n; ++cover_arc)
 			  {
 //				  std::cout << cover_arc << std::endl;
-				  if(solution[cover_arc]>0)
+				  if(solution[cover_arc]>0.01) // precision of the solver
 				  {
 					  // insert index, relative to the first coverage variable
 					  used_arcs.insert(cover_arc-start_arcs.size());
@@ -207,7 +210,7 @@ typedef boost::adjacency_list <boost::vecS, boost::vecS, boost::directedS > dire
 			  // go trough the final stage and find the remaining used arcs
 			  for(uint flow=start_arcs.size()+n; flow<start_arcs.size()+2*n; ++flow)
 			  {
-				  if(solution[flow]>0)
+				  if(solution[flow]>0.01) // precision of the solver
 				  {
 					  // insert saved outgoing flow index
 					  used_arcs.insert(flow-start_arcs.size()-n);
@@ -425,12 +428,17 @@ typedef boost::adjacency_list <boost::vecS, boost::vecS, boost::directedS > dire
 
 					  // add the constraint
 					  GRBLinExpr current_cpc_constraint;
+					  std::vector<double> current_lhs;
 					  for(size_t var=0; var<cpc_indices.size(); ++var)
 					  {
 						  current_cpc_constraint += cpc_coefficients[var]*vars->operator[](cpc_indices[var]);
+						  current_lhs.push_back(cpc_coefficients[var]*cpc_indices[var]);
 //						  std::cout << cpc_coefficients[var] << "*" << cpc_indices[var] << std::endl;
 					  }
+//					  std::cout << "adding lazy, size of rhs: " << cycle_nodes[cycle].size()-1 << std::endl;
 					  addLazy(current_cpc_constraint<=cycle_nodes[cycle].size()-1);
+					  lhs.push_back(current_lhs);
+					  rhs.push_back(cycle_nodes[cycle].size()-1);
 				  }
 			  }
 			}

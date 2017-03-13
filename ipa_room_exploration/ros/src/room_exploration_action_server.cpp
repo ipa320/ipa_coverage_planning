@@ -529,6 +529,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	else if(path_planning_algorithm_ == 5) // use flow network explorator
 	{
 		// todo: decide whether user shall set the cell size or automatic cell size for the grid (e.g. only automatic if cell_size <= 0)
+//		flow_network_explorator_.testFunc();
 		if(plan_for_footprint_ == false)
 			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, middle_point, grid_spacing_in_pixel, false, path_eps_, curvature_factor_);
 		else
