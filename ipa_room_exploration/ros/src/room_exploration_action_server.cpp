@@ -330,7 +330,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	ROS_INFO("map resolution is : %f", goal->map_resolution);
 
 	// ***************** I. read the given parameters out of the goal *****************
-	// todo: test for adding right coordinates!!
+	// todo: this is only correct if the map is not rotated
 	cv::Point2d map_origin;
 	map_origin.x = goal->map_origin.x + goal->region_of_interest_coordinates.points[0].x;
 	map_origin.y = goal->map_origin.y + goal->region_of_interest_coordinates.points[0].y;
@@ -350,7 +350,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv_bridge::CvImagePtr cv_ptr_obj;
 	cv_ptr_obj = cv_bridge::toCvCopy(goal->input_map, sensor_msgs::image_encodings::MONO8);
 	cv::Mat global_map = cv_ptr_obj->image;
-//	transformImageToRoomCordinates(global_map); // TODO: add again
+	//transformImageToRoomCordinates(global_map);
 
 	// extract the subregion of the given map that should be explored
 	int roi_x_start = goal->region_of_interest_coordinates.points[0].x;
@@ -426,6 +426,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		// see: http://math.stackexchange.com/questions/1948356/largest-incircle-inside-a-quadrilateral-radius-calculation
 		// Get the size of one grid cell s.t. the grid can be completely covered by the field of view (fov) from all rotations around it.
 		// For this fit a circle in the fov, which gives the diagonal length of the square. Then use Pythagoras to get the fov middle point.
+		// -------------> easy solution: distance transform, take max. value
 		middle_point = (fov_vectors[0] + fov_vectors[1] + fov_vectors[2] + fov_vectors[3]) / 4;
 //		std::cout << "middle point: " << middle_point << std::endl;
 
@@ -451,7 +452,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	{
 		grid_length_as_double = goal->coverage_radius*std::sqrt(2);
 	}
-	// todo: decide whether to take the grid size from parameters of the correctly computed on --> e.g. make another parameter switch for this
+	// todo: decide whether to take the grid size from parameters of the correctly computed on --> e.g. take automatic value when param <0
 	//  map the grid size to an int in pixel coordinates, using floor method
 	grid_spacing_in_pixel = grid_length_as_double/map_resolution;
 	std::cout << "grid size: " << grid_length_as_double << " m   (" << grid_spacing_in_pixel << " px)" << std::endl;
@@ -520,6 +521,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 		// plan coverage path
 		// todo: middle_point_1.norm() has implicit assumption that this is the closest edge to the robot center, same for fov_vectors[3]
+		//       ------> take line from camera to incircle center and min is minus circle radius and max is plus circle radius
 		// todo: decide whether user shall set the cell size or automatic cell size (e.g. only automatic if cell_size <= 0)
 		if(plan_for_footprint_ == false)
 			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel)/*cell_size_*/, delta_theta_, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fov_vectors[3].norm(), 7, false);
@@ -548,7 +550,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		nav_msgs::OccupancyGrid room_gridmap;
 		matToMap(room_gridmap, room_map);
 
-		// TODO: find nearest pose to starting-position and start there
+		// do not find nearest pose to starting-position and start there because of issue in planner when starting position is provided
 		if(plan_for_footprint_==false)
 		{
 			// convert fov-radius to pixel integer
