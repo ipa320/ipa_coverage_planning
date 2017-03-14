@@ -1,9 +1,8 @@
 #include <ipa_room_exploration/grid_point_explorator.h>
 
 // Constructor
-GridPointExplorator::GridPointExplorator(int grid_line_length)
+GridPointExplorator::GridPointExplorator()
 {
-	grid_line_length_ = grid_line_length;
 }
 
 // Function to create a static pose series that has the goal to inspect the complete floor of the given room.
@@ -16,7 +15,7 @@ GridPointExplorator::GridPointExplorator(int grid_line_length)
 //			Poses are computed, by calculating a vector from the old node to the next and using the angle of this with the x-axis
 //			as angle for the Poses.
 void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
-		const cv::Point starting_position, const cv::Point2d map_origin, const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector)
+		const cv::Point starting_position, const cv::Point2d map_origin, const int cell_size, const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector)
 {
 	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
 	// rotate map
@@ -55,12 +54,12 @@ void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	// iterate trough the columns and rows with stepsize as the grid_size, start at the upper left point
 	//		the given min/max-Polygon stores the min/max coordinates in two points: the first showing the min and the other
 	//		showing the max coordinates
-	std::cout << "size of one grid line: " << grid_line_length_ << std::endl;
+	std::cout << "size of one grid line: " << cell_size << std::endl;
 	// todo: create grid in external class - it is the same in all approaches
 	// todo: if first/last row or column in grid has accessible areas but center is inaccessible, create a node in the accessible area
-	for(unsigned int v=min_room.y; v<=max_room.y; v+=grid_line_length_)
+	for(unsigned int v=min_room.y; v<=max_room.y; v+=cell_size)
 	{
-		for(unsigned int u=min_room.x; u<=max_room.x; u+=grid_line_length_)
+		for(unsigned int u=min_room.x; u<=max_room.x; u+=cell_size)
 		{
 			// check if point is in the free space
 			if(rotated_room_map.at<unsigned char>(v, u) == 255)
