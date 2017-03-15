@@ -301,41 +301,41 @@ public:
 			failed_maps.close();
 
 		// read out the computed paths and calculate the evaluation values
-//		ROS_INFO("Reading out all saved paths.");
-//		std::vector<EvaluationResults> results;
-//		for (size_t i=0; i<evaluation_datas.size(); ++i)
-//		{
-//			evaluateCoveragePaths(configs, evaluation_datas[i], results, data_storage_path);
-//		}
-//
-//		// accumulate all statistics in one file
-//		for(std::vector<ExplorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
-//		{
-//			std::string folder_path = config->generateConfigurationFolderString() + "/";
-//			std::stringstream cumulative_statistics;
-//			for (size_t i=0; i<evaluation_datas.size(); ++i)
-//			{
-//				std::string filename = data_storage_path + folder_path + evaluation_datas[i].map_name_ + "_evaluations_per_room.txt";
-//				std::ifstream file(filename.c_str(), std::ifstream::in);
-//				if (file.is_open())
-//				{
-//					std::string line;
-//					while(getline(file, line))
-//						if (line.length()>0)
-//							cumulative_statistics << line << std::endl;
-//				}
-//				else
-//					ROS_ERROR("Could not open file '%s' for reading cumulative data.", filename.c_str());
-//				file.close();
-//			}
-//			std::string filename_out = data_storage_path + folder_path + "all_evaluations_per_room.txt";
-//			std::ofstream file_out(filename_out.c_str(), std::ofstream::out);
-//			if (file_out.is_open())
-//				file_out << cumulative_statistics.str();
-//			else
-//				ROS_ERROR("Could not open file '%s' for writing cumulative data.", filename_out.c_str());
-//			file_out.close();
-//		}
+		ROS_INFO("Reading out all saved paths.");
+		std::vector<EvaluationResults> results;
+		for (size_t i=0; i<evaluation_datas.size(); ++i)
+		{
+			evaluateCoveragePaths(configs, evaluation_datas[i], results, data_storage_path);
+		}
+
+		// accumulate all statistics in one file
+		for(std::vector<ExplorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
+		{
+			std::string folder_path = config->generateConfigurationFolderString() + "/";
+			std::stringstream cumulative_statistics;
+			for (size_t i=0; i<evaluation_datas.size(); ++i)
+			{
+				std::string filename = data_storage_path + folder_path + evaluation_datas[i].map_name_ + "_evaluations_per_room.txt";
+				std::ifstream file(filename.c_str(), std::ifstream::in);
+				if (file.is_open())
+				{
+					std::string line;
+					while(getline(file, line))
+						if (line.length()>0)
+							cumulative_statistics << line << std::endl;
+				}
+				else
+					ROS_ERROR("Could not open file '%s' for reading cumulative data.", filename.c_str());
+				file.close();
+			}
+			std::string filename_out = data_storage_path + folder_path + "all_evaluations_per_room.txt";
+			std::ofstream file_out(filename_out.c_str(), std::ofstream::out);
+			if (file_out.is_open())
+				file_out << cumulative_statistics.str();
+			else
+				ROS_ERROR("Could not open file '%s' for writing cumulative data.", filename_out.c_str());
+			file_out.close();
+		}
 	}
 
 	void getRoomMaps(std::vector<ExplorationData>& data_saver)
@@ -1511,22 +1511,22 @@ int main(int argc, char **argv)
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
 	// measures in [m]
 	std::vector<geometry_msgs::Point32> fov_points(4);
-//	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
-//	fov_points[0].y = 0.35;
-//	fov_points[1].x = 0.15;
-//	fov_points[1].y = -0.35;
-//	fov_points[2].x = 1.15;
-//	fov_points[2].y = -0.65;
-//	fov_points[3].x = 1.15;
-//	fov_points[3].y = 0.65;
-	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
-	fov_points[0].y = 0.3;
-	fov_points[1].x = -0.3;
-	fov_points[1].y = -0.3;
-	fov_points[2].x = 0.3;
-	fov_points[2].y = -0.3;
-	fov_points[3].x = 0.3;
-	fov_points[3].y = 0.3;
+	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
+	fov_points[0].y = 0.35;
+	fov_points[1].x = 0.15;
+	fov_points[1].y = -0.35;
+	fov_points[2].x = 1.15;
+	fov_points[2].y = -0.65;
+	fov_points[3].x = 1.15;
+	fov_points[3].y = 0.65;
+//	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
+//	fov_points[0].y = 0.3;
+//	fov_points[1].x = -0.3;
+//	fov_points[1].y = -0.3;
+//	fov_points[2].x = 0.3;
+//	fov_points[2].y = -0.3;
+//	fov_points[3].x = 0.3;
+//	fov_points[3].y = 0.3;
 
 
 	double robot_radius = 0.3;		// [m]

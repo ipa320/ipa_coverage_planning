@@ -1378,11 +1378,11 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	std::set<uint> used_arcs; // set that stores the indices of the arcs corresponding to non-zero elements in the solution
 	// go trough the start arcs and determine the new start arcs
 	uint path_start = 0;
+//	cv::Mat test_map = rotated_room_map.clone();
+//	for(std::vector<cv::Point>::iterator p=edges.begin(); p!=edges.end(); ++p)
+//		cv::circle(test_map, *p, 2, cv::Scalar(100), CV_FILLED);
 	for(size_t start_arc=0; start_arc<flows_out_of_nodes[start_index].size(); ++start_arc)
 	{
-//		cv::Mat test_map = rotated_room_map.clone();
-//		for(std::vector<cv::Point>::iterator p=edges.begin(); p!=edges.end(); ++p)
-//			cv::circle(test_map, *p, 2, cv::Scalar(100), CV_FILLED);
 		if(C[start_arc]>0.01) // taking integer precision in solver into account
 		{
 			// insert start index
@@ -1514,6 +1514,7 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	// get index of the start arcs end-node
 	cv::Point end_start_node = arcs[path_start].end_point;
 	last_index = std::find(edges.begin(), edges.end(), end_start_node)-edges.begin();
+	// TODO: find path in directed graph, covering all edges --> allow cycles connected to the rest
 	int number_of_gone_arcs = 0, loopcounter = 0;
 	do
 	{
@@ -1587,29 +1588,29 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	}
 	std::cout << "got path" << std::endl;
 
-	// transform the found path back to the original map
-	cv::invertAffineTransform(R, R);
-	cv::transform(path_positions, path_positions, R);
-
-	// 4. calculate a pose path out of the point path
+	// transform the calculated path back to the originally rotated map and create poses with an angle
 	std::vector<geometry_msgs::Pose2D> fov_poses;
-	for(unsigned int point_index=0; point_index<path_positions.size(); ++point_index)
-	{
-		// get the vector from the current point to the next point
-		cv::Point current_point = path_positions[point_index];
-		cv::Point next_point = path_positions[(point_index+1)%(path_positions.size())];
-		cv::Point vector = next_point - current_point;
+	room_rotation.transformPathBackToOriginalRotation(path_positions, fov_poses, R);
 
-		float angle = std::atan2(vector.y, vector.x);
-
-		// add the next navigation goal to the path
-		geometry_msgs::Pose2D current_pose;
-		current_pose.x = current_point.x;
-		current_pose.y = current_point.y;
-		current_pose.theta = angle;
-
-		fov_poses.push_back(current_pose);
-	}
+//	// 4. calculate a pose path out of the point path
+//	std::vector<geometry_msgs::Pose2D> fov_poses;
+//	for(unsigned int point_index=0; point_index<path_positions.size(); ++point_index)
+//	{
+//		// get the vector from the current point to the next point
+//		cv::Point current_point = path_positions[point_index];
+//		cv::Point next_point = path_positions[(point_index+1)%(path_positions.size())];
+//		cv::Point vector = next_point - current_point;
+//
+//		float angle = std::atan2(vector.y, vector.x);
+//
+//		// add the next navigation goal to the path
+//		geometry_msgs::Pose2D current_pose;
+//		current_pose.x = current_point.x;
+//		current_pose.y = current_point.y;
+//		current_pose.theta = angle;
+//
+//		fov_poses.push_back(current_pose);
+//	}
 
 
 	// if the path should be planned for the robot footprint create the path and return here
@@ -1648,6 +1649,9 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	mapPath(room_map, path, fov_path, robot_to_fov_middlepoint_vector, map_resolution, map_origin, starting_position);
 
 ////	testing
+//	// transform the found path back to the original map
+//	cv::invertAffineTransform(R, R);
+//	cv::transform(path_positions, path_positions, R);
 //	cv::Mat path_map = room_map.clone();
 ////	cv::imshow("solution", test_map);
 ////	cv::imwrite("/home/rmbce/Pictures/room_exploration/coverage_path.png", test_map);
