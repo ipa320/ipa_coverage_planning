@@ -82,6 +82,7 @@ void EnergyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 	// get the nodes in the free space
 	std::vector<std::vector<EnergyExploratorNode> > nodes; // 2-dimensional vector to easily find the neighbors
 	int number_of_nodes = 0;
+	GridGenerator grid_generator;
 	// todo: create grid in external class - it is the same in all approaches
 	// todo: if first/last row or column in grid has accessible areas but center is inaccessible, create a node in the accessible area
 	for(size_t y=0; y<rotated_room_map.rows; y+=grid_spacing_in_pixel)
@@ -93,7 +94,8 @@ void EnergyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 			// create node if the current point is in the free space
 			EnergyExploratorNode current_node;
 			current_node.center_ = cv::Point(x,y);
-			if(rotated_room_map.at<uchar>(y,x) == 255)				// todo: could make sense to test all pixels of the cell, not only the center
+			//if(rotated_room_map.at<uchar>(y,x) == 255)				// todo: could make sense to test all pixels of the cell, not only the center
+			if (grid_generator.completeCellTest(rotated_room_map, current_node.center_, grid_spacing_in_pixel) == true)
 			{
 				current_node.obstacle_ = false;
 				current_node.visited_ = false;

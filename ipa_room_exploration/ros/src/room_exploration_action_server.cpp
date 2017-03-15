@@ -469,16 +469,11 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	std::vector<geometry_msgs::Pose2D> exploration_path;
 	if(path_planning_algorithm_ == 1) // use grid point explorator
 	{
-		// set wanted grid size
-		//grid_point_planner.setGridLineLength(grid_line_length_);	// todo: why not grid_length which is already computed to fit the working device
-		grid_point_planner.setGridLineLength(std::floor(grid_spacing_in_pixel)); // this is the version with coverage guarantees
-		//grid_point_planner.setGridLineLength(std::floor(grid_length_as_double*std::sqrt(2)/map_resolution)); // this the extreme version with coverage in most cases but not guaranteed
-
 		// plan path
 		if(plan_for_footprint_ == false)
-			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, plan_for_footprint_, middle_point);
+			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel), plan_for_footprint_, middle_point);
 		else
-			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, plan_for_footprint_, zero_vector);
+			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel), plan_for_footprint_, zero_vector);
 	}
 	else if(path_planning_algorithm_ == 2) // use boustrophedon explorator
 	{
