@@ -117,19 +117,19 @@ include_directories(
 )
 
 # room exploration action server, note: order of linking the Coin-Or packages important
-add_executable(room_exploration_server ros/src/room_exploration_action_server.cpp
-					common/src/grid_point_explorator.cpp
-					common/src/boustrophedon_explorator.cpp
-					common/src/neural_network_explorator.cpp
-					common/src/convex_sensor_placement_explorator.cpp
-					common/src/energy_functional_explorator.cpp
-					common/src/flow_network_explorator.cpp
-					common/src/room_rotator.cpp
-					common/src/meanshift2d.cpp
-					ros/src/fov_to_robot_mapper.cpp
-					common/src/A_star_pathplanner.cpp common/src/node.cpp
-					common/src/concorde_TSP.cpp
-					common/src/nearest_neighbor_TSP.cpp)
+add_executable(room_exploration_server
+	ros/src/room_exploration_action_server.cpp
+	common/src/grid_point_explorator.cpp
+	common/src/boustrophedon_explorator.cpp
+	common/src/neural_network_explorator.cpp
+	common/src/convex_sensor_placement_explorator.cpp
+	common/src/energy_functional_explorator.cpp
+	common/src/flow_network_explorator.cpp
+	common/src/room_rotator.cpp
+	common/src/meanshift2d.cpp
+	ros/src/fov_to_robot_mapper.cpp
+#	common/src/A_star_pathplanner.cpp common/src/node.cpp common/src/concorde_TSP.cpp common/src/nearest_neighbor_TSP.cpp
+)
 add_dependencies(room_exploration_server
 	${catkin_EXPORTED_TARGETS}
 	${PROJECT_NAME}_gencfg)
@@ -147,7 +147,9 @@ target_link_libraries(room_exploration_server
 )
 
 # server for coverage checking
-add_executable(coverage_check_server ros/src/coverage_check_server.cpp)
+add_executable(coverage_check_server
+	ros/src/coverage_check_server.cpp
+)
 target_link_libraries(coverage_check_server
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBS}
@@ -156,26 +158,32 @@ target_link_libraries(coverage_check_server
 add_dependencies(coverage_check_server ${catkin_EXPORTED_TARGETS})
 
 # room exploration client
-add_executable(room_exploration_client ros/src/room_exploration_action_client.cpp)
+add_executable(room_exploration_client
+	ros/src/room_exploration_action_client.cpp
+)
 target_link_libraries(room_exploration_client
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBS}
 	${Boost_LIBRARIES}
 )
 add_dependencies(room_exploration_client 
-			${catkin_EXPORTED_TARGETS}
-			${PROJECT_NAME}_gencfg)
+	${catkin_EXPORTED_TARGETS}
+	${PROJECT_NAME}_gencfg)
 
 # evaluation of room exploration algorithms
-add_executable(room_exploration_evaluation ros/src/room_exploration_evaluation.cpp
-						common/src/A_star_pathplanner.cpp common/src/node.cpp)
+add_executable(room_exploration_evaluation
+	ros/src/room_exploration_evaluation.cpp
+#	common/src/A_star_pathplanner.cpp
+#	common/src/node.cpp
+)
 target_link_libraries(room_exploration_evaluation
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBS}
 )
 add_dependencies(room_exploration_evaluation 
-			${catkin_EXPORTED_TARGETS}
-			${PROJECT_NAME}_gencfg)
+	${catkin_EXPORTED_TARGETS}
+	${PROJECT_NAME}_gencfg
+)
 
 #############
 ## Install ##

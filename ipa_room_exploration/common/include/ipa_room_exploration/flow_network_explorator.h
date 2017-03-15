@@ -24,10 +24,10 @@
 #include <boost/graph/strong_components.hpp>
 #include <boost/graph/adjacency_list.hpp>
 // package specific includes
+#include <ipa_building_navigation/A_star_pathplanner.h>
+#include <ipa_building_navigation/distance_matrix.h>
+#include <ipa_building_navigation/contains.h>
 #include <ipa_room_exploration/fov_to_robot_mapper.h>
-#include <ipa_room_exploration/A_star_pathplanner.h>
-#include <ipa_room_exploration/distance_matrix.h>
-#include <ipa_room_exploration/contains.h>
 #include <ipa_room_exploration/room_rotator.h>
 // msgs
 #include <geometry_msgs/Pose2D.h>

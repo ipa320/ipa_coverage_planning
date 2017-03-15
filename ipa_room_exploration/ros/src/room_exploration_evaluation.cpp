@@ -27,7 +27,7 @@
 
 #include <ipa_room_exploration/dynamic_reconfigure_client.h>
 #include <ipa_building_msgs/checkCoverage.h>
-#include <ipa_room_exploration/A_star_pathplanner.h>
+#include <ipa_building_navigation/A_star_pathplanner.h>
 
 #include <time.h>
 #include <sys/time.h>
@@ -206,16 +206,16 @@ public:
 
 		// prepare relevant floor map data
 		std::vector< std::string > map_names;
-//		map_names.push_back("lab_ipa");
-//		map_names.push_back("lab_c_scan");
-//		map_names.push_back("Freiburg52_scan");
-//		map_names.push_back("Freiburg79_scan");
-//		map_names.push_back("lab_b_scan");
-//		map_names.push_back("lab_intel");
-//		map_names.push_back("Freiburg101_scan");
-//		map_names.push_back("lab_d_scan");
-//		map_names.push_back("lab_f_scan");
-//		map_names.push_back("lab_a_scan");
+		map_names.push_back("lab_ipa");
+		map_names.push_back("lab_c_scan");
+		map_names.push_back("Freiburg52_scan");
+		map_names.push_back("Freiburg79_scan");
+		map_names.push_back("lab_b_scan");
+		map_names.push_back("lab_intel");
+		map_names.push_back("Freiburg101_scan");
+		map_names.push_back("lab_d_scan");
+		map_names.push_back("lab_f_scan");
+		map_names.push_back("lab_a_scan");
 		map_names.push_back("NLB");
 		map_names.push_back("office_a");
 		map_names.push_back("office_b");

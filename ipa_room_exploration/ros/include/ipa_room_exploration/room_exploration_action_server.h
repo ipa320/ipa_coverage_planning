@@ -32,7 +32,7 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
 // specific from this package
-#include <ipa_room_exploration/concorde_TSP.h>
+#include <ipa_building_navigation/concorde_TSP.h>
 #include <ipa_room_exploration/RoomExplorationConfig.h>
 #include <ipa_room_exploration/grid_point_explorator.h>
 #include <ipa_room_exploration/boustrophedon_explorator.h>

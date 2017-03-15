@@ -45,9 +45,11 @@ INCLUDE_DIRS
 	common/include
 	ros/include
 LIBRARIES
+	tsp_solvers
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
 DEPENDS
+	libconcorde_tsp_solver
 	OpenCV
 	Boost
 )
@@ -68,25 +70,39 @@ include_directories(
 	${Boost_INCLUDE_DIRS}
 )
 
-# action provider
-add_executable(room_sequence_planning_server
-	ros/src/room_sequence_planning_action_server.cpp
-	common/src/A_star_pathplanner.cpp common/src/node.cpp
+# TSP library
+add_library(tsp_solvers
+	common/src/A_star_pathplanner.cpp
+	common/src/node.cpp
 	common/src/nearest_neighbor_TSP.cpp
 	common/src/genetic_TSP.cpp
 	common/src/concorde_TSP.cpp
+)
+target_link_libraries(tsp_solvers
+	${catkin_LIBRARIES}
+	${OpenCV_LIBRARIES}
+	${Boost_LIBRARIES}
+)
+add_dependencies(tsp_solvers
+	${catkin_EXPORTED_TARGETS}
+	${${PROJECT_NAME}_EXPORTED_TARGETS}
+)
+
+# action provider
+add_executable(room_sequence_planning_server
+	ros/src/room_sequence_planning_action_server.cpp
 	common/src/maximal_clique_finder.cpp
-	common/src/contains.cpp
 	common/src/set_cover_solver.cpp
 	common/src/trolley_position_finder.cpp
 )
 target_link_libraries(room_sequence_planning_server
+	tsp_solvers
 	${catkin_LIBRARIES}
 	${OpenCV_LIBRARIES}
 	${Boost_LIBRARIES}
 )
 add_dependencies(room_sequence_planning_server
-	${catkin_EXPORTED_TARGETS} 
+	${catkin_EXPORTED_TARGETS}
 	${${PROJECT_NAME}_EXPORTED_TARGETS}
 	${PROJECT_NAME}_gencfg
 )
@@ -104,20 +120,26 @@ add_executable(room_sequence_planning_evaluation
 	ros/src/room_sequence_planning_evaluation.cpp
 	common/src/A_star_pathplanner.cpp
 	common/src/node.cpp
-	common/src/contains.cpp)
+)
 target_link_libraries(room_sequence_planning_evaluation
-	${catkin_LIBRARIES} 
+	${catkin_LIBRARIES}
 	${OpenCV_LIBRARIES}
 )
 add_dependencies(room_sequence_planning_evaluation ${catkin_EXPORTED_TARGETS})
 
 # evaluation
-add_executable(TSP_evaluation ros/src/boosttest.cpp common/src/A_star_pathplanner.cpp common/src/node.cpp common/src/nearest_neighbor_TSP.cpp common/src/genetic_TSP.cpp common/src/concorde_TSP.cpp common/src/contains.cpp)
-target_link_libraries(TSP_evaluation ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+add_executable(TSP_evaluation
+	ros/src/boosttest.cpp
+)
+target_link_libraries(TSP_evaluation
+	tsp_solvers
+	${catkin_LIBRARIES}
+	${OpenCV_LIBRARIES}
+)
 add_dependencies(TSP_evaluation ${catkin_EXPORTED_TARGETS})
 
 #tester for different functions
-#add_executable(a_star_tester ros/src/tester.cpp common/src/A_star_pathplanner.cpp common/src/node.cpp common/src/nearest_neighbor_TSP.cpp common/src/genetic_TSP.cpp common/src/concorde_TSP.cpp common/src/maximal_clique_finder.cpp common/src/contains.cpp common/src/set_cover_solver.cpp common/src/trolley_position_finder.cpp)
+#add_executable(a_star_tester ros/src/tester.cpp common/src/A_star_pathplanner.cpp common/src/node.cpp common/src/nearest_neighbor_TSP.cpp common/src/genetic_TSP.cpp common/src/concorde_TSP.cpp common/src/maximal_clique_finder.cpp common/src/set_cover_solver.cpp common/src/trolley_position_finder.cpp)
 #target_link_libraries(a_star_tester ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES})
 #add_dependencies(a_star_tester ${catkin_EXPORTED_TARGETS})
 

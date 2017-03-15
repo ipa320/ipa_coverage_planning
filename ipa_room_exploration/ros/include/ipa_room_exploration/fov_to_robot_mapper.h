@@ -79,7 +79,7 @@
 // Eigen library
 #include <Eigen/Dense>
 // specific from this package
-#include <ipa_room_exploration/A_star_pathplanner.h>
+#include <ipa_building_navigation/A_star_pathplanner.h>
 
 
 #define PI 3.14159265359

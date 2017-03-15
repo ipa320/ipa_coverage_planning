@@ -48,6 +48,7 @@ void ConcordeTSPSolver::writeToFile(const cv::Mat& pathlength_matrix)
 	{
 		std::cout << "Starting to create the TSPlib file." << std::endl;
 		//specify name of the Problem, Type (TSP = symmetrical TSP) and add a comment to the file. Name and Type are neccessary, comment is for better understanding when you open the file.
+		// todo: maybe have this name and file names as a parameter
 		saving_file << "NAME: ipa-building-navigation" << std::endl
 				<< "TYPE: TSP" << std::endl
 				<< "COMMENT: This is the TSPlib file for using concorde. See http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/ for documentation."
@@ -212,6 +213,10 @@ std::vector<int> ConcordeTSPSolver::solveConcordeTSP(
 	DistanceMatrix::constructDistanceMatrix(distance_matrix_ref, original_map,
 			points, downsampling_factor, robot_radius, map_resolution,
 			pathplanner_);
+
+	// todo: check whether distance matrix contains infinite path lenghts and if this is true, create a new distance matrix with maximum size clique of reachable points
+	// then solve TSP and re-index points to original indices
+	// and do not forget to copy fix to ipa_building_navigation
 
 	return (solveConcordeTSP(distance_matrix_ref, start_Node));
 }

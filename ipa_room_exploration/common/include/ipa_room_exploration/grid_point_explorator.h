@@ -1,20 +1,3 @@
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
-#include <iostream>
-#include <vector>
-#include <cmath>
-#include <string>
-
-#include <Eigen/Dense>
-
-#include <ipa_room_exploration/concorde_TSP.h>
-#include <ipa_room_exploration/room_rotator.h>
-#include <ipa_room_exploration/fov_to_robot_mapper.h>
-
-#include <geometry_msgs/Pose2D.h>
-#include <geometry_msgs/Polygon.h>
-#include <geometry_msgs/Point32.h>
-
 /*!
  *****************************************************************
  * \file
@@ -73,6 +56,24 @@
  * If not, see <http://www.gnu.org/licenses/>.
  *
  ****************************************************************/
+
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <string>
+
+#include <Eigen/Dense>
+
+#include <ipa_building_navigation/concorde_TSP.h>
+#include <ipa_room_exploration/room_rotator.h>
+#include <ipa_room_exploration/fov_to_robot_mapper.h>
+
+#include <geometry_msgs/Pose2D.h>
+#include <geometry_msgs/Polygon.h>
+#include <geometry_msgs/Point32.h>
+
 
 
 // Class that generates a room exploration path by laying a small grid over the given map and then planning the best path trough

@@ -1,30 +1,3 @@
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
-#include <iostream>
-#include <vector>
-#include <cmath>
-#include <string>
-#include <fstream>
-#include <stdio.h>
-
-// Eigen library for matrix/vector computations
-#include <Eigen/Dense>
-// Coin-Or Cbc linear programming solver
-#include <coin/OsiClpSolverInterface.hpp>
-#include <coin/CoinModel.hpp>
-#include <coin/CbcModel.hpp>
-#include <coin/CbcHeuristicLocal.hpp>
-
-#include <ipa_room_exploration/nearest_neighbor_TSP.h>
-#include <ipa_room_exploration/A_star_pathplanner.h>
-#include <ipa_room_exploration/distance_matrix.h>
-#include <ipa_room_exploration/room_rotator.h>
-#include <ipa_room_exploration/fov_to_robot_mapper.h>
-
-#include <geometry_msgs/Pose2D.h>
-#include <geometry_msgs/Polygon.h>
-#include <geometry_msgs/Point32.h>
-
 /*!
  *****************************************************************
  * \file
@@ -85,6 +58,36 @@
  ****************************************************************/
 
 #pragma once
+
+
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <string>
+#include <fstream>
+#include <stdio.h>
+
+// Eigen library for matrix/vector computations
+#include <Eigen/Dense>
+// Coin-Or Cbc linear programming solver
+#include <coin/OsiClpSolverInterface.hpp>
+#include <coin/CoinModel.hpp>
+#include <coin/CbcModel.hpp>
+#include <coin/CbcHeuristicLocal.hpp>
+
+#include <ipa_building_navigation/A_star_pathplanner.h>
+#include <ipa_building_navigation/distance_matrix.h>
+#include <ipa_building_navigation/nearest_neighbor_TSP.h>
+
+#include <ipa_room_exploration/room_rotator.h>
+#include <ipa_room_exploration/fov_to_robot_mapper.h>
+
+#include <geometry_msgs/Pose2D.h>
+#include <geometry_msgs/Polygon.h>
+#include <geometry_msgs/Point32.h>
+
 
 #define PI 3.14159265359
 
