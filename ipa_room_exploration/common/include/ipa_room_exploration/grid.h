@@ -183,7 +183,6 @@ public:
 				cv::Mat distances;
 				cv::distanceTransform(cell_pixels, distances, CV_DIST_L2, 5);
 				double max_distance = 0.;
-				cv::Point cell_center;
 				cv::minMaxLoc(distances, 0, &max_distance, 0, &cell_center);
 				cell_center.x += x-half_cell_size;
 				cell_center.y += y-half_cell_size;
@@ -204,6 +203,16 @@ public:
 						}
 					}
 				}
+
+				// display new center point
+//				cv::Mat disp = distances.clone();
+//				cv::Mat disp2;
+//				cv::normalize(disp, disp, 0, 1., cv::NORM_MINMAX);
+//				cv::resize(disp, disp2, cv::Size(), 10., 10., cv::INTER_AREA);
+//				cv::circle(disp2, 10*cv::Point(cell_center.x-x+half_cell_size, cell_center.y-y+half_cell_size), 2, cv::Scalar(0), CV_FILLED);
+//				cv::imshow("distance transform", disp2);
+//				cv::waitKey();
+
 				return true;
 			}
 		}

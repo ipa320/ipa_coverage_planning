@@ -83,19 +83,37 @@ void EnergyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 	std::vector<std::vector<EnergyExploratorNode> > nodes; // 2-dimensional vector to easily find the neighbors
 	int number_of_nodes = 0;
 	GridGenerator grid_generator;
+	// compute min/max room coordinates
+	int min_y = 1000000, min_x = 1000000;
+	for (int v=0; v<rotated_room_map.rows; ++v)
+	{
+		for (int u=0; u<rotated_room_map.cols; ++u)
+		{
+			if (rotated_room_map.at<uchar>(v,u)==255)
+			{
+				min_x = std::min(min_x, u);
+				min_y = std::min(min_y, v);
+			}
+		}
+	}
+	if (min_x-grid_spacing_in_pixel > 0)
+		min_x -= grid_spacing_in_pixel;
+	if (min_y-grid_spacing_in_pixel > 0)
+		min_y -= grid_spacing_in_pixel;
+
 	// todo: create grid in external class - it is the same in all approaches
 	// todo: if first/last row or column in grid has accessible areas but center is inaccessible, create a node in the accessible area
-	for(size_t y=0; y<rotated_room_map.rows; y+=grid_spacing_in_pixel)
+	for(size_t y=min_y; y<rotated_room_map.rows; y+=grid_spacing_in_pixel)
 	{
 		// for the current row create a new set of neurons to span the network over time
 		std::vector<EnergyExploratorNode> current_row;
-		for(size_t x=0; x<rotated_room_map.cols; x+=grid_spacing_in_pixel)
+		for(size_t x=min_x; x<rotated_room_map.cols; x+=grid_spacing_in_pixel)
 		{
 			// create node if the current point is in the free space
 			EnergyExploratorNode current_node;
 			current_node.center_ = cv::Point(x,y);
-			//if(rotated_room_map.at<uchar>(y,x) == 255)				// todo: could make sense to test all pixels of the cell, not only the center
-			if (grid_generator.completeCellTest(rotated_room_map, current_node.center_, grid_spacing_in_pixel) == true)
+			if(rotated_room_map.at<uchar>(y,x) == 255)				// could make sense to test all pixels of the cell, not only the center
+			//if (grid_generator.completeCellTest(rotated_room_map, current_node.center_, grid_spacing_in_pixel) == true)
 			{
 				current_node.obstacle_ = false;
 				current_node.visited_ = false;
@@ -159,15 +177,22 @@ void EnergyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 		return;
 	}
 
-//	testing
+//	// testing
+//	cv::Mat test_map = rotated_room_map.clone();
+//	for (size_t i=0; i<nodes.size(); ++i)
+//		for (size_t j=0; j<nodes[i].size(); ++j)
+//			if (nodes[i][j].obstacle_==false)
+//				cv::circle(test_map, nodes[i][j].center_, 2, cv::Scalar(127), CV_FILLED);
+//	cv::imshow("grid", test_map);
+//	cv::waitKey();
 //	for(size_t i=0; i<nodes.size(); ++i)
 //	{
 //		for(size_t j=0; j<nodes[i].size(); ++j)
 //		{
 //			cv::Mat test_map = rotated_room_map.clone();
 //
-//			std::vector<energyExploratorNode*> neighbors = nodes[i][j].neighbors_;
-//			for(std::vector<energyExploratorNode*>::iterator n=neighbors.begin(); n!=neighbors.end(); ++n)
+//			std::vector<EnergyExploratorNode*> neighbors = nodes[i][j].neighbors_;
+//			for(std::vector<EnergyExploratorNode*>::iterator n=neighbors.begin(); n!=neighbors.end(); ++n)
 //				cv::circle(test_map, (*n)->center_, 2, cv::Scalar(127), CV_FILLED);
 //
 //			cv::imshow("neighbors", test_map);

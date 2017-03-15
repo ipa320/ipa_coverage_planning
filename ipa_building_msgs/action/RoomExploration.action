@@ -11,7 +11,6 @@ geometry_msgs/Point32[] field_of_view			# the points that define the field of vi
 geometry_msgs/Point32[] footprint			# footprint of the interesting part of the robot, for which a coverage path planning should be done (e.g. the cleaning part), relatively to the robot [meter]
 geometry_msgs/Pose2D starting_position			# Pose where the robot starts in the room coordinatesystem [meter]
 geometry_msgs/Polygon room_min_max			# first point provides the minimum (x,y)-coordinate values of the rooms, second point provides the maximum (x,y)-coordinate values of the rooms
-geometry_msgs/Polygon region_of_interest_coordinates	# define the region of interest, for which a path should be planned, by giving the start x/y and end x/y
 string map_frame					# string that carries the name of the map frame, used for tracking of the robot
 string camera_frame					# string that carries the name of the camera frame, that is in the same kinematic chain as the map_frame and shows the camera pose
 bool return_path					# boolean used to determine, if the server should return the path

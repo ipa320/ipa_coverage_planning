@@ -336,8 +336,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// ***************** I. read the given parameters out of the goal *****************
 	// todo: this is only correct if the map is not rotated
 	cv::Point2d map_origin;
-	map_origin.x = goal->map_origin.x + goal->region_of_interest_coordinates.points[0].x;
-	map_origin.y = goal->map_origin.y + goal->region_of_interest_coordinates.points[0].y;
+	map_origin.x = goal->map_origin.x;
+	map_origin.y = goal->map_origin.y;
 
 	const float map_resolution = goal->map_resolution;
 
@@ -353,21 +353,12 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// converting the map msg in cv format
 	cv_bridge::CvImagePtr cv_ptr_obj;
 	cv_ptr_obj = cv_bridge::toCvCopy(goal->input_map, sensor_msgs::image_encodings::MONO8);
-	cv::Mat global_map = cv_ptr_obj->image;
-	//transformImageToRoomCordinates(global_map);
-
-	// extract the subregion of the given map that should be explored
-	int roi_x_start = goal->region_of_interest_coordinates.points[0].x;
-	int roi_y_start = goal->region_of_interest_coordinates.points[0].y;
-	int roi_x_end = goal->region_of_interest_coordinates.points[1].x;
-	int roi_y_end = goal->region_of_interest_coordinates.points[1].y;
-
-	cv::Mat room_map = global_map(cv::Range(roi_y_start, roi_y_end), cv::Range(roi_x_start, roi_x_end));
-//	cv::Mat room_map = global_map;
+	cv::Mat room_map = cv_ptr_obj->image;
 
 	// erode map so that not reachable areas are not considered
 	const int robot_radius_in_pixel = (robot_radius / map_resolution);
-	cv::erode(room_map, room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
+	//cv::erode(room_map, room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
+	// todo: enable if necessary
 
 	// remove unconnected, i.e. inaccessible, parts of the room (i.e. obstructed by furniture), only keep the room with the largest area
 	// create new map with segments labelled by increasing labels from 1,2,3,...

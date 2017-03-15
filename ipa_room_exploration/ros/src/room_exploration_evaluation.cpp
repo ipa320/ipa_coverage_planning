@@ -439,14 +439,6 @@ public:
 			struct timespec t0, t1;
 
 			// go trough all rooms and find the coverage path trough it
-			geometry_msgs::Polygon region_of_interest; // always assume full map in this case
-			geometry_msgs::Point32 edge_point;
-			edge_point.x = 0;
-			edge_point.y = 0;
-			region_of_interest.points.push_back(edge_point);
-			edge_point.x = datas.floor_plan_.cols;
-			edge_point.y = datas.floor_plan_.rows;
-			region_of_interest.points.push_back(edge_point);
 			std::stringstream output;
 			cv::Mat path_map = datas.floor_plan_.clone();
 			for(size_t room_index=0; room_index<datas.room_maps_.size(); ++room_index)
@@ -499,7 +491,7 @@ public:
 				// send the exploration goal
 				ipa_building_msgs::RoomExplorationResultConstPtr result_expl;
 				clock_gettime(CLOCK_MONOTONIC, &t0); //set time stamp before the path planning
-				if(planCoveragePath(room_map, datas, *config, result_expl, min_max_points, region_of_interest)==false)
+				if(planCoveragePath(room_map, datas, *config, result_expl, min_max_points)==false)
 				{
 					output << "room " << room_index << " exceeded the time limitation for computation" << std::endl << std::endl;
 					continue;
@@ -1354,8 +1346,7 @@ public:
 
 	// function that plans one coverage path for the given room map
 	bool planCoveragePath(const cv::Mat& room_map, const ExplorationData& evaluation_data, const ExplorationConfig& evaluation_configuration,
-				ipa_building_msgs::RoomExplorationResultConstPtr& result_expl,
-				const geometry_msgs::Polygon& min_max_points, const geometry_msgs::Polygon& region_of_interest)
+				ipa_building_msgs::RoomExplorationResultConstPtr& result_expl, const geometry_msgs::Polygon& min_max_points)
 	{
 		sensor_msgs::Image map_msg;
 		cv_bridge::CvImage cv_image;
@@ -1420,7 +1411,6 @@ public:
 		goal.footprint = evaluation_data.footprint_points_;
 		goal.starting_position = evaluation_data.robot_start_position_;
 		goal.room_min_max = min_max_points;
-		goal.region_of_interest_coordinates = region_of_interest;
 		goal.return_path = true;
 		goal.execute_path = false;
 		ac_exp.sendGoal(goal);
@@ -1519,14 +1509,22 @@ int main(int argc, char **argv)
 //	fov_points[2].y = -0.65;
 //	fov_points[3].x = 1.15;
 //	fov_points[3].y = 0.65;
-	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
-	fov_points[0].y = 0.3;
-	fov_points[1].x = -0.3;
-	fov_points[1].y = -0.3;
-	fov_points[2].x = 0.3;
-	fov_points[2].y = -0.3;
-	fov_points[3].x = 0.3;
-	fov_points[3].y = 0.3;
+//	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
+//	fov_points[0].y = 0.3;
+//	fov_points[1].x = -0.3;
+//	fov_points[1].y = -0.3;
+//	fov_points[2].x = 0.3;
+//	fov_points[2].y = -0.3;
+//	fov_points[3].x = 0.3;
+//	fov_points[3].y = 0.3;
+	fov_points[0].x = -0.7;		// this is the working area of a vacuum cleaner with 140 cm width
+	fov_points[0].y = 0.7;
+	fov_points[1].x = -0.7;
+	fov_points[1].y = -0.7;
+	fov_points[2].x = 0.7;
+	fov_points[2].y = -0.7;
+	fov_points[3].x = 0.7;
+	fov_points[3].y = 0.7;
 
 
 	double robot_radius = 0.3;		// [m]
