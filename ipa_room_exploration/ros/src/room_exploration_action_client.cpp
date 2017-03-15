@@ -43,7 +43,6 @@ int main(int argc, char **argv)
 	// read in test map
 	cv::Mat map = cv::imread("/home/florianj/git/care-o-bot-indigo/src/autopnp/ipa_room_exploration/maps/map.png", 0);
 	//make non-white pixels black
-	int min_y = 1e5, max_y = 0, min_x = 1e5, max_x = 0;
 	for (int y = 0; y < map.rows; y++)
 	{
 		for (int x = 0; x < map.cols; x++)
@@ -57,23 +56,9 @@ int main(int argc, char **argv)
 			else
 			{
 				map.at<unsigned char>(y, x) = 255;
-
-				if(y < min_y)
-					min_y = y;
-				if(y > max_y)
-					max_y = y;
-				if(x < min_x)
-					min_x = x;
-				if(x > max_x)
-					max_x = x;
 			}
 		}
 	}
-	min_y -= 1;
-	min_x -= 1;
-	max_y += 1;
-	max_x += 1;
-	std::cout << min_y << " " << max_y << " ," << min_x << " " << max_x << std::endl;
 	std::cout << "map-size: " << map.rows << "x" << map.cols << std::endl;
 
 //	const std::string topic = "/move_base/global_costmap/costmap";
@@ -129,19 +114,6 @@ int main(int argc, char **argv)
 	cv_image.image = map;
 	cv_image.toImageMsg(labeling);
 
-	// todo: necessary?
-	geometry_msgs::Polygon min_max_points;
-	geometry_msgs::Point32 min_point, max_point;
-	min_point.x = min_x;
-	min_point.y = min_y;
-	max_point.x = max_x;
-	max_point.y = max_y;
-	min_max_points.points;
-	min_max_points.points.push_back(min_point);
-	min_max_points.points.push_back(max_point);
-
-	std::cout << min_max_points.points[0] << " " << min_max_points.points[1] << std::endl;
-
 	geometry_msgs::Pose2D map_origin;
 	map_origin.x = 0.0;
 	map_origin.y = 0.0;
@@ -176,7 +148,6 @@ int main(int argc, char **argv)
 	goal.starting_position = starting_position;
 	goal.map_resolution = 0.05;
 	goal.robot_radius = 0.2; // turtlebot, used for sim 0.177, 0.4
-	goal.room_min_max = min_max_points;
 	goal.camera_frame = "/base_footprint";
 	goal.map_frame = "/map";
 	goal.field_of_view = fov_points;

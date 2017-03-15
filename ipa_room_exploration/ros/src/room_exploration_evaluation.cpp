@@ -449,6 +449,7 @@ public:
 
 				cv::Mat room_map = datas.room_maps_[room_index];
 
+				// todo: min max computation is not needed here anymore, shift somewhere else if needed
 				// find min/max coordinates for this room by using the saved bounding box
 //				int min_y = 1e5, max_y = 0, min_x = 1e5, max_x = 0;
 //				for (int y = 0; y < room_map.rows; y++)
@@ -478,20 +479,11 @@ public:
 				max_y += 1;
 				max_x += 1;
 				std::cout << "min coordinates: " << min_y << ":" << max_y << "(y), " << min_x << ":" << max_x << "(x)" << std::endl;
-				geometry_msgs::Polygon min_max_points;
-				geometry_msgs::Point32 min_point, max_point;
-				min_point.x = min_x;
-				min_point.y = min_y;
-				max_point.x = max_x;
-				max_point.y = max_y;
-				min_max_points.points;
-				min_max_points.points.push_back(min_point);
-				min_max_points.points.push_back(max_point);
 
 				// send the exploration goal
 				ipa_building_msgs::RoomExplorationResultConstPtr result_expl;
 				clock_gettime(CLOCK_MONOTONIC, &t0); //set time stamp before the path planning
-				if(planCoveragePath(room_map, datas, *config, result_expl, min_max_points)==false)
+				if(planCoveragePath(room_map, datas, *config, result_expl)==false)
 				{
 					output << "room " << room_index << " exceeded the time limitation for computation" << std::endl << std::endl;
 					continue;
@@ -1346,7 +1338,7 @@ public:
 
 	// function that plans one coverage path for the given room map
 	bool planCoveragePath(const cv::Mat& room_map, const ExplorationData& evaluation_data, const ExplorationConfig& evaluation_configuration,
-				ipa_building_msgs::RoomExplorationResultConstPtr& result_expl, const geometry_msgs::Polygon& min_max_points)
+				ipa_building_msgs::RoomExplorationResultConstPtr& result_expl)
 	{
 		sensor_msgs::Image map_msg;
 		cv_bridge::CvImage cv_image;
@@ -1410,7 +1402,6 @@ public:
 		goal.field_of_view = evaluation_data.fov_points_;
 		goal.footprint = evaluation_data.footprint_points_;
 		goal.starting_position = evaluation_data.robot_start_position_;
-		goal.room_min_max = min_max_points;
 		goal.return_path = true;
 		goal.execute_path = false;
 		ac_exp.sendGoal(goal);

@@ -348,7 +348,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	starting_position.x = (goal->starting_position.x - map_origin.x)/map_resolution;
 	starting_position.y = (goal->starting_position.y - map_origin.y)/map_resolution;
 	std::cout << "starting point: " << starting_position << std::endl;
-	geometry_msgs::Polygon min_max_coordinates = goal->room_min_max;
 
 	// converting the map msg in cv format
 	cv_bridge::CvImagePtr cv_ptr_obj;
@@ -835,6 +834,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 				cv::drawContours(black_map, left_areas, contour, cv::Scalar(0), CV_FILLED);
 
 		// 2. Intersect the left areas with respect to the calculated grid length.
+		// todo: compute min_max_coordinates here or replace
+		geometry_msgs::Polygon min_max_coordinates;	// = goal->room_min_max;
 		for(size_t i =  min_max_coordinates.points[0].y; i < black_map.cols; i += std::floor(grid_spacing_in_pixel))
 			cv::line(black_map, cv::Point(0, i), cv::Point(black_map.cols, i), cv::Scalar(0), 1);
 		for(size_t i =  min_max_coordinates.points[0].x; i < black_map.rows; i += std::floor(grid_spacing_in_pixel))
@@ -848,33 +849,33 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		// get the moments
 		std::vector<cv::Moments> moments(grid_areas.size());
 		for( int i = 0; i < grid_areas.size(); i++)
-		 {
+		{
 			moments[i] = cv::moments(grid_areas[i], false);
-		 }
+		}
 
-		 // get the mass centers
-		 std::vector<cv::Point> area_centers(grid_areas.size());
-		 for( int i = 0; i < grid_areas.size(); i++ )
-		 {
-			 // check if the current contour has an area and isn't just a few pixels
-			 if(moments[i].m10 != 0 && moments[i].m01 != 0)
-			 {
-				 area_centers[i] = cv::Point( moments[i].m10/moments[i].m00 , moments[i].m01/moments[i].m00 );
-			 }
-			 // if contour is too small for moment calculation, take one point on this contour and use it as center
-			 else
-			 {
-				 area_centers[i] = grid_areas[i][0];
-			 }
-		 }
+		// get the mass centers
+		std::vector<cv::Point> area_centers(grid_areas.size());
+		for( int i = 0; i < grid_areas.size(); i++ )
+		{
+			// check if the current contour has an area and isn't just a few pixels
+			if(moments[i].m10 != 0 && moments[i].m01 != 0)
+			{
+				area_centers[i] = cv::Point( moments[i].m10/moments[i].m00 , moments[i].m01/moments[i].m00 );
+			}
+			// if contour is too small for moment calculation, take one point on this contour and use it as center
+			else
+			{
+				area_centers[i] = grid_areas[i][0];
+			}
+		}
 
-		 // testing
-//		 black_map = room_map.clone();
-//		 for(size_t i = 0; i < area_centers.size(); ++i)
-//		 {
-//			 cv::circle(black_map, area_centers[i], 2, cv::Scalar(127), CV_FILLED);
-//			 std::cout << area_centers[i] << std::endl;
-//		 }
+		// testing
+//		black_map = room_map.clone();
+//		for(size_t i = 0; i < area_centers.size(); ++i)
+//		{
+//			cv::circle(black_map, area_centers[i], 2, cv::Scalar(127), CV_FILLED);
+//			std::cout << area_centers[i] << std::endl;
+//		}
 //		cv::namedWindow("revisiting areas", cv::WINDOW_NORMAL);
 //		cv::imshow("revisiting areas", black_map);
 //		cv::resizeWindow("revisiting areas", 600, 600);

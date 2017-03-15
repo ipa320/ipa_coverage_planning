@@ -10,7 +10,6 @@ float32 coverage_radius					# radius that is used to plan the coverage planning 
 geometry_msgs/Point32[] field_of_view			# the points that define the field of view of the robot, relatively to the robot, [meter], counter-clock-wise starting from left, nearer to robot point, assumed to be 4 different points in the right halfplane of the two dimensional space
 geometry_msgs/Point32[] footprint			# footprint of the interesting part of the robot, for which a coverage path planning should be done (e.g. the cleaning part), relatively to the robot [meter]
 geometry_msgs/Pose2D starting_position			# Pose where the robot starts in the room coordinatesystem [meter]
-geometry_msgs/Polygon room_min_max			# first point provides the minimum (x,y)-coordinate values of the rooms, second point provides the maximum (x,y)-coordinate values of the rooms
 string map_frame					# string that carries the name of the map frame, used for tracking of the robot
 string camera_frame					# string that carries the name of the camera frame, that is in the same kinematic chain as the map_frame and shows the camera pose
 bool return_path					# boolean used to determine, if the server should return the path
