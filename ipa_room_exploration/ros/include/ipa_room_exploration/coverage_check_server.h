@@ -14,7 +14,7 @@
 #include <algorithm>
 #include <cmath>
 // services
-#include <ipa_building_msgs/checkCoverage.h>
+#include <ipa_building_msgs/CheckCoverage.h>
 
 // Class that provides a service server to check which areas have been covered, when going along the given poses. It returns an image that
 // has all covered areas drawn in as 127.
@@ -47,5 +47,5 @@ public:
 	coverageCheckServer(ros::NodeHandle nh);
 
 	// callback function for the server
-	bool checkCoverage(ipa_building_msgs::checkCoverageRequest& request, ipa_building_msgs::checkCoverageResponse& response);
+	bool checkCoverage(ipa_building_msgs::CheckCoverageRequest& request, ipa_building_msgs::CheckCoverageResponse& response);
 };

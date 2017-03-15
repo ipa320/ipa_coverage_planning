@@ -174,7 +174,7 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 }
 
 // Callback function for the server.
-bool coverageCheckServer::checkCoverage(ipa_building_msgs::checkCoverageRequest& request, ipa_building_msgs::checkCoverageResponse& response)
+bool coverageCheckServer::checkCoverage(ipa_building_msgs::CheckCoverageRequest& request, ipa_building_msgs::CheckCoverageResponse& response)
 {
 	// When checking for the field of view, find two points behind the end of the fov to get raycasting goals. These two points span
 	// a line behind the fov, that provides the raycasting goals. By designing it this way, it is guaranteed to cover the whole fov with

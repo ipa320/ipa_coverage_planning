@@ -22,7 +22,7 @@
 // services and actions
 #include <ipa_building_msgs/RoomExplorationAction.h>
 #include <cob_map_accessibility_analysis/CheckPerimeterAccessibility.h>
-#include <ipa_building_msgs/checkCoverage.h>
+#include <ipa_building_msgs/CheckCoverage.h>
 // messages
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/PoseStamped.h>

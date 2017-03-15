@@ -26,7 +26,7 @@
 #include <cob_map_accessibility_analysis/CheckPerimeterAccessibility.h>
 
 #include <ipa_room_exploration/dynamic_reconfigure_client.h>
-#include <ipa_building_msgs/checkCoverage.h>
+#include <ipa_building_msgs/CheckCoverage.h>
 #include <ipa_building_navigation/A_star_pathplanner.h>
 
 #include <time.h>
@@ -959,8 +959,8 @@ public:
 				cv::Mat seen_positions_map, number_of_coverages_map;
 
 				// use the provided server to check which areas have been seen
-				ipa_building_msgs::checkCoverageRequest coverage_request;
-				ipa_building_msgs::checkCoverageResponse coverage_response;
+				ipa_building_msgs::CheckCoverageRequest coverage_request;
+				ipa_building_msgs::CheckCoverageResponse coverage_response;
 				// fill request
 				cv::Mat eroded_room_map = datas.room_maps_[room].clone();
 				cv::erode(eroded_room_map, eroded_room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);

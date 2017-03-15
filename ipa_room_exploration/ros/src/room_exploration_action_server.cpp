@@ -720,8 +720,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		std::string coverage_service_name = "/coverage_check_server/coverage_check";
 		cv::Mat seen_positions_map;
 		// define the request for the coverage check
-		ipa_building_msgs::checkCoverageRequest coverage_request;
-		ipa_building_msgs::checkCoverageResponse coverage_response;
+		ipa_building_msgs::CheckCoverageRequest coverage_request;
+		ipa_building_msgs::CheckCoverageResponse coverage_response;
 		// fill request
 		sensor_msgs::ImageConstPtr service_image;
 		cv_bridge::CvImage cv_image;
