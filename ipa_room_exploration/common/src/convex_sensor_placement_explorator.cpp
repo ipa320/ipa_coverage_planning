@@ -109,7 +109,7 @@ void convexSPPExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::
 void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
 		const float map_resolution, const cv::Point starting_position, const cv::Point2d map_origin,
 		const int cell_size, const double delta_theta,
-		const std::vector<geometry_msgs::Point32>& footprint, const Eigen::Matrix<float, 2, 1>& robot_to_fov_vector,
+		const std::vector<geometry_msgs::Point32>& field_of_view_points, const Eigen::Matrix<float, 2, 1>& robot_to_fov_vector,
 		const double max_fov_angle, const double smallest_robot_to_footprint_distance, const double largest_robot_to_footprint_distance,
 		const uint sparsity_check_range, const bool plan_for_footprint)
 {
@@ -190,11 +190,11 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		if(plan_for_footprint==false)
 		{
 			pose_as_matrix << (pose->x*map_resolution)+map_origin.x, (pose->y*map_resolution)+map_origin.y; // convert to [meter]
-			for(size_t point = 0; point < footprint.size(); ++point)
+			for(size_t point = 0; point < field_of_view_points.size(); ++point)
 			{
 				// transform fov-point from geometry_msgs::Point32 to Eigen::Matrix
 				Eigen::Matrix<float, 2, 1> fov_point;
-				fov_point << footprint[point].x, footprint[point].y;
+				fov_point << field_of_view_points[point].x, field_of_view_points[point].y;
 
 				// linear transformation
 				Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R_fov * fov_point;
@@ -524,11 +524,11 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 //		std::vector<cv::Point> transformed_fov_points;
 //		Eigen::Matrix<float, 2, 1> pose_as_matrix;
 //		pose_as_matrix << (pose->x*map_resolution)+map_origin.x, (pose->y*map_resolution)+map_origin.y; // convert to [meter]
-//		for(size_t point = 0; point < footprint.size(); ++point)
+//		for(size_t point = 0; point < field_of_view.size(); ++point)
 //		{
 //			// transform fov-point from geometry_msgs::Point32 to Eigen::Matrix
 //			Eigen::Matrix<float, 2, 1> fov_point;
-//			fov_point << footprint[point].x, footprint[point].y;
+//			fov_point << field_of_view[point].x, field_of_view[point].y;
 //
 //			// linear transformation
 //			Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R_fov * fov_point;

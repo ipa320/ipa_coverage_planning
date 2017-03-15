@@ -52,7 +52,7 @@
 #ifndef TIMER_H_DEF
 #define TIMER_H_DEF
 
-#ifdef __WINDOWS__ // Windows system specific
+#ifndef __LINUX__ // Windows system specific
 //#include <windows.h>
 #else // Unix based system specific
 #include <sys/time.h>

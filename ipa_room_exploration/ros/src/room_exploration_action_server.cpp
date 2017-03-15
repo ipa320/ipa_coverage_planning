@@ -515,7 +515,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		if(plan_for_footprint_ == false)
 			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel)/*cell_size_*/, delta_theta_, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fov_vectors[3].norm(), 7, false);
 		else
-			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel)/*cell_size_*/, delta_theta_, goal->footprint, zero_vector, max_angle, 0.0, goal->coverage_radius/map_resolution, 7, true);
+			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel)/*cell_size_*/, delta_theta_, goal->field_of_view, zero_vector, max_angle, 0.0, goal->coverage_radius/map_resolution, 7, true);
 	}
 	else if(path_planning_algorithm_ == 5) // use flow network explorator
 	{
@@ -731,7 +731,17 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		coverage_request.input_map = *service_image;
 		coverage_request.path = robot_poses;
 		coverage_request.field_of_view = goal->field_of_view;
-		coverage_request.footprint = goal->footprint;
+		// todo: use coverage_radius instead of footprint here
+		std::vector<geometry_msgs::Point32> footprint_points(4);
+		footprint_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
+		footprint_points[0].y = 0.3;
+		footprint_points[1].x = -0.3;
+		footprint_points[1].y = -0.3;
+		footprint_points[2].x = 0.3;
+		footprint_points[2].y = -0.3;
+		footprint_points[3].x = 0.3;
+		footprint_points[3].y = 0.3;
+		coverage_request.footprint = footprint_points;
 		coverage_request.map_origin = goal->map_origin;
 		coverage_request.map_resolution = map_resolution;
 		coverage_request.check_number_of_coverages = false;

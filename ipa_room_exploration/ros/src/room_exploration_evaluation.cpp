@@ -206,16 +206,16 @@ public:
 
 		// prepare relevant floor map data
 		std::vector< std::string > map_names;
-		map_names.push_back("lab_ipa");
-		map_names.push_back("lab_c_scan");
-		map_names.push_back("Freiburg52_scan");
-		map_names.push_back("Freiburg79_scan");
-		map_names.push_back("lab_b_scan");
-		map_names.push_back("lab_intel");
-		map_names.push_back("Freiburg101_scan");
-		map_names.push_back("lab_d_scan");
-		map_names.push_back("lab_f_scan");
-		map_names.push_back("lab_a_scan");
+//		map_names.push_back("lab_ipa");
+//		map_names.push_back("lab_c_scan");
+//		map_names.push_back("Freiburg52_scan");
+//		map_names.push_back("Freiburg79_scan");
+//		map_names.push_back("lab_b_scan");
+//		map_names.push_back("lab_intel");
+//		map_names.push_back("Freiburg101_scan");
+//		map_names.push_back("lab_d_scan");
+//		map_names.push_back("lab_f_scan");
+//		map_names.push_back("lab_a_scan");
 		map_names.push_back("NLB");
 		map_names.push_back("office_a");
 		map_names.push_back("office_b");
@@ -1400,7 +1400,7 @@ public:
 		goal.robot_radius = evaluation_data.robot_radius_;
 		goal.coverage_radius = evaluation_data.coverage_radius_;
 		goal.field_of_view = evaluation_data.fov_points_;
-		goal.footprint = evaluation_data.footprint_points_;
+		//goal.footprint = evaluation_data.footprint_points_;
 		goal.starting_position = evaluation_data.robot_start_position_;
 		goal.return_path = true;
 		goal.execute_path = false;
@@ -1480,12 +1480,12 @@ int main(int argc, char **argv)
 //	const double robot_radius, const std::vector<int>& segmentation_algorithms, const std::vector<int>& exploration_algorithms,
 //	const std::vector<geometry_msgs::Point32>& fov_points)
 	std::vector<int> exploration_algorithms;
-//	exploration_algorithms.push_back(1);	// grid point exploration
+	exploration_algorithms.push_back(1);	// grid point exploration
 //	exploration_algorithms.push_back(2);	// boustrophedon exploration
 //	exploration_algorithms.push_back(3);	// neural network exploration
 //	exploration_algorithms.push_back(4);	// convex SPP exploration
 //	exploration_algorithms.push_back(5);	// flow network exploration
-	exploration_algorithms.push_back(6);	// energy functional exploration
+//	exploration_algorithms.push_back(6);	// energy functional exploration
 //	exploration_algorithms.push_back(7);	// voronoi exploration
 
 

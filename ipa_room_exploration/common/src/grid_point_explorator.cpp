@@ -97,6 +97,32 @@ void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	std::cout << "Finding optimal order of the " << grid_points.size() << " found points. Start-index: " << min_index << std::endl;
 	ConcordeTSPSolver tsp_solver;
 	const double map_downsampling_factor = 0.25;
+//	const double // todo: param
+
+//#include <boost/thread.hpp>
+//#include <boost/chrono.hpp>
+//	void ConcordeTSPSolver::concorde_thread(const std::string cmd)
+//	{
+//		try
+//		{
+//			std::cout << "Started system call in separate thread: " << cmd << std::endl;
+//			int result = system(cmd.c_str());
+//			assert(!result);
+//		}
+//		catch (boost::thread_interrupted&)
+//		{
+//			std::cout << "Thread with system call was interrupted." << std::endl;
+//		}
+//	}
+//	// start system call in extra thread
+//	boost::thread t(boost::bind(&ConcordeTSPSolver::concorde_thread, this, cmd));
+//	ros::Duration(2.).sleep();
+//	std::cout << "before interrupt" << std::endl;
+//	t.interrupt();
+//	std::cout << "after interrupt" << std::endl;
+//	t.join();
+//	std::cout << "after join" << std::endl;
+
 	std::vector<int> optimal_order = tsp_solver.solveConcordeTSP(rotated_room_map, grid_points, map_downsampling_factor, 0.0, map_resolution, min_index, 0);
 
 	// rearrange the found points in the optimal order and convert them to the right format
