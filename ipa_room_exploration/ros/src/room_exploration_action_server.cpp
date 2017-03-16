@@ -123,8 +123,18 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 
 	if (path_planning_algorithm_ == 1) // get grid point exploration parameters
 	{
+		// todo: maybe obsolete
 		node_handle_.param("grid_line_length", grid_line_length_, 10);
 		std::cout << "room_exploration/grid_line_length = " << grid_line_length_ << std::endl;
+
+		// todo: use in program and also set via dynamic reconfigure
+		node_handle_.param("tsp_solver", tsp_solver_, (int)TSP_CONCORDE);
+		std::cout << "room_exploration/tsp_solver = " << tsp_solver_ << std::endl;
+		int timeout=0;
+		node_handle_.param("tsp_solver_timeout", timeout, 600);
+		tsp_solver_timeout_ = timeout;
+		std::cout << "room_exploration/tsp_solver_timeout = " << tsp_solver_timeout_ << std::endl;
+
 	}
 	else if(path_planning_algorithm_ == 2) // set boustrophedon exploration parameters
 	{

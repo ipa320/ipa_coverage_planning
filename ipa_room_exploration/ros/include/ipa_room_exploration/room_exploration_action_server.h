@@ -148,6 +148,13 @@ protected:
 	EnergyFunctionalExplorator energy_functional_explorator_; // object that uses the energy functional exploration method to create an exploration path
 
 	// parameters for the different planners
+	int tsp_solver_;	// indicates which TSP solver should be used
+						//1 = Nearest Neighbor
+						//2 = Genetic solver
+						//3 = Concorde solver
+	int64_t tsp_solver_timeout_;	// a sophisticated solver like Concorde or Genetic can be interrupted if it does not find a solution within this time, in [s], and then falls back to the nearest neighbor solver
+
+
 	int grid_line_length_; // size of the grid-lines that the grid-point-explorator lays over the map
 	double path_eps_; // the distance between points when generating a path
 	bool plan_for_footprint_; // boolean that implies if the path should be planned for the footprint and not for the field of view

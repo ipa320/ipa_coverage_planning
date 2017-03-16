@@ -169,7 +169,7 @@ void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	std::cout << "Finding optimal order of the " << grid_points.size() << " found points. Start-index: " << min_index << std::endl;
 	const double map_downsampling_factor = 0.25;
 	const int tsp_solver = TSP_CONCORDE;	// todo: param
-	const int64_t tsp_solver_timeout = 600;	// todo: param	// the exact solver can be interrupted if it does not find a solution within this time, in [s], and then falls back to the nearest neighbor solver
+	const int64_t tsp_solver_timeout = 600;	// todo: param	// an exact solver can be interrupted if it does not find a solution within this time, in [s], and then falls back to the nearest neighbor solver
 
 	// solve TSP
 	bool finished = false;

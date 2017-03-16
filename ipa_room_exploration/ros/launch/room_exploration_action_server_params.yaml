@@ -40,6 +40,22 @@ grid_line_length: 7     #7
 # [pixel], where one pixel is the size of one cell in the navigation grid map
 path_eps: 10.0
 
+
+# parameters specific for the grid point explorator
+# =================================================
+# indicates which TSP solver should be used
+#   1 = Nearest Neighbor
+#   2 = Genetic solver
+#   3 = Concorde solver
+# int
+tsp_solver: 3
+
+# a sophisticated solver like Concorde or Genetic can be interrupted if it does not find a solution within this time, in [s],
+# and then falls back to the nearest neighbor solver
+# int [s]
+tsp_solver_timeout: 600
+
+
 # parameters specific for the boustrophedon explorator
 #
 # min area a cell must have to be determined for the path generation
