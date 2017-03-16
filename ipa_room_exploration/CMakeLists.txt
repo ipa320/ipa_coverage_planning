@@ -31,11 +31,11 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 generate_dynamic_reconfigure_options(
-  cfg/RoomExploration.cfg
+	cfg/RoomExploration.cfg
 )
 
 find_package(OpenCV REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED COMPONENTS system chrono thread)
 find_package(Eigen REQUIRED)
 
 # include the FindGUROBI.cmake file to search for Gurobi on the system

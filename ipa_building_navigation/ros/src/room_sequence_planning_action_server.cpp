@@ -72,13 +72,13 @@ RoomSequencePlanningServer::RoomSequencePlanningServer(ros::NodeHandle nh, std::
 
 	// Parameters
 	std::cout << "\n------------------------------------\nRoom Sequence Planner Parameters:\n------------------------------------\n";
-	node_handle_.param("tsp_solver", tsp_solver_, 3);
+	node_handle_.param("tsp_solver", tsp_solver_, (int)TSP_CONCORDE);
 	std::cout << "room_sequence_planning/tsp_solver = " << tsp_solver_ << std::endl;
-	if (tsp_solver_ == 1)
+	if (tsp_solver_ == TSP_NEAREST_NEIGHBOR)
 		ROS_INFO("You have chosen the Nearest Neighbor TSP method.");
-	else if (tsp_solver_ == 2)
+	else if (tsp_solver_ == TSP_GENETIC)
 		ROS_INFO("You have chosen the Genetic TSP method.");
-	else if (tsp_solver_ == 3)
+	else if (tsp_solver_ == TSP_CONCORDE)
 		ROS_INFO("You have chosen the Concorde TSP solver.");
 	else
 		ROS_INFO("Undefined TSP Solver.");
@@ -113,11 +113,11 @@ void RoomSequencePlanningServer::dynamic_reconfigure_callback(ipa_building_navig
 	// set method from config
 	tsp_solver_ = config.tsp_solver;
 	std::cout << "room_sequence_planning/tsp_solver = " << tsp_solver_ << std::endl;
-	if (tsp_solver_ == 1)
+	if (tsp_solver_ == TSP_NEAREST_NEIGHBOR)
 		ROS_INFO("You have chosen the Nearest Neighbor TSP method.");
-	else if (tsp_solver_ == 2)
+	else if (tsp_solver_ == TSP_GENETIC)
 		ROS_INFO("You have chosen the Genetic TSP method.");
-	else if (tsp_solver_ == 3)
+	else if (tsp_solver_ == TSP_CONCORDE)
 		ROS_INFO("You have chosen the Concorde TSP solver.");
 	else
 		ROS_INFO("Undefined TSP Solver.");
@@ -204,11 +204,11 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 
 	if(tsp_solver_ > 0 && tsp_solver_ < 4)
 	{
-		if(tsp_solver_ == 1)
+		if(tsp_solver_ == TSP_NEAREST_NEIGHBOR)
 			ROS_INFO("You have chosen the nearest neighbor solver.");
-		if(tsp_solver_ == 2)
+		if(tsp_solver_ == TSP_GENETIC)
 			ROS_INFO("You have chosen the genetic TSP solver.");
-		if(tsp_solver_ == 3)
+		if(tsp_solver_ == TSP_CONCORDE)
 			ROS_INFO("You have chosen the concorde TSP solver.");
 	}
 	//saving vectors needed from both planning methods
@@ -229,17 +229,17 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 
 		//plan the optimal path trough all given rooms
 		std::vector<int> optimal_room_sequence;
-		if(tsp_solver_ == 1) //nearest neighbor TSP solver
+		if(tsp_solver_ == TSP_NEAREST_NEIGHBOR) //nearest neighbor TSP solver
 		{
 			NearestNeighborTSPSolver nearest_neighbor_tsp_solver;
 			optimal_room_sequence = nearest_neighbor_tsp_solver.solveNearestTSP(floor_plan, room_centers, map_downsampling_factor_, goal->robot_radius, goal->map_resolution, (int) optimal_start_position);
 		}
-		if(tsp_solver_ == 2) //genetic TSP solver
+		if(tsp_solver_ == TSP_GENETIC) //genetic TSP solver
 		{
 			GeneticTSPSolver genetic_tsp_solver;
 			optimal_room_sequence = genetic_tsp_solver.solveGeneticTSP(floor_plan, room_centers, map_downsampling_factor_, goal->robot_radius, goal->map_resolution, (int) optimal_start_position);
 		}
-		if(tsp_solver_ == 3) //concorde TSP solver
+		if(tsp_solver_ == TSP_CONCORDE) //concorde TSP solver
 		{
 			ConcordeTSPSolver concorde_tsp_solver;
 			optimal_room_sequence = concorde_tsp_solver.solveConcordeTSP(floor_plan, room_centers, map_downsampling_factor_, goal->robot_radius, goal->map_resolution, (int) optimal_start_position);
@@ -343,17 +343,17 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		//solve the TSP
 		std::vector<int> optimal_trolley_sequence;
 		std::cout << "finding optimal trolley sequence. Start: " << optimal_trolley_start_position << std::endl;
-		if(tsp_solver_ == 1) //nearest neighbor TSP solver
+		if(tsp_solver_ == TSP_NEAREST_NEIGHBOR) //nearest neighbor TSP solver
 		{
 			NearestNeighborTSPSolver nearest_neighbor_tsp_solver;
 			optimal_trolley_sequence = nearest_neighbor_tsp_solver.solveNearestTSP(floor_plan, trolley_positions, map_downsampling_factor_, goal->robot_radius, goal->map_resolution, (int) optimal_trolley_start_position);
 		}
-		if(tsp_solver_ == 2) //genetic TSP solver
+		if(tsp_solver_ == TSP_GENETIC) //genetic TSP solver
 		{
 			GeneticTSPSolver genetic_tsp_solver;
 			optimal_trolley_sequence = genetic_tsp_solver.solveGeneticTSP(floor_plan, trolley_positions, map_downsampling_factor_, goal->robot_radius, goal->map_resolution, (int) optimal_trolley_start_position);
 		}
-		if(tsp_solver_ == 3) //concorde TSP solver
+		if(tsp_solver_ == TSP_CONCORDE) //concorde TSP solver
 		{
 			ConcordeTSPSolver concorde_tsp_solver;
 			optimal_trolley_sequence = concorde_tsp_solver.solveConcordeTSP(floor_plan, trolley_positions, map_downsampling_factor_, goal->robot_radius, goal->map_resolution, (int) optimal_trolley_start_position);
@@ -404,7 +404,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		std::vector< std::vector <int> > optimal_room_sequences(cliques.size());
 		// Create the TSP solver objects two times and not one time for the whole function because by this way only two objects has to be
 		// created and else three
-		if(tsp_solver_ == 1) //nearest neighbor TSP solver
+		if(tsp_solver_ == TSP_NEAREST_NEIGHBOR) //nearest neighbor TSP solver
 		{
 			NearestNeighborTSPSolver nearest_neighbor_tsp_solver;
 			for(size_t i=0; i<cliques.size(); ++i)
@@ -413,7 +413,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 				std::cout << "done one clique" << std::endl;
 			}
 		}
-		if(tsp_solver_ == 2) //genetic TSP solver
+		if(tsp_solver_ == TSP_GENETIC) //genetic TSP solver
 		{
 			GeneticTSPSolver genetic_tsp_solver;
 			for(size_t i=0; i<cliques.size(); ++i)
@@ -422,7 +422,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 				std::cout << "done one clique" << std::endl;
 			}
 		}
-		if(tsp_solver_ == 3) //concorde TSP solver
+		if(tsp_solver_ == TSP_CONCORDE) //concorde TSP solver
 		{
 			ConcordeTSPSolver concorde_tsp_solver;
 			for(size_t i=0; i<cliques.size(); ++i)

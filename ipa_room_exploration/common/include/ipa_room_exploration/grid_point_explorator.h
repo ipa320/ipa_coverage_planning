@@ -66,7 +66,7 @@
 
 #include <Eigen/Dense>
 
-#include <ipa_building_navigation/concorde_TSP.h>
+#include <ipa_building_navigation/tsp_solvers.h>
 #include <ipa_room_exploration/room_rotator.h>
 #include <ipa_room_exploration/fov_to_robot_mapper.h>
 
@@ -86,9 +86,22 @@ public:
 	// constructor
 	GridPointExplorator();
 
+	// separate, interruptible thread for the external solvers
+	void tsp_solver_thread_concorde(ConcordeTSPSolver& tsp_solver, std::vector<int>& optimal_order, const cv::Mat& original_map,
+			const std::vector<cv::Point>& points, const double downsampling_factor, const double robot_radius, const double map_resolution,
+			const int start_node);
+
+	void tsp_solver_thread_genetic(GeneticTSPSolver& tsp_solver, std::vector<int>& optimal_order, const cv::Mat& original_map,
+			const std::vector<cv::Point>& points, const double downsampling_factor, const double robot_radius, const double map_resolution,
+			const int start_node);
+
+	void tsp_solver_thread(const int tsp_solver, std::vector<int>& optimal_order, const cv::Mat& original_map,
+		const std::vector<cv::Point>& points, const double downsampling_factor, const double robot_radius, const double map_resolution,
+		const int start_node);
+
 	// Function that creates an exploration path for a given room. The room has to be drawn in a cv::Mat (filled with Bit-uchar),
 	// with free space drawn white (255) and obstacles as black (0). It returns a series of 2D poses that show to which positions
 	// the robot should drive at.
-	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution, const cv::Point starting_position,
+	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const double map_resolution, const cv::Point starting_position,
 			const cv::Point2d map_origin, const int cell_size, const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector);
 };

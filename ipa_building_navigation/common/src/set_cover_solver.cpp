@@ -298,7 +298,8 @@ std::vector<std::vector<int> > SetCoverSolver::solveSetCover(const cv::Mat& orig
 	cv::Mat distance_matrix_ref;
 	if (distance_matrix != 0)
 		distance_matrix_ref = *distance_matrix;
-	DistanceMatrix::constructDistanceMatrix(distance_matrix_ref, original_map, points, downsampling_factor, robot_radius, map_resolution, pathplanner_);
+	DistanceMatrix distance_matrix_computation;
+	distance_matrix_computation.constructDistanceMatrix(distance_matrix_ref, original_map, points, downsampling_factor, robot_radius, map_resolution, pathplanner_);
 
 	//get all maximal cliques for this graph and solve the set cover problem
 	return (solveSetCover(distance_matrix_ref, points, (int)points.size(), maximal_pathlength, max_number_of_clique_members));

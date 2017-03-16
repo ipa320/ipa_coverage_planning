@@ -1,42 +1,52 @@
 # include <ipa_building_navigation/concorde_TSP.h>
 
+#include <boost/thread.hpp>
+#include <boost/chrono.hpp>
+
 //Default constructor
 ConcordeTSPSolver::ConcordeTSPSolver()
+: abort_computation_(false)
 {
 
 }
 
-////Function to construct the distance matrix from the given points. See the definition in the header for the style of this matrix.
-//void ConcordeTSPSolver::constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const int number_of_nodes,
-//        const std::vector<cv::Point>& points, double downsampling_factor, double robot_radius, double map_resolution)
-//{
-//	//create the distance matrix with the right size
-//	cv::Mat pathlengths(cv::Size(number_of_nodes, number_of_nodes), CV_64F);
-//
-//	for (int i = 0; i < points.size(); i++)
-//	{
-//		cv::Point current_center = points[i];
-//		for (int p = 0; p < points.size(); p++)
-//		{
-//			if (p != i)
-//			{
-//				if (p > i) //only compute upper right triangle of matrix, rest is symmetrically added
-//				{
-//					cv::Point neighbor = points[p];
-//					double length = pathplanner_.planPath(original_map, current_center, neighbor, downsampling_factor, robot_radius, map_resolution);
-//					pathlengths.at<double>(i, p) = length;
-//					pathlengths.at<double>(p, i) = length; //symmetrical-Matrix --> saves half the computation time
-//				}
-//			}
-//			else
-//			{
-//				pathlengths.at<double>(i, p) = 0;
-//			}
-//		}
-//	}
-//
-//	distance_matrix = pathlengths.clone();
-//}
+void ConcordeTSPSolver::distance_matrix_thread(DistanceMatrix& distance_matrix_computation, cv::Mat& distance_matrix,
+		const cv::Mat& original_map, const std::vector<cv::Point>& points, double downsampling_factor,
+		double robot_radius, double map_resolution, AStarPlanner& path_planner)
+{
+	distance_matrix_computation.constructDistanceMatrix(distance_matrix, original_map, points, downsampling_factor,
+				robot_radius, map_resolution, pathplanner_);
+}
+
+void ConcordeTSPSolver::abortComputation()
+{
+	abort_computation_ = true;
+
+	// kill concorde if running
+	std::string pid_cmd = "pidof concorde > concorde_tsp_pid.txt";
+	int pid_result = system(pid_cmd.c_str());
+	std::ifstream pid_reader("concorde_tsp_pid.txt");
+	int value = -1;
+	std::string line;
+	if (pid_reader.is_open())
+	{
+		while (getline(pid_reader, line))
+		{
+			std::istringstream iss(line);
+			while (iss >> value)
+			{
+				std::cout << "PID of concorde: " << value << std::endl;
+				std::stringstream ss;
+				ss << "kill " << value;
+				std::string kill_cmd = ss.str();
+				int kill_result = system(kill_cmd.c_str());
+				std::cout << "kill result: " << kill_result << std::endl;
+			}
+		}
+		pid_reader.close();
+		remove("concorde_tsp_pid.txt");
+	}
+}
 
 //This function generates a file with the current TSP in TSPlib format. This is neccessary because concorde needs this file
 //as input to solve the TSP. See http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/ for documentation.
@@ -141,7 +151,7 @@ std::vector<int> ConcordeTSPSolver::readFromFile()
 //with a given distance matrix
 std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_matrix, const int start_Node)
 {
-	std::vector<int> unsorted_order;
+	std::vector<int> unsorted_order, sorted_order;
 	std::cout << "finding optimal order" << std::endl;
 	std::cout << "number of nodes: " << path_length_matrix.rows << " start node: " << start_Node << std::endl;
 	if (path_length_matrix.rows > 2) //check if the TSP has at least 3 nodes
@@ -150,10 +160,35 @@ std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_
 		writeToFile(path_length_matrix);
 
 		//use concorde to find optimal tour
-		std::string bin_folder = ros::package::command("libs-only-L libconcorde_tsp_solver");
-		bin_folder.erase(std::remove(bin_folder.begin(), bin_folder.end(), '\n'));
+		std::string bin_folder;
+		while (bin_folder.length()==0)
+		{
+			try
+			{
+				std::string cmd = "rospack libs-only-L libconcorde_tsp_solver > temp_libconcorde_path.txt";
+				int result = system(cmd.c_str());
+				std::ifstream file("temp_libconcorde_path.txt", std::ifstream::in);
+				if (file.is_open())
+				{
+					file >> bin_folder;
+					file.close();
+				}
+				std::cout << "bin_folder: " << bin_folder << std::endl;
+				remove("temp_libconcorde_path.txt");
+				//bin_folder = ros::package::command("libs-only-L libconcorde_tsp_solver"); // this command crashes sometimes
+				//bin_folder.erase(std::remove(bin_folder.begin(), bin_folder.end(), '\n'));
+			}
+			catch (...)
+			{
+				std::cout << "ConcordeTSPSolver::solveConcordeTSP: ERROR: ros::package::command('libs-only-L libconcorde_tsp_solver') failed. Trying again." << std::endl;
+			}
+		}
 		std::string cmd = bin_folder + "/libconcorde_tsp_solver/concorde -o " + "$HOME/.ros/TSP_order.txt $HOME/.ros/TSPlib_file.txt";
+		if (abort_computation_==true)
+			return sorted_order;
 		int result = system(cmd.c_str());
+		if (abort_computation_==true)
+			return sorted_order;
 		assert(!result);
 
 		//get order from saving file
@@ -178,7 +213,6 @@ std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_
 	}
 
 	//sort the order with the start_Node at the beginning
-	std::vector<int> sorted_order;
 	unsigned int start_node_position;
 
 	for (unsigned int i = 0; i < unsorted_order.size(); i++) //find position of the start node in the order
@@ -202,17 +236,33 @@ std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_
 }
 
 //compute the distance matrix and maybe return it
-std::vector<int> ConcordeTSPSolver::solveConcordeTSP(
-		const cv::Mat& original_map, const std::vector<cv::Point>& points,
-		double downsampling_factor, double robot_radius, double map_resolution,
-		const int start_Node, cv::Mat* distance_matrix) {
+std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& original_map, const std::vector<cv::Point>& points,
+		double downsampling_factor, double robot_radius, double map_resolution, const int start_Node, cv::Mat* distance_matrix)
+{
 	//calculate the distance matrix
 	cv::Mat distance_matrix_ref;
 	if (distance_matrix != 0)
 		distance_matrix_ref = *distance_matrix;
-	DistanceMatrix::constructDistanceMatrix(distance_matrix_ref, original_map,
-			points, downsampling_factor, robot_radius, map_resolution,
-			pathplanner_);
+	DistanceMatrix distance_matrix_computation;
+	boost::thread t(boost::bind(&ConcordeTSPSolver::distance_matrix_thread, this, boost::ref(distance_matrix_computation),
+			boost::ref(distance_matrix_ref), boost::cref(original_map), boost::cref(points), downsampling_factor,
+			robot_radius, map_resolution, boost::ref(pathplanner_)));
+	bool finished = false;
+	while (finished==false)
+	{
+		if (abort_computation_==true)
+			distance_matrix_computation.abortComputation();
+		finished = t.try_join_for(boost::chrono::milliseconds(10));
+	}
+
+//	distance_matrix_computation.constructDistanceMatrix(distance_matrix_ref, original_map, points, downsampling_factor,
+//			robot_radius, map_resolution, pathplanner_);
+
+	if (abort_computation_==true)
+	{
+		std::vector<int> sorted_order;
+		return sorted_order;
+	}
 
 	// todo: check whether distance matrix contains infinite path lenghts and if this is true, create a new distance matrix with maximum size clique of reachable points
 	// then solve TSP and re-index points to original indices

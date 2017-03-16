@@ -10,10 +10,25 @@
 
 class DistanceMatrix
 {
+protected:
+
+	bool abort_computation_;
+
 public:
+
+	DistanceMatrix()
+	: abort_computation_(false)
+	{
+	}
+
+	void abortComputation()
+	{
+		abort_computation_ = true;
+	}
+
 	// REMARK:	paths is a pointer that points to a 3D vector that has dimensionality NxN in the outer vectors to store
 	//			the paths in a matrix manner
-	static void constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const std::vector<cv::Point>& points,
+	void constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const std::vector<cv::Point>& points,
 			double downsampling_factor, double robot_radius, double map_resolution, AStarPlanner& path_planner,
 			std::vector<std::vector<std::vector<cv::Point> > >* paths=NULL)
 	{
@@ -36,6 +51,9 @@ public:
 				{
 					if (j > i) //only compute upper right triangle of matrix, rest is symmetrically added
 					{
+						if (abort_computation_==true)
+							return;
+
 						if(paths!=NULL)
 						{
 							std::vector<cv::Point> current_path;

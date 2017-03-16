@@ -407,7 +407,8 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	// get the distance matrix
 	ROS_INFO("Constructing distance matrix");
 	cv::Mat distance_matrix;
-	DistanceMatrix::constructDistanceMatrix(distance_matrix, room_map, chosen_positions, 0.25, 0.0, map_resolution, path_planner_);
+	DistanceMatrix distance_matrix_computation;
+	distance_matrix_computation.constructDistanceMatrix(distance_matrix, room_map, chosen_positions, 0.25, 0.0, map_resolution, path_planner_);
 
 	// go trough the matrix and multiply the distances between the poses with a factor corresponding to the difference of
 	// the travel angle from the first pose to the other pose

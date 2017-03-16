@@ -82,6 +82,7 @@
 #include <ipa_building_navigation/BuildingNavigationConfig.h>
 
 //TSP solver
+#include <ipa_building_navigation/tsp_solver_defines.h>
 #include <ipa_building_navigation/nearest_neighbor_TSP.h>
 #include <ipa_building_navigation/genetic_TSP.h>
 #include <ipa_building_navigation/concorde_TSP.h>

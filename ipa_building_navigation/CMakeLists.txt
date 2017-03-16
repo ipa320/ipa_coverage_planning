@@ -28,7 +28,7 @@ generate_dynamic_reconfigure_options(
 )
 
 find_package(OpenCV REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system thread)
+find_package(Boost REQUIRED COMPONENTS system thread chrono)
 
 ###################################
 ## catkin specific configuration ##

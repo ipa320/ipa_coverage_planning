@@ -24,6 +24,7 @@
 #include <ipa_building_navigation/timer.h>
 #include <ipa_building_navigation/dynamic_reconfigure_client.h>
 #include <ipa_building_navigation/contains.h>
+#include <ipa_building_navigation/tsp_solver_defines.h>
 
 #include <geometry_msgs/Pose.h>
 #include <sensor_msgs/image_encodings.h>
@@ -46,9 +47,9 @@ struct EvaluationConfig
 											// 1 = drag trolley if next room is too far away
 											// 2 = calculate roomgroups and a trolleyposition for each of it
 	int tsp_solver_;					// TSP solver that is used
-											// 1 = Nearest Neighbor
-											// 2 = Genetic solver
-											// 3 = Concorde solver
+											// TSP_NEAREST_NEIGHBOR=1 = Nearest Neighbor
+											// TSP_GENETIC=2 = Genetic solver
+											// TSP_CONCORDE=3 = Concorde solver
 	int trashbins_per_trolley_;			// variable that shows how many trashbins can be emptied into one trolley
 
 	EvaluationConfig()
@@ -56,7 +57,7 @@ struct EvaluationConfig
 		room_segmentation_algorithm_ = 1;
 		max_clique_path_length_ = 12.0;
 		sequence_planning_method_ = 2;
-		tsp_solver_ = 3;
+		tsp_solver_ = TSP_CONCORDE;
 		trashbins_per_trolley_ = 9001;
 	}
 

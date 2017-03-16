@@ -1199,7 +1199,8 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 	// create the arcs for the flow network
 	std::cout << "Constructing distance matrix" << std::endl;
 	cv::Mat distance_matrix; // determine weights
-	DistanceMatrix::constructDistanceMatrix(distance_matrix, rotated_room_map, edges, 0.25, 0.0, map_resolution, path_planner_);
+	DistanceMatrix distance_matrix_computation;
+	distance_matrix_computation.constructDistanceMatrix(distance_matrix, rotated_room_map, edges, 0.25, 0.0, map_resolution, path_planner_);
 	std::cout << "Constructed distance matrix, defining arcs" << std::endl;
 	std::vector<arcStruct> arcs;
 	double max_distance = max_y - min_y; // arcs should at least go the maximal room distance to allow straight arcs
