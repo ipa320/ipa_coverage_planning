@@ -19,8 +19,10 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 	// set parameters regarding the chosen algorithm
 	if (path_planning_algorithm_ == 1) // set grid point exploration parameters
 	{
-		grid_line_length_ = config.grid_line_length;
-		std::cout << "room_exploration/grid_line_length_ = " << grid_line_length_ << std::endl;
+		tsp_solver_ = config.tsp_solver;
+		std::cout << "room_exploration/tsp_solver_ = " << tsp_solver_ << std::endl;
+		tsp_solver_timeout_ = config.tsp_solver_timeout;
+		std::cout << "room_exploration/tsp_solver_timeout_ = " << tsp_solver_timeout_ << std::endl;
 	}
 	else if(path_planning_algorithm_ == 2) // set boustrophedon exploration parameters
 	{
@@ -123,11 +125,7 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 
 	if (path_planning_algorithm_ == 1) // get grid point exploration parameters
 	{
-		// todo: maybe obsolete
-		node_handle_.param("grid_line_length", grid_line_length_, 10);
-		std::cout << "room_exploration/grid_line_length = " << grid_line_length_ << std::endl;
-
-		// todo: use in program and also set via dynamic reconfigure
+		// todo: also set via dynamic reconfigure
 		node_handle_.param("tsp_solver", tsp_solver_, (int)TSP_CONCORDE);
 		std::cout << "room_exploration/tsp_solver = " << tsp_solver_ << std::endl;
 		int timeout=0;
@@ -367,7 +365,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// erode map so that not reachable areas are not considered
 	const int robot_radius_in_pixel = (robot_radius / map_resolution);
 	//cv::erode(room_map, room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
-	// todo: enable if necessary
+	// todo: enable if necessary: no erosion, but closing is necessary
 
 	// remove unconnected, i.e. inaccessible, parts of the room (i.e. obstructed by furniture), only keep the room with the largest area
 	// create new map with segments labelled by increasing labels from 1,2,3,...
@@ -471,9 +469,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	{
 		// plan path
 		if(plan_for_footprint_ == false)
-			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel), plan_for_footprint_, middle_point);
+			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel), plan_for_footprint_, middle_point, tsp_solver_, tsp_solver_timeout_);
 		else
-			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel), plan_for_footprint_, zero_vector);
+			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel), plan_for_footprint_, zero_vector, tsp_solver_, tsp_solver_timeout_);
 	}
 	else if(path_planning_algorithm_ == 2) // use boustrophedon explorator
 	{

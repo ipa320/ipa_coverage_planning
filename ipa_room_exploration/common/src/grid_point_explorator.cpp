@@ -87,7 +87,8 @@ void GridPointExplorator::tsp_solver_thread(const int tsp_solver, std::vector<in
 //			Poses are computed, by calculating a vector from the old node to the next and using the angle of this with the x-axis
 //			as angle for the Poses.
 void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const double map_resolution,
-		const cv::Point starting_position, const cv::Point2d map_origin, const int cell_size, const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector)
+		const cv::Point starting_position, const cv::Point2d map_origin, const int cell_size, const bool plan_for_footprint,
+		const Eigen::Matrix<float, 2, 1> robot_to_fov_vector, int tsp_solver, int64_t tsp_solver_timeout)
 {
 	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
 	// rotate map
@@ -168,9 +169,6 @@ void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	// solve the Traveling Salesman Problem
 	std::cout << "Finding optimal order of the " << grid_points.size() << " found points. Start-index: " << min_index << std::endl;
 	const double map_downsampling_factor = 0.25;
-	const int tsp_solver = TSP_CONCORDE;	// todo: param
-	const int64_t tsp_solver_timeout = 600;	// todo: param	// an exact solver can be interrupted if it does not find a solution within this time, in [s], and then falls back to the nearest neighbor solver
-
 	// solve TSP
 	bool finished = false;
 	std::vector<int> optimal_order;
