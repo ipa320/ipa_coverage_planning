@@ -19,7 +19,7 @@
 	</description>
 	<author email="florian.jordan@ipa.fraunhofer.de">Florian Jordan</author>
 	<maintainer email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</maintainer>
-	<license>LGPL</license>
+	<license>LGPL for academic and non-commercial use; for commercial use, please contact Fraunhofer IPA</license>
 	<url>http://wiki.ros.org/ipa_room_segmentation</url>
 
 	<buildtool_depend>catkin</buildtool_depend>

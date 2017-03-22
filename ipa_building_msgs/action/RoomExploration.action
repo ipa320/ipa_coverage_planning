@@ -8,12 +8,13 @@ geometry_msgs/Pose2D map_origin				# the origin of the map in [meter]
 float32 robot_radius					# effective robot radius, taking the enlargement of the costmap into account, in [meter]
 float32 coverage_radius					# radius that is used to plan the coverage planning for the robot and not the field of view, assuming that the part that needs to cover everything (e.g. the cleaning part) can be represented by a fitting circle (e.g. smaller than the actual part to ensure coverage), in [meter]
 geometry_msgs/Point32[] field_of_view			# the points that define the field of view of the robot, relatively to the robot, [meter], counter-clock-wise starting from left, nearer to robot point, assumed to be 4 different points in the right halfplane of the two dimensional space
-geometry_msgs/Point32[] footprint			# footprint of the interesting part of the robot, for which a coverage path planning should be done (e.g. the cleaning part), relatively to the robot [meter]
 geometry_msgs/Pose2D starting_position			# Pose where the robot starts in the room coordinatesystem [meter]
+int32 planning_mode					# 1 = plans a path for coverage with the robot footprint, 2 = plans a path for coverage with the robot's field of view
 string map_frame					# string that carries the name of the map frame, used for tracking of the robot
 string camera_frame					# string that carries the name of the camera frame, that is in the same kinematic chain as the map_frame and shows the camera pose
 bool return_path					# boolean used to determine, if the server should return the path
 bool execute_path					# boolean used to determine, if the server should execute the coverage path
+geometry_msgs/Point32[] footprint			# footprint of the interesting part of the robot, for which a coverage path planning should be done (e.g. the cleaning part), relatively to the robot [meter]
 ---
 # result definition
 geometry_msgs/Pose2D[] coverage_path			# when the server should return the coverage path, this is done returning the points in an array that shows the order of visiting

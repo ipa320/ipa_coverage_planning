@@ -117,10 +117,10 @@ struct ExplorationData
 	geometry_msgs::Pose2D robot_start_position_;
 	double robot_radius_;	// [m]
 	double coverage_radius_;	// [m]
+	std::vector<geometry_msgs::Point32> fov_points_;
+	int planning_mode_;
 	double robot_speed_; // [m/s]
 	double rotation_speed_; // [rad/s]
-	std::vector<geometry_msgs::Point32> fov_points_;
-	std::vector<geometry_msgs::Point32> footprint_points_;
 
 	// empty values as default
 	ExplorationData()
@@ -132,23 +132,24 @@ struct ExplorationData
 		map_origin_.position.y = 0;
 		robot_radius_ = 0.35;
 		coverage_radius_ = 0.35;
+		planning_mode_ = 1;
 		robot_speed_ = 0.3;
 		rotation_speed_ = 0.1;
 	}
 
 	// set data used in this evaluation
 	ExplorationData(const std::string map_name, const cv::Mat floor_plan, const float map_resolution, const double robot_radius,
-			const double coverage_radius, const std::vector<geometry_msgs::Point32>& fov_points, const std::vector<geometry_msgs::Point32>& footprint_points)
+			const double coverage_radius, const std::vector<geometry_msgs::Point32>& fov_points, const int planning_mode)
 	{
 		map_name_ = map_name;
 		floor_plan_ = floor_plan;
 		map_resolution_ = map_resolution;
 		robot_radius_ = robot_radius;
 		coverage_radius_ = coverage_radius;
+		fov_points_ = fov_points;
+		planning_mode_ = planning_mode;
 		robot_speed_ = 0.3;
 		rotation_speed_ = 0.1;
-		fov_points_ = fov_points;
-		footprint_points_ = footprint_points;
 		map_origin_.position.x = 0;
 		map_origin_.position.y = 0;
 		cv::Mat map_eroded;
@@ -198,8 +199,8 @@ public:
 
 
 	ExplorationEvaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::string& data_storage_path,
-			const double robot_radius, const double coverage_radius, const std::vector<int>& exploration_algorithms,
-			const std::vector<geometry_msgs::Point32>& fov_points, const std::vector<geometry_msgs::Point32>& footprint_points)
+			const double robot_radius, const double coverage_radius, const std::vector<geometry_msgs::Point32>& fov_points,
+			const int planning_mode, const std::vector<int>& exploration_algorithms)
 	{
 		// set node-handle
 		node_handle_ = nh;
@@ -276,7 +277,7 @@ public:
 
 			// create evaluation data
 			//                                                                      todo: param
-			evaluation_datas.push_back(ExplorationData(map_names[image_index], map, 0.05, robot_radius, coverage_radius, fov_points, footprint_points));
+			evaluation_datas.push_back(ExplorationData(map_names[image_index], map, 0.05, robot_radius, coverage_radius, fov_points, planning_mode));
 		}
 
 		// get the room maps for each evaluation data
@@ -1400,7 +1401,7 @@ public:
 		goal.robot_radius = evaluation_data.robot_radius_;
 		goal.coverage_radius = evaluation_data.coverage_radius_;
 		goal.field_of_view = evaluation_data.fov_points_;
-		//goal.footprint = evaluation_data.footprint_points_;
+		goal.planning_mode = evaluation_data.planning_mode_;
 		goal.starting_position = evaluation_data.robot_start_position_;
 		goal.return_path = true;
 		goal.execute_path = false;
@@ -1464,16 +1465,6 @@ int main(int argc, char **argv)
 	ros::init(argc, argv, "room_exploration_evaluation");
 	ros::NodeHandle nh;
 
-	std::vector<geometry_msgs::Point32> footprint_points(4);
-	footprint_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
-	footprint_points[0].y = 0.3;
-	footprint_points[1].x = -0.3;
-	footprint_points[1].y = -0.3;
-	footprint_points[2].x = 0.3;
-	footprint_points[2].y = -0.3;
-	footprint_points[3].x = 0.3;
-	footprint_points[3].y = 0.3;
-
 	const std::string test_map_path = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/";
 	const std::string data_storage_path = "room_exploration_evaluation/";
 	//ExplorationEvaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::string& data_storage_path,
@@ -1500,6 +1491,7 @@ int main(int argc, char **argv)
 //	fov_points[2].y = -0.65;
 //	fov_points[3].x = 1.15;
 //	fov_points[3].y = 0.65;
+//	int planning_mode = 2;	// viewpoint planning
 	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
 	fov_points[0].y = 0.3;
 	fov_points[1].x = -0.3;
@@ -1508,11 +1500,11 @@ int main(int argc, char **argv)
 	fov_points[2].y = -0.3;
 	fov_points[3].x = 0.3;
 	fov_points[3].y = 0.3;
-
+	int planning_mode = 1;	// footprint planning
 
 	double robot_radius = 0.3;		// [m]
 	double coverage_radius = 0.3;	// [m]
-	ExplorationEvaluation ev(nh, test_map_path, data_storage_path, robot_radius, coverage_radius, exploration_algorithms, fov_points, footprint_points);
+	ExplorationEvaluation ev(nh, test_map_path, data_storage_path, robot_radius, coverage_radius, fov_points, planning_mode, exploration_algorithms);
 	ros::shutdown();
 
 	//exit

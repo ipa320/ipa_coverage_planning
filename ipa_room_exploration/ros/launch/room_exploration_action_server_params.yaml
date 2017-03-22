@@ -9,9 +9,6 @@
 # int
 room_exploration_algorithm: 2
 
-# this variable sets if the path should be generated such that the robot footprint has to cover everything instead of the field of view
-plan_for_footprint: false
-
 # this variable turns the functionality on/off to revisit areas that haven't been seen during the execution of the coverage path, due to uncertainties or dynamic obstacles
 revisit_areas: false
 

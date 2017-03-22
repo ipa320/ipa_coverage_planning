@@ -7,7 +7,7 @@
      This package contains common message type definitions for building navigation tasks such as floor plan segmentation into rooms or the optimal trajectory through rooms of a building.
   </description>
 
-  <license>LGPL</license>
+  <license>LGPL for academic and non-commercial use; for commercial use, please contact Fraunhofer IPA</license>
 
   <maintainer email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</maintainer>
   <author>Richard Bormann</author>

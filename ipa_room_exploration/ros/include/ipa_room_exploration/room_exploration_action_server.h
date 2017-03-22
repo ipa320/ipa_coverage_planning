@@ -1,49 +1,3 @@
-// Ros specific
-#include <ros/ros.h>
-#include <actionlib/server/simple_action_server.h>
-#include <move_base_msgs/MoveBaseAction.h>
-#include <actionlib/client/simple_action_client.h>
-#include <ros/time.h>
-#include <cv_bridge/cv_bridge.h>
-#include <tf/transform_listener.h>
-#include <dynamic_reconfigure/server.h>
-// OpenCV specific
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
-// Eigen library
-#include <Eigen/Dense>
-// standard c++ libraries
-#include <iostream>
-#include <list>
-#include <string>
-#include <vector>
-#include <algorithm>
-#include <cmath>
-// services and actions
-#include <ipa_building_msgs/RoomExplorationAction.h>
-#include <cob_map_accessibility_analysis/CheckPerimeterAccessibility.h>
-#include <ipa_building_msgs/CheckCoverage.h>
-// messages
-#include <geometry_msgs/Pose2D.h>
-#include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/Polygon.h>
-#include <geometry_msgs/Point32.h>
-#include <nav_msgs/OccupancyGrid.h>
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/image_encodings.h>
-// specific from this package
-#include <ipa_building_navigation/concorde_TSP.h>
-#include <ipa_room_exploration/RoomExplorationConfig.h>
-#include <ipa_room_exploration/grid_point_explorator.h>
-#include <ipa_room_exploration/boustrophedon_explorator.h>
-#include <ipa_room_exploration/neural_network_explorator.h>
-#include <ipa_room_exploration/convex_sensor_placement_explorator.h>
-#include <ipa_room_exploration/flow_network_explorator.h>
-#include <ipa_room_exploration/fov_to_robot_mapper.h>
-#include <ipa_room_exploration/energy_functional_explorator.h>
-#include <ipa_room_exploration/voronoi.hpp>
-#include <ipa_room_exploration/room_rotator.h>
-
 /*!
  *****************************************************************
  * \file
@@ -103,15 +57,64 @@
  *
  ****************************************************************/
 
+#pragma once
+
+
+// Ros specific
+#include <ros/ros.h>
+#include <actionlib/server/simple_action_server.h>
+#include <move_base_msgs/MoveBaseAction.h>
+#include <actionlib/client/simple_action_client.h>
+#include <ros/time.h>
+#include <cv_bridge/cv_bridge.h>
+#include <tf/transform_listener.h>
+#include <dynamic_reconfigure/server.h>
+// OpenCV specific
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
+// Eigen library
+#include <Eigen/Dense>
+// standard c++ libraries
+#include <iostream>
+#include <list>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <cmath>
+// services and actions
+#include <ipa_building_msgs/RoomExplorationAction.h>
+#include <cob_map_accessibility_analysis/CheckPerimeterAccessibility.h>
+#include <ipa_building_msgs/CheckCoverage.h>
+// messages
+#include <geometry_msgs/Pose2D.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/Polygon.h>
+#include <geometry_msgs/Point32.h>
+#include <nav_msgs/OccupancyGrid.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/image_encodings.h>
+// specific from this package
+#include <ipa_building_navigation/concorde_TSP.h>
+#include <ipa_room_exploration/RoomExplorationConfig.h>
+#include <ipa_room_exploration/grid_point_explorator.h>
+#include <ipa_room_exploration/boustrophedon_explorator.h>
+#include <ipa_room_exploration/neural_network_explorator.h>
+#include <ipa_room_exploration/convex_sensor_placement_explorator.h>
+#include <ipa_room_exploration/flow_network_explorator.h>
+#include <ipa_room_exploration/fov_to_robot_mapper.h>
+#include <ipa_room_exploration/energy_functional_explorator.h>
+#include <ipa_room_exploration/voronoi.hpp>
+#include <ipa_room_exploration/room_rotator.h>
+
 #define PI 3.14159265359
 
 typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
 
-#pragma once
-
 class RoomExplorationServer
 {
 protected:
+
+	enum PlanningMode {PLAN_FOR_FOOTPRINT=1, PLAN_FOR_FOV=2};
 
 	int path_planning_algorithm_;	// variable to specify which algorithm is going to be used to plan a path
 										// 1: grid point explorator
@@ -157,7 +160,7 @@ protected:
 
 	int grid_line_length_; // size of the grid-lines that the grid-point-explorator lays over the map
 	double path_eps_; // the distance between points when generating a path
-	bool plan_for_footprint_; // boolean that implies if the path should be planned for the footprint and not for the field of view
+	int planning_mode_; // 1 = plans a path for coverage with the robot footprint, 2 = plans a path for coverage with the robot's field of view
 	double curvature_factor_; // double that shows the factor, an arc can be longer than a straight arc when using the flowNetwork explorator
 	double max_distance_factor_; // double that shows how much an arc can be longer than the maximal distance of the room, which is determined by the min/max coordinates that are set in the goal
 

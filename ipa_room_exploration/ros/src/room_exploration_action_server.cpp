@@ -7,9 +7,6 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 	std::cout << "######################################################################################" << std::endl;
 	std::cout << "Dynamic reconfigure request:" << std::endl;
 
-	plan_for_footprint_ = config.plan_for_footprint;
-	std::cout << "room_exploration/plan_for_footprint_ = " << plan_for_footprint_ << std::endl;
-
 	path_planning_algorithm_ = config.room_exploration_algorithm;
 	std::cout << "room_exploration/path_planning_algorithm_ = " << path_planning_algorithm_ << std::endl;
 
@@ -99,9 +96,6 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 
 	// Parameters
 	std::cout << "\n--------------------------\nRoom Exploration Parameters:\n--------------------------\n";
-	node_handle_.param("plan_for_footprint", plan_for_footprint_, false);
-	std::cout << "room_exploration/plan_for_footprint_ = " << plan_for_footprint_ << std::endl;
-
 	node_handle_.param("room_exploration_algorithm", path_planning_algorithm_, 1);
 	std::cout << "room_exploration/room_exploration_algorithm = " << path_planning_algorithm_ << std::endl << std::endl;
 
@@ -125,7 +119,6 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 
 	if (path_planning_algorithm_ == 1) // get grid point exploration parameters
 	{
-		// todo: also set via dynamic reconfigure
 		node_handle_.param("tsp_solver", tsp_solver_, (int)TSP_CONCORDE);
 		std::cout << "room_exploration/tsp_solver = " << tsp_solver_ << std::endl;
 		int timeout=0;
@@ -298,7 +291,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
 		check_request.center = center;
 
-		if(plan_for_footprint_ == false)
+		if(planning_mode_ == PLAN_FOR_FOV)
 		{
 			check_request.radius = robot_to_fov_middlepoint_distance;
 			check_request.rotational_sampling_step = PI/8;
@@ -357,6 +350,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	starting_position.y = (goal->starting_position.y - map_origin.y)/map_resolution;
 	std::cout << "starting point: " << starting_position << std::endl;
 
+	planning_mode_ = goal->planning_mode;
+
 	// converting the map msg in cv format
 	cv_bridge::CvImagePtr cv_ptr_obj;
 	cv_ptr_obj = cv_bridge::toCvCopy(goal->input_map, sensor_msgs::image_encodings::MONO8);
@@ -413,7 +408,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	Eigen::Matrix<float, 2, 1> middle_point;
 	std::vector<Eigen::Matrix<float, 2, 1> > fov_vectors;
 	Eigen::Matrix<float, 2, 1> middle_point_1, middle_point_2, middle_point_3, middle_point_4;
-	if(plan_for_footprint_ == false) // read out the given fov-vectors, if needed							// todo: set plan_for_footprint_ from action msg
+	if(planning_mode_ == PLAN_FOR_FOV) // read out the given fov-vectors, if needed
 	{
 		for(int i = 0; i < 4; ++i)
 		{
@@ -468,29 +463,29 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	if(path_planning_algorithm_ == 1) // use grid point explorator
 	{
 		// plan path
-		if(plan_for_footprint_ == false)
-			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel), plan_for_footprint_, middle_point, tsp_solver_, tsp_solver_timeout_);
+		if(planning_mode_ == PLAN_FOR_FOV)
+			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel), false, middle_point, tsp_solver_, tsp_solver_timeout_);
 		else
-			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel), plan_for_footprint_, zero_vector, tsp_solver_, tsp_solver_timeout_);
+			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel), true, zero_vector, tsp_solver_, tsp_solver_timeout_);
 	}
 	else if(path_planning_algorithm_ == 2) // use boustrophedon explorator
 	{
 		// plan path
-		if(plan_for_footprint_ == false)
-			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, path_eps_, plan_for_footprint_, middle_point, min_cell_size_);
+		if(planning_mode_ == PLAN_FOR_FOV)
+			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, path_eps_, false, middle_point, min_cell_size_);
 		else
-			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, path_eps_, plan_for_footprint_, zero_vector, min_cell_size_);
+			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, path_eps_, true, zero_vector, min_cell_size_);
 	}
 	else if(path_planning_algorithm_ == 3) // use neural network explorator
 	{
 		neural_network_explorator_.setParameters(A_, B_, D_, E_, mu_, step_size_, delta_theta_weight_);
 		// plan path
-		if(plan_for_footprint_ == false)
-			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, plan_for_footprint_, middle_point, false);
+		if(planning_mode_ == PLAN_FOR_FOV)
+			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, false, middle_point, false);
 		else
-			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, plan_for_footprint_, zero_vector, false);
+			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, true, zero_vector, false);
 	}
-	else if(path_planning_algorithm_ == 4) // use convexSPP explorator
+	else if(path_planning_algorithm_ == PLAN_FOR_FOV) // use convexSPP explorator
 	{
 		// find the maximum angle that is spanned between the closer or more distant corners, used to determine the visibility of cells
 		float max_angle = 0.0;
@@ -520,7 +515,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		// todo: middle_point_1.norm() has implicit assumption that this is the closest edge to the robot center, same for fov_vectors[3]
 		//       ------> take line from camera to incircle center and min is minus circle radius and max is plus circle radius
 		// todo: decide whether user shall set the cell size or automatic cell size (e.g. only automatic if cell_size <= 0)
-		if(plan_for_footprint_ == false)
+		if(planning_mode_ == PLAN_FOR_FOV)
 			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel)/*cell_size_*/, delta_theta_, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fov_vectors[3].norm(), 7, false);
 		else
 			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel)/*cell_size_*/, delta_theta_, goal->field_of_view, zero_vector, max_angle, 0.0, goal->coverage_radius/map_resolution, 7, true);
@@ -529,14 +524,14 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	{
 		// todo: decide whether user shall set the cell size or automatic cell size for the grid (e.g. only automatic if cell_size <= 0)
 //		flow_network_explorator_.testFunc();
-		if(plan_for_footprint_ == false)
+		if(planning_mode_ == PLAN_FOR_FOV)
 			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, middle_point, grid_spacing_in_pixel, false, path_eps_, curvature_factor_, max_distance_factor_);
 		else
 			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, zero_vector, grid_spacing_in_pixel, true, path_eps_, curvature_factor_, max_distance_factor_);
 	}
 	else if(path_planning_algorithm_ == 6) // use energy functional explorator
 	{
-		if(plan_for_footprint_ == false)
+		if(planning_mode_ == PLAN_FOR_FOV)
 			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, false, middle_point);
 		else
 			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, true, zero_vector);
@@ -548,7 +543,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		matToMap(room_gridmap, room_map);
 
 		// do not find nearest pose to starting-position and start there because of issue in planner when starting position is provided
-		if(plan_for_footprint_==false)
+		if(planning_mode_==PLAN_FOR_FOV)
 		{
 			// convert fov-radius to pixel integer
 			const int fov_diameter_as_int = (int)std::floor(2.*fitting_circle_radius/map_resolution);
@@ -754,7 +749,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		coverage_request.map_resolution = map_resolution;
 		coverage_request.check_number_of_coverages = false;
 		std::cout << "filled service request for the coverage check" << std::endl;
-		if(plan_for_footprint_ == false)
+		if(planning_mode_ == PLAN_FOR_FOV)
 		{
 			coverage_request.check_for_footprint = false;
 			// send request
@@ -934,7 +929,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
 			cob_map_accessibility_analysis::CheckPerimeterAccessibility::Response response;
 			check_request.center = current_center;
-			if(plan_for_footprint_ == false)
+			if(planning_mode_ == PLAN_FOR_FOV)
 			{
 				check_request.radius = distance_robot_fov_middlepoint;
 				check_request.rotational_sampling_step = pi_8;
