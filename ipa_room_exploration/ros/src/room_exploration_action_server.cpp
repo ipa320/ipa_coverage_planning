@@ -205,7 +205,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 	// wait for the action server to come up
 	while(mv_base_client.waitForServer(ros::Duration(5.0)) == false)
 	{
-	  ROS_INFO("Waiting for the move_base action server to come up");
+		ROS_INFO("Waiting for the move_base action server to come up");
 	}
 
 	std::cout << "navigation goal: (" << nav_goal.x << ", "  << nav_goal.y << ", " << nav_goal.theta << ")" << std::endl;

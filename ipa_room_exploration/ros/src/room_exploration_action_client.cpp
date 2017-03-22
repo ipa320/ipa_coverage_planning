@@ -132,15 +132,6 @@ int main(int argc, char **argv)
 	fov_points[2].y = -0.65;
 	fov_points[3].x = 1.15;
 	fov_points[3].y = 0.65;
-	std::vector<geometry_msgs::Point32> footprint_points(4);
-	footprint_points[0].x = -0.4;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
-	footprint_points[0].y = 0.4;
-	footprint_points[1].x = -0.4;
-	footprint_points[1].y = -0.4;
-	footprint_points[2].x = 0.4;
-	footprint_points[2].y = -0.4;
-	footprint_points[3].x = 0.4;
-	footprint_points[3].y = 0.4;
 
 	ipa_building_msgs::RoomExplorationGoal goal;
 	goal.input_map = labeling;
@@ -148,11 +139,10 @@ int main(int argc, char **argv)
 	goal.starting_position = starting_position;
 	goal.map_resolution = 0.05;
 	goal.robot_radius = 0.2; // turtlebot, used for sim 0.177, 0.4
-	goal.camera_frame = "/base_footprint";
-	goal.map_frame = "/map";
-	goal.field_of_view = fov_points;
-	goal.footprint = footprint_points;
 	goal.coverage_radius = 0.2;
+	goal.field_of_view = fov_points;
+	goal.map_frame = "/map";
+	goal.camera_frame = "/base_footprint";
 	goal.return_path = false;
 	goal.execute_path = true;
 	ac.sendGoal(goal);
