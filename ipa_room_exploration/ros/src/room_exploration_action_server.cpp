@@ -9,9 +9,16 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 
 	path_planning_algorithm_ = config.room_exploration_algorithm;
 	std::cout << "room_exploration/path_planning_algorithm_ = " << path_planning_algorithm_ << std::endl;
-
 	goal_eps_ = config.goal_eps;
 	std::cout << "room_exploration/goal_eps_ = " << goal_eps_ << std::endl;
+	return_path_ = config.return_path;
+	std::cout << "room_exploration/return_path_ = " << return_path_ << std::endl;
+	execute_path_ = config.execute_path;
+	std::cout << "room_exploration/execute_path_ = " << execute_path_ << std::endl;
+	global_costmap_topic_ = config.global_costmap_topic;
+	std::cout << "room_exploration/global_costmap_topic_ = " << global_costmap_topic_ << std::endl;
+	coverage_check_service_name_ = config.coverage_check_service_name;
+	std::cout << "room_exploration/coverage_check_service_name_ = " << coverage_check_service_name_ << std::endl;
 
 	// set parameters regarding the chosen algorithm
 	if (path_planning_algorithm_ == 1) // set grid point exploration parameters
@@ -98,9 +105,18 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	std::cout << "\n--------------------------\nRoom Exploration Parameters:\n--------------------------\n";
 	node_handle_.param("room_exploration_algorithm", path_planning_algorithm_, 1);
 	std::cout << "room_exploration/room_exploration_algorithm = " << path_planning_algorithm_ << std::endl << std::endl;
-
 	node_handle_.param("goal_eps", goal_eps_, 0.35);
-	std::cout << "room_exploration/goal_eps_ = " << goal_eps_ << std::endl;
+	std::cout << "room_exploration/goal_eps = " << goal_eps_ << std::endl;
+	node_handle_.param("return_path", return_path_, true);
+	std::cout << "room_exploration/return_path = " << return_path_ << std::endl;
+	node_handle_.param("execute_path", execute_path_, false);
+	std::cout << "room_exploration/execute_path = " << execute_path_ << std::endl;
+	global_costmap_topic_ = "/move_base/global_costmap/costmap";
+	node_handle_.param<std::string>("global_costmap_topic", global_costmap_topic_);
+	std::cout << "room_exploration/global_costmap_topic = " << global_costmap_topic_ << std::endl;
+	coverage_check_service_name_ = "/coverage_check_server/coverage_check";
+	node_handle_.param<std::string>("coverage_check_service_name", coverage_check_service_name_);
+	std::cout << "room_exploration/coverage_check_service_name = " << coverage_check_service_name_ << std::endl;
 
 	if (path_planning_algorithm_ == 1)
 		ROS_INFO("You have chosen the grid exploration method.");
@@ -253,7 +269,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 			transform.getBasis().getRPY(roll, pitch, yaw);
 			current_pose.theta = yaw;
 
-			if(std::pow(current_pose.x - nav_goal.x, 2.0) + std::pow(current_pose.y - nav_goal.y, 2.0) <= eps*eps)
+			if((current_pose.x-nav_goal.x)*(current_pose.x-nav_goal.x) + (current_pose.y-nav_goal.y)*(current_pose.y-nav_goal.y) <= eps*eps)
 				near_pos = true;
 
 			robot_poses.push_back(current_pose);
@@ -330,24 +346,21 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 // Function executed by Call.
 void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExplorationGoalConstPtr &goal)
 {
+	// todo: separate into smaller functions
+
 	ros::Rate looping_rate(1);
 	ROS_INFO("*****Room Exploration action server*****");
 	ROS_INFO("map resolution is : %f", goal->map_resolution);
 
 	// ***************** I. read the given parameters out of the goal *****************
 	// todo: this is only correct if the map is not rotated
-	cv::Point2d map_origin;
-	map_origin.x = goal->map_origin.x;
-	map_origin.y = goal->map_origin.y;
-
+	const cv::Point2d map_origin(goal->map_origin.x, goal->map_origin.y);
 	const float map_resolution = goal->map_resolution;
 
 	const float robot_radius = goal->robot_radius;
-	std::cout << "******************* robot radius ********************" << robot_radius << std::endl;
+	std::cout << "robot radius: " << robot_radius << std::endl;
 
-	cv::Point starting_position;
-	starting_position.x = (goal->starting_position.x - map_origin.x)/map_resolution;
-	starting_position.y = (goal->starting_position.y - map_origin.y)/map_resolution;
+	const cv::Point starting_position((goal->starting_position.x-map_origin.x)/map_resolution, (goal->starting_position.y-map_origin.y)/map_resolution);
 	std::cout << "starting point: " << starting_position << std::endl;
 
 	planning_mode_ = goal->planning_mode;
@@ -363,7 +376,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// todo: enable if necessary: no erosion, but closing is necessary
 
 	// remove unconnected, i.e. inaccessible, parts of the room (i.e. obstructed by furniture), only keep the room with the largest area
-	// create new map with segments labelled by increasing labels from 1,2,3,...
+	// create new map with segments labeled by increasing labels from 1,2,3,...
 	cv::Mat room_map_int(room_map.rows, room_map.cols, CV_32SC1);
 	for (int v=0; v<room_map.rows; ++v)
 	{
@@ -651,11 +664,11 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	}
 
 	// if wanted, return the path as the result
-	if(goal->return_path == true)
+	if(return_path_ == true)
 		action_result.coverage_path = exploration_path;
 
 	// check if the path should be executed, if not end here
-	if(goal->execute_path == false)
+	if(execute_path_ == false)
 	{
 		room_exploration_server_.setSucceeded(action_result);
 		return;
@@ -691,9 +704,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	std::cout << "published all navigation goals, starting to check seen area" << std::endl;
 
 	// 2. get the global costmap, that has initially not known objects in to check what regions have been seen
-	const std::string costmap_topic = "/move_base/global_costmap/costmap";
 	nav_msgs::OccupancyGrid global_costmap;
-	global_costmap = *(ros::topic::waitForMessage<nav_msgs::OccupancyGrid>(costmap_topic));
+	global_costmap = *(ros::topic::waitForMessage<nav_msgs::OccupancyGrid>(global_costmap_topic_));
 	ROS_INFO("Found global gridmap.");
 
 	std::vector<signed char> pixel_values;
@@ -720,7 +732,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 		// 3. draw the seen positions so the server can check what points haven't been seen
 		std::cout << "checking coverage using the coverage_check_server" << std::endl;
-		std::string coverage_service_name = "/coverage_check_server/coverage_check";
 		cv::Mat seen_positions_map;
 		// define the request for the coverage check
 		ipa_building_msgs::CheckCoverageRequest coverage_request;
@@ -753,7 +764,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		{
 			coverage_request.check_for_footprint = false;
 			// send request
-			if(ros::service::call(coverage_service_name, coverage_request, coverage_response) == true)
+			if(ros::service::call(coverage_check_service_name_, coverage_request, coverage_response) == true)
 			{
 				std::cout << "got the service response" << std::endl;
 				cv_bridge::CvImagePtr cv_ptr_obj;
@@ -771,7 +782,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		{
 			coverage_request.check_for_footprint = true;
 			// send request
-			if(ros::service::call(coverage_service_name, coverage_request, coverage_response) == true)
+			if(ros::service::call(coverage_check_service_name_, coverage_request, coverage_response) == true)
 			{
 				std::cout << "got the service response" << std::endl;
 				cv_bridge::CvImagePtr cv_ptr_obj;

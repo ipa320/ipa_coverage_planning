@@ -1403,8 +1403,6 @@ public:
 		goal.field_of_view = evaluation_data.fov_points_;
 		goal.planning_mode = evaluation_data.planning_mode_;
 		goal.starting_position = evaluation_data.robot_start_position_;
-		goal.return_path = true;
-		goal.execute_path = false;
 		ac_exp.sendGoal(goal);
 
 		// wait for results for 1 hour

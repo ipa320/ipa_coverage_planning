@@ -124,9 +124,6 @@ protected:
 										// 5: flowNetwork explorator
 										// 6: energyFunctional explorator
 
-	bool revisit_areas_;			// variable that turns functionality on/off to revisit areas that haven't been seen during the
-									// execution of the coverage path, due to uncertainites or dynamical obstacles
-
 	bool interrupt_navigation_publishing_;	// variable that interrupts the publishing of navigation goals as long as needed, e.g. when
 											// during the execution of the coverage path a trashbin is found and one wants to empty it
 											// directly and resume the path later.
@@ -142,6 +139,17 @@ protected:
 	double min_cell_size_;			// minimal area a cell can have, when using the boustrophedon explorator
 
 	double delta_theta_;			// sampling angle when creating possible sensing poses in the convexSPP explorator
+
+	bool return_path_;				// boolean used to determine if the server should return the computed coverage path in the response message
+
+	bool execute_path_;				// boolean used to determine whether the server should navigate the robot along the computed coverage path
+
+	bool revisit_areas_;			// variable that turns functionality on/off to revisit areas that haven't been seen during the
+									// execution of the coverage path, due to uncertainites or dynamical obstacles
+
+	std::string global_costmap_topic_;	// name of the global costmap topic
+
+	std::string coverage_check_service_name_;	// name of the service to call for a coverage check of the driven trajectory
 
 	GridPointExplorator grid_point_planner; // object that uses the grid point method to plan a path trough a room
 	BoustrophedonExplorer boustrophedon_explorer_; // object that uses the boustrophedon exploration method to plan a path trough the room

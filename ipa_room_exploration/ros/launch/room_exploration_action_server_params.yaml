@@ -9,9 +9,6 @@
 # int
 room_exploration_algorithm: 2
 
-# this variable turns the functionality on/off to revisit areas that haven't been seen during the execution of the coverage path, due to uncertainties or dynamic obstacles
-revisit_areas: false
-
 # minimal area of not seen sections that they are revisited after the first go trough the room
 # double
 # [m^2]
@@ -33,6 +30,30 @@ cell_size: 7      #7
 path_eps: 10.0
 
 
+# parameters specific to the navigation of the robot along the computed coverage trajectory
+# =========================================================================================
+# boolean used to determine if the server should return the computed coverage path in the response message
+# bool
+return_path: true
+
+# boolean used to determine whether the server should navigate the robot along the computed coverage path
+# bool
+execute_path: false
+
+# this variable turns the functionality on/off to revisit areas that haven't been seen during the execution of the coverage path,
+# due to uncertainties or dynamic obstacles
+# bool
+revisit_areas: false
+
+# name of the global costmap topic
+# string
+global_costmap_topic: "/move_base/global_costmap/costmap"
+
+# name of the service to call for a coverage check of the driven trajectory
+# string
+coverage_check_service_name: "/coverage_check_server/coverage_check"
+
+
 # parameters specific for the grid point explorator
 # =================================================
 # indicates which TSP solver should be used
@@ -49,13 +70,13 @@ tsp_solver_timeout: 600
 
 
 # parameters specific for the boustrophedon explorator
-#
+# ====================================================
 # min area a cell must have to be determined for the path generation
 # [pixel^2]
 min_cell_size: 10.0
 
 # parameters specific for the neural network explorator, see "A Neural Network Approach to Complete Coverage Path Planning" from Simon X. Yang and Chaomin Luo
-#
+# =====================================================
 # step size for integrating the state dynamics
 step_size: 0.008
 # decaying parameter that pulls the activity of a neuron closer to zero, larger value means faster decreasing
@@ -72,13 +93,13 @@ mu: 1.03
 delta_theta_weight: 0.15
 
 # parameters specific for the convexSPP explorator
-#
+# ================================================
 # sampling angle when creating possible sensing poses
 # [rad]
 delta_theta: 0.78539816339      #1.570796
 
 # parameters specific for the flowNetwork explorator
-#
+# ==================================================
 # factor, an arc can be longer than a straight arc, higher values allow more arcs to be considered in the optimization problem
 # Important: if too small, maybe the problem becomes infeasible and the optimizer won't work correctly
 curvature_factor: 3 # 1.1

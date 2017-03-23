@@ -30,7 +30,7 @@ std::ostream& operator<<(std::ostream& os, const geometry_msgs::Pose2D& obj)
 	std::stringstream ss;
 	ss <<  "[" << obj.x << ", " << obj.y << ", " << obj.theta << "]";
 	os << ss.rdbuf();
-    return os;
+	return os;
 }
 
 int main(int argc, char **argv)
@@ -143,8 +143,6 @@ int main(int argc, char **argv)
 	goal.field_of_view = fov_points;
 	goal.map_frame = "/map";
 	goal.camera_frame = "/base_footprint";
-	goal.return_path = false;
-	goal.execute_path = true;
 	ac.sendGoal(goal);
 
 	ac.waitForResult(ros::Duration());

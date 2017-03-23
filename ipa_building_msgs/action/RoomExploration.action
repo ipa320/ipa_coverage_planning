@@ -11,11 +11,9 @@ geometry_msgs/Point32[] field_of_view			# the points that define the field of vi
 geometry_msgs/Pose2D starting_position			# Pose where the robot starts in the room coordinatesystem [meter]
 int32 planning_mode					# 1 = plans a path for coverage with the robot footprint, 2 = plans a path for coverage with the robot's field of view
 
-# todo: remove these frames and bools when path execution is separated into another package
+# todo: put these frames and bools into cfg and yaml params
 string map_frame					# string that carries the name of the map frame, used for tracking of the robot
 string camera_frame					# string that carries the name of the camera frame, that is in the same kinematic chain as the map_frame and shows the camera pose
-bool return_path					# boolean used to determine, if the server should return the path
-bool execute_path					# boolean used to determine, if the server should execute the coverage path
 
 ---
 # result definition
