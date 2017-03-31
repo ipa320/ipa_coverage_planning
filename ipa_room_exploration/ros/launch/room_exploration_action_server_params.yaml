@@ -53,6 +53,15 @@ global_costmap_topic: "/move_base/global_costmap/costmap"
 # string
 coverage_check_service_name: "/coverage_check_server/coverage_check"
 
+# string that carries the name of the map frame, used for tracking of the robot
+# string
+map_frame: "map"
+
+# string that carries the name of the camera frame, that is in the same kinematic chain as the map_frame and shows the camera pose
+# string
+camera_frame: "camera"
+
+
 
 # parameters specific for the grid point explorator
 # =================================================

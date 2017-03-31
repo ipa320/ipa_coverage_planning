@@ -141,8 +141,6 @@ int main(int argc, char **argv)
 	goal.robot_radius = 0.2; // turtlebot, used for sim 0.177, 0.4
 	goal.coverage_radius = 0.2;
 	goal.field_of_view = fov_points;
-	goal.map_frame = "/map";
-	goal.camera_frame = "/base_footprint";
 	ac.sendGoal(goal);
 
 	ac.waitForResult(ros::Duration());

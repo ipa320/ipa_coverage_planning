@@ -1,97 +1,5 @@
 #include <ipa_room_exploration/room_exploration_action_server.h>
 
-// Callback function for dynamic reconfigure.
-void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::RoomExplorationConfig &config, uint32_t level)
-{
-	// set segmentation algorithm
-	std::cout << "######################################################################################" << std::endl;
-	std::cout << "Dynamic reconfigure request:" << std::endl;
-
-	path_planning_algorithm_ = config.room_exploration_algorithm;
-	std::cout << "room_exploration/path_planning_algorithm_ = " << path_planning_algorithm_ << std::endl;
-	goal_eps_ = config.goal_eps;
-	std::cout << "room_exploration/goal_eps_ = " << goal_eps_ << std::endl;
-	return_path_ = config.return_path;
-	std::cout << "room_exploration/return_path_ = " << return_path_ << std::endl;
-	execute_path_ = config.execute_path;
-	std::cout << "room_exploration/execute_path_ = " << execute_path_ << std::endl;
-	global_costmap_topic_ = config.global_costmap_topic;
-	std::cout << "room_exploration/global_costmap_topic_ = " << global_costmap_topic_ << std::endl;
-	coverage_check_service_name_ = config.coverage_check_service_name;
-	std::cout << "room_exploration/coverage_check_service_name_ = " << coverage_check_service_name_ << std::endl;
-
-	// set parameters regarding the chosen algorithm
-	if (path_planning_algorithm_ == 1) // set grid point exploration parameters
-	{
-		tsp_solver_ = config.tsp_solver;
-		std::cout << "room_exploration/tsp_solver_ = " << tsp_solver_ << std::endl;
-		tsp_solver_timeout_ = config.tsp_solver_timeout;
-		std::cout << "room_exploration/tsp_solver_timeout_ = " << tsp_solver_timeout_ << std::endl;
-	}
-	else if(path_planning_algorithm_ == 2) // set boustrophedon exploration parameters
-	{
-		path_eps_ = config.path_eps;
-		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
-		min_cell_size_ = config.min_cell_size;
-		std::cout << "room_exploration/min_cell_size_ = " << min_cell_size_ << std::endl;
-	}
-	else if(path_planning_algorithm_ == 3) // set neural network explorator parameters
-	{
-		step_size_ = config.step_size;
-		std::cout << "room_exploration/step_size_ = " << step_size_ << std::endl;
-		A_ = config.A;
-		std::cout << "room_exploration/A_ = " << A_ << std::endl;
-		B_ = config.B;
-		std::cout << "room_exploration/B_ = " << B_ << std::endl;
-		D_ = config.D;
-		std::cout << "room_exploration/D_ = " << D_ << std::endl;
-		E_ = config.E;
-		std::cout << "room_exploration/E_ = " << E_ << std::endl;
-		mu_ = config.mu;
-		std::cout << "room_exploration/mu_ = " << mu_ << std::endl;
-		delta_theta_weight_ = config.delta_theta_weight;
-		std::cout << "room_exploration/delta_theta_weight_ = " << delta_theta_weight_ << std::endl;
-	}
-	else if(path_planning_algorithm_ == 4) // set convexSPP explorator parameters
-	{
-		cell_size_ = config.cell_size;
-		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
-		delta_theta_ = config.delta_theta;
-		std::cout << "room_exploration/delta_theta_ = " << delta_theta_ << std::endl;
-	}
-	else if(path_planning_algorithm_ == 5) // set flowNetwork explorator parameters
-	{
-		path_eps_ = config.path_eps;
-		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
-		cell_size_ = config.cell_size;
-		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
-		curvature_factor_ = config.curvature_factor;
-		std::cout << "room_exploration/delta_theta_ = " << delta_theta_ << std::endl;
-		max_distance_factor_ = config.max_distance_factor;
-		std::cout << "room_exploration/max_distance_factor_ = " << max_distance_factor_ << std::endl;
-	}
-	else if(path_planning_algorithm_ == 6) // set energyFunctional explorator parameters
-	{
-	}
-	else if(path_planning_algorithm_ == 7) // set voronoi explorator parameters
-	{
-	}
-
-
-	revisit_areas_ = config.revisit_areas;
-	if(revisit_areas_ == true)
-		std::cout << "Areas not seen after the initial execution of the path will be revisited." << std::endl;
-	else
-		std::cout << "Areas not seen after the initial execution of the path will NOT be revisited." << std::endl;
-
-	left_sections_min_area_ = config.left_sections_min_area;
-	std::cout << "room_exploration/left_sections_min_area = " << left_sections_min_area_ << std::endl;
-
-	interrupt_navigation_publishing_ = config.interrupt_navigation_publishing;
-	std::cout << "room_exploration/interrupt_navigation_publishing = " << interrupt_navigation_publishing_ << std::endl;
-
-	std::cout << "######################################################################################" << std::endl;
-}
 
 // constructor
 RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string name_of_the_action) :
@@ -117,6 +25,13 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	coverage_check_service_name_ = "/coverage_check_server/coverage_check";
 	node_handle_.param<std::string>("coverage_check_service_name", coverage_check_service_name_);
 	std::cout << "room_exploration/coverage_check_service_name = " << coverage_check_service_name_ << std::endl;
+	map_frame_ = "map";
+	node_handle_.param<std::string>("map_frame", map_frame_);
+	std::cout << "room_exploration/map_frame = " << map_frame_ << std::endl;
+	camera_frame_ = "camera";
+	node_handle_.param<std::string>("camera_frame", camera_frame_);
+	std::cout << "room_exploration/camera_frame = " << camera_frame_ << std::endl;
+
 
 	if (path_planning_algorithm_ == 1)
 		ROS_INFO("You have chosen the grid exploration method.");
@@ -207,141 +122,104 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	room_exploration_server_.start();
 }
 
-// Function to publish a navigation goal for move_base. It returns true, when the goal could be reached.
-// The function tracks the robot pose while moving to the goal and adds these poses to the given pose-vector. This is done
-// because it allows to calculate where the robot field of view has theoretically been and identify positions of the map that
-// the robot hasn't seen.
-bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& nav_goal, const std::string map_frame,
-		const std::string camera_frame, std::vector<geometry_msgs::Pose2D>& robot_poses, const double robot_to_fov_middlepoint_distance,
-		const double eps, const bool perimeter_check)
+
+// Callback function for dynamic reconfigure.
+void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::RoomExplorationConfig &config, uint32_t level)
 {
-	// move base client, that sends navigation goals to a move_base action server
-	MoveBaseClient mv_base_client("/move_base", true);
+	// set segmentation algorithm
+	std::cout << "######################################################################################" << std::endl;
+	std::cout << "Dynamic reconfigure request:" << std::endl;
 
-	// wait for the action server to come up
-	while(mv_base_client.waitForServer(ros::Duration(5.0)) == false)
+	path_planning_algorithm_ = config.room_exploration_algorithm;
+	std::cout << "room_exploration/path_planning_algorithm_ = " << path_planning_algorithm_ << std::endl;
+	goal_eps_ = config.goal_eps;
+	std::cout << "room_exploration/goal_eps_ = " << goal_eps_ << std::endl;
+	return_path_ = config.return_path;
+	std::cout << "room_exploration/return_path_ = " << return_path_ << std::endl;
+	execute_path_ = config.execute_path;
+	std::cout << "room_exploration/execute_path_ = " << execute_path_ << std::endl;
+	global_costmap_topic_ = config.global_costmap_topic;
+	std::cout << "room_exploration/global_costmap_topic_ = " << global_costmap_topic_ << std::endl;
+	coverage_check_service_name_ = config.coverage_check_service_name;
+	std::cout << "room_exploration/coverage_check_service_name_ = " << coverage_check_service_name_ << std::endl;
+	map_frame_ = config.map_frame;
+	std::cout << "room_exploration/map_frame_ = " << map_frame_ << std::endl;
+	camera_frame_ = config.camera_frame;
+	std::cout << "room_exploration/camera_frame_ = " << camera_frame_ << std::endl;
+
+	// set parameters regarding the chosen algorithm
+	if (path_planning_algorithm_ == 1) // set grid point exploration parameters
 	{
-		ROS_INFO("Waiting for the move_base action server to come up");
+		tsp_solver_ = config.tsp_solver;
+		std::cout << "room_exploration/tsp_solver_ = " << tsp_solver_ << std::endl;
+		tsp_solver_timeout_ = config.tsp_solver_timeout;
+		std::cout << "room_exploration/tsp_solver_timeout_ = " << tsp_solver_timeout_ << std::endl;
+	}
+	else if(path_planning_algorithm_ == 2) // set boustrophedon exploration parameters
+	{
+		path_eps_ = config.path_eps;
+		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
+		min_cell_size_ = config.min_cell_size;
+		std::cout << "room_exploration/min_cell_size_ = " << min_cell_size_ << std::endl;
+	}
+	else if(path_planning_algorithm_ == 3) // set neural network explorator parameters
+	{
+		step_size_ = config.step_size;
+		std::cout << "room_exploration/step_size_ = " << step_size_ << std::endl;
+		A_ = config.A;
+		std::cout << "room_exploration/A_ = " << A_ << std::endl;
+		B_ = config.B;
+		std::cout << "room_exploration/B_ = " << B_ << std::endl;
+		D_ = config.D;
+		std::cout << "room_exploration/D_ = " << D_ << std::endl;
+		E_ = config.E;
+		std::cout << "room_exploration/E_ = " << E_ << std::endl;
+		mu_ = config.mu;
+		std::cout << "room_exploration/mu_ = " << mu_ << std::endl;
+		delta_theta_weight_ = config.delta_theta_weight;
+		std::cout << "room_exploration/delta_theta_weight_ = " << delta_theta_weight_ << std::endl;
+	}
+	else if(path_planning_algorithm_ == 4) // set convexSPP explorator parameters
+	{
+		cell_size_ = config.cell_size;
+		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
+		delta_theta_ = config.delta_theta;
+		std::cout << "room_exploration/delta_theta_ = " << delta_theta_ << std::endl;
+	}
+	else if(path_planning_algorithm_ == 5) // set flowNetwork explorator parameters
+	{
+		path_eps_ = config.path_eps;
+		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
+		cell_size_ = config.cell_size;
+		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
+		curvature_factor_ = config.curvature_factor;
+		std::cout << "room_exploration/delta_theta_ = " << delta_theta_ << std::endl;
+		max_distance_factor_ = config.max_distance_factor;
+		std::cout << "room_exploration/max_distance_factor_ = " << max_distance_factor_ << std::endl;
+	}
+	else if(path_planning_algorithm_ == 6) // set energyFunctional explorator parameters
+	{
+	}
+	else if(path_planning_algorithm_ == 7) // set voronoi explorator parameters
+	{
 	}
 
-	std::cout << "navigation goal: (" << nav_goal.x << ", "  << nav_goal.y << ", " << nav_goal.theta << ")" << std::endl;
 
-	move_base_msgs::MoveBaseGoal move_base_goal;
-
-	// create move_base_goal
-	move_base_goal.target_pose.header.frame_id = "map";
-	move_base_goal.target_pose.header.stamp = ros::Time::now();
-
-	move_base_goal.target_pose.pose.position.x = nav_goal.x;
-	move_base_goal.target_pose.pose.position.y = nav_goal.y;
-	move_base_goal.target_pose.pose.orientation.z = std::sin(nav_goal.theta/2);
-	move_base_goal.target_pose.pose.orientation.w = std::cos(nav_goal.theta/2);
-
-	// send goal to the move_base sever, when one is found
-	ROS_INFO("Sending goal");
-	mv_base_client.sendGoal(move_base_goal);
-
-	// wait until goal is reached or the goal is aborted
-//	ros::Duration sleep_rate(0.1);
-	tf::TransformListener listener;
-	tf::StampedTransform transform;
-	ros::Duration sleep_duration(0.15); // TODO: param!!!!
-	bool near_pos;
-	do
-	{
-		near_pos = false;
-		double roll, pitch, yaw;
-		// try to get the transformation from map_frame to base_frame, wait max. 2 seconds for this transform to come up
-		try
-		{
-			ros::Time time = ros::Time(0);
-			listener.waitForTransform(map_frame, camera_frame, time, ros::Duration(2.0)); // 5.0
-			listener.lookupTransform(map_frame, camera_frame, time, transform);
-
-//			ROS_INFO("Got a transform! x = %f, y = %f", transform.getOrigin().x(), transform.getOrigin().y());
-			sleep_duration.sleep();
-
-			// save the current pose if a transform could be found
-			geometry_msgs::Pose2D current_pose;
-
-			current_pose.x = transform.getOrigin().x();
-			current_pose.y = transform.getOrigin().y();
-			transform.getBasis().getRPY(roll, pitch, yaw);
-			current_pose.theta = yaw;
-
-			if((current_pose.x-nav_goal.x)*(current_pose.x-nav_goal.x) + (current_pose.y-nav_goal.y)*(current_pose.y-nav_goal.y) <= eps*eps)
-				near_pos = true;
-
-			robot_poses.push_back(current_pose);
-		}
-		catch(tf::TransformException &ex)
-		{
-			ROS_INFO("Couldn't get transform!");// %s", ex.what());
-		}
-
-	}while(mv_base_client.getState() != actionlib::SimpleClientGoalState::ABORTED && mv_base_client.getState() != actionlib::SimpleClientGoalState::SUCCEEDED
-			&& near_pos == false);
-
-	// check if point could be reached or not
-	if(mv_base_client.getState() == actionlib::SimpleClientGoalState::SUCCEEDED || near_pos == true)
-	{
-		ROS_INFO("current goal could be reached.");
-		return true;
-	}
-	// if the goal couldn't be reached, find another point around the desired fov-position
-	else if(perimeter_check == true)
-	{
-		ROS_INFO("current goal could not be reached, checking for other goal.");
-
-		// get the desired fov-position
-		geometry_msgs::Pose2D relative_vector;
-		relative_vector.x = std::cos(nav_goal.theta)*robot_to_fov_middlepoint_distance;
-		relative_vector.y = std::sin(nav_goal.theta)*robot_to_fov_middlepoint_distance;
-		geometry_msgs::Pose2D center;
-		center.x = nav_goal.x + relative_vector.x;
-		center.y = nav_goal.y + relative_vector.y;
-
-		// check for another robot pose to reach the desired fov-position
-		std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";
-		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Response response;
-		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
-		check_request.center = center;
-
-		if(planning_mode_ == PLAN_FOR_FOV)
-		{
-			check_request.radius = robot_to_fov_middlepoint_distance;
-			check_request.rotational_sampling_step = PI/8;
-		}
-		else
-		{
-			check_request.radius = 0.0;
-			check_request.rotational_sampling_step = 2.0*PI;
-		}
-
-		// send request
-		if(ros::service::call(perimeter_service_name, check_request, response) == true)
-		{
-			// go trough the found accessible positions and try to reach one of them
-			for(std::vector<geometry_msgs::Pose2D>::iterator pose = response.accessible_poses_on_perimeter.begin(); pose != response.accessible_poses_on_perimeter.end(); ++pose)
-			{
-				if(publishNavigationGoal(*pose, map_frame, camera_frame, robot_poses, 0.0) == true)
-				{
-					ROS_INFO("Perimeter check for not reachable goal succeeded.");
-					return true;
-				}
-			}
-		}
-		else
-		{
-			ROS_INFO("Desired position not reachable.");
-		}
-		return false;
-	}
+	revisit_areas_ = config.revisit_areas;
+	if(revisit_areas_ == true)
+		std::cout << "Areas not seen after the initial execution of the path will be revisited." << std::endl;
 	else
-	{
-		return false;
-	}
+		std::cout << "Areas not seen after the initial execution of the path will NOT be revisited." << std::endl;
+
+	left_sections_min_area_ = config.left_sections_min_area;
+	std::cout << "room_exploration/left_sections_min_area = " << left_sections_min_area_ << std::endl;
+
+	interrupt_navigation_publishing_ = config.interrupt_navigation_publishing;
+	std::cout << "room_exploration/interrupt_navigation_publishing = " << interrupt_navigation_publishing_ << std::endl;
+
+	std::cout << "######################################################################################" << std::endl;
 }
+
 
 // Function executed by Call.
 void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExplorationGoalConstPtr &goal)
@@ -698,7 +576,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			ROS_INFO("Interrupt order canceled, resuming coverage path now.");
 
 		// if no interrupt is wanted, publish the navigation goal
-		publishNavigationGoal(exploration_path[nav_goal], goal->map_frame, goal->camera_frame, robot_poses, distance_robot_fov_middlepoint, goal_eps_, true); // eps = 0.35
+		publishNavigationGoal(exploration_path[nav_goal], map_frame_, camera_frame_, robot_poses, distance_robot_fov_middlepoint, goal_eps_, true); // eps = 0.35
 	}
 
 	std::cout << "published all navigation goals, starting to check seen area" << std::endl;
@@ -960,7 +838,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 				std::cout << "successful check of accessiblity" << std::endl;
 				// go trough the found accessible positions and try to reach one of them
 				for(std::vector<geometry_msgs::Pose2D>::iterator pose = response.accessible_poses_on_perimeter.begin(); pose != response.accessible_poses_on_perimeter.end(); ++pose)
-					if(publishNavigationGoal(*pose, goal->map_frame, goal->camera_frame, robot_poses, 0.0) == true)
+					if(publishNavigationGoal(*pose, map_frame_, camera_frame_, robot_poses, 0.0) == true)
 						break;
 			}
 			else
@@ -983,6 +861,145 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	return;
 }
+
+
+// Function to publish a navigation goal for move_base. It returns true, when the goal could be reached.
+// The function tracks the robot pose while moving to the goal and adds these poses to the given pose-vector. This is done
+// because it allows to calculate where the robot field of view has theoretically been and identify positions of the map that
+// the robot hasn't seen.
+bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& nav_goal, const std::string map_frame,
+		const std::string camera_frame, std::vector<geometry_msgs::Pose2D>& robot_poses, const double robot_to_fov_middlepoint_distance,
+		const double eps, const bool perimeter_check)
+{
+	// move base client, that sends navigation goals to a move_base action server
+	MoveBaseClient mv_base_client("/move_base", true);
+
+	// wait for the action server to come up
+	while(mv_base_client.waitForServer(ros::Duration(5.0)) == false)
+	{
+		ROS_INFO("Waiting for the move_base action server to come up");
+	}
+
+	std::cout << "navigation goal: (" << nav_goal.x << ", "  << nav_goal.y << ", " << nav_goal.theta << ")" << std::endl;
+
+	move_base_msgs::MoveBaseGoal move_base_goal;
+
+	// create move_base_goal
+	move_base_goal.target_pose.header.frame_id = "map";
+	move_base_goal.target_pose.header.stamp = ros::Time::now();
+
+	move_base_goal.target_pose.pose.position.x = nav_goal.x;
+	move_base_goal.target_pose.pose.position.y = nav_goal.y;
+	move_base_goal.target_pose.pose.orientation.z = std::sin(nav_goal.theta/2);
+	move_base_goal.target_pose.pose.orientation.w = std::cos(nav_goal.theta/2);
+
+	// send goal to the move_base sever, when one is found
+	ROS_INFO("Sending goal");
+	mv_base_client.sendGoal(move_base_goal);
+
+	// wait until goal is reached or the goal is aborted
+//	ros::Duration sleep_rate(0.1);
+	tf::TransformListener listener;
+	tf::StampedTransform transform;
+	ros::Duration sleep_duration(0.15); // TODO: param!!!!
+	bool near_pos;
+	do
+	{
+		near_pos = false;
+		double roll, pitch, yaw;
+		// try to get the transformation from map_frame to base_frame, wait max. 2 seconds for this transform to come up
+		try
+		{
+			ros::Time time = ros::Time(0);
+			listener.waitForTransform(map_frame, camera_frame, time, ros::Duration(2.0)); // 5.0
+			listener.lookupTransform(map_frame, camera_frame, time, transform);
+
+//			ROS_INFO("Got a transform! x = %f, y = %f", transform.getOrigin().x(), transform.getOrigin().y());
+			sleep_duration.sleep();
+
+			// save the current pose if a transform could be found
+			geometry_msgs::Pose2D current_pose;
+
+			current_pose.x = transform.getOrigin().x();
+			current_pose.y = transform.getOrigin().y();
+			transform.getBasis().getRPY(roll, pitch, yaw);
+			current_pose.theta = yaw;
+
+			if((current_pose.x-nav_goal.x)*(current_pose.x-nav_goal.x) + (current_pose.y-nav_goal.y)*(current_pose.y-nav_goal.y) <= eps*eps)
+				near_pos = true;
+
+			robot_poses.push_back(current_pose);
+		}
+		catch(tf::TransformException &ex)
+		{
+			ROS_INFO("Couldn't get transform!");// %s", ex.what());
+		}
+
+	}while(mv_base_client.getState() != actionlib::SimpleClientGoalState::ABORTED && mv_base_client.getState() != actionlib::SimpleClientGoalState::SUCCEEDED
+			&& near_pos == false);
+
+	// check if point could be reached or not
+	if(mv_base_client.getState() == actionlib::SimpleClientGoalState::SUCCEEDED || near_pos == true)
+	{
+		ROS_INFO("current goal could be reached.");
+		return true;
+	}
+	// if the goal couldn't be reached, find another point around the desired fov-position
+	else if(perimeter_check == true)
+	{
+		ROS_INFO("current goal could not be reached, checking for other goal.");
+
+		// get the desired fov-position
+		geometry_msgs::Pose2D relative_vector;
+		relative_vector.x = std::cos(nav_goal.theta)*robot_to_fov_middlepoint_distance;
+		relative_vector.y = std::sin(nav_goal.theta)*robot_to_fov_middlepoint_distance;
+		geometry_msgs::Pose2D center;
+		center.x = nav_goal.x + relative_vector.x;
+		center.y = nav_goal.y + relative_vector.y;
+
+		// check for another robot pose to reach the desired fov-position
+		std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";
+		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Response response;
+		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
+		check_request.center = center;
+
+		if(planning_mode_ == PLAN_FOR_FOV)
+		{
+			check_request.radius = robot_to_fov_middlepoint_distance;
+			check_request.rotational_sampling_step = PI/8;
+		}
+		else
+		{
+			check_request.radius = 0.0;
+			check_request.rotational_sampling_step = 2.0*PI;
+		}
+
+		// send request
+		if(ros::service::call(perimeter_service_name, check_request, response) == true)
+		{
+			// go trough the found accessible positions and try to reach one of them
+			for(std::vector<geometry_msgs::Pose2D>::iterator pose = response.accessible_poses_on_perimeter.begin(); pose != response.accessible_poses_on_perimeter.end(); ++pose)
+			{
+				if(publishNavigationGoal(*pose, map_frame, camera_frame, robot_poses, 0.0) == true)
+				{
+					ROS_INFO("Perimeter check for not reachable goal succeeded.");
+					return true;
+				}
+			}
+		}
+		else
+		{
+			ROS_INFO("Desired position not reachable.");
+		}
+		return false;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+
 
 // main, initializing server
 int main(int argc, char** argv)

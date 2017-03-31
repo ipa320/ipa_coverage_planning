@@ -141,15 +141,14 @@ protected:
 	double delta_theta_;			// sampling angle when creating possible sensing poses in the convexSPP explorator
 
 	bool return_path_;				// boolean used to determine if the server should return the computed coverage path in the response message
-
 	bool execute_path_;				// boolean used to determine whether the server should navigate the robot along the computed coverage path
-
 	bool revisit_areas_;			// variable that turns functionality on/off to revisit areas that haven't been seen during the
 									// execution of the coverage path, due to uncertainites or dynamical obstacles
-
 	std::string global_costmap_topic_;	// name of the global costmap topic
-
 	std::string coverage_check_service_name_;	// name of the service to call for a coverage check of the driven trajectory
+	std::string map_frame_;			// string that carries the name of the map frame, used for tracking of the robot
+	std::string camera_frame_;				// string that carries the name of the camera frame, that is in the same kinematic chain as the map_frame and shows the camera pose
+
 
 	GridPointExplorator grid_point_planner; // object that uses the grid point method to plan a path trough a room
 	BoustrophedonExplorer boustrophedon_explorer_; // object that uses the boustrophedon exploration method to plan a path trough the room

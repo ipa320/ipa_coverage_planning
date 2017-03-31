@@ -1,19 +1,15 @@
 # Room Exploration action
-# sends an occupancy grid map of a room to the server, which plans a path trough it to inspect the whole room by camera
+# sends an occupancy grid map of a room to the server, which plans a path trough it to cover or inspect the whole room by a device or camera
 
 # goal definition
 sensor_msgs/Image input_map				# the action server needs a map as a input image to segment it, IMPORTANT: The algorithm needs a black and white 8bit single-channel image, which is 0 (black) for obstacles and 255 (white) for free space
 float32 map_resolution					# the resolution of the map in [meter/cell]
-geometry_msgs/Pose2D map_origin				# the origin of the map in [meter]
+geometry_msgs/Pose2D map_origin			# the origin of the map in [meter], NOTE: rotations are not supported for now
 float32 robot_radius					# effective robot radius, taking the enlargement of the costmap into account, in [meter]
 float32 coverage_radius					# radius that is used to plan the coverage planning for the robot and not the field of view, assuming that the part that needs to cover everything (e.g. the cleaning part) can be represented by a fitting circle (e.g. smaller than the actual part to ensure coverage), in [meter]
-geometry_msgs/Point32[] field_of_view			# the points that define the field of view of the robot, relatively to the robot, [meter], counter-clock-wise starting from left, nearer to robot point, assumed to be 4 different points in the right halfplane of the two dimensional space
-geometry_msgs/Pose2D starting_position			# Pose where the robot starts in the room coordinatesystem [meter]
-int32 planning_mode					# 1 = plans a path for coverage with the robot footprint, 2 = plans a path for coverage with the robot's field of view
-
-# todo: put these frames and bools into cfg and yaml params
-string map_frame					# string that carries the name of the map frame, used for tracking of the robot
-string camera_frame					# string that carries the name of the camera frame, that is in the same kinematic chain as the map_frame and shows the camera pose
+geometry_msgs/Point32[] field_of_view	# the 4 points that define the field of view of the robot, relatively to the robot coordinate system (with x pointing forwards and y pointing to the left), [meter], counter-clock-wise starting from left, nearer to robot point, assumed to be 4 different points in the right halfplane of the two dimensional space
+geometry_msgs/Pose2D starting_position	# starting pose of the robot in the room coordinate system [meter]
+int32 planning_mode						# 1 = plans a path for coverage with the robot footprint, 2 = plans a path for coverage with the robot's field of view
 
 ---
 # result definition
