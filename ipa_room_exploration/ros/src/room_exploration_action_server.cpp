@@ -236,7 +236,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	const float map_resolution = goal->map_resolution;
 
 	const float robot_radius = goal->robot_radius;
-	std::cout << "robot radius: " << robot_radius << std::endl;
+	const int robot_radius_in_pixel = (robot_radius / map_resolution);
+	std::cout << "robot radius: " << robot_radius << " m (" << robot_radius_in_pixel << " px)" << std::endl;
 
 	const cv::Point starting_position((goal->starting_position.x-map_origin.x)/map_resolution, (goal->starting_position.y-map_origin.y)/map_resolution);
 	std::cout << "starting point: " << starting_position << std::endl;
@@ -249,9 +250,12 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv::Mat room_map = cv_ptr_obj->image;
 
 	// erode map so that not reachable areas are not considered
-	const int robot_radius_in_pixel = (robot_radius / map_resolution);
 	//cv::erode(room_map, room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
-	// todo: enable if necessary: no erosion, but closing is necessary
+
+	// closing operation to neglect inaccessible areas and map errors/artifacts
+	cv::Mat temp;
+	cv::erode(room_map, temp, cv::Mat(), cv::Point(-1, -1), 2);
+	cv::dilate(temp, room_map, cv::Mat(), cv::Point(-1, -1), 2);
 
 	// remove unconnected, i.e. inaccessible, parts of the room (i.e. obstructed by furniture), only keep the room with the largest area
 	// create new map with segments labeled by increasing labels from 1,2,3,...
