@@ -189,6 +189,9 @@ protected:
 	// this is the execution function used by action server
 	void exploreRoom(const ipa_building_msgs::RoomExplorationGoalConstPtr &goal);
 
+	// remove unconnected, i.e. inaccessible, parts of the room (i.e. obstructed by furniture), only keep the room with the largest area
+	void removeUnconnectedRoomParts(cv::Mat& room_map);
+
 	// function to publish a navigation goal, it returns true if the goal could be reached
 	// eps_x and eps_y are used to define a epsilon neighborhood around the goal in which a new nav_goal gets published
 	// 	--> may smooth the process, move_base often slows before and stops at the goal

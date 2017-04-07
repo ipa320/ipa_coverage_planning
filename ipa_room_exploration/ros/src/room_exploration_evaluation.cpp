@@ -1481,24 +1481,24 @@ int main(int argc, char **argv)
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
 	// measures in [m]
 	std::vector<geometry_msgs::Point32> fov_points(4);
-//	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
-//	fov_points[0].y = 0.35;
-//	fov_points[1].x = 0.15;
-//	fov_points[1].y = -0.35;
-//	fov_points[2].x = 1.15;
-//	fov_points[2].y = -0.65;
-//	fov_points[3].x = 1.15;
-//	fov_points[3].y = 0.65;
-//	int planning_mode = 2;	// viewpoint planning
-	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
-	fov_points[0].y = 0.3;
-	fov_points[1].x = -0.3;
-	fov_points[1].y = -0.3;
-	fov_points[2].x = 0.3;
-	fov_points[2].y = -0.3;
-	fov_points[3].x = 0.3;
-	fov_points[3].y = 0.3;
-	int planning_mode = 1;	// footprint planning
+	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
+	fov_points[0].y = 0.35;
+	fov_points[1].x = 0.15;
+	fov_points[1].y = -0.35;
+	fov_points[2].x = 1.15;
+	fov_points[2].y = -0.65;
+	fov_points[3].x = 1.15;
+	fov_points[3].y = 0.65;
+	int planning_mode = 2;	// viewpoint planning
+//	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
+//	fov_points[0].y = 0.3;
+//	fov_points[1].x = -0.3;
+//	fov_points[1].y = -0.3;
+//	fov_points[2].x = 0.3;
+//	fov_points[2].y = -0.3;
+//	fov_points[3].x = 0.3;
+//	fov_points[3].y = 0.3;
+//	int planning_mode = 1;	// footprint planning
 
 	double robot_radius = 0.3;		// [m]
 	double coverage_radius = 0.3;	// [m]

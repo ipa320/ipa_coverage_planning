@@ -225,15 +225,14 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExplorationGoalConstPtr &goal)
 {
 	// todo: separate into smaller functions
-
-	ros::Rate looping_rate(1);
 	ROS_INFO("*****Room Exploration action server*****");
-	ROS_INFO("map resolution is : %f", goal->map_resolution);
 
 	// ***************** I. read the given parameters out of the goal *****************
 	// todo: this is only correct if the map is not rotated
 	const cv::Point2d map_origin(goal->map_origin.x, goal->map_origin.y);
 	const float map_resolution = goal->map_resolution;
+	const float map_resolution_inverse = 1./map_resolution;
+	std::cout << "map origin: " << map_origin << "       map resolution: " << map_resolution << std::endl;
 
 	const float robot_radius = goal->robot_radius;
 	const int robot_radius_in_pixel = (robot_radius / map_resolution);
@@ -243,6 +242,10 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	std::cout << "starting point: " << starting_position << std::endl;
 
 	planning_mode_ = goal->planning_mode;
+	if (planning_mode_==1)
+		std::cout << "planning mode: planning coverage path with robot's footprint" <<std::endl;
+	else if (planning_mode_==2)
+		std::cout << "planning mode: planning coverage path with robot's field of view" <<std::endl;
 
 	// converting the map msg in cv format
 	cv_bridge::CvImagePtr cv_ptr_obj;
@@ -258,58 +261,60 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv::dilate(temp, room_map, cv::Mat(), cv::Point(-1, -1), 2);
 
 	// remove unconnected, i.e. inaccessible, parts of the room (i.e. obstructed by furniture), only keep the room with the largest area
-	// create new map with segments labeled by increasing labels from 1,2,3,...
-	cv::Mat room_map_int(room_map.rows, room_map.cols, CV_32SC1);
-	for (int v=0; v<room_map.rows; ++v)
-	{
-		for (int u=0; u<room_map.cols; ++u)
-		{
-			if (room_map.at<uchar>(v,u) == 255)
-				room_map_int.at<int32_t>(v,u) = -100;
-			else
-				room_map_int.at<int32_t>(v,u) = 0;
-		}
-	}
-	std::map<int, int> area_to_label_map;	// maps area=number of segment pixels (keys) to the respective label (value)
-	int label = 1;
-	for (int v=0; v<room_map_int.rows; ++v)
-	{
-		for (int u=0; u<room_map_int.cols; ++u)
-		{
-			if (room_map_int.at<int32_t>(v,u) == -100)
-			{
-				const int area = cv::floodFill(room_map_int, cv::Point(u,v), cv::Scalar(label), 0, 0, 0, 8 | cv::FLOODFILL_FIXED_RANGE);
-				area_to_label_map[area] = label;
-				++label;
-			}
-		}
-	}
-	// remove all room pixels from room_map which are not accessible
-	const int label_of_biggest_room = area_to_label_map.rbegin()->second;
-	for (int v=0; v<room_map.rows; ++v)
-		for (int u=0; u<room_map.cols; ++u)
-			if (room_map_int.at<int32_t>(v,u) != label_of_biggest_room)
-				room_map.at<uchar>(v,u) = 0;
-
-//	cv::circle(room_map, cv::Point(min_max_coordinates.points[0].x, min_max_coordinates.points[0].y), 2, cv::Scalar(127), CV_FILLED);
-//	cv::circle(room_map, cv::Point(min_max_coordinates.points[1].x, min_max_coordinates.points[1].y), 2, cv::Scalar(127), CV_FILLED);
-//	cv::imshow("room", room_map);
-//	cv::waitKey();
+	removeUnconnectedRoomParts(room_map);
 
 	// get the grid size, to check the areas that should be revisited later
 	double grid_spacing_in_pixel = 0;
 	double grid_length_as_double = 0.0;
 	float fitting_circle_radius = 0;
 	Eigen::Matrix<float, 2, 1> middle_point;
-	std::vector<Eigen::Matrix<float, 2, 1> > fov_vectors;
+	std::vector<Eigen::Matrix<float, 2, 1> > fov_vectors_alt;
+	std::vector<cv::Point2d> fov_vectors;
 	Eigen::Matrix<float, 2, 1> middle_point_1, middle_point_2, middle_point_3, middle_point_4;
+	const double fov_resolution = 100;		// in [cell/meter]
 	if(planning_mode_ == PLAN_FOR_FOV) // read out the given fov-vectors, if needed
 	{
+		// read out field of view and convert to pixel coordinates, determine min, max and center coordinates
+		std::vector<cv::Point> fov_vectors_pixel;
+		cv::Point center_point(0,0);
+		cv::Point min_point(100000, 100000);
+		cv::Point max_point(-100000, -100000);
+		for(int i = 0; i < 4; ++i)
+		{
+			fov_vectors.push_back(cv::Point2d(goal->field_of_view[i].x, goal->field_of_view[i].y));
+			fov_vectors_pixel.push_back(cv::Point(goal->field_of_view[i].x*fov_resolution, goal->field_of_view[i].y*fov_resolution));
+			center_point += fov_vectors_pixel.back();
+			min_point.x = std::min(min_point.x, fov_vectors_pixel.back().x);
+			min_point.y = std::min(min_point.y, fov_vectors_pixel.back().y);
+			max_point.x = std::max(max_point.x, fov_vectors_pixel.back().x);
+			max_point.y = std::max(max_point.y, fov_vectors_pixel.back().y);
+		}
+		center_point = center_point * 0.25;
+
+		// draw the image of the field of view and compute a distance transform
+		cv::Mat fov_image = cv::Mat::zeros(4+max_point.y-min_point.y, 4+max_point.x-min_point.x, CV_8UC1);
+		std::vector<std::vector<cv::Point> > polygon_array(1,fov_vectors_pixel);
+		for (size_t i=0; i<polygon_array[0].size(); ++i)
+		{
+			polygon_array[0][i].x -= min_point.x-1;
+			polygon_array[0][i].y -= min_point.y-1;
+		}
+		cv::fillPoly(fov_image, polygon_array, cv::Scalar(255));
+		cv::Mat fov_distance_transform;
+		cv::distanceTransform(fov_image, fov_distance_transform, CV_DIST_L2, 5);
+
+		cv::normalize(fov_distance_transform, fov_distance_transform, 0, 1, cv::NORM_MINMAX);
+
+		cv::imshow("fov_image", fov_image);
+		cv::imshow("fov_distance_transform", fov_distance_transform);
+		cv::waitKey();
+
+
 		for(int i = 0; i < 4; ++i)
 		{
 			Eigen::Matrix<float, 2, 1> current_vector;
 			current_vector << goal->field_of_view[i].x, goal->field_of_view[i].y;
-			fov_vectors.push_back(current_vector);
+			fov_vectors_alt.push_back(current_vector);
 		}
 
 		// todo: this is only correct in this special case of a symmetric trapezoid --> the general solution for the largest incircle
@@ -318,15 +323,15 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		// see: http://math.stackexchange.com/questions/1948356/largest-incircle-inside-a-quadrilateral-radius-calculation
 		// Get the size of one grid cell s.t. the grid can be completely covered by the field of view (fov) from all rotations around it.
 		// For this fit a circle in the fov, which gives the diagonal length of the square. Then use Pythagoras to get the fov middle point.
-		// -------------> easy solution: distance transform, take max. value
-		middle_point = (fov_vectors[0] + fov_vectors[1] + fov_vectors[2] + fov_vectors[3]) / 4;
+		// -------------> easy solution: distance transform, take max. value that is closest to center
+		middle_point = (fov_vectors_alt[0] + fov_vectors_alt[1] + fov_vectors_alt[2] + fov_vectors_alt[3]) / 4;
 //		std::cout << "middle point: " << middle_point << std::endl;
 
 		// get middle points of edges of the fov
-		middle_point_1 = (fov_vectors[0] + fov_vectors[1]) / 2;
-		middle_point_2 = (fov_vectors[1] + fov_vectors[2]) / 2;
-		middle_point_3 = (fov_vectors[2] + fov_vectors[3]) / 2;
-		middle_point_4 = (fov_vectors[3] + fov_vectors[0]) / 2;
+		middle_point_1 = (fov_vectors_alt[0] + fov_vectors_alt[1]) / 2;
+		middle_point_2 = (fov_vectors_alt[1] + fov_vectors_alt[2]) / 2;
+		middle_point_3 = (fov_vectors_alt[2] + fov_vectors_alt[3]) / 2;
+		middle_point_4 = (fov_vectors_alt[3] + fov_vectors_alt[0]) / 2;
 //		std::cout << "middle-points: " << std::endl << middle_point_1 << " (" << middle_point - middle_point_1 << ")" << std::endl << middle_point_2 << " (" << middle_point - middle_point_2 << ")" << std::endl << middle_point_3 << " (" << middle_point - middle_point_3 << ")" << std::endl << middle_point_4 << " (" << middle_point - middle_point_4 << ")" << std::endl;
 
 		// get the radius of the circle in the fov as min distance from the fov-middle point to the edge middle points
@@ -384,16 +389,16 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	{
 		// find the maximum angle that is spanned between the closer or more distant corners, used to determine the visibility of cells
 		float max_angle = 0.0;
-		float dot = fov_vectors[0].transpose()*fov_vectors[1];
-		float abs = fov_vectors[0].norm()*fov_vectors[1].norm();
+		float dot = fov_vectors_alt[0].transpose()*fov_vectors_alt[1];
+		float abs = fov_vectors_alt[0].norm()*fov_vectors_alt[1].norm();
 		float quotient = dot/abs;
 		if(quotient > 1) // prevent errors resulting from round errors
 			quotient = 1;
 		else if(quotient < -1)
 			quotient = -1;
 		float angle_1 = std::acos(quotient);
-		dot = fov_vectors[2].transpose()*fov_vectors[3];
-		abs = fov_vectors[2].norm()*fov_vectors[3].norm();
+		dot = fov_vectors_alt[2].transpose()*fov_vectors_alt[3];
+		abs = fov_vectors_alt[2].norm()*fov_vectors_alt[3].norm();
 		quotient = dot/abs;
 		if(quotient > 1) // prevent errors resulting from round errors
 			quotient = 1;
@@ -411,7 +416,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		//       ------> take line from camera to incircle center and min is minus circle radius and max is plus circle radius
 		// todo: decide whether user shall set the cell size or automatic cell size (e.g. only automatic if cell_size <= 0)
 		if(planning_mode_ == PLAN_FOR_FOV)
-			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel)/*cell_size_*/, delta_theta_, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fov_vectors[3].norm(), 7, false);
+			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel)/*cell_size_*/, delta_theta_, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fov_vectors_alt[3].norm(), 7, false);
 		else
 			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel)/*cell_size_*/, delta_theta_, goal->field_of_view, zero_vector, max_angle, 0.0, goal->coverage_radius/map_resolution, 7, true);
 	}
@@ -864,6 +869,44 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	room_exploration_server_.setSucceeded(action_result);
 
 	return;
+}
+
+void RoomExplorationServer::removeUnconnectedRoomParts(cv::Mat& room_map)
+{
+	// remove unconnected, i.e. inaccessible, parts of the room (i.e. obstructed by furniture), only keep the room with the largest area
+	// create new map with segments labeled by increasing labels from 1,2,3,...
+	cv::Mat room_map_int(room_map.rows, room_map.cols, CV_32SC1);
+	for (int v=0; v<room_map.rows; ++v)
+	{
+		for (int u=0; u<room_map.cols; ++u)
+		{
+			if (room_map.at<uchar>(v,u) == 255)
+				room_map_int.at<int32_t>(v,u) = -100;
+			else
+				room_map_int.at<int32_t>(v,u) = 0;
+		}
+	}
+	std::map<int, int> area_to_label_map;	// maps area=number of segment pixels (keys) to the respective label (value)
+	int label = 1;
+	for (int v=0; v<room_map_int.rows; ++v)
+	{
+		for (int u=0; u<room_map_int.cols; ++u)
+		{
+			if (room_map_int.at<int32_t>(v,u) == -100)
+			{
+				const int area = cv::floodFill(room_map_int, cv::Point(u,v), cv::Scalar(label), 0, 0, 0, 8 | cv::FLOODFILL_FIXED_RANGE);
+				area_to_label_map[area] = label;
+				++label;
+			}
+		}
+	}
+	// remove all room pixels from room_map which are not accessible
+	const int label_of_biggest_room = area_to_label_map.rbegin()->second;
+	for (int v=0; v<room_map.rows; ++v)
+		for (int u=0; u<room_map.cols; ++u)
+			if (room_map_int.at<int32_t>(v,u) != label_of_biggest_room)
+				room_map.at<uchar>(v,u) = 0;
+
 }
 
 
