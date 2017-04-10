@@ -265,33 +265,38 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	// get the grid size, to check the areas that should be revisited later
 	double grid_spacing_in_pixel = 0;
-	double grid_length_as_double = 0.0;
-	float fitting_circle_radius = 0;
+	double grid_spacing_in_meter = 0.0;
+	float fitting_circle_radius_in_meter = 0;
+	std::vector<cv::Point2d> fov_vectors;
+	const double fov_resolution = 1000;		// in [cell/meter]
+
+	// todo: replace
 	Eigen::Matrix<float, 2, 1> middle_point;
 	std::vector<Eigen::Matrix<float, 2, 1> > fov_vectors_alt;
-	std::vector<cv::Point2d> fov_vectors;
 	Eigen::Matrix<float, 2, 1> middle_point_1, middle_point_2, middle_point_3, middle_point_4;
-	const double fov_resolution = 100;		// in [cell/meter]
+
 	if(planning_mode_ == PLAN_FOR_FOV) // read out the given fov-vectors, if needed
 	{
 		// read out field of view and convert to pixel coordinates, determine min, max and center coordinates
 		std::vector<cv::Point> fov_vectors_pixel;
-		cv::Point center_point(0,0);
+		cv::Point center_point_pixel(0,0);
 		cv::Point min_point(100000, 100000);
 		cv::Point max_point(-100000, -100000);
 		for(int i = 0; i < 4; ++i)
 		{
 			fov_vectors.push_back(cv::Point2d(goal->field_of_view[i].x, goal->field_of_view[i].y));
 			fov_vectors_pixel.push_back(cv::Point(goal->field_of_view[i].x*fov_resolution, goal->field_of_view[i].y*fov_resolution));
-			center_point += fov_vectors_pixel.back();
+			center_point_pixel += fov_vectors_pixel.back();
 			min_point.x = std::min(min_point.x, fov_vectors_pixel.back().x);
 			min_point.y = std::min(min_point.y, fov_vectors_pixel.back().y);
 			max_point.x = std::max(max_point.x, fov_vectors_pixel.back().x);
 			max_point.y = std::max(max_point.y, fov_vectors_pixel.back().y);
 		}
-		center_point = center_point * 0.25;
+		center_point_pixel.x = center_point_pixel.x/4 - min_point.x + 1;
+		center_point_pixel.y = center_point_pixel.y/4 - min_point.y + 1;
+		//center_point_pixel = center_point_pixel * 0.25;
 
-		// draw the image of the field of view and compute a distance transform
+		// draw an image of the field of view and compute a distance transform
 		cv::Mat fov_image = cv::Mat::zeros(4+max_point.y-min_point.y, 4+max_point.x-min_point.x, CV_8UC1);
 		std::vector<std::vector<cv::Point> > polygon_array(1,fov_vectors_pixel);
 		for (size_t i=0; i<polygon_array[0].size(); ++i)
@@ -301,9 +306,46 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		}
 		cv::fillPoly(fov_image, polygon_array, cv::Scalar(255));
 		cv::Mat fov_distance_transform;
-		cv::distanceTransform(fov_image, fov_distance_transform, CV_DIST_L2, 5);
+		cv::distanceTransform(fov_image, fov_distance_transform, CV_DIST_L2, CV_DIST_MASK_PRECISE);
+
+		// determine the point(s) with maximum distance to the rim of the field of view, if multiple points apply, take the one closest to the center
+		float max_dist_val = 0.;
+		cv::Point max_dist_point(0,0);
+		double center_dist = 1e10;
+		for (int v=0; v<fov_distance_transform.rows; ++v)
+		{
+			for (int u=0; u<fov_distance_transform.cols; ++u)
+			{
+				if (fov_distance_transform.at<float>(v,u)>max_dist_val)
+				{
+					max_dist_val = fov_distance_transform.at<float>(v,u);
+					max_dist_point = cv::Point(u,v);
+					center_dist = (center_point_pixel.x-u)*(center_point_pixel.x-u) + (center_point_pixel.y-v)*(center_point_pixel.y-v);
+				}
+				else if (fov_distance_transform.at<float>(v,u) == max_dist_val)
+				{
+					double cdist = (center_point_pixel.x-u)*(center_point_pixel.x-u) + (center_point_pixel.y-v)*(center_point_pixel.y-v);
+					if (cdist < center_dist)
+					{
+						max_dist_val = fov_distance_transform.at<float>(v,u);
+						max_dist_point = cv::Point(u,v);
+						center_dist = cdist;
+					}
+				}
+			}
+		}
+
+		// compute fitting_circle_radius
+		fitting_circle_radius_in_meter = (max_dist_val-1.f) / fov_resolution;
+		std::cout << "fitting_circle_radius: " << fitting_circle_radius_in_meter << " m" << std::endl;
+		cv::Point2d center_point = cv::Point2d(center_point_pixel.x+min_point.x-1, center_point_pixel.y+min_point.y-1)*(1./fov_resolution);
+		std::cout << "center point: " << center_point << " m" << std::endl;
+
+		// get the edge length of the grid square that fits into the fitting_circle_radius
+		grid_spacing_in_meter = fitting_circle_radius_in_meter*std::sqrt(2);
 
 		cv::normalize(fov_distance_transform, fov_distance_transform, 0, 1, cv::NORM_MINMAX);
+		cv::circle(fov_distance_transform, max_dist_point, 2, cv::Scalar(0.2), -1);
 
 		cv::imshow("fov_image", fov_image);
 		cv::imshow("fov_distance_transform", fov_distance_transform);
@@ -339,20 +381,20 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		float distance_2 = (middle_point - middle_point_2).norm();
 		float distance_3 = (middle_point - middle_point_3).norm();
 		float distance_4 = (middle_point - middle_point_4).norm();
-		fitting_circle_radius = std::min(std::min(distance_1, distance_2), std::min(distance_3, distance_4));
-		std::cout << "fitting_circle_radius: " << fitting_circle_radius << std::endl;
+		fitting_circle_radius_in_meter = std::min(std::min(distance_1, distance_2), std::min(distance_3, distance_4));
+		std::cout << "fitting_circle_radius: " << fitting_circle_radius_in_meter << std::endl;
 
 		// get the edge length of the grid square that fits into the fitting_circle_radius
-		grid_length_as_double = fitting_circle_radius*std::sqrt(2);
+		grid_spacing_in_meter = fitting_circle_radius_in_meter*std::sqrt(2);
 	}
 	else // if planning should be done for the footprint, read out the given coverage radius
 	{
-		grid_length_as_double = goal->coverage_radius*std::sqrt(2);
+		grid_spacing_in_meter = goal->coverage_radius*std::sqrt(2);
 	}
 	// todo: decide whether to take the grid size from parameters of the correctly computed on --> e.g. take automatic value when param <0
 	//  map the grid size to an int in pixel coordinates, using floor method
-	grid_spacing_in_pixel = grid_length_as_double/map_resolution;
-	std::cout << "grid size: " << grid_length_as_double << " m   (" << grid_spacing_in_pixel << " px)" << std::endl;
+	grid_spacing_in_pixel = grid_spacing_in_meter/map_resolution;
+	std::cout << "grid size: " << grid_spacing_in_meter << " m   (" << grid_spacing_in_pixel << " px)" << std::endl;
 
 
 
@@ -446,7 +488,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		if(planning_mode_==PLAN_FOR_FOV)
 		{
 			// convert fov-radius to pixel integer
-			const int fov_diameter_as_int = (int)std::floor(2.*fitting_circle_radius/map_resolution);
+			const int fov_diameter_as_int = (int)std::floor(2.*fitting_circle_radius_in_meter/map_resolution);
 			std::cout << "fov diameter in pixel: " << fov_diameter_as_int << std::endl;
 
 			// create the object that plans the path, based on the room-map
