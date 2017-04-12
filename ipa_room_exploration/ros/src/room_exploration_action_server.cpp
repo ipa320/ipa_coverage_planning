@@ -62,8 +62,8 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	{
 		node_handle_.param("path_eps", path_eps_, 3.0);
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
-		node_handle_.param("min_cell_size", min_cell_size_, 0.5);
-		std::cout << "room_exploration/min_cell_size_ = " << min_cell_size_ << std::endl;
+		node_handle_.param("min_cell_area", min_cell_area_, 0.5);
+		std::cout << "room_exploration/min_cell_area_ = " << min_cell_area_ << std::endl;
 	}
 	else if(path_planning_algorithm_ == 3) // set neural network explorator parameters
 	{
@@ -159,8 +159,8 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 	{
 		path_eps_ = config.path_eps;
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
-		min_cell_size_ = config.min_cell_size;
-		std::cout << "room_exploration/min_cell_size_ = " << min_cell_size_ << std::endl;
+		min_cell_area_ = config.min_cell_area;
+		std::cout << "room_exploration/min_cell_area_ = " << min_cell_area_ << std::endl;
 	}
 	else if(path_planning_algorithm_ == 3) // set neural network explorator parameters
 	{
@@ -264,126 +264,15 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	removeUnconnectedRoomParts(room_map);
 
 	// get the grid size, to check the areas that should be revisited later
-	double grid_spacing_in_pixel = 0;
 	double grid_spacing_in_meter = 0.0;
 	float fitting_circle_radius_in_meter = 0;
-	std::vector<cv::Point2d> fov_vectors;
+	Eigen::Matrix<float, 2, 1> fitting_circle_center_point_in_meter;	// this is also considered the center of the field of view, because around this point the maximum radius incircle can be found that is still inside the fov
+	std::vector<Eigen::Matrix<float, 2, 1> > fov_corners_meter;
 	const double fov_resolution = 1000;		// in [cell/meter]
-
-	// todo: replace
-	Eigen::Matrix<float, 2, 1> middle_point;
-	std::vector<Eigen::Matrix<float, 2, 1> > fov_vectors_alt;
-	Eigen::Matrix<float, 2, 1> middle_point_1, middle_point_2, middle_point_3, middle_point_4;
-
 	if(planning_mode_ == PLAN_FOR_FOV) // read out the given fov-vectors, if needed
 	{
-		// read out field of view and convert to pixel coordinates, determine min, max and center coordinates
-		std::vector<cv::Point> fov_vectors_pixel;
-		cv::Point center_point_pixel(0,0);
-		cv::Point min_point(100000, 100000);
-		cv::Point max_point(-100000, -100000);
-		for(int i = 0; i < 4; ++i)
-		{
-			fov_vectors.push_back(cv::Point2d(goal->field_of_view[i].x, goal->field_of_view[i].y));
-			fov_vectors_pixel.push_back(cv::Point(goal->field_of_view[i].x*fov_resolution, goal->field_of_view[i].y*fov_resolution));
-			center_point_pixel += fov_vectors_pixel.back();
-			min_point.x = std::min(min_point.x, fov_vectors_pixel.back().x);
-			min_point.y = std::min(min_point.y, fov_vectors_pixel.back().y);
-			max_point.x = std::max(max_point.x, fov_vectors_pixel.back().x);
-			max_point.y = std::max(max_point.y, fov_vectors_pixel.back().y);
-		}
-		center_point_pixel.x = center_point_pixel.x/4 - min_point.x + 1;
-		center_point_pixel.y = center_point_pixel.y/4 - min_point.y + 1;
-		//center_point_pixel = center_point_pixel * 0.25;
-
-		// draw an image of the field of view and compute a distance transform
-		cv::Mat fov_image = cv::Mat::zeros(4+max_point.y-min_point.y, 4+max_point.x-min_point.x, CV_8UC1);
-		std::vector<std::vector<cv::Point> > polygon_array(1,fov_vectors_pixel);
-		for (size_t i=0; i<polygon_array[0].size(); ++i)
-		{
-			polygon_array[0][i].x -= min_point.x-1;
-			polygon_array[0][i].y -= min_point.y-1;
-		}
-		cv::fillPoly(fov_image, polygon_array, cv::Scalar(255));
-		cv::Mat fov_distance_transform;
-		cv::distanceTransform(fov_image, fov_distance_transform, CV_DIST_L2, CV_DIST_MASK_PRECISE);
-
-		// determine the point(s) with maximum distance to the rim of the field of view, if multiple points apply, take the one closest to the center
-		float max_dist_val = 0.;
-		cv::Point max_dist_point(0,0);
-		double center_dist = 1e10;
-		for (int v=0; v<fov_distance_transform.rows; ++v)
-		{
-			for (int u=0; u<fov_distance_transform.cols; ++u)
-			{
-				if (fov_distance_transform.at<float>(v,u)>max_dist_val)
-				{
-					max_dist_val = fov_distance_transform.at<float>(v,u);
-					max_dist_point = cv::Point(u,v);
-					center_dist = (center_point_pixel.x-u)*(center_point_pixel.x-u) + (center_point_pixel.y-v)*(center_point_pixel.y-v);
-				}
-				else if (fov_distance_transform.at<float>(v,u) == max_dist_val)
-				{
-					double cdist = (center_point_pixel.x-u)*(center_point_pixel.x-u) + (center_point_pixel.y-v)*(center_point_pixel.y-v);
-					if (cdist < center_dist)
-					{
-						max_dist_val = fov_distance_transform.at<float>(v,u);
-						max_dist_point = cv::Point(u,v);
-						center_dist = cdist;
-					}
-				}
-			}
-		}
-
-		// compute fitting_circle_radius
-		fitting_circle_radius_in_meter = (max_dist_val-1.f) / fov_resolution;
-		std::cout << "fitting_circle_radius: " << fitting_circle_radius_in_meter << " m" << std::endl;
-		cv::Point2d center_point = cv::Point2d(center_point_pixel.x+min_point.x-1, center_point_pixel.y+min_point.y-1)*(1./fov_resolution);
-		std::cout << "center point: " << center_point << " m" << std::endl;
-
-		// get the edge length of the grid square that fits into the fitting_circle_radius
-		grid_spacing_in_meter = fitting_circle_radius_in_meter*std::sqrt(2);
-
-		cv::normalize(fov_distance_transform, fov_distance_transform, 0, 1, cv::NORM_MINMAX);
-		cv::circle(fov_distance_transform, max_dist_point, 2, cv::Scalar(0.2), -1);
-
-		cv::imshow("fov_image", fov_image);
-		cv::imshow("fov_distance_transform", fov_distance_transform);
-		cv::waitKey();
-
-
-		for(int i = 0; i < 4; ++i)
-		{
-			Eigen::Matrix<float, 2, 1> current_vector;
-			current_vector << goal->field_of_view[i].x, goal->field_of_view[i].y;
-			fov_vectors_alt.push_back(current_vector);
-		}
-
-		// todo: this is only correct in this special case of a symmetric trapezoid --> the general solution for the largest incircle
-		// is to find the critical points of a Voronoi graph and select the one with largest distance to the sides as circle center
-		// and its closest distance to the quadrilateral sides as radius
-		// see: http://math.stackexchange.com/questions/1948356/largest-incircle-inside-a-quadrilateral-radius-calculation
 		// Get the size of one grid cell s.t. the grid can be completely covered by the field of view (fov) from all rotations around it.
-		// For this fit a circle in the fov, which gives the diagonal length of the square. Then use Pythagoras to get the fov middle point.
-		// -------------> easy solution: distance transform, take max. value that is closest to center
-		middle_point = (fov_vectors_alt[0] + fov_vectors_alt[1] + fov_vectors_alt[2] + fov_vectors_alt[3]) / 4;
-//		std::cout << "middle point: " << middle_point << std::endl;
-
-		// get middle points of edges of the fov
-		middle_point_1 = (fov_vectors_alt[0] + fov_vectors_alt[1]) / 2;
-		middle_point_2 = (fov_vectors_alt[1] + fov_vectors_alt[2]) / 2;
-		middle_point_3 = (fov_vectors_alt[2] + fov_vectors_alt[3]) / 2;
-		middle_point_4 = (fov_vectors_alt[3] + fov_vectors_alt[0]) / 2;
-//		std::cout << "middle-points: " << std::endl << middle_point_1 << " (" << middle_point - middle_point_1 << ")" << std::endl << middle_point_2 << " (" << middle_point - middle_point_2 << ")" << std::endl << middle_point_3 << " (" << middle_point - middle_point_3 << ")" << std::endl << middle_point_4 << " (" << middle_point - middle_point_4 << ")" << std::endl;
-
-		// get the radius of the circle in the fov as min distance from the fov-middle point to the edge middle points
-		float distance_1 = (middle_point - middle_point_1).norm();
-		float distance_2 = (middle_point - middle_point_2).norm();
-		float distance_3 = (middle_point - middle_point_3).norm();
-		float distance_4 = (middle_point - middle_point_4).norm();
-		fitting_circle_radius_in_meter = std::min(std::min(distance_1, distance_2), std::min(distance_3, distance_4));
-		std::cout << "fitting_circle_radius: " << fitting_circle_radius_in_meter << std::endl;
-
+		computeFOVCenterAndRadius(goal->field_of_view, fitting_circle_radius_in_meter, fitting_circle_center_point_in_meter, fov_corners_meter, fov_resolution);
 		// get the edge length of the grid square that fits into the fitting_circle_radius
 		grid_spacing_in_meter = fitting_circle_radius_in_meter*std::sqrt(2);
 	}
@@ -393,7 +282,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	}
 	// todo: decide whether to take the grid size from parameters of the correctly computed on --> e.g. take automatic value when param <0
 	//  map the grid size to an int in pixel coordinates, using floor method
-	grid_spacing_in_pixel = grid_spacing_in_meter/map_resolution;
+	const double grid_spacing_in_pixel = grid_spacing_in_meter/map_resolution;
 	std::cout << "grid size: " << grid_spacing_in_meter << " m   (" << grid_spacing_in_pixel << " px)" << std::endl;
 
 
@@ -406,7 +295,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	{
 		// plan path
 		if(planning_mode_ == PLAN_FOR_FOV)
-			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel), false, middle_point, tsp_solver_, tsp_solver_timeout_);
+			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel), false, fitting_circle_center_point_in_meter, tsp_solver_, tsp_solver_timeout_);
 		else
 			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel), true, zero_vector, tsp_solver_, tsp_solver_timeout_);
 	}
@@ -414,67 +303,42 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	{
 		// plan path
 		if(planning_mode_ == PLAN_FOR_FOV)
-			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, path_eps_, false, middle_point, min_cell_size_);
+			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, path_eps_, false, fitting_circle_center_point_in_meter, min_cell_area_);
 		else
-			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, path_eps_, true, zero_vector, min_cell_size_);
+			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, path_eps_, true, zero_vector, min_cell_area_);
 	}
 	else if(path_planning_algorithm_ == 3) // use neural network explorator
 	{
 		neural_network_explorator_.setParameters(A_, B_, D_, E_, mu_, step_size_, delta_theta_weight_);
 		// plan path
 		if(planning_mode_ == PLAN_FOR_FOV)
-			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, false, middle_point, false);
+			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, false, fitting_circle_center_point_in_meter, false);
 		else
 			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, true, zero_vector, false);
 	}
-	else if(path_planning_algorithm_ == PLAN_FOR_FOV) // use convexSPP explorator
+	else if(path_planning_algorithm_ == 4) // use convexSPP explorator
 	{
-		// find the maximum angle that is spanned between the closer or more distant corners, used to determine the visibility of cells
-		float max_angle = 0.0;
-		float dot = fov_vectors_alt[0].transpose()*fov_vectors_alt[1];
-		float abs = fov_vectors_alt[0].norm()*fov_vectors_alt[1].norm();
-		float quotient = dot/abs;
-		if(quotient > 1) // prevent errors resulting from round errors
-			quotient = 1;
-		else if(quotient < -1)
-			quotient = -1;
-		float angle_1 = std::acos(quotient);
-		dot = fov_vectors_alt[2].transpose()*fov_vectors_alt[3];
-		abs = fov_vectors_alt[2].norm()*fov_vectors_alt[3].norm();
-		quotient = dot/abs;
-		if(quotient > 1) // prevent errors resulting from round errors
-			quotient = 1;
-		else if(quotient < -1)
-			quotient = -1;
-		float angle_2 = std::acos(dot/abs);
-
-		if(angle_1 > angle_2)
-			max_angle = angle_1;
-		else
-			max_angle = angle_2;
-
 		// plan coverage path
-		// todo: middle_point_1.norm() has implicit assumption that this is the closest edge to the robot center, same for fov_vectors[3]
-		//       ------> take line from camera to incircle center and min is minus circle radius and max is plus circle radius
 		// todo: decide whether user shall set the cell size or automatic cell size (e.g. only automatic if cell_size <= 0)
+		//       it can make sense to chose a cell size of 4px or less with this algorithm, because the fov matching with cells is more accurate then
 		if(planning_mode_ == PLAN_FOR_FOV)
-			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel)/*cell_size_*/, delta_theta_, goal->field_of_view, middle_point, max_angle, middle_point_1.norm(), fov_vectors_alt[3].norm(), 7, false);
+			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel)/*cell_size_*/, delta_theta_, fov_corners_meter, fitting_circle_center_point_in_meter, 0., 7, false);
 		else
-			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel)/*cell_size_*/, delta_theta_, goal->field_of_view, zero_vector, max_angle, 0.0, goal->coverage_radius/map_resolution, 7, true);
+			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel)/*cell_size_*/, delta_theta_, fov_corners_meter, zero_vector, goal->coverage_radius, 7, true);
 	}
 	else if(path_planning_algorithm_ == 5) // use flow network explorator
 	{
 		// todo: decide whether user shall set the cell size or automatic cell size for the grid (e.g. only automatic if cell_size <= 0)
 //		flow_network_explorator_.testFunc();
 		if(planning_mode_ == PLAN_FOR_FOV)
-			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, middle_point, grid_spacing_in_pixel, false, path_eps_, curvature_factor_, max_distance_factor_);
+			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, fitting_circle_center_point_in_meter, grid_spacing_in_pixel, false, path_eps_, curvature_factor_, max_distance_factor_);
 		else
 			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, zero_vector, grid_spacing_in_pixel, true, path_eps_, curvature_factor_, max_distance_factor_);
 	}
 	else if(path_planning_algorithm_ == 6) // use energy functional explorator
 	{
 		if(planning_mode_ == PLAN_FOR_FOV)
-			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, false, middle_point);
+			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, false, fitting_circle_center_point_in_meter);
 		else
 			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, true, zero_vector);
 	}
@@ -520,7 +384,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 			// map fov-path to robot-path
 			cv::Point start_pos(fov_path.begin()->x, fov_path.begin()->y);
-			mapPath(room_map, exploration_path, fov_path, middle_point, map_resolution, map_origin, start_pos);
+			mapPath(room_map, exploration_path, fov_path, fitting_circle_center_point_in_meter, map_resolution, map_origin, start_pos);
 
 
 //			for(size_t pos=0; pos<fov_path.size(); ++pos)
@@ -605,7 +469,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
 	// 1. publish navigation goals
-	double distance_robot_fov_middlepoint = middle_point.norm();
+	double distance_robot_fov_middlepoint = fitting_circle_center_point_in_meter.norm();
 	std::vector<geometry_msgs::Pose2D> robot_poses;
 	for(size_t nav_goal = 0; nav_goal < exploration_path.size(); ++nav_goal)
 	{
@@ -951,6 +815,91 @@ void RoomExplorationServer::removeUnconnectedRoomParts(cv::Mat& room_map)
 
 }
 
+// computes the field of view center and the radius of the maximum incircle of a given field of view quadrilateral
+// fitting_circle_center_point_in_meter this is also considered the center of the field of view, because around this point the maximum radius incircle can be found that is still inside the fov
+void RoomExplorationServer::computeFOVCenterAndRadius(const std::vector<geometry_msgs::Point32>& field_of_view, float& fitting_circle_radius_in_meter,
+		Eigen::Matrix<float, 2, 1>& fitting_circle_center_point_in_meter, std::vector<Eigen::Matrix<float, 2, 1> >& fov_corners_meter,
+		const double fov_resolution)
+{
+	// The general solution for the largest incircle is to find the critical points of a Voronoi graph and select the one
+	// with largest distance to the sides as circle center and its closest distance to the quadrilateral sides as radius
+	// see: http://math.stackexchange.com/questions/1948356/largest-incircle-inside-a-quadrilateral-radius-calculation
+	// -------------> easy solution: distance transform on fov, take max. value that is closest to center
+
+	// read out field of view and convert to pixel coordinates, determine min, max and center coordinates
+	std::vector<cv::Point> fov_corners_pixel;
+	cv::Point center_point_pixel(0,0);
+	cv::Point min_point(100000, 100000);
+	cv::Point max_point(-100000, -100000);
+	for(int i = 0; i < 4; ++i)
+	{
+		Eigen::Matrix<float, 2, 1> current_corner;
+		current_corner << field_of_view[i].x, field_of_view[i].y;
+		fov_corners_meter.push_back(current_corner);
+		fov_corners_pixel.push_back(cv::Point(field_of_view[i].x*fov_resolution, field_of_view[i].y*fov_resolution));
+		center_point_pixel += fov_corners_pixel.back();
+		min_point.x = std::min(min_point.x, fov_corners_pixel.back().x);
+		min_point.y = std::min(min_point.y, fov_corners_pixel.back().y);
+		max_point.x = std::max(max_point.x, fov_corners_pixel.back().x);
+		max_point.y = std::max(max_point.y, fov_corners_pixel.back().y);
+	}
+	center_point_pixel.x = center_point_pixel.x/4 - min_point.x + 1;
+	center_point_pixel.y = center_point_pixel.y/4 - min_point.y + 1;
+	//center_point_pixel = center_point_pixel * 0.25;
+
+	// draw an image of the field of view and compute a distance transform
+	cv::Mat fov_image = cv::Mat::zeros(4+max_point.y-min_point.y, 4+max_point.x-min_point.x, CV_8UC1);
+	std::vector<std::vector<cv::Point> > polygon_array(1,fov_corners_pixel);
+	for (size_t i=0; i<polygon_array[0].size(); ++i)
+	{
+		polygon_array[0][i].x -= min_point.x-1;
+		polygon_array[0][i].y -= min_point.y-1;
+	}
+	cv::fillPoly(fov_image, polygon_array, cv::Scalar(255));
+	cv::Mat fov_distance_transform;
+	cv::distanceTransform(fov_image, fov_distance_transform, CV_DIST_L2, CV_DIST_MASK_PRECISE);
+
+	// determine the point(s) with maximum distance to the rim of the field of view, if multiple points apply, take the one closest to the center
+	float max_dist_val = 0.;
+	cv::Point max_dist_point(0,0);
+	double center_dist = 1e10;
+	for (int v=0; v<fov_distance_transform.rows; ++v)
+	{
+		for (int u=0; u<fov_distance_transform.cols; ++u)
+		{
+			if (fov_distance_transform.at<float>(v,u)>max_dist_val)
+			{
+				max_dist_val = fov_distance_transform.at<float>(v,u);
+				max_dist_point = cv::Point(u,v);
+				center_dist = (center_point_pixel.x-u)*(center_point_pixel.x-u) + (center_point_pixel.y-v)*(center_point_pixel.y-v);
+			}
+			else if (fov_distance_transform.at<float>(v,u) == max_dist_val)
+			{
+				double cdist = (center_point_pixel.x-u)*(center_point_pixel.x-u) + (center_point_pixel.y-v)*(center_point_pixel.y-v);
+				if (cdist < center_dist)
+				{
+					max_dist_val = fov_distance_transform.at<float>(v,u);
+					max_dist_point = cv::Point(u,v);
+					center_dist = cdist;
+				}
+			}
+		}
+	}
+
+	// compute fitting_circle_radius and center point (round last digit)
+	fitting_circle_radius_in_meter = 10*(int)(((max_dist_val-1.f)+5)*0.1) / fov_resolution;
+	std::cout << "fitting_circle_radius: " << fitting_circle_radius_in_meter << " m" << std::endl;
+	cv::Point2d center_point = cv::Point2d(10*(int)(((max_dist_point.x+min_point.x-1)+5.)*0.1), 10*(int)(((max_dist_point.y+min_point.y-1)+5.)*0.1))*(1./fov_resolution);
+	std::cout << "center point: " << center_point << " m" << std::endl;
+	fitting_circle_center_point_in_meter << center_point.x, center_point.y;
+
+//	// display
+//	cv::normalize(fov_distance_transform, fov_distance_transform, 0, 1, cv::NORM_MINMAX);
+//	cv::circle(fov_distance_transform, max_dist_point, 2, cv::Scalar(0.2), -1);
+//	cv::imshow("fov_image", fov_image);
+//	cv::imshow("fov_distance_transform", fov_distance_transform);
+//	cv::waitKey();
+}
 
 // Function to publish a navigation goal for move_base. It returns true, when the goal could be reached.
 // The function tracks the robot pose while moving to the goal and adds these poses to the given pose-vector. This is done

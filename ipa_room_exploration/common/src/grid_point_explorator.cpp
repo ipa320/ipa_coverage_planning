@@ -102,7 +102,7 @@ void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	// transform starting position
 	std::vector<cv::Point> starting_point_vector(1, starting_position); // opencv syntax
 	cv::transform(starting_point_vector, starting_point_vector, R);
-	cv::Point rotated_starting_position = starting_point_vector[0]; // Point that keeps track of the last point after the boustrophedon path in each cell
+	cv::Point rotated_starting_position = starting_point_vector[0];
 
 	// compute min/max room coordinates
 	cv::Point min_room(1000000, 1000000), max_room(0, 0);

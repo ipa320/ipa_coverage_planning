@@ -104,16 +104,35 @@ void convexSPPExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::
 //	IV.	Read out the chosen sensing poses (those corresponding to a variable of the solution equal to one) and create a
 //		path trough all of them. The path is created by applying a repetitive nearest neighbor algorithm. This algorithm
 //		solves a TSP for the chosen poses, with each pose being the start node once. Out of the computed paths then the
-//		shortest is chosen, which is an hamiltonian cycle trough the graph. After this path has been obtained, determine
+//		shortest is chosen, which is an Hamiltonian cycle trough the graph. After this path has been obtained, determine
 //		the pose in the cycle that is closest to the start position, which becomes the start of the fov-path.
 void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
 		const float map_resolution, const cv::Point starting_position, const cv::Point2d map_origin,
-		const int cell_size, const double delta_theta,
-		const std::vector<geometry_msgs::Point32>& field_of_view_points, const Eigen::Matrix<float, 2, 1>& robot_to_fov_vector,
-		const double max_fov_angle, const double smallest_robot_to_footprint_distance, const double largest_robot_to_footprint_distance,
+		const int cell_size_pixel, const double delta_theta, const std::vector<Eigen::Matrix<float, 2, 1> >& fov_corners_meter,
+		const Eigen::Matrix<float, 2, 1>& robot_to_fov_vector_meter, const double largest_robot_to_footprint_distance_meter,
 		const uint sparsity_check_range, const bool plan_for_footprint)
 {
+	// set or compute largest_robot_to_footprint_distance_pixel depending on plan_for_footprint
+	double max_dist=0.;
+	if (plan_for_footprint==true || largest_robot_to_footprint_distance_meter > 0.)
+		max_dist = largest_robot_to_footprint_distance_meter;
+	else
+	{
+		// find largest_robot_to_footprint_distance_pixel by checking the fov corners
+		for (size_t i=0; i<fov_corners_meter.size(); ++i)
+		{
+			const double dist = fov_corners_meter[i].norm();
+			if (dist > max_dist)
+				max_dist = dist;
+		}
+	}
+	const double largest_robot_to_footprint_distance_pixel = max_dist / map_resolution;
+
+	const double cell_outcircle_radius_pixel = cell_size_pixel/sqrt(2);
+
+
 	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
+	// rotate map
 	cv::Mat R;
 	cv::Rect bbox;
 	cv::Mat rotated_room_map;
@@ -121,6 +140,12 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	room_rotation.computeRoomRotationMatrix(room_map, R, bbox, map_resolution);
 	room_rotation.rotateRoom(room_map, rotated_room_map, R, bbox);
 
+	// transform starting position
+	std::vector<cv::Point> starting_point_vector(1, starting_position); // opencv syntax
+	cv::transform(starting_point_vector, starting_point_vector, R);
+	cv::Point rotated_starting_position = starting_point_vector[0];
+
+	// compute min/max room coordinates
 	int min_y = 1000000, max_y = 0, min_x = 1000000, max_x = 0;
 	for (int y=0; y<rotated_room_map.rows; y++)
 	{
@@ -129,14 +154,10 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 			//find not reachable regions and make them black
 			if (rotated_room_map.at<unsigned char>(y,x)==255)
 			{
-				if(y<min_y)
-					min_y = y;
-				if(y>max_y)
-					max_y = y;
-				if(x<min_x)
-					min_x = x;
-				if(x>max_x)
-					max_x = x;
+				if(y<min_y) min_y = y;
+				if(y>max_y) max_y = y;
+				if(x<min_x) min_x = x;
+				if(x>max_x) max_x = x;
 			}
 		}
 	}
@@ -146,8 +167,8 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	// todo: if first/last row or column in grid has accessible areas but center is inaccessible, create a node in the accessible area
 	// get cells
 	std::vector<cv::Point> cell_centers;
-	for(size_t y=min_y; y<=max_y; y+=cell_size)
-		for(size_t x=min_x; x<=max_x; x+=cell_size)
+	for(size_t y=min_y; y<=max_y; y+=cell_size_pixel)
+		for(size_t x=min_x; x<=max_x; x+=cell_size_pixel)
 			if(rotated_room_map.at<uchar>(y,x)==255)
 				cell_centers.push_back(cv::Point(x,y));
 
@@ -179,8 +200,8 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	{
 		// get the transformed field of view
 		// get the rotation matrix
-		float sin_theta = std::sin(pose->theta);
-		float cos_theta = std::cos(pose->theta);
+		const float sin_theta = std::sin(pose->theta);
+		const float cos_theta = std::cos(pose->theta);
 		Eigen::Matrix<float, 2, 2> R_fov;
 		R_fov << cos_theta, -sin_theta, sin_theta, cos_theta;
 
@@ -190,14 +211,10 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		if(plan_for_footprint==false)
 		{
 			pose_as_matrix << (pose->x*map_resolution)+map_origin.x, (pose->y*map_resolution)+map_origin.y; // convert to [meter]
-			for(size_t point = 0; point < field_of_view_points.size(); ++point)
+			for(size_t point = 0; point < fov_corners_meter.size(); ++point)
 			{
-				// transform fov-point from geometry_msgs::Point32 to Eigen::Matrix
-				Eigen::Matrix<float, 2, 1> fov_point;
-				fov_point << field_of_view_points[point].x, field_of_view_points[point].y;
-
 				// linear transformation
-				Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R_fov * fov_point;
+				Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R_fov * fov_corners_meter[point];
 
 				// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
 				// values
@@ -225,59 +242,45 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 			pose_to_neighbor << neighbor->x-pose->x, neighbor->y-pose->y;
 			double distance = pose_to_neighbor.norm();
 
-			// if neighbor is in the possible distance range check it further, distances given in [meter], when planning
-			// for the fov
-			if(distance > smallest_robot_to_footprint_distance/map_resolution &&
-					distance <= largest_robot_to_footprint_distance/map_resolution && plan_for_footprint==false)
+			// if neighbor is in the possible distance range check it further, distances given in [pixel]
+			if(plan_for_footprint==false && distance<=largest_robot_to_footprint_distance_pixel)
 			{
 //				cv::circle(black_map, *neighbor, 2, cv::Scalar(50), CV_FILLED);
 
-
-				// rotate the vector from the robot to the field of view middle point
-				Eigen::Matrix<float, 2, 1> transformed_robot_to_middlepoint_vector = R_fov * robot_to_fov_vector;
-
-				// compute angle between the rotated robot-to-fov vector and the robot-to-neighbor vector
-				float dot = transformed_robot_to_middlepoint_vector.transpose()*pose_to_neighbor;
-				float abs = transformed_robot_to_middlepoint_vector.norm()*pose_to_neighbor.norm();
-				float quotient = dot/abs;
-				if(quotient > 1) // prevent errors resulting from round errors
-					quotient = 1;
-				else if(quotient < -1)
-					quotient = -1;
-				float angle = std::acos(quotient);
-
-				// if this angle is smaller than the given max angle then check if this point is inside the transformed
-				// field of view
-				if(angle <= max_fov_angle)
+				if(cv::pointPolygonTest(transformed_fov_points, *neighbor, false) >= 0) // point inside
 				{
-					if(cv::pointPolygonTest(transformed_fov_points, *neighbor, false) >= 0) // point inside
-					{
-						// check if the line from the robot pose to the neighbor crosses an obstacle, if so it is not
-						// observable from the pose
-						cv::LineIterator border_line(rotated_room_map, cv::Point(pose->x, pose->y), *neighbor, 8); // opencv implementation of bresenham algorithm, 8: color, irrelevant
-						bool hit_obstacle = false;
-						for(size_t i = 0; i < border_line.count; i++, ++border_line)
-							if(rotated_room_map.at<uchar>(border_line.pos()) == 0)
-								hit_obstacle = true;
+					// check if the line from the robot pose to the neighbor crosses an obstacle, if so it is not observable from the pose
+					cv::LineIterator border_line(rotated_room_map, cv::Point(pose->x, pose->y), *neighbor, 8); // opencv implementation of bresenham algorithm, 8: color, irrelevant
+					bool hit_obstacle = false;
+					for(size_t i = 0; i < border_line.count; ++i, ++border_line)
+						if(rotated_room_map.at<uchar>(border_line.pos()) == 0)
+							hit_obstacle = true;
 
-						if(hit_obstacle == false)
-						{
-							V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 1;
-//							cv::circle(black_map, *neighbor, 2, cv::Scalar(100), CV_FILLED);
-						}
-						else
-							V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 0;
+					if(hit_obstacle == false)
+					{
+						V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 1;
+//						cv::circle(black_map, *neighbor, 2, cv::Scalar(100), CV_FILLED);
 					}
-					else // point outside the field of view
+					else	// neighbor cell not observable
 						V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 0;
 				}
-				else // point spans too big angle with middle point vector to be inside the fov
+				else	// neighbor cell outside the field of view
 					V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 0;
 			}
 			// check if neighbor is covered by footprint when planning for it
-			else if(plan_for_footprint==true && distance<=largest_robot_to_footprint_distance)
+			// todo: check: by adding cell_outcircle_radius_pixel to the distance, we ensure that the entire cell lies within the footprint
+			else if(plan_for_footprint==true && (distance+cell_outcircle_radius_pixel)<=largest_robot_to_footprint_distance_pixel)
 			{
-				V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 1;
+				// check if the line from the robot pose to the neighbor crosses an obstacle, if so it is not observable from the pose
+				cv::LineIterator border_line(rotated_room_map, cv::Point(pose->x, pose->y), *neighbor, 8); // opencv implementation of bresenham algorithm, 8: color, irrelevant
+				bool hit_obstacle = false;
+				for(size_t i = 0; i < border_line.count; ++i, ++border_line)
+					if(rotated_room_map.at<uchar>(border_line.pos()) == 0)
+						hit_obstacle = true;
+				if(hit_obstacle == false)
+					V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 1;
+				else	// neighbor cell not observable
+					V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 0;
 			}
 			else // point not in the right range to be inside the fov
 				V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 0;
@@ -466,7 +469,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	for(std::vector<cv::Point>::iterator position=chosen_positions.begin(); position!=chosen_positions.end(); ++position)
 	{
 		// calculate current distance
-		double current_distance = cv::norm(starting_position - *position);
+		double current_distance = cv::norm(rotated_starting_position - *position);
 
 		// check if current length is smaller than optimal
 		if(current_distance < min_distance)
@@ -509,7 +512,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	{
 		// go trough all computed fov poses and compute the corresponding robot pose
 		ROS_INFO("Starting to map from field of view pose to robot pose");
-		mapPath(room_map, path, fov_poses, robot_to_fov_vector, map_resolution, map_origin, starting_position);
+		mapPath(room_map, path, fov_poses, robot_to_fov_vector_meter, map_resolution, map_origin, starting_position);
 	}
 
 //	testing

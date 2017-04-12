@@ -82,7 +82,7 @@ tsp_solver_timeout: 600
 # ====================================================
 # min area a cell must have to be determined for the path generation
 # [pixel^2]
-min_cell_size: 10.0
+min_cell_area: 10.0
 
 # parameters specific for the neural network explorator, see "A Neural Network Approach to Complete Coverage Path Planning" from Simon X. Yang and Chaomin Luo
 # =====================================================
@@ -103,8 +103,8 @@ delta_theta_weight: 0.15
 
 # parameters specific for the convexSPP explorator
 # ================================================
-# sampling angle when creating possible sensing poses
-# [rad]
+# angular sampling step when creating possible sensing poses, in [rad]
+# double
 delta_theta: 0.78539816339      #1.570796
 
 # parameters specific for the flowNetwork explorator

@@ -85,8 +85,6 @@
 #include <ipa_room_exploration/fov_to_robot_mapper.h>
 
 #include <geometry_msgs/Pose2D.h>
-#include <geometry_msgs/Polygon.h>
-#include <geometry_msgs/Point32.h>
 
 
 #define PI 3.14159265359
@@ -135,10 +133,19 @@ public:
 	// with free space drawn white (255) and obstacles as black (0). It returns a series of 2D poses that show to which positions
 	// the robot should drive at. The footprint stores a polygon that is used to determine the visibility at a specific
 	// sensing pose. delta_theta provides an angular step to determine candidates for sensing poses.
+	// map_resolution in [m/cell]
+	// starting_position starting position of the robot in [px]
+	// cell_size_pixel the side length of a grid square in [px]
+	// delta_theta angular sampling step when creating possible sensing poses in [rad]
+	// fov_corners_meter vector of corner coordinates of the field of view in [m]
+	// robot_to_fov_vector_meter the center of the field of view measured from the robot center in [m]
+	// largest_robot_to_footprint_distance_meter is the radius of the robot footprint for footprint planning (plan_for_footprint==true);
+	//                                           or the largest distance between robot and a field of view corner (plan_for_footprint==false)
+	//                                           (for fov planning, this may be set 0 and the function computes the maximum distance fov corner)
+	// plan_for_footprint if true, plan for the robot footprint of given radius (largest_robot_to_footprint_distance_meter);
+	//                    if false, plan for the field of view
 	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
-				const cv::Point starting_position, const cv::Point2d map_origin,
-				const int cell_size, const double delta_theta,
-				const std::vector<geometry_msgs::Point32>& footprint, const Eigen::Matrix<float, 2, 1>& robot_to_fov_vector,
-				const double max_fov_angle, const double smallest_robot_to_footprint_distance, const double largest_robot_to_footprint_distance,
-				const uint sparsity_check_range, const bool plan_for_footprint);
+				const cv::Point starting_position, const cv::Point2d map_origin, const int cell_size_pixel, const double delta_theta,
+				const std::vector<Eigen::Matrix<float, 2, 1> >& fov_corners_meter, const Eigen::Matrix<float, 2, 1>& robot_to_fov_vector_meter,
+				const double largest_robot_to_footprint_distance_meter, const uint sparsity_check_range, const bool plan_for_footprint);
 };

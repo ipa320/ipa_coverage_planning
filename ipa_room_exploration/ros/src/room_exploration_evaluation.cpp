@@ -1470,9 +1470,9 @@ int main(int argc, char **argv)
 //	const std::vector<geometry_msgs::Point32>& fov_points)
 	std::vector<int> exploration_algorithms;
 //	exploration_algorithms.push_back(1);	// grid point exploration
-	exploration_algorithms.push_back(2);	// boustrophedon exploration
+//	exploration_algorithms.push_back(2);	// boustrophedon exploration
 //	exploration_algorithms.push_back(3);	// neural network exploration
-//	exploration_algorithms.push_back(4);	// convex SPP exploration
+	exploration_algorithms.push_back(4);	// convex SPP exploration
 //	exploration_algorithms.push_back(5);	// flow network exploration
 //	exploration_algorithms.push_back(6);	// energy functional exploration
 //	exploration_algorithms.push_back(7);	// voronoi exploration
@@ -1499,6 +1499,8 @@ int main(int argc, char **argv)
 //	fov_points[3].x = 0.3;
 //	fov_points[3].y = 0.3;
 //	int planning_mode = 1;	// footprint planning
+
+	// todo: alg: 4 with footprint always crashes in TSP
 
 	double robot_radius = 0.3;		// [m]
 	double coverage_radius = 0.3;	// [m]
