@@ -22,8 +22,12 @@ left_sections_min_area: 0.01
 goal_eps: 0.0     #0.35
 
 # size of one cell when discretizing the free space, smaller value means a more detailed discretization
-# [pixel], where one pixel is the size of one cell in the navigation grid map
-cell_size: 7      #7
+# in [pixel], where one pixel is the size of one cell in the navigation grid map
+# (if set to 0 or smaller, the cell size is automatically determined with the largest possible value)
+# (this parameter is only relevant to the algorithms #4 = convexSPP explorator, #5 = flowNetwork explorator,
+#  the other methods utilize the computed optimal maximum grid size)
+# int
+cell_size: 4      #7
 
 # distance between two points when generating the path
 # [pixel], where one pixel is the size of one cell in the navigation grid map

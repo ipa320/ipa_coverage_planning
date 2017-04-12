@@ -112,25 +112,6 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		const Eigen::Matrix<float, 2, 1>& robot_to_fov_vector_meter, const double largest_robot_to_footprint_distance_meter,
 		const uint sparsity_check_range, const bool plan_for_footprint)
 {
-	// set or compute largest_robot_to_footprint_distance_pixel depending on plan_for_footprint
-	double max_dist=0.;
-	if (plan_for_footprint==true || largest_robot_to_footprint_distance_meter > 0.)
-		max_dist = largest_robot_to_footprint_distance_meter;
-	else
-	{
-		// find largest_robot_to_footprint_distance_pixel by checking the fov corners
-		for (size_t i=0; i<fov_corners_meter.size(); ++i)
-		{
-			const double dist = fov_corners_meter[i].norm();
-			if (dist > max_dist)
-				max_dist = dist;
-		}
-	}
-	const double largest_robot_to_footprint_distance_pixel = max_dist / map_resolution;
-
-	const double cell_outcircle_radius_pixel = cell_size_pixel/sqrt(2);
-
-
 	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
 	// rotate map
 	cv::Mat R;
@@ -188,6 +169,23 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	}
 
 	// ************* III. Construct the matrices needed in the linear program. *************
+	// set or compute largest_robot_to_footprint_distance_pixel depending on plan_for_footprint
+	double max_dist=0.;
+	if (plan_for_footprint==true || largest_robot_to_footprint_distance_meter > 0.)
+		max_dist = largest_robot_to_footprint_distance_meter;
+	else
+	{
+		// find largest_robot_to_footprint_distance_pixel by checking the fov corners
+		for (size_t i=0; i<fov_corners_meter.size(); ++i)
+		{
+			const double dist = fov_corners_meter[i].norm();
+			if (dist > max_dist)
+				max_dist = dist;
+		}
+	}
+	const double largest_robot_to_footprint_distance_pixel = max_dist / map_resolution;
+	const double cell_outcircle_radius_pixel = cell_size_pixel/sqrt(2);
+
 	// construct W
 	int number_of_candidates=candidate_sensing_poses.size();
 	std::vector<double> W(number_of_candidates, 1.0); // initial weights

@@ -224,7 +224,6 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 // Function executed by Call.
 void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExplorationGoalConstPtr &goal)
 {
-	// todo: separate into smaller functions
 	ROS_INFO("*****Room Exploration action server*****");
 
 	// ***************** I. read the given parameters out of the goal *****************
@@ -280,11 +279,12 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	{
 		grid_spacing_in_meter = goal->coverage_radius*std::sqrt(2);
 	}
-	// todo: decide whether to take the grid size from parameters of the correctly computed on --> e.g. take automatic value when param <0
-	//  map the grid size to an int in pixel coordinates, using floor method
+	// map the grid size to an int in pixel coordinates, using floor method
 	const double grid_spacing_in_pixel = grid_spacing_in_meter/map_resolution;
 	std::cout << "grid size: " << grid_spacing_in_meter << " m   (" << grid_spacing_in_pixel << " px)" << std::endl;
-
+	// set the cell_size_ for #4 convexSPP explorator or #5 flowNetwork explorator if it is not provided
+	if (cell_size_ <= 0)
+		cell_size_ = std::floor(grid_spacing_in_pixel);
 
 
 	// ***************** II. plan the path using the wanted planner *****************
@@ -319,17 +319,13 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	else if(path_planning_algorithm_ == 4) // use convexSPP explorator
 	{
 		// plan coverage path
-		// todo: decide whether user shall set the cell size or automatic cell size (e.g. only automatic if cell_size <= 0)
-		//       it can make sense to chose a cell size of 4px or less with this algorithm, because the fov matching with cells is more accurate then
 		if(planning_mode_ == PLAN_FOR_FOV)
-			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel)/*cell_size_*/, delta_theta_, fov_corners_meter, fitting_circle_center_point_in_meter, 0., 7, false);
+			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, delta_theta_, fov_corners_meter, fitting_circle_center_point_in_meter, 0., 7, false);
 		else
-			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel)/*cell_size_*/, delta_theta_, fov_corners_meter, zero_vector, goal->coverage_radius, 7, true);
+			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, delta_theta_, fov_corners_meter, zero_vector, goal->coverage_radius, 7, true);
 	}
 	else if(path_planning_algorithm_ == 5) // use flow network explorator
 	{
-		// todo: decide whether user shall set the cell size or automatic cell size for the grid (e.g. only automatic if cell_size <= 0)
-//		flow_network_explorator_.testFunc();
 		if(planning_mode_ == PLAN_FOR_FOV)
 			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, fitting_circle_center_point_in_meter, grid_spacing_in_pixel, false, path_eps_, curvature_factor_, max_distance_factor_);
 		else
@@ -357,26 +353,13 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 			// create the object that plans the path, based on the room-map
 			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, fov_diameter_as_int); // diameter in pixel (full working width can be used here because tracks are planned in parallel motion)
-
 			// get the exploration path
 			std::vector<geometry_msgs::Pose2D> fov_path_uncleaned;
 			vm.generatePath(fov_path_uncleaned, cv::Mat());
 
-			// clean path from double occurrences of the same pose in a row
+			// clean path from subsequent double occurrences of the same pose
 			std::vector<geometry_msgs::Pose2D> fov_path;
-			fov_path.push_back(fov_path_uncleaned[0]);
-			cv::Point last_added_point(fov_path_uncleaned[0].x, fov_path_uncleaned[0].y);
-			const double min_dist_squared = 5 * 5;	// [pixel]
-			for (size_t i=1; i<fov_path_uncleaned.size(); ++i)
-			{
-				const cv::Point current_point(fov_path_uncleaned[i].x, fov_path_uncleaned[i].y);
-				cv::Point vector = current_point - last_added_point;
-				if (vector.x*vector.x+vector.y*vector.y > min_dist_squared || i==fov_path_uncleaned.size()-1)
-				{
-					fov_path.push_back(fov_path_uncleaned[i]);
-					last_added_point = current_point;
-				}
-			}
+			downsampleTrajectory(fov_path_uncleaned, fov_path, 5*5);
 
 			// convert to poses with angles
 			RoomRotator room_rotation;
@@ -385,16 +368,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			// map fov-path to robot-path
 			cv::Point start_pos(fov_path.begin()->x, fov_path.begin()->y);
 			mapPath(room_map, exploration_path, fov_path, fitting_circle_center_point_in_meter, map_resolution, map_origin, start_pos);
-
-
-//			for(size_t pos=0; pos<fov_path.size(); ++pos)
-//			{
-//				geometry_msgs::Pose2D current_pose;
-//				current_pose.x = (fov_path[pos].x * map_resolution) + map_origin.x;
-//				current_pose.y = (fov_path[pos].y * map_resolution) + map_origin.y;
-//				current_pose.theta = fov_path[pos].theta;
-//				exploration_path.push_back(current_pose);
-//			}
 		}
 		else
 		{
@@ -404,25 +377,12 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 			// create the object that plans the path, based on the room-map
 			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, coverage_diameter); // diameter in pixel (full working width can be used here because tracks are planned in parallel motion)
-
 			// get the exploration path
 			std::vector<geometry_msgs::Pose2D> exploration_path_uncleaned;
 			vm.generatePath(exploration_path_uncleaned, cv::Mat());
 
-			// clean path from double occurrences of the same pose in a row
-			exploration_path.push_back(exploration_path_uncleaned[0]);
-			cv::Point last_added_point(exploration_path_uncleaned[0].x, exploration_path_uncleaned[0].y);
-			const double min_dist_squared = 3.5 * 3.5;	// [pixel]
-			for (size_t i=1; i<exploration_path_uncleaned.size(); ++i)
-			{
-				const cv::Point current_point(exploration_path_uncleaned[i].x, exploration_path_uncleaned[i].y);
-				cv::Point vector = current_point - last_added_point;
-				if (vector.x*vector.x+vector.y*vector.y > min_dist_squared || i==exploration_path_uncleaned.size()-1)
-				{
-					exploration_path.push_back(exploration_path_uncleaned[i]);
-					last_added_point = current_point;
-				}
-			}
+			// clean path from subsequent double occurrences of the same pose
+			downsampleTrajectory(exploration_path_uncleaned, exploration_path, 3.5*3.5);
 
 			// convert to poses with angles
 			RoomRotator room_rotation;
@@ -435,18 +395,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 				exploration_path[pos].y = (exploration_path[pos].y * map_resolution) + map_origin.y;
 			}
 		}
-
-//		cv::Mat test_map = room_map.clone();
-//		for(std::vector<geometry_msgs::Pose2D>::iterator pose=exploration_path.begin(); pose!=exploration_path.end()-1; ++pose)
-//		{
-//			cv::circle(test_map, cv::Point((pose->x-map_origin.x)/map_resolution, (pose->y-map_origin.y)/map_resolution), 2, cv::Scalar(127), CV_FILLED);
-//			cv::line(test_map, cv::Point((pose->x-map_origin.x)/map_resolution, (pose->y-map_origin.y)/map_resolution), cv::Point(((pose+1)->x-map_origin.x)/map_resolution, ((pose+1)->y-map_origin.y)/map_resolution), cv::Scalar(100), 1);
-////			cv::imshow("path", test_map);
-////			cv::waitKey();
-//		}
-//		cv::imshow("path", test_map);
-//		cv::waitKey();
 	}
+
+	ROS_INFO("Room exploration planning finished.");
 
 	ipa_building_msgs::RoomExplorationResult action_result;
 	// check if the size of the exploration path is larger then zero
@@ -467,309 +418,10 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		return;
 	}
 
+
 	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
-	// 1. publish navigation goals
-	double distance_robot_fov_middlepoint = fitting_circle_center_point_in_meter.norm();
-	std::vector<geometry_msgs::Pose2D> robot_poses;
-	for(size_t nav_goal = 0; nav_goal < exploration_path.size(); ++nav_goal)
-	{
-		// check if the path should be continued or not
-		bool interrupted = false;
-		if(interrupt_navigation_publishing_==true)
-		{
-			ROS_INFO("Interrupt order received, resuming coverage path later.");
-			interrupted = true;
-		}
-		while(interrupt_navigation_publishing_==true)
-		{
-			// sleep for 1s because else this loop would produce errors
-			std::cout << "sleeping... (-.-)zzZZ" << std::endl;
-			ros::Duration sleep_rate(1);
-			sleep_rate.sleep();
-		}
-		if(interrupted==true)
-			ROS_INFO("Interrupt order canceled, resuming coverage path now.");
-
-		// if no interrupt is wanted, publish the navigation goal
-		publishNavigationGoal(exploration_path[nav_goal], map_frame_, camera_frame_, robot_poses, distance_robot_fov_middlepoint, goal_eps_, true); // eps = 0.35
-	}
-
-	std::cout << "published all navigation goals, starting to check seen area" << std::endl;
-
-	// 2. get the global costmap, that has initially not known objects in to check what regions have been seen
-	nav_msgs::OccupancyGrid global_costmap;
-	global_costmap = *(ros::topic::waitForMessage<nav_msgs::OccupancyGrid>(global_costmap_topic_));
-	ROS_INFO("Found global gridmap.");
-
-	std::vector<signed char> pixel_values;
-	pixel_values = global_costmap.data;
-
-	// if wanted check for areas that haven't been seen during the execution of the path and revisit them, if wanted
-	if(revisit_areas_ == true)
-	{
-		// save the costmap as Mat of the same type as the given map (8UC1)
-		cv::Mat costmap_as_mat;//(global_map.cols, global_map.rows, CV_8UC1);
-
-//		// fill one row and then go to the next one (storing method of ros)
-//		for(size_t u = 0; u < costmap_as_mat.cols; ++u)
-//		{
-//			for(size_t v = 0; v < costmap_as_mat.rows; ++v)
-//			{
-//				costmap_as_mat.at<uchar>(u,v) = (uchar) pixel_values[v+u*global_map.rows];
-//			}
-//		}
-		mapToMat(global_costmap, costmap_as_mat);
-
-		// 70% probability of being an obstacle
-		cv::threshold(costmap_as_mat, costmap_as_mat, 75, 255, cv::THRESH_BINARY_INV);
-
-		// 3. draw the seen positions so the server can check what points haven't been seen
-		std::cout << "checking coverage using the coverage_check_server" << std::endl;
-		cv::Mat seen_positions_map;
-		// define the request for the coverage check
-		ipa_building_msgs::CheckCoverageRequest coverage_request;
-		ipa_building_msgs::CheckCoverageResponse coverage_response;
-		// fill request
-		sensor_msgs::ImageConstPtr service_image;
-		cv_bridge::CvImage cv_image;
-		cv_image.encoding = "mono8";
-		cv_image.image = costmap_as_mat;
-		service_image = cv_image.toImageMsg();
-		coverage_request.input_map = *service_image;
-		coverage_request.path = robot_poses;
-		coverage_request.field_of_view = goal->field_of_view;
-		// todo: use coverage_radius instead of footprint here
-		std::vector<geometry_msgs::Point32> footprint_points(4);
-		footprint_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
-		footprint_points[0].y = 0.3;
-		footprint_points[1].x = -0.3;
-		footprint_points[1].y = -0.3;
-		footprint_points[2].x = 0.3;
-		footprint_points[2].y = -0.3;
-		footprint_points[3].x = 0.3;
-		footprint_points[3].y = 0.3;
-		coverage_request.footprint = footprint_points;
-		coverage_request.map_origin = goal->map_origin;
-		coverage_request.map_resolution = map_resolution;
-		coverage_request.check_number_of_coverages = false;
-		std::cout << "filled service request for the coverage check" << std::endl;
-		if(planning_mode_ == PLAN_FOR_FOV)
-		{
-			coverage_request.check_for_footprint = false;
-			// send request
-			if(ros::service::call(coverage_check_service_name_, coverage_request, coverage_response) == true)
-			{
-				std::cout << "got the service response" << std::endl;
-				cv_bridge::CvImagePtr cv_ptr_obj;
-				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.coverage_map, sensor_msgs::image_encodings::MONO8);
-				seen_positions_map = cv_ptr_obj->image;
-			}
-			else
-			{
-				ROS_WARN("Coverage check failed, is the coverage_check_server running?");
-				room_exploration_server_.setAborted();
-				return;
-			}
-		}
-		else
-		{
-			coverage_request.check_for_footprint = true;
-			// send request
-			if(ros::service::call(coverage_check_service_name_, coverage_request, coverage_response) == true)
-			{
-				std::cout << "got the service response" << std::endl;
-				cv_bridge::CvImagePtr cv_ptr_obj;
-				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.coverage_map, sensor_msgs::image_encodings::MONO8);
-				seen_positions_map = cv_ptr_obj->image;
-			}
-			else
-			{
-				ROS_WARN("Coverage check failed, is the coverage_check_server running?");
-				room_exploration_server_.setAborted();
-				return;
-			}
-		}
-//		cv::imshow("covered", seen_positions_map);
-//		cv::waitKey();
-//		cv::Mat copy = room_map.clone();
-
-		// testing, TODO: parameter to show
-//		cv::namedWindow("initially seen areas", cv::WINDOW_NORMAL);
-//		cv::imshow("initially seen areas", seen_positions_map);
-//		cv::resizeWindow("initially seen areas", 600, 600);
-//		cv::waitKey();
-
-		// apply a binary filter on the image, making the drawn seen areas black
-		cv::threshold(seen_positions_map, seen_positions_map, 150, 255, cv::THRESH_BINARY);
-
-		// ***************** IV. Find left areas and lay a grid over it, then plan a path trough all grids s.t. they can be covered by the fov. *****************
-		// 1. find regions with an area that is bigger than a defined value, which have not been seen by the fov.
-		// 	  hierarchy[{0,1,2,3}]={next contour (same level), previous contour (same level), child contour, parent contour}
-		// 	  child-contour = 1 if it has one, = -1 if not, same for parent_contour
-		std::vector < std::vector<cv::Point> > left_areas, areas_to_revisit;
-		std::vector < cv::Vec4i > hierarchy;
-		cv::findContours(seen_positions_map, left_areas, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
-
-		// find valid regions
-		for(size_t area = 0; area < left_areas.size(); ++area)
-		{
-			// don't look at hole contours
-			if (hierarchy[area][3] == -1)
-			{
-				double room_area = map_resolution * map_resolution * cv::contourArea(left_areas[area]);
-				//subtract the area from the hole contours inside the found contour, because the contour area grows extremly large if it is a closed loop
-				for(int hole = 0; hole < left_areas.size(); ++hole)
-				{
-					if(hierarchy[hole][3] == area)//check if the parent of the hole is the current looked at contour
-					{
-						room_area -= map_resolution * map_resolution * cv::contourArea(left_areas[hole]);
-					}
-				}
-
-				// save the contour if the area of it is larger than the defined value
-				if(room_area >= left_sections_min_area_)
-					areas_to_revisit.push_back(left_areas[area]);
-			}
-		}
-
-		// check if areas need to be visited again, if not cancel here
-		if(areas_to_revisit.size() == 0)
-		{
-			ROS_INFO("Explored room.");
-
-			room_exploration_server_.setSucceeded();
-
-			return;
-		}
-
-		// draw found regions s.t. they can be intersected later
-		cv::Mat black_map(costmap_as_mat.cols, costmap_as_mat.rows, costmap_as_mat.type(), cv::Scalar(0));
-		black_map = cv::Scalar(0);
-		cv::drawContours(black_map, areas_to_revisit, -1, cv::Scalar(255), CV_FILLED);
-		for(size_t contour = 0; contour < left_areas.size(); ++contour)
-			if(hierarchy[contour][3] != -1)
-				cv::drawContours(black_map, left_areas, contour, cv::Scalar(0), CV_FILLED);
-
-		// 2. Intersect the left areas with respect to the calculated grid length.
-		// todo: compute min_max_coordinates here or replace
-		geometry_msgs::Polygon min_max_coordinates;	// = goal->room_min_max;
-		for(size_t i =  min_max_coordinates.points[0].y; i < black_map.cols; i += std::floor(grid_spacing_in_pixel))
-			cv::line(black_map, cv::Point(0, i), cv::Point(black_map.cols, i), cv::Scalar(0), 1);
-		for(size_t i =  min_max_coordinates.points[0].x; i < black_map.rows; i += std::floor(grid_spacing_in_pixel))
-			cv::line(black_map, cv::Point(i, 0), cv::Point(i, black_map.rows), cv::Scalar(0), 1);
-
-		// 3. find the centers of the global_costmap areas
-		std::vector < std::vector<cv::Point> > grid_areas;
-		cv::Mat contour_map = black_map.clone();
-		cv::findContours(contour_map, grid_areas, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
-
-		// get the moments
-		std::vector<cv::Moments> moments(grid_areas.size());
-		for( int i = 0; i < grid_areas.size(); i++)
-		{
-			moments[i] = cv::moments(grid_areas[i], false);
-		}
-
-		// get the mass centers
-		std::vector<cv::Point> area_centers(grid_areas.size());
-		for( int i = 0; i < grid_areas.size(); i++ )
-		{
-			// check if the current contour has an area and isn't just a few pixels
-			if(moments[i].m10 != 0 && moments[i].m01 != 0)
-			{
-				area_centers[i] = cv::Point( moments[i].m10/moments[i].m00 , moments[i].m01/moments[i].m00 );
-			}
-			// if contour is too small for moment calculation, take one point on this contour and use it as center
-			else
-			{
-				area_centers[i] = grid_areas[i][0];
-			}
-		}
-
-		// testing
-//		black_map = room_map.clone();
-//		for(size_t i = 0; i < area_centers.size(); ++i)
-//		{
-//			cv::circle(black_map, area_centers[i], 2, cv::Scalar(127), CV_FILLED);
-//			std::cout << area_centers[i] << std::endl;
-//		}
-//		cv::namedWindow("revisiting areas", cv::WINDOW_NORMAL);
-//		cv::imshow("revisiting areas", black_map);
-//		cv::resizeWindow("revisiting areas", 600, 600);
-	//	cv::waitKey();
-
-		// 4. plan a tsp path trough the centers of the left areas
-		// find the center that is nearest to the current robot position, which becomes the start node for the tsp
-		geometry_msgs::Pose2D current_robot_pose = robot_poses.back();
-		cv::Point current_robot_point(current_robot_pose.x, current_robot_pose.y);
-		double min_dist = 9001;
-		int min_index = 0;
-		for(size_t current_center_index = 0; current_center_index < area_centers.size(); ++current_center_index)
-		{
-			cv::Point current_center = area_centers[current_center_index];
-			double current_squared_distance = std::pow(current_center.x - current_robot_point.x, 2.0) + std::pow(current_center.y - current_robot_point.y, 2.0);
-
-			if(current_squared_distance <= min_dist)
-			{
-				min_dist = current_squared_distance;
-				min_index = current_center_index;
-			}
-		}
-		ConcordeTSPSolver tsp_solver;
-		std::vector<int> revisiting_order = tsp_solver.solveConcordeTSP(costmap_as_mat, area_centers, 0.25, 0.0, map_resolution, min_index, 0);
-
-		// 5. go to each center and use the map_accessability_server to find a robot pose around it s.t. it can be covered
-		//	  by the fov
-		double pi_8 = PI/8;
-		std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";
-	//	robot_poses.clear();
-		for(size_t center = 0; center < revisiting_order.size(); ++center)
-		{
-			geometry_msgs::Pose2D current_center;
-			current_center.x = (area_centers[revisiting_order[center]].x * map_resolution) + map_origin.x;
-			current_center.y = (area_centers[revisiting_order[center]].y * map_resolution) + map_origin.y;
-
-			// define request
-			cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
-			cob_map_accessibility_analysis::CheckPerimeterAccessibility::Response response;
-			check_request.center = current_center;
-			if(planning_mode_ == PLAN_FOR_FOV)
-			{
-				check_request.radius = distance_robot_fov_middlepoint;
-				check_request.rotational_sampling_step = pi_8;
-			}
-			else
-			{
-				check_request.radius = 0.0;
-				check_request.rotational_sampling_step = 2.0*PI;
-			}
-
-
-			std::cout << "checking center: " << std::endl << current_center << "radius: " << check_request.radius << std::endl;
-
-			// send request
-			if(ros::service::call(perimeter_service_name, check_request, response) == true)
-			{
-				std::cout << "successful check of accessiblity" << std::endl;
-				// go trough the found accessible positions and try to reach one of them
-				for(std::vector<geometry_msgs::Pose2D>::iterator pose = response.accessible_poses_on_perimeter.begin(); pose != response.accessible_poses_on_perimeter.end(); ++pose)
-					if(publishNavigationGoal(*pose, map_frame_, camera_frame_, robot_poses, 0.0) == true)
-						break;
-			}
-			else
-			{
-				// TODO: return areas that were not visible on radius
-				std::cout << "center not reachable on perimeter" << std::endl;
-			}
-		}
-
-//		drawSeenPoints(copy, robot_poses, goal->field_of_view, corner_point_1, corner_point_2, map_resolution, map_origin);
-//		cv::namedWindow("seen areas", cv::WINDOW_NORMAL);
-//		cv::imshow("seen areas", copy);
-//		cv::resizeWindow("seen areas", 600, 600);
-//		cv::waitKey();
-	}
-
+	navigateExplorationPath(exploration_path, goal->field_of_view, goal->coverage_radius, fitting_circle_center_point_in_meter.norm(),
+			map_resolution, goal->map_origin, grid_spacing_in_pixel);
 	ROS_INFO("Explored room.");
 
 	room_exploration_server_.setSucceeded(action_result);
@@ -901,6 +553,321 @@ void RoomExplorationServer::computeFOVCenterAndRadius(const std::vector<geometry
 //	cv::waitKey();
 }
 
+
+void RoomExplorationServer::downsampleTrajectory(const std::vector<geometry_msgs::Pose2D>& path_uncleaned, std::vector<geometry_msgs::Pose2D>& path, const double min_dist_squared)
+{
+	// clean path from subsequent double occurrences of the same pose
+	path.push_back(path_uncleaned[0]);
+	cv::Point last_added_point(path_uncleaned[0].x, path_uncleaned[0].y);
+	for (size_t i=1; i<path_uncleaned.size(); ++i)
+	{
+		const cv::Point current_point(path_uncleaned[i].x, path_uncleaned[i].y);
+		cv::Point vector = current_point - last_added_point;
+		if (vector.x*vector.x+vector.y*vector.y > min_dist_squared || i==path_uncleaned.size()-1)
+		{
+			path.push_back(path_uncleaned[i]);
+			last_added_point = current_point;
+		}
+	}
+}
+
+
+void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_msgs::Pose2D>& exploration_path,
+		const std::vector<geometry_msgs::Point32>& field_of_view, const double coverage_radius, const double distance_robot_fov_middlepoint,
+		const float map_resolution, const geometry_msgs::Pose2D& map_origin, const double grid_spacing_in_pixel)
+{
+	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
+	// 1. publish navigation goals
+	std::vector<geometry_msgs::Pose2D> robot_poses;
+	for(size_t nav_goal = 0; nav_goal < exploration_path.size(); ++nav_goal)
+	{
+		// check if the path should be continued or not
+		bool interrupted = false;
+		if(interrupt_navigation_publishing_==true)
+		{
+			ROS_INFO("Interrupt order received, resuming coverage path later.");
+			interrupted = true;
+		}
+		while(interrupt_navigation_publishing_==true)
+		{
+			// sleep for 1s because else this loop would produce errors
+			std::cout << "sleeping... (-.-)zzZZ" << std::endl;
+			ros::Duration sleep_rate(1);
+			sleep_rate.sleep();
+		}
+		if(interrupted==true)
+			ROS_INFO("Interrupt order canceled, resuming coverage path now.");
+
+		// if no interrupt is wanted, publish the navigation goal
+		publishNavigationGoal(exploration_path[nav_goal], map_frame_, camera_frame_, robot_poses, distance_robot_fov_middlepoint, goal_eps_, true); // eps = 0.35
+	}
+
+	std::cout << "published all navigation goals, starting to check seen area" << std::endl;
+
+	// 2. get the global costmap, that has initially not known objects in to check what regions have been seen
+	nav_msgs::OccupancyGrid global_costmap;
+	global_costmap = *(ros::topic::waitForMessage<nav_msgs::OccupancyGrid>(global_costmap_topic_));
+	ROS_INFO("Found global gridmap.");
+
+	std::vector<signed char> pixel_values;
+	pixel_values = global_costmap.data;
+
+	// if wanted check for areas that haven't been seen during the execution of the path and revisit them, if wanted
+	if(revisit_areas_ == true)
+	{
+		// save the costmap as Mat of the same type as the given map (8UC1)
+		cv::Mat costmap_as_mat;//(global_map.cols, global_map.rows, CV_8UC1);
+
+//		// fill one row and then go to the next one (storing method of ros)
+//		for(size_t u = 0; u < costmap_as_mat.cols; ++u)
+//		{
+//			for(size_t v = 0; v < costmap_as_mat.rows; ++v)
+//			{
+//				costmap_as_mat.at<uchar>(u,v) = (uchar) pixel_values[v+u*global_map.rows];
+//			}
+//		}
+		mapToMat(global_costmap, costmap_as_mat);
+
+		// 70% probability of being an obstacle
+		cv::threshold(costmap_as_mat, costmap_as_mat, 75, 255, cv::THRESH_BINARY_INV);
+
+		// 3. draw the seen positions so the server can check what points haven't been seen
+		std::cout << "checking coverage using the coverage_check_server" << std::endl;
+		cv::Mat seen_positions_map;
+		// define the request for the coverage check
+		ipa_building_msgs::CheckCoverageRequest coverage_request;
+		ipa_building_msgs::CheckCoverageResponse coverage_response;
+		// fill request
+		sensor_msgs::ImageConstPtr service_image;
+		cv_bridge::CvImage cv_image;
+		cv_image.encoding = "mono8";
+		cv_image.image = costmap_as_mat;
+		service_image = cv_image.toImageMsg();
+		coverage_request.input_map = *service_image;
+		coverage_request.path = robot_poses;
+		coverage_request.field_of_view = field_of_view;
+		coverage_request.coverage_radius = coverage_radius;
+		coverage_request.map_origin = map_origin;
+		coverage_request.map_resolution = map_resolution;
+		coverage_request.check_number_of_coverages = false;
+		std::cout << "filled service request for the coverage check" << std::endl;
+		if(planning_mode_ == PLAN_FOR_FOV)
+		{
+			coverage_request.check_for_footprint = false;
+			// send request
+			if(ros::service::call(coverage_check_service_name_, coverage_request, coverage_response) == true)
+			{
+				std::cout << "got the service response" << std::endl;
+				cv_bridge::CvImagePtr cv_ptr_obj;
+				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.coverage_map, sensor_msgs::image_encodings::MONO8);
+				seen_positions_map = cv_ptr_obj->image;
+			}
+			else
+			{
+				ROS_WARN("Coverage check failed, is the coverage_check_server running?");
+				room_exploration_server_.setAborted();
+				return;
+			}
+		}
+		else
+		{
+			coverage_request.check_for_footprint = true;
+			// send request
+			if(ros::service::call(coverage_check_service_name_, coverage_request, coverage_response) == true)
+			{
+				std::cout << "got the service response" << std::endl;
+				cv_bridge::CvImagePtr cv_ptr_obj;
+				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.coverage_map, sensor_msgs::image_encodings::MONO8);
+				seen_positions_map = cv_ptr_obj->image;
+			}
+			else
+			{
+				ROS_WARN("Coverage check failed, is the coverage_check_server running?");
+				room_exploration_server_.setAborted();
+				return;
+			}
+		}
+//		cv::imshow("covered", seen_positions_map);
+//		cv::waitKey();
+//		cv::Mat copy = room_map.clone();
+
+		// testing, TODO: parameter to show
+//		cv::namedWindow("initially seen areas", cv::WINDOW_NORMAL);
+//		cv::imshow("initially seen areas", seen_positions_map);
+//		cv::resizeWindow("initially seen areas", 600, 600);
+//		cv::waitKey();
+
+		// apply a binary filter on the image, making the drawn seen areas black
+		cv::threshold(seen_positions_map, seen_positions_map, 150, 255, cv::THRESH_BINARY);
+
+		// ***************** IV. Find left areas and lay a grid over it, then plan a path trough all grids s.t. they can be covered by the fov. *****************
+		// 1. find regions with an area that is bigger than a defined value, which have not been seen by the fov.
+		// 	  hierarchy[{0,1,2,3}]={next contour (same level), previous contour (same level), child contour, parent contour}
+		// 	  child-contour = 1 if it has one, = -1 if not, same for parent_contour
+		std::vector < std::vector<cv::Point> > left_areas, areas_to_revisit;
+		std::vector < cv::Vec4i > hierarchy;
+		cv::findContours(seen_positions_map, left_areas, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
+
+		// find valid regions
+		for(size_t area = 0; area < left_areas.size(); ++area)
+		{
+			// don't look at hole contours
+			if (hierarchy[area][3] == -1)
+			{
+				double room_area = map_resolution * map_resolution * cv::contourArea(left_areas[area]);
+				//subtract the area from the hole contours inside the found contour, because the contour area grows extremly large if it is a closed loop
+				for(int hole = 0; hole < left_areas.size(); ++hole)
+				{
+					if(hierarchy[hole][3] == area)//check if the parent of the hole is the current looked at contour
+					{
+						room_area -= map_resolution * map_resolution * cv::contourArea(left_areas[hole]);
+					}
+				}
+
+				// save the contour if the area of it is larger than the defined value
+				if(room_area >= left_sections_min_area_)
+					areas_to_revisit.push_back(left_areas[area]);
+			}
+		}
+
+		// check if areas need to be visited again, if not cancel here
+		if(areas_to_revisit.size() == 0)
+		{
+			ROS_INFO("Explored room.");
+
+			room_exploration_server_.setSucceeded();
+
+			return;
+		}
+
+		// draw found regions s.t. they can be intersected later
+		cv::Mat black_map(costmap_as_mat.cols, costmap_as_mat.rows, costmap_as_mat.type(), cv::Scalar(0));
+		cv::drawContours(black_map, areas_to_revisit, -1, cv::Scalar(255), CV_FILLED);
+		for(size_t contour = 0; contour < left_areas.size(); ++contour)
+			if(hierarchy[contour][3] != -1)
+				cv::drawContours(black_map, left_areas, contour, cv::Scalar(0), CV_FILLED);
+
+		// 2. Intersect the left areas with respect to the calculated grid length.
+		geometry_msgs::Polygon min_max_coordinates;	// = goal->room_min_max;
+		for(size_t i = 0/*min_max_coordinates.points[0].y*/; i < black_map.cols; i += std::floor(grid_spacing_in_pixel))
+			cv::line(black_map, cv::Point(0, i), cv::Point(black_map.cols, i), cv::Scalar(0), 1);
+		for(size_t i = 0/*min_max_coordinates.points[0].x*/; i < black_map.rows; i += std::floor(grid_spacing_in_pixel))
+			cv::line(black_map, cv::Point(i, 0), cv::Point(i, black_map.rows), cv::Scalar(0), 1);
+
+		// 3. find the centers of the global_costmap areas
+		std::vector < std::vector<cv::Point> > grid_areas;
+		cv::Mat contour_map = black_map.clone();
+		cv::findContours(contour_map, grid_areas, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+
+		// get the moments
+		std::vector<cv::Moments> moments(grid_areas.size());
+		for( int i = 0; i < grid_areas.size(); i++)
+		{
+			moments[i] = cv::moments(grid_areas[i], false);
+		}
+
+		// get the mass centers
+		std::vector<cv::Point> area_centers(grid_areas.size());
+		for( int i = 0; i < grid_areas.size(); i++ )
+		{
+			// check if the current contour has an area and isn't just a few pixels
+			if(moments[i].m10 != 0 && moments[i].m01 != 0)
+			{
+				area_centers[i] = cv::Point( moments[i].m10/moments[i].m00 , moments[i].m01/moments[i].m00 );
+			}
+			// if contour is too small for moment calculation, take one point on this contour and use it as center
+			else
+			{
+				area_centers[i] = grid_areas[i][0];
+			}
+		}
+
+		// testing
+//		black_map = room_map.clone();
+//		for(size_t i = 0; i < area_centers.size(); ++i)
+//		{
+//			cv::circle(black_map, area_centers[i], 2, cv::Scalar(127), CV_FILLED);
+//			std::cout << area_centers[i] << std::endl;
+//		}
+//		cv::namedWindow("revisiting areas", cv::WINDOW_NORMAL);
+//		cv::imshow("revisiting areas", black_map);
+//		cv::resizeWindow("revisiting areas", 600, 600);
+	//	cv::waitKey();
+
+		// 4. plan a tsp path trough the centers of the left areas
+		// find the center that is nearest to the current robot position, which becomes the start node for the tsp
+		geometry_msgs::Pose2D current_robot_pose = robot_poses.back();
+		cv::Point current_robot_point(current_robot_pose.x, current_robot_pose.y);
+		double min_dist = 9001;
+		int min_index = 0;
+		for(size_t current_center_index = 0; current_center_index < area_centers.size(); ++current_center_index)
+		{
+			cv::Point current_center = area_centers[current_center_index];
+			double current_squared_distance = std::pow(current_center.x - current_robot_point.x, 2.0) + std::pow(current_center.y - current_robot_point.y, 2.0);
+
+			if(current_squared_distance <= min_dist)
+			{
+				min_dist = current_squared_distance;
+				min_index = current_center_index;
+			}
+		}
+		ConcordeTSPSolver tsp_solver;
+		std::vector<int> revisiting_order = tsp_solver.solveConcordeTSP(costmap_as_mat, area_centers, 0.25, 0.0, map_resolution, min_index, 0);
+
+		// 5. go to each center and use the map_accessability_server to find a robot pose around it s.t. it can be covered
+		//	  by the fov
+		double pi_8 = PI/8;
+		std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";
+	//	robot_poses.clear();
+		for(size_t center = 0; center < revisiting_order.size(); ++center)
+		{
+			geometry_msgs::Pose2D current_center;
+			current_center.x = (area_centers[revisiting_order[center]].x * map_resolution) + map_origin.x;
+			current_center.y = (area_centers[revisiting_order[center]].y * map_resolution) + map_origin.y;
+
+			// define request
+			cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
+			cob_map_accessibility_analysis::CheckPerimeterAccessibility::Response response;
+			check_request.center = current_center;
+			if(planning_mode_ == PLAN_FOR_FOV)
+			{
+				check_request.radius = distance_robot_fov_middlepoint;
+				check_request.rotational_sampling_step = pi_8;
+			}
+			else
+			{
+				check_request.radius = 0.0;
+				check_request.rotational_sampling_step = 2.0*PI;
+			}
+
+
+			std::cout << "checking center: " << std::endl << current_center << "radius: " << check_request.radius << std::endl;
+
+			// send request
+			if(ros::service::call(perimeter_service_name, check_request, response) == true)
+			{
+				std::cout << "successful check of accessiblity" << std::endl;
+				// go trough the found accessible positions and try to reach one of them
+				for(std::vector<geometry_msgs::Pose2D>::iterator pose = response.accessible_poses_on_perimeter.begin(); pose != response.accessible_poses_on_perimeter.end(); ++pose)
+					if(publishNavigationGoal(*pose, map_frame_, camera_frame_, robot_poses, 0.0) == true)
+						break;
+			}
+			else
+			{
+				// TODO: return areas that were not visible on radius
+				std::cout << "center not reachable on perimeter" << std::endl;
+			}
+		}
+
+//		drawSeenPoints(copy, robot_poses, goal->field_of_view, corner_point_1, corner_point_2, map_resolution, map_origin);
+//		cv::namedWindow("seen areas", cv::WINDOW_NORMAL);
+//		cv::imshow("seen areas", copy);
+//		cv::resizeWindow("seen areas", 600, 600);
+//		cv::waitKey();
+	}
+}
+
+
 // Function to publish a navigation goal for move_base. It returns true, when the goal could be reached.
 // The function tracks the robot pose while moving to the goal and adds these poses to the given pose-vector. This is done
 // because it allows to calculate where the robot field of view has theoretically been and identify positions of the map that
@@ -939,7 +906,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 //	ros::Duration sleep_rate(0.1);
 	tf::TransformListener listener;
 	tf::StampedTransform transform;
-	ros::Duration sleep_duration(0.15); // TODO: param!!!!
+	ros::Duration sleep_duration(0.15); // TODO: param
 	bool near_pos;
 	do
 	{

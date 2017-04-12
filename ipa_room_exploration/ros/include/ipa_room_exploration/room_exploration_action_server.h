@@ -198,6 +198,16 @@ protected:
 			Eigen::Matrix<float, 2, 1>& fitting_circle_center_point_in_meter, std::vector<Eigen::Matrix<float, 2, 1> >& fov_corners_meter,
 			const double fov_resolution=1000);
 
+	// clean path from subsequent double occurrences of the same pose
+	// min_dist_squared is the squared minimum distance between two points on the trajectory, in [pixel] (i.e. grid cells)
+	void downsampleTrajectory(const std::vector<geometry_msgs::Pose2D>& path_uncleaned, std::vector<geometry_msgs::Pose2D>& path, const double min_dist_squared);
+
+
+	// excute the planned trajectory and drive to unexplored areas after moving along the computed path
+	void navigateExplorationPath(const std::vector<geometry_msgs::Pose2D>& exploration_path,
+			const std::vector<geometry_msgs::Point32>& field_of_view, const double coverage_radius, const double distance_robot_fov_middlepoint,
+			const float map_resolution, const geometry_msgs::Pose2D& map_origin, const double grid_spacing_in_pixel);
+
 	// function to publish a navigation goal, it returns true if the goal could be reached
 	// eps_x and eps_y are used to define a epsilon neighborhood around the goal in which a new nav_goal gets published
 	// 	--> may smooth the process, move_base often slows before and stops at the goal

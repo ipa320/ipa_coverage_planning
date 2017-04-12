@@ -450,37 +450,6 @@ public:
 
 				cv::Mat room_map = datas.room_maps_[room_index];
 
-				// todo: min max computation is not needed here anymore, shift somewhere else if needed
-				// find min/max coordinates for this room by using the saved bounding box
-//				int min_y = 1e5, max_y = 0, min_x = 1e5, max_x = 0;
-//				for (int y = 0; y < room_map.rows; y++)
-//				{
-//					for (int x = 0; x < room_map.cols; x++)
-//					{
-//						//only check white pixels
-//						if(room_map.at<uchar>(y,x)==255)
-//						{
-//							if(y < min_y)
-//								min_y = y;
-//							if(y > max_y)
-//								max_y = y;
-//							if(x < min_x)
-//								min_x = x;
-//							if(x > max_x)
-//								max_x = x;
-//						}
-//					}
-//				}
-				int min_y = datas.bounding_boxes_[room_index].y;
-				int max_y = datas.bounding_boxes_[room_index].y+datas.bounding_boxes_[room_index].height;
-				int min_x = datas.bounding_boxes_[room_index].x;
-				int max_x = datas.bounding_boxes_[room_index].x+datas.bounding_boxes_[room_index].width;
-				min_y -= 1;
-				min_x -= 1;
-				max_y += 1;
-				max_x += 1;
-				std::cout << "min coordinates: " << min_y << ":" << max_y << "(y), " << min_x << ":" << max_x << "(x)" << std::endl;
-
 				// send the exploration goal
 				ipa_building_msgs::RoomExplorationResultConstPtr result_expl;
 				clock_gettime(CLOCK_MONOTONIC, &t0); //set time stamp before the path planning
@@ -963,6 +932,7 @@ public:
 				ipa_building_msgs::CheckCoverageRequest coverage_request;
 				ipa_building_msgs::CheckCoverageResponse coverage_response;
 				// fill request
+				// todo: adapt for footprint and fov
 				cv::Mat eroded_room_map = datas.room_maps_[room].clone();
 				cv::erode(eroded_room_map, eroded_room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
 				sensor_msgs::ImageConstPtr service_image;
@@ -973,9 +943,13 @@ public:
 				coverage_request.input_map = *service_image;
 				coverage_request.path = interpolated_paths[path_index];
 				coverage_request.field_of_view = datas.fov_points_;
+				coverage_request.coverage_radius = datas.coverage_radius_;
 				coverage_request.map_origin = origin;
 				coverage_request.map_resolution = datas.map_resolution_;
-				coverage_request.check_for_footprint = false;
+				if (datas.planning_mode_ == 1)
+					coverage_request.check_for_footprint = true;
+				else if (datas.planning_mode_ == 2)
+					coverage_request.check_for_footprint = false;
 				coverage_request.check_number_of_coverages = true;
 				// send request
 				if(ros::service::call(coverage_service_name, coverage_request, coverage_response)==true)

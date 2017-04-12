@@ -37,7 +37,7 @@ protected:
 	// function to draw the covered ares into the given map, when checking for the robot footprint, done by simply drawing the footprint
 	// at the given poses into the map
 	void drawSeenPoints(cv::Mat& reachable_areas_map, const std::vector<geometry_msgs::Pose2D>& robot_poses,
-				const std::vector<geometry_msgs::Point32>& robot_footprint, const float map_resolution,
+				const double coverage_radius, const float map_resolution,
 				const cv::Point2d map_origin, cv::Mat* number_of_coverages_image=NULL);
 
 	// ros server object
