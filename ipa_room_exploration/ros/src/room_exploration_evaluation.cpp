@@ -88,6 +88,7 @@
 #include <ipa_room_exploration/dynamic_reconfigure_client.h>
 #include <ipa_building_msgs/CheckCoverage.h>
 #include <ipa_building_navigation/A_star_pathplanner.h>
+#include <ipa_room_exploration/fov_to_robot_mapper.h>
 
 #include <time.h>
 #include <sys/time.h>
@@ -428,7 +429,7 @@ public:
 			const std::string upper_command = "mkdir -p " + data_storage_path + folder_path;
 			int return_value = system(upper_command.c_str());
 
-			std::cout << "expl: " << config->exploration_algorithm_ << std::endl;
+			std::cout << "Exploration algorithm: " << config->exploration_algorithm_ << std::endl;
 			//variables for time measurement
 			struct timespec t0, t1;
 
@@ -626,21 +627,22 @@ public:
 		}
 	}
 
-	// function that reads out the calculated paths and does the evaluation of the calculated these
+	// function that reads out the calculated paths and does the evaluation
 	void evaluateCoveragePaths(const ExplorationData& data, std::vector<EvaluationResults>& results,
 			const std::vector<ExplorationConfig>& configs, const std::string data_storage_path)
 	{
+		// todo: split into smaller functions?
+
 		// find the middle-point distance of the given field of view
-		std::vector<Eigen::Matrix<float, 2, 1> > fov_vectors;
+		std::vector<Eigen::Matrix<float, 2, 1> > fov_corners_meter(4);
 		for(int i = 0; i < 4; ++i)
-		{
-			Eigen::Matrix<float, 2, 1> current_vector;
-			current_vector << data.fov_points_[i].x, data.fov_points_[i].y;
-			fov_vectors.push_back(current_vector);
-		}
+			fov_corners_meter[i] << data.fov_points_[i].x, data.fov_points_[i].y;
+		float fitting_circle_radius_in_meter=0;
+		Eigen::Matrix<float, 2, 1> fitting_circle_center_point_in_meter;
+		computeFOVCenterAndRadius(fov_corners_meter, fitting_circle_radius_in_meter, fitting_circle_center_point_in_meter, 1000);
 		// get the distance to the middle-point
-		Eigen::Matrix<float, 2, 1> middle_point = (fov_vectors[0] + fov_vectors[1] + fov_vectors[2] + fov_vectors[3]) / 4;
-		const double distance_robot_fov_middlepoint = middle_point.norm();
+		const double distance_robot_fov_middlepoint = fitting_circle_center_point_in_meter.norm();
+
 
 		for(std::vector<ExplorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
 		{
@@ -1512,9 +1514,9 @@ int main(int argc, char **argv)
 
 	std::vector<int> exploration_algorithms;
 //	exploration_algorithms.push_back(1);	// grid point exploration
-//	exploration_algorithms.push_back(2);	// boustrophedon exploration
+	exploration_algorithms.push_back(2);	// boustrophedon exploration
 //	exploration_algorithms.push_back(3);	// neural network exploration
-	exploration_algorithms.push_back(4);	// convex SPP exploration
+//	exploration_algorithms.push_back(4);	// convex SPP exploration
 //	exploration_algorithms.push_back(5);	// flow network exploration
 //	exploration_algorithms.push_back(6);	// energy functional exploration
 //	exploration_algorithms.push_back(7);	// voronoi exploration

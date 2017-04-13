@@ -92,3 +92,9 @@
 void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_path,
 		const std::vector<geometry_msgs::Pose2D>& fov_path, const Eigen::Matrix<float, 2, 1>& robot_to_fov_vector,
 		const double map_resolution, const cv::Point2d map_origin, const cv::Point& starting_point);
+
+// computes the field of view center and the radius of the maximum incircle of a given field of view quadrilateral
+// fitting_circle_center_point_in_meter this is also considered the center of the field of view, because around this point the maximum radius incircle can be found that is still inside the fov
+// fov_resolution resolution of the fov center and incircle computations, in [pixels/m]
+void computeFOVCenterAndRadius(const std::vector<Eigen::Matrix<float, 2, 1> >& fov_corners_meter, float& fitting_circle_radius_in_meter,
+		Eigen::Matrix<float, 2, 1>& fitting_circle_center_point_in_meter, const double fov_resolution=1000);

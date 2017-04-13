@@ -128,7 +128,6 @@ add_executable(room_exploration_server
 	common/src/room_rotator.cpp
 	common/src/meanshift2d.cpp
 	ros/src/fov_to_robot_mapper.cpp
-#	common/src/A_star_pathplanner.cpp common/src/node.cpp common/src/concorde_TSP.cpp common/src/nearest_neighbor_TSP.cpp
 )
 add_dependencies(room_exploration_server
 	${catkin_EXPORTED_TARGETS}
@@ -173,8 +172,7 @@ add_dependencies(room_exploration_client
 # evaluation of room exploration algorithms
 add_executable(room_exploration_evaluation
 	ros/src/room_exploration_evaluation.cpp
-#	common/src/A_star_pathplanner.cpp
-#	common/src/node.cpp
+	ros/src/fov_to_robot_mapper.cpp
 )
 target_link_libraries(room_exploration_evaluation
 	${catkin_LIBRARIES} 

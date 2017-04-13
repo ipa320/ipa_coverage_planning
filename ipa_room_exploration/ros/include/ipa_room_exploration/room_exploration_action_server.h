@@ -192,12 +192,6 @@ protected:
 	// remove unconnected, i.e. inaccessible, parts of the room (i.e. obstructed by furniture), only keep the room with the largest area
 	void removeUnconnectedRoomParts(cv::Mat& room_map);
 
-	// computes the field of view center and the radius of the maximum incircle of a given field of view quadrilateral
-	// fitting_circle_center_point_in_meter this is also considered the center of the field of view, because around this point the maximum radius incircle can be found that is still inside the fov
-	void computeFOVCenterAndRadius(const std::vector<geometry_msgs::Point32>& field_of_view, float& fitting_circle_radius_in_meter,
-			Eigen::Matrix<float, 2, 1>& fitting_circle_center_point_in_meter, std::vector<Eigen::Matrix<float, 2, 1> >& fov_corners_meter,
-			const double fov_resolution=1000);
-
 	// clean path from subsequent double occurrences of the same pose
 	// min_dist_squared is the squared minimum distance between two points on the trajectory, in [pixel] (i.e. grid cells)
 	void downsampleTrajectory(const std::vector<geometry_msgs::Pose2D>& path_uncleaned, std::vector<geometry_msgs::Pose2D>& path, const double min_dist_squared);

@@ -134,3 +134,86 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 //		cv::waitKey();
 	}
 }
+
+
+// computes the field of view center and the radius of the maximum incircle of a given field of view quadrilateral
+// fitting_circle_center_point_in_meter this is also considered the center of the field of view, because around this point the maximum radius incircle can be found that is still inside the fov
+// fov_resolution resolution of the fov center and incircle computations, in [pixels/m]
+void computeFOVCenterAndRadius(const std::vector<Eigen::Matrix<float, 2, 1> >& fov_corners_meter,
+		float& fitting_circle_radius_in_meter, Eigen::Matrix<float, 2, 1>& fitting_circle_center_point_in_meter, const double fov_resolution)
+{
+	// The general solution for the largest incircle is to find the critical points of a Voronoi graph and select the one
+	// with largest distance to the sides as circle center and its closest distance to the quadrilateral sides as radius
+	// see: http://math.stackexchange.com/questions/1948356/largest-incircle-inside-a-quadrilateral-radius-calculation
+	// -------------> easy solution: distance transform on fov, take max. value that is closest to center
+
+	// read out field of view and convert to pixel coordinates, determine min, max and center coordinates
+	std::vector<cv::Point> fov_corners_pixel;
+	cv::Point center_point_pixel(0,0);
+	cv::Point min_point(100000, 100000);
+	cv::Point max_point(-100000, -100000);
+	for(int i = 0; i < 4; ++i)
+	{
+		fov_corners_pixel.push_back(cv::Point(fov_corners_meter[i](0,0)*fov_resolution, fov_corners_meter[i](1,0)*fov_resolution));
+		center_point_pixel += fov_corners_pixel.back();
+		min_point.x = std::min(min_point.x, fov_corners_pixel.back().x);
+		min_point.y = std::min(min_point.y, fov_corners_pixel.back().y);
+		max_point.x = std::max(max_point.x, fov_corners_pixel.back().x);
+		max_point.y = std::max(max_point.y, fov_corners_pixel.back().y);
+	}
+	center_point_pixel.x = center_point_pixel.x/4 - min_point.x + 1;
+	center_point_pixel.y = center_point_pixel.y/4 - min_point.y + 1;
+
+	// draw an image of the field of view and compute a distance transform
+	cv::Mat fov_image = cv::Mat::zeros(4+max_point.y-min_point.y, 4+max_point.x-min_point.x, CV_8UC1);
+	std::vector<std::vector<cv::Point> > polygon_array(1,fov_corners_pixel);
+	for (size_t i=0; i<polygon_array[0].size(); ++i)
+	{
+		polygon_array[0][i].x -= min_point.x-1;
+		polygon_array[0][i].y -= min_point.y-1;
+	}
+	cv::fillPoly(fov_image, polygon_array, cv::Scalar(255));
+	cv::Mat fov_distance_transform;
+	cv::distanceTransform(fov_image, fov_distance_transform, CV_DIST_L2, CV_DIST_MASK_PRECISE);
+
+	// determine the point(s) with maximum distance to the rim of the field of view, if multiple points apply, take the one closest to the center
+	float max_dist_val = 0.;
+	cv::Point max_dist_point(0,0);
+	double center_dist = 1e10;
+	for (int v=0; v<fov_distance_transform.rows; ++v)
+	{
+		for (int u=0; u<fov_distance_transform.cols; ++u)
+		{
+			if (fov_distance_transform.at<float>(v,u)>max_dist_val)
+			{
+				max_dist_val = fov_distance_transform.at<float>(v,u);
+				max_dist_point = cv::Point(u,v);
+				center_dist = (center_point_pixel.x-u)*(center_point_pixel.x-u) + (center_point_pixel.y-v)*(center_point_pixel.y-v);
+			}
+			else if (fov_distance_transform.at<float>(v,u) == max_dist_val)
+			{
+				double cdist = (center_point_pixel.x-u)*(center_point_pixel.x-u) + (center_point_pixel.y-v)*(center_point_pixel.y-v);
+				if (cdist < center_dist)
+				{
+					max_dist_val = fov_distance_transform.at<float>(v,u);
+					max_dist_point = cv::Point(u,v);
+					center_dist = cdist;
+				}
+			}
+		}
+	}
+
+	// compute fitting_circle_radius and center point (round last digit)
+	fitting_circle_radius_in_meter = 10*(int)(((max_dist_val-1.f)+5)*0.1) / fov_resolution;
+	std::cout << "fitting_circle_radius: " << fitting_circle_radius_in_meter << " m" << std::endl;
+	cv::Point2d center_point = cv::Point2d(10*(int)(((max_dist_point.x+min_point.x-1)+5.)*0.1), 10*(int)(((max_dist_point.y+min_point.y-1)+5.)*0.1))*(1./fov_resolution);
+	std::cout << "center point: " << center_point << " m" << std::endl;
+	fitting_circle_center_point_in_meter << center_point.x, center_point.y;
+
+//	// display
+//	cv::normalize(fov_distance_transform, fov_distance_transform, 0, 1, cv::NORM_MINMAX);
+//	cv::circle(fov_distance_transform, max_dist_point, 2, cv::Scalar(0.2), -1);
+//	cv::imshow("fov_image", fov_image);
+//	cv::imshow("fov_distance_transform", fov_distance_transform);
+//	cv::waitKey();
+}
