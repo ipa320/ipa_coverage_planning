@@ -1,3 +1,63 @@
+/*!
+ *****************************************************************
+ * \file
+ *
+ * \note
+ * Copyright (c) 2016 \n
+ * Fraunhofer Institute for Manufacturing Engineering
+ * and Automation (IPA) \n\n
+ *
+ *****************************************************************
+ *
+ * \note
+ * Project name: Care-O-bot
+ * \note
+ * ROS stack name: autopnp
+ * \note
+ * ROS package name: ipa_room_exploration
+ *
+ * \author
+ * Author: Florian Jordan, Richard Bormann
+ * \author
+ * Supervised by: Richard Bormann
+ *
+ * \date Date of creation: 03.2016
+ *
+ * \brief
+ *
+ *
+ *****************************************************************
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * - Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer. \n
+ * - Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution. \n
+ * - Neither the name of the Fraunhofer Institute for Manufacturing
+ * Engineering and Automation (IPA) nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission. \n
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License LGPL as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License LGPL for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License LGPL along with this program.
+ * If not, see <http://www.gnu.org/licenses/>.
+ *
+ ****************************************************************/
+
+
 #include <ros/ros.h>
 #include <ros/package.h>
 
@@ -62,7 +122,7 @@ struct ExplorationConfig
 									// 6: energyFunctional explorator
 									// 7: Voronoi explorator
 
-	// default values --> best ones?
+	// default values
 	ExplorationConfig()
 	{
 		exploration_algorithm_ = 2;
@@ -113,14 +173,14 @@ struct ExplorationData
 	std::vector<cv::Mat> room_maps_;
 	std::vector<cv::Rect> bounding_boxes_;
 	float map_resolution_;	// [m/pixel]
-	geometry_msgs::Pose map_origin_;
+	geometry_msgs::Pose map_origin_;	// [m]
 	geometry_msgs::Pose2D robot_start_position_;
-	double robot_radius_;	// [m]
-	double coverage_radius_;	// [m]
+	double robot_radius_;	// [m], effective robot radius, taking the enlargement of the costmap into account, in [meter]
+	double coverage_radius_;	// [m], radius that is used to plan the coverage planning for the robot and not the field of view, assuming that the part that needs to cover everything (e.g. the cleaning part) can be represented by a fitting circle (e.g. smaller than the actual part to ensure coverage), in [meter]
 	std::vector<geometry_msgs::Point32> fov_points_;
-	int planning_mode_;
+	int planning_mode_;	// 1 = plans a path for coverage with the robot footprint, 2 = plans a path for coverage with the robot's field of view
 	double robot_speed_; // [m/s]
-	double rotation_speed_; // [rad/s]
+	double robot_rotation_speed_; // [rad/s]
 
 	// empty values as default
 	ExplorationData()
@@ -134,37 +194,38 @@ struct ExplorationData
 		coverage_radius_ = 0.35;
 		planning_mode_ = 1;
 		robot_speed_ = 0.3;
-		rotation_speed_ = 0.1;
+		robot_rotation_speed_ = 0.1;
 	}
 
 	// set data used in this evaluation
 	ExplorationData(const std::string map_name, const cv::Mat floor_plan, const float map_resolution, const double robot_radius,
-			const double coverage_radius, const std::vector<geometry_msgs::Point32>& fov_points, const int planning_mode)
+			const double coverage_radius, const std::vector<geometry_msgs::Point32>& fov_points, const int planning_mode,
+			const double robot_speed, const double robot_rotation_speed)
 	{
 		map_name_ = map_name;
 		floor_plan_ = floor_plan;
 		map_resolution_ = map_resolution;
+		map_origin_.position.x = 0;
+		map_origin_.position.y = 0;
 		robot_radius_ = robot_radius;
 		coverage_radius_ = coverage_radius;
 		fov_points_ = fov_points;
 		planning_mode_ = planning_mode;
-		robot_speed_ = 0.3;
-		rotation_speed_ = 0.1;
-		map_origin_.position.x = 0;
-		map_origin_.position.y = 0;
+		robot_speed_ = robot_speed;
+		robot_rotation_speed_ = robot_rotation_speed;
 		cv::Mat map_eroded;
 		cv::erode(floor_plan_, map_eroded, cv::Mat(), cv::Point(-1,-1), robot_radius_/map_resolution_+2);
 		cv::Mat distance_map;	//variable for the distance-transformed map, type: CV_32FC1
 		cv::distanceTransform(map_eroded, distance_map, CV_DIST_L2, 5);
 		cv::convertScaleAbs(distance_map, distance_map);	// conversion to 8 bit image
-		bool robot_start_coordinate_set = false;
-		for (int v=0; v<map_eroded.rows && robot_start_coordinate_set==false; ++v)
-			for (int u=0; u<map_eroded.cols && robot_start_coordinate_set==false; ++u)
-				if (map_eroded.at<uchar>(v,u) != 0 && distance_map.at<uchar>(v,u) > 20)			// TODO: parameter
+		float max_distance = 0;
+		for (int v=0; v<map_eroded.rows; ++v)
+			for (int u=0; u<map_eroded.cols; ++u)
+				if (map_eroded.at<uchar>(v,u) != 0 && distance_map.at<float>(v,u) > max_distance)
 				{
+					max_distance = distance_map.at<float>(v,u);
 					robot_start_position_.x = u*map_resolution_ + map_origin_.position.x;
 					robot_start_position_.y = v*map_resolution_ + map_origin_.position.y;
-					robot_start_coordinate_set = true;
 				}
 	}
 };
@@ -198,62 +259,20 @@ public:
 	ros::NodeHandle node_handle_;
 
 
-	ExplorationEvaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::string& data_storage_path,
-			const double robot_radius, const double coverage_radius, const std::vector<geometry_msgs::Point32>& fov_points,
-			const int planning_mode, const std::vector<int>& exploration_algorithms)
+	ExplorationEvaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::vector< std::string >& map_names, const float map_resolution,
+			const std::string& data_storage_path, const double robot_radius, const double coverage_radius,
+			const std::vector<geometry_msgs::Point32>& fov_points, const int planning_mode, const std::vector<int>& exploration_algorithms,
+			const double robot_speed, const double robot_rotation_speed)
 	{
-		// set node-handle
+		// 1. set node-handle
 		node_handle_ = nh;
 
-		// prepare relevant floor map data
-		std::vector< std::string > map_names;
-		map_names.push_back("lab_ipa");
-		map_names.push_back("lab_c_scan");
-		map_names.push_back("Freiburg52_scan");
-		map_names.push_back("Freiburg79_scan");
-		map_names.push_back("lab_b_scan");
-		map_names.push_back("lab_intel");
-		map_names.push_back("Freiburg101_scan");
-		map_names.push_back("lab_d_scan");
-		map_names.push_back("lab_f_scan");
-		map_names.push_back("lab_a_scan");
-		map_names.push_back("NLB");
-		map_names.push_back("office_a");
-		map_names.push_back("office_b");
-		map_names.push_back("office_c");
-		map_names.push_back("office_d");
-		map_names.push_back("office_e");
-		map_names.push_back("office_f");
-		map_names.push_back("office_g");
-		map_names.push_back("office_h");
-		map_names.push_back("office_i");
-		map_names.push_back("lab_ipa_furnitures");
-		map_names.push_back("lab_c_scan_furnitures");
-		map_names.push_back("Freiburg52_scan_furnitures");
-		map_names.push_back("Freiburg79_scan_furnitures");
-		map_names.push_back("lab_b_scan_furnitures");
-		map_names.push_back("lab_intel_furnitures");
-		map_names.push_back("Freiburg101_scan_furnitures");
-		map_names.push_back("lab_d_scan_furnitures");
-		map_names.push_back("lab_f_scan_furnitures");
-		map_names.push_back("lab_a_scan_furnitures");
-		map_names.push_back("NLB_furnitures");
-		map_names.push_back("office_a_furnitures");
-		map_names.push_back("office_b_furnitures");
-		map_names.push_back("office_c_furnitures");
-		map_names.push_back("office_d_furnitures");
-		map_names.push_back("office_e_furnitures");
-		map_names.push_back("office_f_furnitures");
-		map_names.push_back("office_g_furnitures");
-		map_names.push_back("office_h_furnitures");
-		map_names.push_back("office_i_furnitures");
-
-		// create all needed configurations
+		// 2. create all needed configurations
 		std::vector<ExplorationConfig> configs;
 		setConfigurations(configs, exploration_algorithms);
 
-		// prepare images and evaluation datas
-		std::vector<ExplorationData> evaluation_datas;
+		// 3. prepare images and evaluation data
+		std::vector<ExplorationData> evaluation_data;
 		for (size_t image_index = 0; image_index<map_names.size(); ++image_index)
 		{
 			std::string image_filename = test_map_path + map_names[image_index] + ".png";
@@ -276,78 +295,52 @@ public:
 			}
 
 			// create evaluation data
-			//                                                                      todo: param
-			evaluation_datas.push_back(ExplorationData(map_names[image_index], map, 0.05, robot_radius, coverage_radius, fov_points, planning_mode));
+			evaluation_data.push_back(ExplorationData(map_names[image_index], map, map_resolution, robot_radius, coverage_radius, fov_points,
+					planning_mode, robot_speed, robot_rotation_speed));
 		}
-
 		// get the room maps for each evaluation data
-		getRoomMaps(evaluation_datas);
+		getRoomMaps(evaluation_data);
 
-		// compute exploration paths for each room in the maps
+		// 4. compute exploration paths for each room in the maps
 		std::string bugfile = data_storage_path + "bugfile.txt";
 		std::ofstream failed_maps(bugfile.c_str(), std::ios::out);
 		if (failed_maps.is_open())
 			failed_maps << "Maps that had a bug during the simulation and couldn't be finished: " << std::endl;
 		ROS_INFO("Evaluating the maps.");
-		for (size_t i=0; i<evaluation_datas.size(); ++i)
+		for (size_t i=0; i<evaluation_data.size(); ++i)
 		{
-			if (planCoveragePaths(configs, evaluation_datas[i], data_storage_path)==false)
+			std::stringstream error_output;
+			if (planCoveragePaths(evaluation_data[i], configs, data_storage_path, error_output)==false)
 			{
-				std::cout << "failed to simulate map " << evaluation_datas[i].map_name_ << std::endl;
+				std::cout << "failed to compute exploration path for map " << evaluation_data[i].map_name_ << std::endl;
 				if (failed_maps.is_open())
-					failed_maps << evaluation_datas[i].map_name_ << std::endl;
+					failed_maps << evaluation_data[i].map_name_ << std::endl;
 			}
+			if (failed_maps.is_open() && error_output.str().length()>1)
+				failed_maps << evaluation_data[i].map_name_ << std::endl << error_output.str();
 		}
 		if (failed_maps.is_open())
 			failed_maps.close();
 
+		// 5. evaluate the generated paths
 		// read out the computed paths and calculate the evaluation values
-//		ROS_INFO("Reading out all saved paths.");
-//		std::vector<EvaluationResults> results;
-//		for (size_t i=0; i<evaluation_datas.size(); ++i)
-//		{
-//			evaluateCoveragePaths(configs, evaluation_datas[i], results, data_storage_path);
-//		}
-//
-//		// accumulate all statistics in one file
-//		for(std::vector<ExplorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
-//		{
-//			std::string folder_path = config->generateConfigurationFolderString() + "/";
-//			std::stringstream cumulative_statistics;
-//			for (size_t i=0; i<evaluation_datas.size(); ++i)
-//			{
-//				std::string filename = data_storage_path + folder_path + evaluation_datas[i].map_name_ + "_evaluations_per_room.txt";
-//				std::ifstream file(filename.c_str(), std::ifstream::in);
-//				if (file.is_open())
-//				{
-//					std::string line;
-//					while(getline(file, line))
-//						if (line.length()>0)
-//							cumulative_statistics << line << std::endl;
-//				}
-//				else
-//					ROS_ERROR("Could not open file '%s' for reading cumulative data.", filename.c_str());
-//				file.close();
-//			}
-//			std::string filename_out = data_storage_path + folder_path + "all_evaluations_per_room.txt";
-//			std::ofstream file_out(filename_out.c_str(), std::ofstream::out);
-//			if (file_out.is_open())
-//				file_out << cumulative_statistics.str();
-//			else
-//				ROS_ERROR("Could not open file '%s' for writing cumulative data.", filename_out.c_str());
-//			file_out.close();
-//		}
+		ROS_INFO("Reading out all saved paths.");
+		std::vector<EvaluationResults> results;
+		for (size_t i=0; i<evaluation_data.size(); ++i)
+			evaluateCoveragePaths(evaluation_data[i], results, configs, data_storage_path);
+		// accumulate all statistics in one file
+		writeCumulativeStatistics(evaluation_data, configs, data_storage_path);
 	}
 
 	void getRoomMaps(std::vector<ExplorationData>& data_saver)
 	{
-		for(std::vector<ExplorationData>::iterator datas=data_saver.begin(); datas!=data_saver.end(); ++datas)
+		for(std::vector<ExplorationData>::iterator data=data_saver.begin(); data!=data_saver.end(); ++data)
 		{
 			// 1. read out the ground truth map
-			std::string map_name_basic = datas->map_name_;
-			std::size_t pos = datas->map_name_.find("_furnitures");
+			std::string map_name_basic = data->map_name_;
+			std::size_t pos = data->map_name_.find("_furnitures");
 			if (pos != std::string::npos)
-				map_name_basic = datas->map_name_.substr(0, pos);
+				map_name_basic = data->map_name_.substr(0, pos);
 			std::string gt_image_filename = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/" + map_name_basic + "_gt_segmentation.png";
 			std::cout << "Loading ground truth segmentation from: " << gt_image_filename << std::endl;
 			cv::Mat gt_map = cv::imread(gt_image_filename.c_str(), CV_8U);
@@ -358,7 +351,7 @@ public:
 			{
 				for (int x = 0; x < gt_map.cols; x++)
 				{
-					if (datas->floor_plan_.at<uchar>(y,x) != 255)
+					if (data->floor_plan_.at<uchar>(y,x) != 255)
 						gt_map.at<uchar>(y,x) = 0;
 				}
 			}
@@ -398,7 +391,7 @@ public:
 
 				// check for the eroded map (the map that shows the in reality reachable areas) to have enough free pixels
 				cv::Mat eroded_map;
-				int robot_radius_in_pixel = (datas->robot_radius_ / datas->map_resolution_);
+				int robot_radius_in_pixel = (data->robot_radius_ / data->map_resolution_);
 				cv::erode(room_map, eroded_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
 				int number_of_pixels = 0;
 				for(size_t y=0; y<eroded_map.rows; ++y)
@@ -418,14 +411,14 @@ public:
 			}
 
 			// save the found room maps and bounding boxes
-			datas->floor_plan_ = gt_map;
-			datas->room_maps_ = room_maps;
-			datas->bounding_boxes_ = chosen_bb;
+			data->floor_plan_ = gt_map;
+			data->room_maps_ = room_maps;
+			data->bounding_boxes_ = chosen_bb;
 		}
 	}
 
-	// function that does the whole evaluation for all configs
-	bool planCoveragePaths(const std::vector<ExplorationConfig>& configs, ExplorationData& datas, const std::string data_storage_path)
+	// function that does the whole evaluation for all configs on all rooms of one map
+	bool planCoveragePaths(ExplorationData& data, const std::vector<ExplorationConfig>& configs, const std::string data_storage_path, std::stringstream& error_output)
 	{
 		// go trough all configs and do the evaluations
 		for(std::vector<ExplorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
@@ -441,21 +434,18 @@ public:
 
 			// go trough all rooms and find the coverage path trough it
 			std::stringstream output;
-			cv::Mat path_map = datas.floor_plan_.clone();
-			for(size_t room_index=0; room_index<datas.room_maps_.size(); ++room_index)
+			cv::Mat path_map = data.floor_plan_.clone();
+			for(size_t room_index=0; room_index<data.room_maps_.size(); ++room_index)
 			{
-				// testing of the algorithm --> select a few rooms so specificaly look at
-//				if(room_index!=5)
-//					continue;
-
-				cv::Mat room_map = datas.room_maps_[room_index];
+				cv::Mat room_map = data.room_maps_[room_index];
 
 				// send the exploration goal
 				ipa_building_msgs::RoomExplorationResultConstPtr result_expl;
 				clock_gettime(CLOCK_MONOTONIC, &t0); //set time stamp before the path planning
-				if(planCoveragePath(room_map, datas, *config, result_expl)==false)
+				if(planCoveragePath(room_map, data, *config, result_expl)==false)
 				{
 					output << "room " << room_index << " exceeded the time limitation for computation" << std::endl << std::endl;
+					error_output << "  room " << room_index << " exceeded the time limitation for computation" << std::endl;
 					continue;
 				}
 				clock_gettime(CLOCK_MONOTONIC,  &t1); //set time stamp after the path planning
@@ -467,14 +457,15 @@ public:
 				std::cout << "length of path: " << coverage_path.size() << std::endl;
 				if(coverage_path.size()==0)
 				{
-					output << "room " << room_index << " had a bug" << std::endl << std::endl;
+					output << "room " << room_index << " has zero length path" << std::endl << std::endl;
+					error_output << "  room " << room_index << " has zero length path" << std::endl;
 					continue;
 				}
-				const double map_resolution_inv = 1.0/datas.map_resolution_;
+				const double map_resolution_inv = 1.0/data.map_resolution_;
 				for(size_t point=0; point<coverage_path.size(); ++point)
 				{
-					coverage_path[point].x = (coverage_path[point].x-datas.map_origin_.position.x)*map_resolution_inv;
-					coverage_path[point].y = (coverage_path[point].y-datas.map_origin_.position.y)*map_resolution_inv;
+					coverage_path[point].x = (coverage_path[point].x-data.map_origin_.position.x)*map_resolution_inv;
+					coverage_path[point].y = (coverage_path[point].y-data.map_origin_.position.y)*map_resolution_inv;
 				}
 				output << "calculation time: " << calculation_time << "s" << std::endl;
 				for(size_t point=0; point<coverage_path.size(); ++point)
@@ -495,10 +486,10 @@ public:
 //				cv::imshow("path", path_map);
 //				cv::waitKey();
 			}
-			std::string img_filename = data_storage_path + folder_path + datas.map_name_ + "_paths.png";
+			std::string img_filename = data_storage_path + folder_path + data.map_name_ + "_paths.png";
 			cv::imwrite(img_filename.c_str(), path_map);
 
-			std::string log_filename = data_storage_path + folder_path + datas.map_name_ + "_results.txt";
+			std::string log_filename = data_storage_path + folder_path + data.map_name_ + "_results.txt";
 			std::cout << log_filename << std::endl;
 			std::ofstream file(log_filename.c_str(), std::ios::out);
 			if (file.is_open()==true)
@@ -512,16 +503,139 @@ public:
 		return true;
 	}
 
+	// function that plans one coverage path for the given room map
+	bool planCoveragePath(const cv::Mat& room_map, const ExplorationData& evaluation_data, const ExplorationConfig& evaluation_configuration,
+				ipa_building_msgs::RoomExplorationResultConstPtr& result_expl)
+	{
+		// convert image to message
+		sensor_msgs::Image map_msg;
+		cv_bridge::CvImage cv_image;
+		cv_image.encoding = "mono8";
+		cv_image.image = room_map;
+		cv_image.toImageMsg(map_msg);
+
+		// initialize action server for room exploration
+		actionlib::SimpleActionClient<ipa_building_msgs::RoomExplorationAction> ac_exp("room_exploration_server", true);
+		ROS_INFO("Waiting for action server to start.");
+		ac_exp.waitForServer(); //will wait for infinite time
+		ROS_INFO("Action server started.");
+
+		// connect to dynamic reconfigure and set planning algorithm
+		ROS_INFO("Trying to connect to dynamic reconfigure server.");
+		DynamicReconfigureClient drc_exp(node_handle_, "room_exploration_server/set_parameters", "room_exploration_server/parameter_updates");
+		ROS_INFO("Done connecting to the dynamic reconfigure server.");
+		if (evaluation_configuration.exploration_algorithm_==1)
+		{
+			drc_exp.setConfig("room_exploration_algorithm", 1);
+			ROS_INFO("You have chosen the grid exploration method.");
+		}
+		else if(evaluation_configuration.exploration_algorithm_==2)
+		{
+			drc_exp.setConfig("room_exploration_algorithm", 2);
+			ROS_INFO("You have chosen the boustrophedon exploration method.");
+		}
+		else if(evaluation_configuration.exploration_algorithm_==3)
+		{
+			drc_exp.setConfig("room_exploration_algorithm", 3);
+			ROS_INFO("You have chosen the neural network exploration method.");
+		}
+		else if(evaluation_configuration.exploration_algorithm_==4)
+		{
+			drc_exp.setConfig("room_exploration_algorithm", 4);
+			ROS_INFO("You have chosen the convexSPP exploration method.");
+		}
+		else if(evaluation_configuration.exploration_algorithm_==5)
+		{
+			drc_exp.setConfig("room_exploration_algorithm", 5);
+			ROS_INFO("You have chosen the flow network exploration method.");
+		}
+		else if(evaluation_configuration.exploration_algorithm_==6)
+		{
+			drc_exp.setConfig("room_exploration_algorithm", 6);
+			ROS_INFO("You have chosen the energy functional exploration method.");
+		}
+		else if(evaluation_configuration.exploration_algorithm_==7)
+		{
+			drc_exp.setConfig("room_exploration_algorithm", 7);
+			ROS_INFO("You have chosen the Voronoi exploration method.");
+		}
+
+		// prepare and send the action message
+		ipa_building_msgs::RoomExplorationGoal goal;
+		goal.input_map = map_msg;
+		goal.map_resolution = evaluation_data.map_resolution_;
+		geometry_msgs::Pose2D map_origin;
+		map_origin.x = evaluation_data.map_origin_.position.x;
+		map_origin.y = evaluation_data.map_origin_.position.y;
+		goal.map_origin = map_origin;
+		goal.robot_radius = evaluation_data.robot_radius_;
+		goal.coverage_radius = evaluation_data.coverage_radius_;
+		goal.field_of_view = evaluation_data.fov_points_;
+		goal.planning_mode = evaluation_data.planning_mode_;
+		goal.starting_position = evaluation_data.robot_start_position_;
+		ac_exp.sendGoal(goal);
+
+		// wait for results for some time
+		bool finished = false;
+		if(evaluation_configuration.exploration_algorithm_==5)	// different timeout for the flowNetworkExplorator, because it can be much slower than the others
+			finished = ac_exp.waitForResult(ros::Duration(600));		// todo: adapt if necessary
+		else
+			finished = ac_exp.waitForResult(ros::Duration(1800));
+
+		//if it takes too long the server should be killed and restarted
+		if (finished == false)
+		{
+			std::cout << "action server took too long" << std::endl;
+			std::string pid_cmd = "pidof room_exploration_server > room_exploration_evaluation/expl_srv_pid.txt";
+			int pid_result = system(pid_cmd.c_str());
+			std::ifstream pid_reader("room_exploration_evaluation/expl_srv_pid.txt");
+			int value;
+			std::string line;
+			if (pid_reader.is_open())
+			{
+				while (getline(pid_reader, line))
+				{
+					std::istringstream iss(line);
+					while (iss >> value)
+					{
+						std::cout << "PID of room_exploration_server: " << value << std::endl;
+						std::stringstream ss;
+						ss << "kill " << value;
+						std::string kill_cmd = ss.str();
+						int kill_result = system(kill_cmd.c_str());
+						std::cout << "kill result: " << kill_result << std::endl;
+					}
+				}
+				pid_reader.close();
+				remove("room_exploration_evaluation/expl_srv_pid.txt");
+			}
+			else
+			{
+				std::cout << "missing logfile" << std::endl;
+			}
+			return false;
+		}
+		else
+		{
+			// retrieve solution
+			result_expl = ac_exp.getResult();
+			std::cout << "Finished coverage planning successfully!" << std::endl;
+
+			// show success
+			return true;
+		}
+	}
+
 	// function that reads out the calculated paths and does the evaluation of the calculated these
-	void evaluateCoveragePaths(const std::vector<ExplorationConfig>& configs, const ExplorationData& datas,
-			std::vector<EvaluationResults>& results, const std::string data_storage_path)
+	void evaluateCoveragePaths(const ExplorationData& data, std::vector<EvaluationResults>& results,
+			const std::vector<ExplorationConfig>& configs, const std::string data_storage_path)
 	{
 		// find the middle-point distance of the given field of view
 		std::vector<Eigen::Matrix<float, 2, 1> > fov_vectors;
 		for(int i = 0; i < 4; ++i)
 		{
 			Eigen::Matrix<float, 2, 1> current_vector;
-			current_vector << datas.fov_points_[i].x, datas.fov_points_[i].y;
+			current_vector << data.fov_points_[i].x, data.fov_points_[i].y;
 			fov_vectors.push_back(current_vector);
 		}
 		// get the distance to the middle-point
@@ -532,8 +646,8 @@ public:
 		{
 			// 1. get the location of the results and open this file
 			std::string folder_path = config->generateConfigurationFolderString() + "/";
-			std::cout << folder_path << datas.map_name_ << std::endl;
-			std::string log_filename = data_storage_path + folder_path + datas.map_name_ + "_results.txt";
+			std::cout << folder_path << data.map_name_ << std::endl;
+			std::string log_filename = data_storage_path + folder_path + data.map_name_ + "_results.txt";
 			std::ifstream reading_file(log_filename.c_str(), std::ios::in);
 
 			// 2. if the file could be opened, read out the given paths for all rooms
@@ -643,9 +757,9 @@ public:
 			// 3. do the evaluations
 			AStarPlanner path_planner;
 			// 3.1 overall, average pathlength and variance of it for the calculated paths and get the numbers of the turns
-			cv::Mat map = datas.floor_plan_.clone();
+			cv::Mat map = data.floor_plan_.clone();
 			cv::Mat eroded_map;
-			const int robot_radius_in_pixel = (datas.robot_radius_ / datas.map_resolution_);
+			const int robot_radius_in_pixel = (data.robot_radius_ / data.map_resolution_);
 			cv::erode(map, eroded_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
 			cv::Mat path_map = eroded_map.clone();
 			std::vector<double> pathlengths_for_map;
@@ -700,8 +814,8 @@ public:
 
 				// initialize path
 				geometry_msgs::Pose2D initial_pose;
-				initial_pose.x = (robot_position.x*datas.map_resolution_)+datas.map_origin_.position.x;
-				initial_pose.y = (robot_position.y*datas.map_resolution_)+datas.map_origin_.position.y;
+				initial_pose.x = (robot_position.x*data.map_resolution_)+data.map_origin_.position.x;
+				initial_pose.y = (robot_position.y*data.map_resolution_)+data.map_origin_.position.y;
 				initial_pose.theta = robot_position.theta;
 				current_pose_path.push_back(initial_pose);
 
@@ -750,8 +864,8 @@ public:
 							{
 								// transform to image coordinates
 								geometry_msgs::Pose2D candidate;
-								candidate.x = (new_pose->x-datas.map_origin_.position.x)/datas.map_resolution_;
-								candidate.y = (new_pose->y-datas.map_origin_.position.y)/datas.map_resolution_;
+								candidate.x = (new_pose->x-data.map_origin_.position.x)/data.map_resolution_;
+								candidate.y = (new_pose->y-data.map_origin_.position.y)/data.map_resolution_;
 								candidate.theta = new_pose->theta;
 								// check if this pose is accessible
 								if(map.at<uchar>(candidate.y, candidate.x)!=0)
@@ -806,7 +920,7 @@ public:
 
 					// find pathlength and path between two consecutive poses
 					std::vector<cv::Point> current_interpolated_path;	// vector that stores the current path from one pose to another
-					current_pathlength += path_planner.planPath(map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, datas.map_resolution_, 0, &current_interpolated_path);
+					current_pathlength += path_planner.planPath(map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
 
 					if(current_interpolated_path.size()==0)
 						continue;
@@ -819,8 +933,8 @@ public:
 
 						// transform to world coordinates
 						geometry_msgs::Pose2D current_pose;
-						current_pose.x = (point->x*datas.map_resolution_)+datas.map_origin_.position.x;
-						current_pose.y = (point->y*datas.map_resolution_)+datas.map_origin_.position.y;
+						current_pose.x = (point->x*data.map_resolution_)+data.map_origin_.position.x;
+						current_pose.y = (point->y*data.map_resolution_)+data.map_origin_.position.y;
 
 						// if the current point is the last, use the provided angle
 						if(point-current_interpolated_path.begin()==current_interpolated_path.size()-1)
@@ -847,7 +961,7 @@ public:
 				interpolated_paths.push_back(current_pose_path);
 
 				// transform the pixel length to meter
-				current_pathlength *= datas.map_resolution_;
+				current_pathlength *= data.map_resolution_;
 //				std::cout << "length: " << current_pathlength << "m" << std::endl;
 				pathlengths_for_map.push_back(current_pathlength);
 //				cv::imshow("room paths", eroded_map);
@@ -856,7 +970,7 @@ public:
 			std::cout << "got and drawn paths" << std::endl;
 
 			// save the map with the drawn in coverage paths
-			std::string image_path = data_storage_path + folder_path + datas.map_name_ + "_paths_eval.png";
+			std::string image_path = data_storage_path + folder_path + data.map_name_ + "_paths_eval.png";
 //			std::cout << image_path << std::endl;
 			cv::imwrite(image_path.c_str(), map_copy);
 //			cv::imshow("room paths", room_map);
@@ -870,19 +984,19 @@ public:
 			for(std::vector<double>::iterator length=pathlengths_for_map.begin(); length!=pathlengths_for_map.end(); ++length)
 			{
 				pathlength_variance_squared += std::pow(*length-average_pathlength, 2);
-				travel_times_in_rooms.push_back(*length/datas.robot_speed_);
+				travel_times_in_rooms.push_back(*length/data.robot_speed_);
 			}
 			pathlength_variance_squared /= nonzero_paths;
 
 			// 2. calculate the execution time by using the robot speed and the rotation speed
 			double average_execution_time = 0.0;
 			double execution_time_squared_variance = 0.0;
-			double overall_execution_time = overall_pathlength/datas.robot_speed_; // travel time
+			double overall_execution_time = overall_pathlength/data.robot_speed_; // travel time
 			std::vector<double> rotation_times_in_rooms;
 			for(std::vector<double>::iterator rotation=rotation_values.begin(); rotation!=rotation_values.end(); ++rotation)
 			{
-				overall_execution_time += *rotation/datas.rotation_speed_;
-				rotation_times_in_rooms.push_back(*rotation/datas.rotation_speed_);
+				overall_execution_time += *rotation/data.robot_rotation_speed_;
+				rotation_times_in_rooms.push_back(*rotation/data.robot_rotation_speed_);
 			}
 			average_execution_time = overall_execution_time/nonzero_paths;
 			// compute variance
@@ -915,8 +1029,8 @@ public:
 			std::string coverage_service_name = "/coverage_check_server/coverage_check";
 
 			geometry_msgs::Pose2D origin;
-			origin.x = datas.map_origin_.position.x;
-			origin.y = datas.map_origin_.position.y;
+			origin.x = data.map_origin_.position.x;
+			origin.y = data.map_origin_.position.y;
 			size_t path_index = 0;
 			cv::Mat map_coverage = map.clone();
 			for(size_t room=0; room<paths.size(); ++room)
@@ -933,7 +1047,7 @@ public:
 				ipa_building_msgs::CheckCoverageResponse coverage_response;
 				// fill request
 				// todo: adapt for footprint and fov
-				cv::Mat eroded_room_map = datas.room_maps_[room].clone();
+				cv::Mat eroded_room_map = data.room_maps_[room].clone();
 				cv::erode(eroded_room_map, eroded_room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
 				sensor_msgs::ImageConstPtr service_image;
 				cv_bridge::CvImage cv_image;
@@ -942,13 +1056,13 @@ public:
 				service_image = cv_image.toImageMsg();
 				coverage_request.input_map = *service_image;
 				coverage_request.path = interpolated_paths[path_index];
-				coverage_request.field_of_view = datas.fov_points_;
-				coverage_request.coverage_radius = datas.coverage_radius_;
+				coverage_request.field_of_view = data.fov_points_;
+				coverage_request.coverage_radius = data.coverage_radius_;
 				coverage_request.map_origin = origin;
-				coverage_request.map_resolution = datas.map_resolution_;
-				if (datas.planning_mode_ == 1)
+				coverage_request.map_resolution = data.map_resolution_;
+				if (data.planning_mode_ == 1)
 					coverage_request.check_for_footprint = true;
-				else if (datas.planning_mode_ == 2)
+				else if (data.planning_mode_ == 2)
 					coverage_request.check_for_footprint = false;
 				coverage_request.check_number_of_coverages = true;
 				// send request
@@ -975,14 +1089,14 @@ public:
 //				cv::waitKey();
 
 				// get the area of the whole room
-				const int white_room_pixels = cv::countNonZero(datas.room_maps_[room]);
-				const double room_area = datas.map_resolution_ * datas.map_resolution_ * (double) white_room_pixels;
+				const int white_room_pixels = cv::countNonZero(data.room_maps_[room]);
+				const double room_area = data.map_resolution_ * data.map_resolution_ * (double) white_room_pixels;
 				room_areas.push_back(room_area);
 
 				// get the covered area of the room
 				cv::threshold(seen_positions_map, seen_positions_map, 150, 255, cv::THRESH_BINARY); // covered area drawn in as 127 --> find still white pixels
 				const int not_covered_pixels = cv::countNonZero(seen_positions_map);
-				const double not_covered_area = datas.map_resolution_ * datas.map_resolution_ * (double) not_covered_pixels;
+				const double not_covered_area = data.map_resolution_ * data.map_resolution_ * (double) not_covered_pixels;
 
 				// get and save the percentage of coverage
 				double coverage_percentage = (room_area-not_covered_area)/room_area;
@@ -1000,7 +1114,7 @@ public:
 			}
 			std::cout << "checked coverage for all rooms" << std::endl;
 			// save the map with the drawn in coverage paths
-			std::string coverage_image_path = data_storage_path + folder_path + datas.map_name_ + "_coverage.png";
+			std::string coverage_image_path = data_storage_path + folder_path + data.map_name_ + "_coverage.png";
 			cv::imwrite(coverage_image_path.c_str(), map_coverage);
 
 			// calculate average coverage and deviation
@@ -1028,7 +1142,7 @@ public:
 			// 6. for each part of the path calculate the parallelism with respect to the nearest wall and the nearest trajectory part
 			std::vector<std::vector<double> > wall_angle_differences, trajectory_angle_differences;
 			std::vector<std::vector<double> > revisit_times; // vector that stores the index-differences of the current pose and the point of its nearest neighboring trajectory
-			const double trajectory_parallelism_check_range = 1.0/datas.map_resolution_; // valid check-radius when checking for the parallelism to another part of the trajectory, [pixels], TODO: use 1.5*grid_spacing_in_pixel
+			const double trajectory_parallelism_check_range = 1.0/data.map_resolution_; // valid check-radius when checking for the parallelism to another part of the trajectory, [pixels], TODO: use 1.5*grid_spacing_in_pixel
 			int valid_room_index = 0; // used to find the interpolated paths, that are only computed for rooms with a valid path
 			for(size_t room=0; room<paths.size(); ++room)
 			{
@@ -1123,7 +1237,7 @@ public:
 					if(hit_trajectory==true)
 					{
 						// find the trajectory point in the interpolated path
-						cv::Point2f world_neighbor((trajectory_pixel.x*datas.map_resolution_)+datas.map_origin_.position.x, (trajectory_pixel.y*datas.map_resolution_)+datas.map_origin_.position.y); // transform in world coordinates
+						cv::Point2f world_neighbor((trajectory_pixel.x*data.map_resolution_)+data.map_origin_.position.x, (trajectory_pixel.y*data.map_resolution_)+data.map_origin_.position.y); // transform in world coordinates
 						int pose_index = pose-paths[room].begin();
 						int neighbor_index = -1;
 						for(std::vector<geometry_msgs::Pose2D>::const_iterator neighbor=interpolated_paths[valid_room_index].begin(); neighbor!=interpolated_paths[valid_room_index].end(); ++neighbor)
@@ -1261,7 +1375,7 @@ public:
 					<< trajectory_deviation << "\t" << average_revisit_times << "\t" << revisit_deviation << "\t"
 					<< average_crossings << "\t" << deviation_crossings << "\t" << subjective_measure;
 
-			std::string filename = data_storage_path + folder_path + datas.map_name_ + "_evaluations.txt";
+			std::string filename = data_storage_path + folder_path + data.map_name_ + "_evaluations.txt";
 			std::ofstream file(filename.c_str(), std::ofstream::out);
 			if (file.is_open())
 			{
@@ -1293,13 +1407,13 @@ public:
 			for (size_t i=0; i<pathlengths_for_map.size(); ++i)
 			{
 				output2 << calculation_times[i] << "\t" << pathlengths_for_map[i] << "\t" << rotation_values[i]
-				           << "\t" << area_covered_percentages[i] << "\t" << room_areas[i]
-				           << "\t" << room_trajectory_averages[i] << "\t" << room_wall_averages[i] << "\t" << room_revisit_averages[i]
-				           << "\t" << numbers_of_crossings[i] << "\t" << number_of_rotations[i]
-				           << std::endl;
+						<< "\t" << area_covered_percentages[i] << "\t" << room_areas[i]
+						<< "\t" << room_trajectory_averages[i] << "\t" << room_wall_averages[i] << "\t" << room_revisit_averages[i]
+						<< "\t" << numbers_of_crossings[i] << "\t" << number_of_rotations[i]
+						<< std::endl;
 			}
 
-			filename = data_storage_path + folder_path + datas.map_name_ + "_evaluations_per_room.txt";
+			filename = data_storage_path + folder_path + data.map_name_ + "_evaluations_per_room.txt";
 			file.open(filename.c_str(), std::ofstream::out);
 			if (file.is_open())
 			{
@@ -1311,123 +1425,36 @@ public:
 		}
 	}
 
-	// function that plans one coverage path for the given room map
-	bool planCoveragePath(const cv::Mat& room_map, const ExplorationData& evaluation_data, const ExplorationConfig& evaluation_configuration,
-				ipa_building_msgs::RoomExplorationResultConstPtr& result_expl)
+	// accumulate all statistics into one file
+	void writeCumulativeStatistics(const std::vector<ExplorationData>& evaluation_data, const std::vector<ExplorationConfig>& configs,
+			const std::string& data_storage_path)
 	{
-		sensor_msgs::Image map_msg;
-		cv_bridge::CvImage cv_image;
-		cv_image.encoding = "mono8";
-		cv_image.image = room_map;
-		cv_image.toImageMsg(map_msg);
-
-		actionlib::SimpleActionClient<ipa_building_msgs::RoomExplorationAction> ac_exp("room_exploration_server", true);
-		ROS_INFO("Waiting for action server to start.");
-		ac_exp.waitForServer(); //will wait for infinite time
-		ROS_INFO("Action server started.");
-
-		ROS_INFO("Trying to connect to dynamic reconfigure server.");
-		DynamicReconfigureClient drc_exp(node_handle_, "room_exploration_server/set_parameters", "room_exploration_server/parameter_updates");
-		ROS_INFO("Done connecting to the dynamic reconfigure server.");
-		if (evaluation_configuration.exploration_algorithm_==1)
+		for(std::vector<ExplorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
 		{
-			drc_exp.setConfig("room_exploration_algorithm", 1);
-			ROS_INFO("You have chosen the grid exploration method.");
-		}
-		else if(evaluation_configuration.exploration_algorithm_==2)
-		{
-			drc_exp.setConfig("room_exploration_algorithm", 2);
-			ROS_INFO("You have chosen the boustrophedon exploration method.");
-		}
-		else if(evaluation_configuration.exploration_algorithm_==3)
-		{
-			drc_exp.setConfig("room_exploration_algorithm", 3);
-			ROS_INFO("You have chosen the neural network exploration method.");
-		}
-		else if(evaluation_configuration.exploration_algorithm_==4)
-		{
-			drc_exp.setConfig("room_exploration_algorithm", 4);
-			ROS_INFO("You have chosen the convexSPP exploration method.");
-		}
-		else if(evaluation_configuration.exploration_algorithm_==5)
-		{
-			drc_exp.setConfig("room_exploration_algorithm", 5);
-			ROS_INFO("You have chosen the flow network exploration method.");
-		}
-		else if(evaluation_configuration.exploration_algorithm_==6)
-		{
-			drc_exp.setConfig("room_exploration_algorithm", 6);
-			ROS_INFO("You have chosen the energy functional exploration method.");
-		}
-		else if(evaluation_configuration.exploration_algorithm_==7)
+			std::string folder_path = config->generateConfigurationFolderString() + "/";
+			std::stringstream cumulative_statistics;
+			for (size_t i=0; i<evaluation_data.size(); ++i)
 			{
-				drc_exp.setConfig("room_exploration_algorithm", 7);
-				ROS_INFO("You have chosen the voronoi exploration method.");
-			}
-
-		ipa_building_msgs::RoomExplorationGoal goal;
-		goal.input_map = map_msg;
-		goal.map_resolution = evaluation_data.map_resolution_;
-		geometry_msgs::Pose2D map_origin;
-		map_origin.x = evaluation_data.map_origin_.position.x;
-		map_origin.y = evaluation_data.map_origin_.position.y;
-		goal.map_origin = map_origin;
-		goal.robot_radius = evaluation_data.robot_radius_;
-		goal.coverage_radius = evaluation_data.coverage_radius_;
-		goal.field_of_view = evaluation_data.fov_points_;
-		goal.planning_mode = evaluation_data.planning_mode_;
-		goal.starting_position = evaluation_data.robot_start_position_;
-		ac_exp.sendGoal(goal);
-
-		// wait for results for 1 hour
-		bool finished = false;
-		// higher timeout for the flowNetworkExplorator, because much slower than the others
-		if(evaluation_configuration.exploration_algorithm_==5)
-			finished = ac_exp.waitForResult(ros::Duration(600));		// todo: adapt
-		else
-			finished = ac_exp.waitForResult(ros::Duration(1800));
-
-
-		if (finished == false) //if it takes too long the server should be killed and restarted
-		{
-			std::cout << "action server took too long" << std::endl;
-			std::string pid_cmd = "pidof room_exploration_server > room_exploration_evaluation/expl_srv_pid.txt";
-			int pid_result = system(pid_cmd.c_str());
-			std::ifstream pid_reader("room_exploration_evaluation/expl_srv_pid.txt");
-			int value;
-			std::string line;
-			if (pid_reader.is_open())
-			{
-				while (getline(pid_reader, line))
+				std::string filename = data_storage_path + folder_path + evaluation_data[i].map_name_ + "_evaluations_per_room.txt";
+				std::ifstream file(filename.c_str(), std::ifstream::in);
+				if (file.is_open())
 				{
-					std::istringstream iss(line);
-					while (iss >> value)
-					{
-						std::cout << "PID of room_exploration_server: " << value << std::endl;
-						std::stringstream ss;
-						ss << "kill " << value;
-						std::string kill_cmd = ss.str();
-						int kill_result = system(kill_cmd.c_str());
-						std::cout << "kill result: " << kill_result << std::endl;
-					}
+					std::string line;
+					while(getline(file, line))
+						if (line.length()>0)
+							cumulative_statistics << line << std::endl;
 				}
-				pid_reader.close();
-				remove("room_exploration_evaluation/expl_srv_pid.txt");
+				else
+					ROS_ERROR("Could not open file '%s' for reading cumulative data.", filename.c_str());
+				file.close();
 			}
+			std::string filename_out = data_storage_path + folder_path + "all_evaluations_per_room.txt";
+			std::ofstream file_out(filename_out.c_str(), std::ofstream::out);
+			if (file_out.is_open())
+				file_out << cumulative_statistics.str();
 			else
-			{
-				std::cout << "missing logfile" << std::endl;
-			}
-			return false;
-		}
-		else
-		{
-			// retrieve solution
-			result_expl = ac_exp.getResult();
-			std::cout << "Finished coverage planning successfully!" << std::endl;
-
-			// show success
-			return true;
+				ROS_ERROR("Could not open file '%s' for writing cumulative data.", filename_out.c_str());
+			file_out.close();
 		}
 	}
 };
@@ -1439,9 +1466,50 @@ int main(int argc, char **argv)
 
 	const std::string test_map_path = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/";
 	const std::string data_storage_path = "room_exploration_evaluation/";
-	//ExplorationEvaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::string& data_storage_path,
-//	const double robot_radius, const std::vector<int>& segmentation_algorithms, const std::vector<int>& exploration_algorithms,
-//	const std::vector<geometry_msgs::Point32>& fov_points)
+
+	// prepare relevant floor map data
+	std::vector< std::string > map_names;
+	map_names.push_back("lab_ipa");
+	map_names.push_back("lab_c_scan");
+	map_names.push_back("Freiburg52_scan");
+//	map_names.push_back("Freiburg79_scan");
+//	map_names.push_back("lab_b_scan");
+//	map_names.push_back("lab_intel");
+//	map_names.push_back("Freiburg101_scan");
+//	map_names.push_back("lab_d_scan");
+//	map_names.push_back("lab_f_scan");
+//	map_names.push_back("lab_a_scan");
+//	map_names.push_back("NLB");
+//	map_names.push_back("office_a");
+//	map_names.push_back("office_b");
+//	map_names.push_back("office_c");
+//	map_names.push_back("office_d");
+//	map_names.push_back("office_e");
+//	map_names.push_back("office_f");
+//	map_names.push_back("office_g");
+//	map_names.push_back("office_h");
+//	map_names.push_back("office_i");
+//	map_names.push_back("lab_ipa_furnitures");
+//	map_names.push_back("lab_c_scan_furnitures");
+//	map_names.push_back("Freiburg52_scan_furnitures");
+//	map_names.push_back("Freiburg79_scan_furnitures");
+//	map_names.push_back("lab_b_scan_furnitures");
+//	map_names.push_back("lab_intel_furnitures");
+//	map_names.push_back("Freiburg101_scan_furnitures");
+//	map_names.push_back("lab_d_scan_furnitures");
+//	map_names.push_back("lab_f_scan_furnitures");
+//	map_names.push_back("lab_a_scan_furnitures");
+//	map_names.push_back("NLB_furnitures");
+//	map_names.push_back("office_a_furnitures");
+//	map_names.push_back("office_b_furnitures");
+//	map_names.push_back("office_c_furnitures");
+//	map_names.push_back("office_d_furnitures");
+//	map_names.push_back("office_e_furnitures");
+//	map_names.push_back("office_f_furnitures");
+//	map_names.push_back("office_g_furnitures");
+//	map_names.push_back("office_h_furnitures");
+//	map_names.push_back("office_i_furnitures");
+
 	std::vector<int> exploration_algorithms;
 //	exploration_algorithms.push_back(1);	// grid point exploration
 //	exploration_algorithms.push_back(2);	// boustrophedon exploration
@@ -1450,7 +1518,6 @@ int main(int argc, char **argv)
 //	exploration_algorithms.push_back(5);	// flow network exploration
 //	exploration_algorithms.push_back(6);	// energy functional exploration
 //	exploration_algorithms.push_back(7);	// voronoi exploration
-
 
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
 	// measures in [m]
@@ -1476,9 +1543,14 @@ int main(int argc, char **argv)
 
 	// todo: alg: 4 with footprint always crashes in TSP
 
-	double robot_radius = 0.3;		// [m]
-	double coverage_radius = 0.3;	// [m]
-	ExplorationEvaluation ev(nh, test_map_path, data_storage_path, robot_radius, coverage_radius, fov_points, planning_mode, exploration_algorithms);
+	const double robot_radius = 0.3;		// [m]
+	const double coverage_radius = 0.3;		// [m]
+	const double robot_speed = 0.3;			// [m/s]
+	const double robot_rotation_speed = 0.1;	// [rad/s]
+	const float map_resolution = 0.05;		// [m/cell]
+
+	ExplorationEvaluation ev(nh, test_map_path, map_names, map_resolution, data_storage_path, robot_radius, coverage_radius, fov_points, planning_mode,
+			exploration_algorithms, robot_speed, robot_rotation_speed);
 	ros::shutdown();
 
 	//exit
