@@ -17,7 +17,7 @@
  * ROS package name: ipa_room_exploration
  *
  * \author
- * Author: Florian Jordan
+ * Author: Florian Jordan, Richard Bormann
  * \author
  * Supervised by: Richard Bormann
  *

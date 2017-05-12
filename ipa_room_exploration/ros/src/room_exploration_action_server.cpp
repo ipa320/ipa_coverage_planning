@@ -180,6 +180,8 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 
 	//Start action server
 	room_exploration_server_.start();
+
+	ROS_INFO("Action server for room exploration has been initialized......");
 }
 
 
@@ -311,7 +313,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv_ptr_obj = cv_bridge::toCvCopy(goal->input_map, sensor_msgs::image_encodings::MONO8);
 	cv::Mat room_map = cv_ptr_obj->image;
 
-	// erode map so that not reachable areas are not considered
+	// erode map so that not reachable areas are not considered - we are using the closing operation instead to work on the original but cleaned up map
 	//cv::erode(room_map, room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
 
 	// closing operation to neglect inaccessible areas and map errors/artifacts
@@ -526,7 +528,6 @@ void RoomExplorationServer::removeUnconnectedRoomParts(cv::Mat& room_map)
 		for (int u=0; u<room_map.cols; ++u)
 			if (room_map_int.at<int32_t>(v,u) != label_of_biggest_room)
 				room_map.at<uchar>(v,u) = 0;
-
 }
 
 
@@ -667,7 +668,7 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 //		cv::waitKey();
 //		cv::Mat copy = room_map.clone();
 
-		// testing, TODO: parameter to show
+		// testing, parameter to show
 //		cv::namedWindow("initially seen areas", cv::WINDOW_NORMAL);
 //		cv::imshow("initially seen areas", seen_positions_map);
 //		cv::resizeWindow("initially seen areas", 600, 600);
@@ -822,7 +823,7 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 			// send request
 			if(ros::service::call(perimeter_service_name, check_request, response) == true)
 			{
-				std::cout << "successful check of accessiblity" << std::endl;
+				std::cout << "successful check of accessibility" << std::endl;
 				// go trough the found accessible positions and try to reach one of them
 				for(std::vector<geometry_msgs::Pose2D>::iterator pose = response.accessible_poses_on_perimeter.begin(); pose != response.accessible_poses_on_perimeter.end(); ++pose)
 					if(publishNavigationGoal(*pose, map_frame_, camera_frame_, robot_poses, 0.0) == true)
@@ -991,7 +992,6 @@ int main(int argc, char** argv)
 	ros::NodeHandle nh("~");
 
 	RoomExplorationServer explorationObj(nh, ros::this_node::getName());
-	ROS_INFO("Action Server for room exploration has been initialized......");
 	ros::spin();
 
 	return 0;
