@@ -129,9 +129,6 @@ add_executable(room_exploration_server
 	common/src/meanshift2d.cpp
 	ros/src/fov_to_robot_mapper.cpp
 )
-add_dependencies(room_exploration_server
-	${catkin_EXPORTED_TARGETS}
-	${PROJECT_NAME}_gencfg)
 target_link_libraries(room_exploration_server
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBS}
@@ -143,6 +140,10 @@ target_link_libraries(room_exploration_server
 	${Cgl_LIBRARIES}
 	${Cbc-lib_LIBRARIES}
 	${GUROBI_LIBRARIES}
+)
+add_dependencies(room_exploration_server
+	${catkin_EXPORTED_TARGETS}
+	${${PROJECT_NAME}_EXPORTED_TARGETS}
 )
 
 # server for coverage checking
@@ -167,7 +168,8 @@ target_link_libraries(room_exploration_client
 )
 add_dependencies(room_exploration_client 
 	${catkin_EXPORTED_TARGETS}
-	${PROJECT_NAME}_gencfg)
+	${${PROJECT_NAME}_EXPORTED_TARGETS}
+)
 
 # evaluation of room exploration algorithms
 add_executable(room_exploration_evaluation
@@ -180,7 +182,7 @@ target_link_libraries(room_exploration_evaluation
 )
 add_dependencies(room_exploration_evaluation 
 	${catkin_EXPORTED_TARGETS}
-	${PROJECT_NAME}_gencfg
+	${${PROJECT_NAME}_EXPORTED_TARGETS}
 )
 
 #############

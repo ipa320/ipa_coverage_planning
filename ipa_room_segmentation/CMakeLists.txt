@@ -96,7 +96,7 @@ target_compile_options(room_segmentation_server PRIVATE ${OpenMP_FLAGS})
 add_dependencies(room_segmentation_server
 	${catkin_EXPORTED_TARGETS}
 	${${PROJECT_NAME}_EXPORTED_TARGETS}
-	${PROJECT_NAME}_gencfg)
+)
 target_link_libraries(room_segmentation_server
 	${catkin_LIBRARIES}
 	${Boost_LIBRARIES}
@@ -109,7 +109,9 @@ target_link_libraries(room_segmentation_client
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBRARIES})
 add_dependencies(room_segmentation_client
-	${catkin_EXPORTED_TARGETS})
+	${catkin_EXPORTED_TARGETS}
+	${${PROJECT_NAME}_EXPORTED_TARGETS}
+)
 
 ### evaluation function for numeric properties and comparison to a given ground truth segmentation
 add_executable(evaluation
@@ -119,7 +121,9 @@ target_link_libraries(evaluation
 	${catkin_LIBRARIES}
 	${OpenCV_LIBRARIES})
 add_dependencies(evaluation
-	${catkin_EXPORTED_TARGETS})
+	${catkin_EXPORTED_TARGETS}
+	${${PROJECT_NAME}_EXPORTED_TARGETS}
+)
 
 
 #############

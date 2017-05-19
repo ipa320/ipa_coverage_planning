@@ -113,7 +113,7 @@ target_link_libraries(room_sequence_planning_client
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBRARIES}
 )
-add_dependencies(room_sequence_planning_client ${catkin_EXPORTED_TARGETS})
+add_dependencies(room_sequence_planning_client ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 # client for testing purpose
 add_executable(room_sequence_planning_evaluation 
@@ -125,7 +125,7 @@ target_link_libraries(room_sequence_planning_evaluation
 	${catkin_LIBRARIES}
 	${OpenCV_LIBRARIES}
 )
-add_dependencies(room_sequence_planning_evaluation ${catkin_EXPORTED_TARGETS})
+add_dependencies(room_sequence_planning_evaluation ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 # evaluation
 add_executable(TSP_evaluation
@@ -136,12 +136,12 @@ target_link_libraries(TSP_evaluation
 	${catkin_LIBRARIES}
 	${OpenCV_LIBRARIES}
 )
-add_dependencies(TSP_evaluation ${catkin_EXPORTED_TARGETS})
+add_dependencies(TSP_evaluation ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 #tester for different functions
 #add_executable(a_star_tester ros/src/tester.cpp common/src/A_star_pathplanner.cpp common/src/node.cpp common/src/nearest_neighbor_TSP.cpp common/src/genetic_TSP.cpp common/src/concorde_TSP.cpp common/src/maximal_clique_finder.cpp common/src/set_cover_solver.cpp common/src/trolley_position_finder.cpp)
 #target_link_libraries(a_star_tester ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES})
-#add_dependencies(a_star_tester ${catkin_EXPORTED_TARGETS})
+#add_dependencies(a_star_tester ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 
 #############
