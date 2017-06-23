@@ -317,6 +317,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	//cv::erode(room_map, room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
 
 	// closing operation to neglect inaccessible areas and map errors/artifacts
+	// todo: make closing neighborhood size a parameter
 	cv::Mat temp;
 	cv::erode(room_map, temp, cv::Mat(), cv::Point(-1, -1), 2);
 	cv::dilate(temp, room_map, cv::Mat(), cv::Point(-1, -1), 2);

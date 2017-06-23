@@ -98,6 +98,8 @@
 
 #include <boost/regex.hpp>
 
+#include <cob_map_accessibility_analysis/map_accessibility_analysis.h>
+
 #define PI 3.14159265359
 
 // Overload of << operator for geometry_msgs::Pose2D to wanted format.
@@ -167,6 +169,7 @@ struct ExplorationConfig
 };
 
 // Struct that carries several parameters for the action servers
+enum PlanningMode {FOOTPRINT=1, FIELD_OF_VIEW=2};
 struct ExplorationData
 {
 	std::string map_name_;		// without file type
@@ -179,7 +182,7 @@ struct ExplorationData
 	double robot_radius_;	// [m], effective robot radius, taking the enlargement of the costmap into account, in [meter]
 	double coverage_radius_;	// [m], radius that is used to plan the coverage planning for the robot and not the field of view, assuming that the part that needs to cover everything (e.g. the cleaning part) can be represented by a fitting circle (e.g. smaller than the actual part to ensure coverage), in [meter]
 	std::vector<geometry_msgs::Point32> fov_points_;
-	int planning_mode_;	// 1 = plans a path for coverage with the robot footprint, 2 = plans a path for coverage with the robot's field of view
+	enum PlanningMode planning_mode_;	// 1 = plans a path for coverage with the robot footprint, 2 = plans a path for coverage with the robot's field of view
 	double robot_speed_; // [m/s]
 	double robot_rotation_speed_; // [rad/s]
 
@@ -193,7 +196,7 @@ struct ExplorationData
 		map_origin_.position.y = 0;
 		robot_radius_ = 0.35;
 		coverage_radius_ = 0.35;
-		planning_mode_ = 1;
+		planning_mode_ = FOOTPRINT;
 		robot_speed_ = 0.3;
 		robot_rotation_speed_ = 0.1;
 	}
@@ -211,7 +214,7 @@ struct ExplorationData
 		robot_radius_ = robot_radius;
 		coverage_radius_ = coverage_radius;
 		fov_points_ = fov_points;
-		planning_mode_ = planning_mode;
+		planning_mode_ = (PlanningMode)planning_mode;
 		robot_speed_ = robot_speed;
 		robot_rotation_speed_ = robot_rotation_speed;
 		cv::Mat map_eroded;
@@ -381,7 +384,7 @@ public:
 
 				// check for the eroded map (the map that shows the in reality reachable areas) to have enough free pixels
 				cv::Mat eroded_map;
-				int robot_radius_in_pixel = (data->robot_radius_ / data->map_resolution_);
+				const int robot_radius_in_pixel = (data->robot_radius_ / data->map_resolution_);
 				cv::erode(room_map, eroded_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
 				int number_of_pixels = 0;
 				for(size_t y=0; y<eroded_map.rows; ++y)
@@ -627,19 +630,19 @@ public:
 		Eigen::Matrix<float, 2, 1> fitting_circle_center_point_in_meter;
 		computeFOVCenterAndRadius(fov_corners_meter, fitting_circle_radius_in_meter, fitting_circle_center_point_in_meter, 1000);
 		// get the distance to the middle-point
-		const double distance_robot_fov_middlepoint = fitting_circle_center_point_in_meter.norm();
-		// todo: this does not work with footprint planner --> data.planning_mode_
+		const double distance_robot_fov_middlepoint_in_meter = fitting_circle_center_point_in_meter.norm();
 
 		// evaluate the single configurations
 		for(std::vector<ExplorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
 		{
-			evaluateCoveragePaths(data, *config, data_storage_path, distance_robot_fov_middlepoint);
+			evaluateCoveragePaths(data, *config, data_storage_path, distance_robot_fov_middlepoint_in_meter);
 		}
 	}
 
 	// function that reads out the calculated paths and does the evaluation for one configuration
+
 	void evaluateCoveragePaths(const ExplorationData& data, const ExplorationConfig& config, const std::string data_storage_path,
-			const double distance_robot_fov_middlepoint)
+			const double distance_robot_fov_middlepoint_in_meter)
 	{
 		// todo: split into smaller functions?
 
@@ -660,11 +663,13 @@ public:
 
 
 		AStarPlanner path_planner;
+		MapAccessibilityAnalysis map_accessibility_analysis;
 		// 2.1 overall, average path length and variance of it for the calculated paths and get the numbers of the turns
-		cv::Mat eroded_map;
-		const int robot_radius_in_pixel = (data.robot_radius_ / data.map_resolution_);
-		cv::erode(map, eroded_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
-		cv::Mat path_map = eroded_map.clone();
+		cv::Mat inflated_map;
+		const int robot_radius_in_pixel = cvRound(data.robot_radius_ / (double)data.map_resolution_);
+		map_accessibility_analysis.inflateMap(map, inflated_map, robot_radius_in_pixel);
+		//cv::erode(map, inflated_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
+		cv::Mat path_map = inflated_map.clone();
 		std::vector<double> pathlengths_for_map;
 		std::vector<std::vector<geometry_msgs::Pose2D> > interpolated_paths; // variable that stores the path points and the points between them
 		int nonzero_paths = 0;
@@ -684,77 +689,70 @@ public:
 				++nonzero_paths;
 
 			double current_pathlength = 0.0;
-			std::vector<geometry_msgs::Pose2D> current_pose_path;
+			std::vector<geometry_msgs::Pose2D> current_pose_path_meter;	// in [m,m,rad]
 			double previous_angle = paths[room].begin()->theta;
 			double current_rotation_abs = 0.0;
 			int current_number_of_rotations = 0, current_number_of_crossings = 0;
-			geometry_msgs::Pose2D robot_position;
-			robot_position = *(paths[room].begin());
+			geometry_msgs::Pose2D robot_position = paths[room][0];
 
 			// initialize path
 			geometry_msgs::Pose2D initial_pose;
 			initial_pose.x = (robot_position.x*data.map_resolution_)+data.map_origin_.position.x;
 			initial_pose.y = (robot_position.y*data.map_resolution_)+data.map_origin_.position.y;
 			initial_pose.theta = robot_position.theta;
-			current_pose_path.push_back(initial_pose);
+			current_pose_path_meter.push_back(initial_pose);
 
 			for(std::vector<geometry_msgs::Pose2D>::iterator pose=paths[room].begin()+1; pose!=paths[room].end(); ++pose)
 			{
-				// if a false pose has been saved, ignore it
-				// TODO: does not recover from a fault --> whole (remaining) path is neglected (but this should not happen anyways)
+				// if a false pose has been saved, skip it
 				if(robot_position.x==-1 && robot_position.y==-1)
 				{
 					ROS_WARN("ExplorationEvaluation:evaluateCoveragePaths: robot_position.x==-1 && robot_position.y==-1 --> this should never happen.");
-					return;
+					continue;
 				}
 
 				// find an accessible next pose
 				geometry_msgs::Pose2D next_pose;
 				bool found_next = false;
-				if(map.at<uchar>(pose->y, pose->x)!=0) // if calculated pose is accessible, use it as next pose
+				if(inflated_map.at<uchar>(pose->y, pose->x)!=0) // if calculated pose is accessible, use it as next pose
 				{
 					next_pose = *pose;
 					found_next = true;
 				}
 				else // use the map accessibility server to find another accessible pose
 				{
-					// todo: this cannot work as the map accessibility server does not receive the current map
-
-					// get the desired fov-position
-					geometry_msgs::Pose2D relative_vector;
-					relative_vector.x = std::cos(pose->theta)*distance_robot_fov_middlepoint;
-					relative_vector.y = std::sin(pose->theta)*distance_robot_fov_middlepoint;
-					geometry_msgs::Pose2D center;
-					center.x = pose->x + relative_vector.x;
-					center.y = pose->y + relative_vector.y;
-					center.theta = pose->theta;
-
-					// check for another robot pose to reach the desired fov-position
-					const std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";
-					cob_map_accessibility_analysis::CheckPerimeterAccessibility::Response response;
-					cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
-					check_request.center = center;
-					check_request.radius = distance_robot_fov_middlepoint;
-					check_request.rotational_sampling_step = PI/16;
-
-					// send request
-					if(ros::service::call(perimeter_service_name, check_request, response)==true)
+					if (data.planning_mode_ == FOOTPRINT)
 					{
-						// find one point on this perimeter check that is accessible and set it as new desired pose
-						for(std::vector<geometry_msgs::Pose2D>::iterator new_pose=response.accessible_poses_on_perimeter.begin(); new_pose!=response.accessible_poses_on_perimeter.end(); ++new_pose)
+						// todo:
+						// check circles with growing radius around the desired point
+					}
+					else if (data.planning_mode_ == FIELD_OF_VIEW)
+					{
+						// get the desired FoV-center position
+						MapAccessibilityAnalysis::Pose fov_center_px;		// in [px,px,rad]
+						fov_center_px.x = (pose->x + std::cos(pose->theta)*distance_robot_fov_middlepoint_in_meter);
+						fov_center_px.x = (fov_center_px.x-data.map_origin_.position.x) / data.map_resolution_;
+						fov_center_px.y = (pose->y + std::sin(pose->theta)*distance_robot_fov_middlepoint_in_meter);
+						fov_center_px.y = (fov_center_px.y-data.map_origin_.position.y) / data.map_resolution_;
+						fov_center_px.orientation = pose->theta;
+
+						std::vector<MapAccessibilityAnalysis::Pose> accessible_poses_on_perimeter;
+						map_accessibility_analysis.checkPerimeter(accessible_poses_on_perimeter, fov_center_px,
+								distance_robot_fov_middlepoint_in_meter/data.map_resolution_, PI/16., inflated_map,
+								true, cv::Point(pose->x, pose->y));
+
+						// find the closest accessible point on this perimeter
+						double min_distance_sqr = std::numeric_limits<double>::max();
+						for(std::vector<MapAccessibilityAnalysis::Pose>::iterator new_pose=accessible_poses_on_perimeter.begin(); new_pose!=accessible_poses_on_perimeter.end(); ++new_pose)
 						{
-							// transform to image coordinates
-							geometry_msgs::Pose2D candidate;
-							candidate.x = (new_pose->x-data.map_origin_.position.x)/data.map_resolution_;
-							candidate.y = (new_pose->y-data.map_origin_.position.y)/data.map_resolution_;
-							candidate.theta = new_pose->theta;
-							// check if this pose is accessible
-							if(map.at<uchar>(candidate.y, candidate.x)!=0)
+							const double dist_sqr = (new_pose->x-pose->x)*(new_pose->x-pose->x) + (new_pose->y-pose->y)*(new_pose->y-pose->y);
+							if (dist_sqr < min_distance_sqr)
 							{
-								// todo: only take the closest pose to current pose
-								next_pose = candidate;
+								next_pose.x = new_pose->x;
+								next_pose.y = new_pose->y;
+								next_pose.theta = new_pose->orientation;
+								min_distance_sqr = dist_sqr;
 								found_next = true;
-								break;
 							}
 						}
 					}
@@ -791,13 +789,13 @@ public:
 						has_crossing = true;
 					else
 						map_copy.at<uchar>(current_point)=127;
-//						cv::imshow("er", eroded_map);
+//						cv::imshow("er", inflated_map);
 //						cv::waitKey();
 				}
 				if (has_crossing == true)				// todo: why is the A* path not checked for crossings?
 					++current_number_of_crossings;
-//					cv::line(eroded_map, cv::Point(next_pose.x, next_pose.y), cv::Point(robot_position.x, robot_position.y), cv::Scalar(100));
-//					cv::imshow("er", eroded_map);
+//					cv::line(inflated_map, cv::Point(next_pose.x, next_pose.y), cv::Point(robot_position.x, robot_position.y), cv::Scalar(100));
+//					cv::imshow("er", inflated_map);
 //					cv::waitKey();
 
 				// find pathlength and path between two consecutive poses
@@ -825,7 +823,7 @@ public:
 						current_pose.theta = std::atan2((point+1)->y-point->y, (point+1)->x-point->x);			// todo: check if this makes sense (orientation computation at pixel level)
 
 					// add the pose to the path
-					current_pose_path.push_back(current_pose);
+					current_pose_path_meter.push_back(current_pose);
 				}
 
 				// set robot_position to new one
@@ -840,13 +838,13 @@ public:
 			number_of_rotations.push_back(current_number_of_rotations);
 
 			// save the interpolated path between
-			interpolated_paths.push_back(current_pose_path);
+			interpolated_paths.push_back(current_pose_path_meter);
 
 			// transform the pixel length to meter
 			current_pathlength *= data.map_resolution_;
 //				std::cout << "length: " << current_pathlength << "m" << std::endl;
 			pathlengths_for_map.push_back(current_pathlength);
-//				cv::imshow("room paths", eroded_map);
+//				cv::imshow("room paths", inflated_map);
 //				cv::waitKey();
 		}
 		std::cout << "got and drawn paths" << std::endl;
@@ -942,9 +940,9 @@ public:
 			coverage_request.coverage_radius = data.coverage_radius_;
 			coverage_request.map_origin = origin;
 			coverage_request.map_resolution = data.map_resolution_;
-			if (data.planning_mode_ == 1)
+			if (data.planning_mode_ == FOOTPRINT)
 				coverage_request.check_for_footprint = true;
-			else if (data.planning_mode_ == 2)
+			else if (data.planning_mode_ == FIELD_OF_VIEW)
 				coverage_request.check_for_footprint = false;
 			coverage_request.check_number_of_coverages = true;
 			// send request
