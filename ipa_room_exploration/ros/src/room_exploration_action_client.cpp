@@ -41,7 +41,9 @@ int main(int argc, char **argv)
 	actionlib::SimpleActionClient<ipa_building_msgs::RoomExplorationAction> ac("room_exploration_server", true);
 
 	// read in test map
-	cv::Mat map = cv::imread("/home/florianj/git/care-o-bot-indigo/src/autopnp/ipa_room_exploration/maps/map.png", 0);
+	const std::string test_map_path = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/";
+	const std::string map_name = test_map_path + "lab_ipa.png";
+	cv::Mat map = cv::imread(map_name, 0);
 	//make non-white pixels black
 	for (int y = 0; y < map.rows; y++)
 	{
@@ -91,7 +93,7 @@ int main(int argc, char **argv)
 	ROS_INFO("Action server started, sending goal.");
 
 	DynamicReconfigureClient drc_exp(nh, "room_exploration_server/set_parameters", "room_exploration_server/parameter_updates");
-	drc_exp.setConfig("room_exploration_algorithm", 5);
+	drc_exp.setConfig("room_exploration_algorithm", 2);
 //	drc_exp.setConfig("grid_line_length", 15);
 //	drc_exp.setConfig("path_eps", 10);
 //	drc_exp.setConfig("cell_size", 10);
@@ -106,8 +108,8 @@ int main(int argc, char **argv)
 //	cv::flip(dst, map, 1);
 //	cv::imshow("map", map);
 //	cv::waitKey();
-	sensor_msgs::Image labeling;
 
+	sensor_msgs::Image labeling;
 	cv_bridge::CvImage cv_image;
 //	cv_image.header.stamp = ros::Time::now();
 	cv_image.encoding = "mono8";
@@ -124,30 +126,57 @@ int main(int argc, char **argv)
 	starting_position.theta = 0.0;
 
 	std::vector<geometry_msgs::Point32> fov_points(4);
-	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
-	fov_points[0].y = 0.35;
-	fov_points[1].x = 0.15;
-	fov_points[1].y = -0.35;
-	fov_points[2].x = 1.15;
-	fov_points[2].y = -0.65;
-	fov_points[3].x = 1.15;
-	fov_points[3].y = 0.65;
+//	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
+//	fov_points[0].y = 0.35;
+//	fov_points[1].x = 0.15;
+//	fov_points[1].y = -0.35;
+//	fov_points[2].x = 1.15;
+//	fov_points[2].y = -0.65;
+//	fov_points[3].x = 1.15;
+//	fov_points[3].y = 0.65;
+//	int planning_mode = 2;	// viewpoint planning
+	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
+	fov_points[0].y = 0.3;
+	fov_points[1].x = -0.3;
+	fov_points[1].y = -0.3;
+	fov_points[2].x = 0.3;
+	fov_points[2].y = -0.3;
+	fov_points[3].x = 0.3;
+	fov_points[3].y = 0.3;
+	int planning_mode = 1;	// footprint planning
 
 	ipa_building_msgs::RoomExplorationGoal goal;
 	goal.input_map = labeling;
-	goal.map_origin = map_origin;
-	goal.starting_position = starting_position;
 	goal.map_resolution = 0.05;
-	goal.robot_radius = 0.2; // turtlebot, used for sim 0.177, 0.4
-	goal.coverage_radius = 0.2;
+	goal.map_origin = map_origin;
+	goal.robot_radius = 0.3; // turtlebot, used for sim 0.177, 0.4
+	goal.coverage_radius = 0.3;
 	goal.field_of_view = fov_points;
+	goal.starting_position = starting_position;
+	goal.planning_mode = planning_mode;
 	ac.sendGoal(goal);
 
 	ac.waitForResult(ros::Duration());
-//	ipa_building_msgs::RoomExplorationResultConstPtr action_result = ac.getResult();
-//
-//	std::cout << "Got a path with " << action_result->coverage_path.size() << " nodes." << std::endl;
-//	std::cout << action_result->coverage_path[0] << std::endl;
+	ipa_building_msgs::RoomExplorationResultConstPtr action_result = ac.getResult();
+
+	std::cout << "Got a path with " << action_result->coverage_path.size() << " nodes." << std::endl;
+
+	// display path
+	const double inverse_map_resolution = 1./goal.map_resolution;
+	cv::Mat path_map = map.clone();
+	for (size_t point=0; point<action_result->coverage_path.size(); ++point)
+	{
+		const cv::Point point1((action_result->coverage_path[point].x-map_origin.x)*inverse_map_resolution, (action_result->coverage_path[point].y-map_origin.y)*inverse_map_resolution);
+		cv::circle(path_map, point1, 2, cv::Scalar(128), -1);
+		if (point > 0)
+		{
+			const cv::Point point2((action_result->coverage_path[point-1].x-map_origin.x)*inverse_map_resolution, (action_result->coverage_path[point-1].y-map_origin.y)*inverse_map_resolution);
+			cv::line(path_map, point1, point2, cv::Scalar(128), 1);
+		}
+		std::cout << "coverage_path[" << point << "]: x=" << action_result->coverage_path[point].x << ", y=" << action_result->coverage_path[point].y << ", theta=" << action_result->coverage_path[point].theta << std::endl;
+	}
+	cv::imshow("path", path_map);
+	cv::waitKey();
 
 ////	// testing
 //	std::vector<cv::Point> fov(5);
