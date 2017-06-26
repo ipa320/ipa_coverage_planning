@@ -697,7 +697,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 			action_result.doorway_points = found_doorway_points;
 		}
 	}
-	//setting massages in meter
+	//setting messages in meter
 	action_result.room_information_in_meter.clear();
 	if (goal->return_format_in_meter == true)
 	{

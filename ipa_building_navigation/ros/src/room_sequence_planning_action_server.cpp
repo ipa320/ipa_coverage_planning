@@ -160,11 +160,11 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 	//create a star pathplanner to plan a path from Point A to Point B in a given gridmap
 	AStarPlanner a_star_path_planner;
 
-	//get room center and check how many of them are reachable
-	cv::Mat downsampled_map_for_accessability_checking;
+	//get room centers and check how many of them are reachable
+	cv::Mat downsampled_map_for_accessibility_checking;
 	if(check_accessibility_of_rooms_ == true)
 	{
-		a_star_path_planner.downsampleMap(floor_plan, downsampled_map_for_accessability_checking, map_downsampling_factor_, goal->robot_radius, goal->map_resolution);
+		a_star_path_planner.downsampleMap(floor_plan, downsampled_map_for_accessibility_checking, map_downsampling_factor_, goal->robot_radius, goal->map_resolution);
 	}
 	std::vector<cv::Point> room_centers;
 	for (size_t i=0; i<goal->room_information_in_pixel.size(); ++i)
@@ -173,7 +173,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		if(check_accessibility_of_rooms_ == true)
 		{
 			std::cout << "checking for accessibility of rooms" << std::endl;
-			double length = a_star_path_planner.planPath(floor_plan, downsampled_map_for_accessability_checking, robot_start_coordinate, current_center, map_downsampling_factor_, 0., goal->map_resolution);
+			double length = a_star_path_planner.planPath(floor_plan, downsampled_map_for_accessibility_checking, robot_start_coordinate, current_center, map_downsampling_factor_, 0., goal->map_resolution);
 			if(length < 1e9)
 				room_centers.push_back(current_center);
 			else
@@ -184,7 +184,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 			room_centers.push_back(current_center);
 		}
 	}
-	downsampled_map_for_accessability_checking.release(); //release not anymore needed space
+	downsampled_map_for_accessibility_checking.release(); //release not anymore needed space
 
 	std::cout << "number of reachable roomcenters: " << room_centers.size() << std::endl;
 

@@ -16,8 +16,12 @@ sensor_msgs/Image segmented_map			# the action server need a map as a input imag
 float32 map_resolution					# the resolution of the segmented map in [meter/cell]
 geometry_msgs/Pose map_origin			# the origin of the segmented map in [meter]
 # for the following data: value in pixel can be obtained when the value of [return_format_in_pixel] from goal definition is true
+# the computed room centers are not the centroids of the room cells (which could be located outside of the rooms)
+# but accessible map pixels located within the center of the largest free space in the room
 ipa_building_msgs/RoomInformation[] room_information_in_pixel		# room data (min/max coordinates, center coordinates) measured in pixels
 # for the following data: value in meter can be obtained when the value of [return_format_in_meter] from goal definition is true
+# the computed room centers are not the centroids of the room cells (which could be located outside of the rooms)
+# but accessible map pixels located within the center of the largest free space in the room
 ipa_building_msgs/RoomInformation[] room_information_in_meter		# room data (min/max coordinates, center coordinates) measured in meters
 # if wanted the 5th algorithm (vrf) can return single points labeled as a doorway
 geometry_msgs/Point32[] doorway_points
