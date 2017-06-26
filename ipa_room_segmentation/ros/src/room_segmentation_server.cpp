@@ -275,6 +275,8 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 	// start action server
 	room_segmentation_server_.start();
 
+	// start services
+	extract_area_map_from_labeled_map_server_ = node_handle_.advertiseService("extract_area_map_from_labeled_map", &RoomSegmentationServer::extractAreaMapFromLabeledMap, this);
 }
 
 // Callback function for dynamic reconfigure.
@@ -730,9 +732,39 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 		}
 	}
 
-
 	//publish result
 	room_segmentation_server_.setSucceeded(action_result);
+}
+
+bool RoomSegmentationServer::extractAreaMapFromLabeledMap(ipa_building_msgs::ExtractAreaMapFromLabeledMapRequest& request, ipa_building_msgs::ExtractAreaMapFromLabeledMapResponse& response)
+{
+	// convert the Image msg in cv format
+	cv_bridge::CvImagePtr cv_ptr_obj;
+	cv_ptr_obj = cv_bridge::toCvCopy(request.segmented_map, sensor_msgs::image_encodings::TYPE_32SC1);
+	cv::Mat segmented_map = cv_ptr_obj->image;
+
+	// create a new map that only contains the segment with the label of interest
+	cv::Mat segmented_area = cv::Mat::zeros(segmented_map.rows, segmented_map.cols, CV_8UC1);
+	const int segment_of_interest = request.segment_of_interest;
+	for (int v=0; v<segmented_map.rows; ++v)
+	{
+		for (int u=0; u<segmented_map.cols; ++u)
+		{
+			if (segmented_map.at<int>(v,u)==segment_of_interest)
+			{
+				segmented_area.at<uchar>(v,u) == 255;
+			}
+		}
+	}
+
+	// convert the cv format in Image msg format
+	cv_bridge::CvImage cv_image;
+	cv_image.header.stamp = ros::Time::now();
+	cv_image.encoding = "mono8";
+	cv_image.image = segmented_area;
+	cv_image.toImageMsg(response.segmented_area);
+
+	return true;
 }
 
 int main(int argc, char** argv)

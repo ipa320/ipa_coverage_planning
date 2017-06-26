@@ -77,6 +77,7 @@
 
 #include <ipa_building_msgs/MapSegmentationAction.h>
 #include <ipa_building_msgs/RoomInformation.h>
+#include <ipa_building_msgs/ExtractAreaMapFromLabeledMap.h>
 
 #include <ipa_room_segmentation/distance_segmentation.h>
 #include <ipa_room_segmentation/morphological_segmentation.h>
@@ -138,10 +139,18 @@ protected:
 	//Callback for dynamic reconfigure server
 	void dynamic_reconfigure_callback(ipa_room_segmentation::RoomSegmentationConfig &config, uint32_t level);
 
+	// callback function for the service server
+	// The request message provides a segmented map which consists of cells with label 0 for inaccessible areas and other number from 1 to N
+	// for labeling membership with one of the N segmented areas.
+	// The return message shall deliver the same map but with only one area (segment_of_interest) labeled as 255 and the remainder labeled
+	// as inaccessible with 0.
+	bool extractAreaMapFromLabeledMap(ipa_building_msgs::ExtractAreaMapFromLabeledMapRequest& request, ipa_building_msgs::ExtractAreaMapFromLabeledMapResponse& response);
+
 	//!!Important!!
 	// define the Nodehandle before the action server, or else the server won't start
 	//
 	ros::NodeHandle node_handle_;
+	ros::ServiceServer extract_area_map_from_labeled_map_server_;
 	actionlib::SimpleActionServer<ipa_building_msgs::MapSegmentationAction> room_segmentation_server_;
 	dynamic_reconfigure::Server<ipa_room_segmentation::RoomSegmentationConfig> room_segmentation_dynamic_reconfigure_server_;
 

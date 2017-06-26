@@ -43,6 +43,7 @@ add_service_files(
 		srv
 	FILES 
 		CheckCoverage.srv
+		ExtractAreaMapFromLabeledMap.srv
 )
 
 ## Generate added messages and services with any dependencies listed here
