@@ -139,7 +139,7 @@ protected:
 	//Callback for dynamic reconfigure server
 	void dynamic_reconfigure_callback(ipa_room_segmentation::RoomSegmentationConfig &config, uint32_t level);
 
-	// callback function for the service server
+	// service for generating a map of one single room from a labeled map
 	// The request message provides a segmented map which consists of cells with label 0 for inaccessible areas and other number from 1 to N
 	// for labeling membership with one of the N segmented areas.
 	// The return message shall deliver the same map but with only one area (segment_of_interest) labeled as 255 and the remainder labeled
