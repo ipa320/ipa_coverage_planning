@@ -2,7 +2,7 @@
 # sends an occupancy grid map of a room to the server, which plans a path trough it to cover or inspect the whole room by a device or camera
 
 # goal definition
-sensor_msgs/Image input_map				# the action server needs a map as a input image to segment it, IMPORTANT: The algorithm needs a black and white 8bit single-channel image, which is 0 (black) for obstacles and 255 (white) for free space
+sensor_msgs/Image input_map				# the action server needs a map as a input image to segment it, IMPORTANT: The algorithm needs a black and white 8bit single-channel image (format 8UC1), which is 0 (black) for obstacles and 255 (white) for free space
 float32 map_resolution					# the resolution of the map in [meter/cell]
 geometry_msgs/Pose2D map_origin			# the origin of the map in [meter], NOTE: rotations are not supported for now
 float32 robot_radius					# effective robot radius, taking the enlargement of the costmap into account, in [meter]

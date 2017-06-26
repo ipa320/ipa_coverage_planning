@@ -72,6 +72,7 @@ RoomSequencePlanningServer::RoomSequencePlanningServer(ros::NodeHandle nh, std::
 
 	// Parameters
 	std::cout << "\n------------------------------------\nRoom Sequence Planner Parameters:\n------------------------------------\n";
+	// TSP solver
 	node_handle_.param("tsp_solver", tsp_solver_, (int)TSP_CONCORDE);
 	std::cout << "room_sequence_planning/tsp_solver = " << tsp_solver_ << std::endl;
 	if (tsp_solver_ == TSP_NEAREST_NEIGHBOR)
@@ -81,25 +82,50 @@ RoomSequencePlanningServer::RoomSequencePlanningServer(ros::NodeHandle nh, std::
 	else if (tsp_solver_ == TSP_CONCORDE)
 		ROS_INFO("You have chosen the Concorde TSP solver.");
 	else
-		ROS_INFO("Undefined TSP Solver.");
-	node_handle_.param("planning_method", planning_method_, 2);
-	std::cout << "room_sequence_planning/planning_method = " << planning_method_ << std::endl;
-	if (planning_method_ == 1)
-		ROS_INFO("You have chosen the Trolley dragging method method.");
-	else if (planning_method_ == 2)
-		ROS_INFO("You have chosen the room group planning method.");
+		ROS_ERROR("Undefined TSP Solver.");
+
+	// problem setting
+	node_handle_.param("problem_setting", problem_setting_, 2);
+	std::cout << "room_sequence_planning/problem_setting = " << problem_setting_ << std::endl;
+	if (problem_setting_ == 1)
+		ROS_INFO("You have chosen the SimpleOrderPlanning setting.");
+	else if (problem_setting_ == 2)
+		ROS_INFO("You have chosen the CheckpointBasedPlanning setting.");
 	else
-		ROS_INFO("Undefined planning method.");
-	node_handle_.param("max_clique_path_length", max_clique_path_length_, 12.0);
-	std::cout << "room_sequence_planning/max_clique_path_length = " << max_clique_path_length_ << std::endl;
+		ROS_ERROR("Undefined problem setting.");
+
+	// checkpoint-based sequence planning specifics
+	if (problem_setting_ == 1)
+	{
+		planning_method_ = 1;
+		max_clique_path_length_ = 0.;	// always split into cliques --> each clique contains only one room
+		max_clique_size_ = 1;	// always split into cliques --> each clique contains only one room
+	}
+	else if (problem_setting_ == 2)
+	{
+		node_handle_.param("planning_method", planning_method_, 2);
+		std::cout << "room_sequence_planning/planning_method = " << planning_method_ << std::endl;
+		if (planning_method_ == 1)
+			ROS_INFO("You have chosen the Trolley dragging method.");
+		else if (planning_method_ == 2)
+			ROS_INFO("You have chosen the room group planning method.");
+		else
+			ROS_ERROR("Undefined planning method.");
+		node_handle_.param("max_clique_path_length", max_clique_path_length_, 12.0);
+		std::cout << "room_sequence_planning/max_clique_path_length = " << max_clique_path_length_ << std::endl;
+		node_handle_.param("maximum_clique_size", max_clique_size_, 9001);
+		std::cout << "room_sequence_planning/maximum_clique_size = " << max_clique_size_ << std::endl;
+	}
+	else
+		ROS_ERROR("Undefined problem setting.");
+
+	// general settings
 	node_handle_.param("map_downsampling_factor", map_downsampling_factor_, 0.25);
 	std::cout << "room_sequence_planning/map_downsampling_factor = " << map_downsampling_factor_ << std::endl;
 	node_handle_.param("check_accessibility_of_rooms", check_accessibility_of_rooms_, true);
 	std::cout << "room_sequence_planning/check_accessibility_of_rooms = " << check_accessibility_of_rooms_ << std::endl;
 	node_handle_.param("return_sequence_map", return_sequence_map_, false);
 	std::cout << "room_sequence_planning/return_sequence_map = " << return_sequence_map_ << std::endl;
-	node_handle_.param("maximum_clique_size", max_clique_size_, 9001);
-	std::cout << "room_sequence_planning/maximum_clique_size = " << max_clique_size_ << std::endl;
 	node_handle_.param("display_map", display_map_, false);
 	std::cout << "room_sequence_planning/display_map = " << display_map_ << std::endl;
 }
@@ -110,7 +136,7 @@ void RoomSequencePlanningServer::dynamic_reconfigure_callback(ipa_building_navig
 	std::cout << "######################################################################################" << std::endl;
 	std::cout << "Dynamic reconfigure request:" << std::endl;
 
-	// set method from config
+	// TSP solver
 	tsp_solver_ = config.tsp_solver;
 	std::cout << "room_sequence_planning/tsp_solver = " << tsp_solver_ << std::endl;
 	if (tsp_solver_ == TSP_NEAREST_NEIGHBOR)
@@ -120,27 +146,50 @@ void RoomSequencePlanningServer::dynamic_reconfigure_callback(ipa_building_navig
 	else if (tsp_solver_ == TSP_CONCORDE)
 		ROS_INFO("You have chosen the Concorde TSP solver.");
 	else
-		ROS_INFO("Undefined TSP Solver.");
-	planning_method_ = config.planning_method;
-	std::cout << "room_sequence_planning/planning_method = " << planning_method_ << std::endl;
-	if (planning_method_ == 1)
-		ROS_INFO("You have chosen the Trolley dragging method method.");
-	else if (planning_method_ == 2)
-		ROS_INFO("You have chosen the room group planning method.");
-	else
-		ROS_INFO("Undefined planning method.");
+		ROS_ERROR("Undefined TSP Solver.");
 
-	// set remaining parameters
-	max_clique_path_length_ = config.max_clique_path_length;
-	std::cout << "room_sequence_planning/max_clique_path_length = " << max_clique_path_length_ << std::endl;
+	// problem setting
+	problem_setting_ = config.problem_setting;
+	std::cout << "room_sequence_planning/problem_setting = " << problem_setting_ << std::endl;
+	if (problem_setting_ == 1)
+		ROS_INFO("You have chosen the SimpleOrderPlanning setting.");
+	else if (problem_setting_ == 2)
+		ROS_INFO("You have chosen the CheckpointBasedPlanning setting.");
+	else
+		ROS_ERROR("Undefined problem setting.");
+
+	// checkpoint-based sequence planning specifics
+	if (problem_setting_ == 1)
+	{
+		planning_method_ = 1;
+		max_clique_path_length_ = 0.;	// always split into cliques --> each clique contains only one room
+		max_clique_size_ = 1;	// always split into cliques --> each clique contains only one room
+	}
+	else if (problem_setting_ == 2)
+	{
+		planning_method_ = config.planning_method;
+		std::cout << "room_sequence_planning/planning_method = " << planning_method_ << std::endl;
+		if (planning_method_ == 1)
+			ROS_INFO("You have chosen the Trolley dragging method.");
+		else if (planning_method_ == 2)
+			ROS_INFO("You have chosen the room group planning method.");
+		else
+			ROS_ERROR("Undefined planning method.");
+		max_clique_path_length_ = config.max_clique_path_length;
+		std::cout << "room_sequence_planning/max_clique_path_length = " << max_clique_path_length_ << std::endl;
+		max_clique_size_ = config.maximum_clique_size;
+		std::cout << "room_sequence_planning/maximum_clique_size = " << max_clique_size_ << std::endl;
+	}
+	else
+		ROS_ERROR("Undefined problem setting.");
+
+	// general settings
 	map_downsampling_factor_ = config.map_downsampling_factor;
 	std::cout << "room_sequence_planning/map_downsampling_factor = " << map_downsampling_factor_ << std::endl;
 	check_accessibility_of_rooms_ = config.check_accessibility_of_rooms;
 	std::cout << "room_sequence_planning/check_accessibility_of_rooms = " << check_accessibility_of_rooms_ << std::endl;
 	return_sequence_map_ = config.return_sequence_map;
 	std::cout << "room_sequence_planning/return_sequence_map = " << return_sequence_map_ << std::endl;
-	max_clique_size_ = config.maximum_clique_size;
-	std::cout << "room_sequence_planning/maximum_clique_size = " << max_clique_size_ << std::endl;
 	display_map_ = config.display_map;
 	std::cout << "room_sequence_planning/display_map = " << display_map_ << std::endl;
 }
@@ -259,7 +308,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 			{
 				current_clique.push_back(optimal_room_sequence[i]);
 			}
-			else //start new clique and put old in the cliques vector
+			else //start new clique and put the old clique into the cliques vector
 			{
 				cliques.push_back(current_clique);
 				current_clique.clear();

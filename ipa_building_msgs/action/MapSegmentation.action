@@ -2,7 +2,7 @@
 # Provides interface to get the segmented map
 
 # goal definition
-sensor_msgs/Image input_map				# the action server need a map as a input image to segment it, IMPORTANT: The algorithm needs a black and white 8bit single-channel image, which is 0 (black) for obstacles and 256 (white) for free space
+sensor_msgs/Image input_map				# the action server need a map as a input image to segment it, IMPORTANT: The algorithm needs a black and white 8bit single-channel image (format 8UC1), which is 0 (black) for obstacles and 255 (white) for free space
 float32 map_resolution					# the resolution of the map in [meter/cell]
 geometry_msgs/Pose map_origin			# the origin of the map in [meter]
 bool return_format_in_pixel				# return room data (see below) in [pixel]
@@ -12,7 +12,7 @@ float32 robot_radius					# in [meter]; if this variable is set to a value greate
 ---
 
 # result definition
-sensor_msgs/Image segmented_map			# the action server need a map as a input image to segment it, format 32SC1, room labels from 1 to N, room with label i -> access to room_information_in_pixel[i-1]
+sensor_msgs/Image segmented_map			# the action server returns a map segmented into rooms which carry the segment number in every pixel cell, format 32SC1, room labels from 1 to N, room with label i -> access to room_information_in_pixel[i-1]
 float32 map_resolution					# the resolution of the segmented map in [meter/cell]
 geometry_msgs/Pose map_origin			# the origin of the segmented map in [meter]
 # for the following data: value in pixel can be obtained when the value of [return_format_in_pixel] from goal definition is true

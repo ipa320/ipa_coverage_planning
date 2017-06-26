@@ -145,6 +145,10 @@ protected:
 
 	// params
 	int tsp_solver_;		// TSP solver: 1 = Nearest Neighbor,  2 = Genetic solver,  3 = Concorde solver
+	int problem_setting_;	// problem setting of the sequence planning problem
+							//   1 = SimpleOrderPlanning (plan the optimal order of a simple set of locations)
+							//   2 = CheckpointBasedPlanning (two-stage planning that creates local cliques of locations (= checkpoints) and determines
+							//        the optimal order through the members of each clique as well as the optimal order through the cliques)
 	int planning_method_;	// Method of planning the sequence: 1 = drag trolley if next room is too far away, 2 = calculate cliques as roomgroups with trolleypositions
 	double max_clique_path_length_;	// max A* path length between two rooms that are assigned to the same clique, in [m]
 	double map_downsampling_factor_;	// the map may be downsampled during computations (e.g. of A* path lengths) in order to speed up the algorithm, range of the factor [0 < factor <= 1], if set to 1 the map will have original size, if set to 0 the algorithm won't work

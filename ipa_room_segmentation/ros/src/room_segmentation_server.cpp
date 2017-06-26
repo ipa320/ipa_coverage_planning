@@ -70,20 +70,16 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 	node_handle_(nh),
 	room_segmentation_server_(node_handle_, name_of_the_action, boost::bind(&RoomSegmentationServer::execute_segmentation_server, this, _1), false)
 {
-	//Start action server
-	room_segmentation_server_.start();
-
-	// parameters to check if the algorithms need to be trained
+	// parameters to check if the algorithms need to be trained (not part of dynamic reconfigure)
 	node_handle_.param("train_semantic", train_semantic_, false);
 	std::cout << "room_segmentation/train_semantic_ = " << train_semantic_ << std::endl;
 	node_handle_.param("train_vrf", train_vrf_, false);
 	std::cout << "room_segmentation/train_vrf_ = " << train_vrf_ << std::endl;
 
-
 	// dynamic reconfigure
 	room_segmentation_dynamic_reconfigure_server_.setCallback(boost::bind(&RoomSegmentationServer::dynamic_reconfigure_callback, this, _1, _2));
 
-	// Parameters
+	// parameters
 	std::cout << "\n------------------------------------\nRoom Segmentation Parameters:\n------------------------------------\n";
 	node_handle_.param("room_segmentation_algorithm", room_segmentation_algorithm_, 3);
 	std::cout << "room_segmentation/room_segmentation_algorithm = " << room_segmentation_algorithm_ << std::endl << std::endl;
@@ -274,6 +270,11 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 	}
 	node_handle_.param("display_segmented_map", display_segmented_map_, false);
 	std::cout << "room_segmentation/display_segmented_map_ = " << display_segmented_map_ << std::endl;
+
+
+	// start action server
+	room_segmentation_server_.start();
+
 }
 
 // Callback function for dynamic reconfigure.
