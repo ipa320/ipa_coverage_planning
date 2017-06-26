@@ -303,9 +303,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	std::cout << "starting point: " << starting_position << std::endl;
 
 	planning_mode_ = goal->planning_mode;
-	if (planning_mode_==1)
+	if (planning_mode_==PLAN_FOR_FOOTPRINT)
 		std::cout << "planning mode: planning coverage path with robot's footprint" <<std::endl;
-	else if (planning_mode_==2)
+	else if (planning_mode_==PLAN_FOR_FOV)
 		std::cout << "planning mode: planning coverage path with robot's field of view" <<std::endl;
 
 	// converting the map msg in cv format
