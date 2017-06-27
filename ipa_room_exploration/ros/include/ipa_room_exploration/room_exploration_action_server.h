@@ -200,7 +200,7 @@ protected:
 	// excute the planned trajectory and drive to unexplored areas after moving along the computed path
 	void navigateExplorationPath(const std::vector<geometry_msgs::Pose2D>& exploration_path,
 			const std::vector<geometry_msgs::Point32>& field_of_view, const double coverage_radius, const double distance_robot_fov_middlepoint,
-			const float map_resolution, const geometry_msgs::Pose2D& map_origin, const double grid_spacing_in_pixel);
+			const float map_resolution, const geometry_msgs::Pose& map_origin, const double grid_spacing_in_pixel);
 
 	// function to publish a navigation goal, it returns true if the goal could be reached
 	// eps_x and eps_y are used to define a epsilon neighborhood around the goal in which a new nav_goal gets published

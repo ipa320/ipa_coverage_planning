@@ -116,9 +116,9 @@ int main(int argc, char **argv)
 	cv_image.image = map;
 	cv_image.toImageMsg(labeling);
 
-	geometry_msgs::Pose2D map_origin;
-	map_origin.x = 0.0;
-	map_origin.y = 0.0;
+	geometry_msgs::Pose map_origin;
+	map_origin.position.x = 0.0;
+	map_origin.position.y = 0.0;
 
 	geometry_msgs::Pose2D starting_position;
 	starting_position.x = 1.0;
@@ -166,11 +166,11 @@ int main(int argc, char **argv)
 	cv::Mat path_map = map.clone();
 	for (size_t point=0; point<action_result->coverage_path.size(); ++point)
 	{
-		const cv::Point point1((action_result->coverage_path[point].x-map_origin.x)*inverse_map_resolution, (action_result->coverage_path[point].y-map_origin.y)*inverse_map_resolution);
+		const cv::Point point1((action_result->coverage_path[point].x-map_origin.position.x)*inverse_map_resolution, (action_result->coverage_path[point].y-map_origin.position.y)*inverse_map_resolution);
 		cv::circle(path_map, point1, 2, cv::Scalar(128), -1);
 		if (point > 0)
 		{
-			const cv::Point point2((action_result->coverage_path[point-1].x-map_origin.x)*inverse_map_resolution, (action_result->coverage_path[point-1].y-map_origin.y)*inverse_map_resolution);
+			const cv::Point point2((action_result->coverage_path[point-1].x-map_origin.position.x)*inverse_map_resolution, (action_result->coverage_path[point-1].y-map_origin.position.y)*inverse_map_resolution);
 			cv::line(path_map, point1, point2, cv::Scalar(128), 1);
 		}
 		std::cout << "coverage_path[" << point << "]: x=" << action_result->coverage_path[point].x << ", y=" << action_result->coverage_path[point].y << ", theta=" << action_result->coverage_path[point].theta << std::endl;

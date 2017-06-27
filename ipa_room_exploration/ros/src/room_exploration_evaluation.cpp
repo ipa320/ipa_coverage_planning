@@ -557,10 +557,7 @@ public:
 		ipa_building_msgs::RoomExplorationGoal goal;
 		goal.input_map = map_msg;
 		goal.map_resolution = evaluation_data.map_resolution_;
-		geometry_msgs::Pose2D map_origin;
-		map_origin.x = evaluation_data.map_origin_.position.x;
-		map_origin.y = evaluation_data.map_origin_.position.y;
-		goal.map_origin = map_origin;
+		goal.map_origin = evaluation_data.map_origin_;
 		goal.robot_radius = evaluation_data.robot_radius_;
 		goal.coverage_radius = evaluation_data.coverage_radius_;
 		goal.field_of_view = evaluation_data.fov_points_;
@@ -908,9 +905,6 @@ public:
 		std::vector<double> numbers_of_coverages;
 		std::string coverage_service_name = "/coverage_check_server/coverage_check";
 
-		geometry_msgs::Pose2D origin;
-		origin.x = data.map_origin_.position.x;
-		origin.y = data.map_origin_.position.y;
 		size_t path_index = 0;
 		cv::Mat map_coverage = map.clone();
 		for(size_t room=0; room<paths.size(); ++room)
@@ -938,7 +932,7 @@ public:
 			coverage_request.path = interpolated_paths[path_index];
 			coverage_request.field_of_view = data.fov_points_;
 			coverage_request.coverage_radius = data.coverage_radius_;
-			coverage_request.map_origin = origin;
+			coverage_request.map_origin = data.map_origin_;
 			coverage_request.map_resolution = data.map_resolution_;
 			if (data.planning_mode_ == FOOTPRINT)
 				coverage_request.check_for_footprint = true;

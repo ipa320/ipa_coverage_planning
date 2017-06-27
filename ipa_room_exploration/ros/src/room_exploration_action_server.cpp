@@ -290,7 +290,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	// ***************** I. read the given parameters out of the goal *****************
 	// todo: this is only correct if the map is not rotated
-	const cv::Point2d map_origin(goal->map_origin.x, goal->map_origin.y);
+	const cv::Point2d map_origin(goal->map_origin.position.x, goal->map_origin.position.y);
 	const float map_resolution = goal->map_resolution;
 	const float map_resolution_inverse = 1./map_resolution;
 	std::cout << "map origin: " << map_origin << "       map resolution: " << map_resolution << std::endl;
@@ -552,7 +552,7 @@ void RoomExplorationServer::downsampleTrajectory(const std::vector<geometry_msgs
 
 void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_msgs::Pose2D>& exploration_path,
 		const std::vector<geometry_msgs::Point32>& field_of_view, const double coverage_radius, const double distance_robot_fov_middlepoint,
-		const float map_resolution, const geometry_msgs::Pose2D& map_origin, const double grid_spacing_in_pixel)
+		const float map_resolution, const geometry_msgs::Pose& map_origin, const double grid_spacing_in_pixel)
 {
 	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
 	// 1. publish navigation goals
@@ -800,8 +800,8 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 		for(size_t center = 0; center < revisiting_order.size(); ++center)
 		{
 			geometry_msgs::Pose2D current_center;
-			current_center.x = (area_centers[revisiting_order[center]].x * map_resolution) + map_origin.x;
-			current_center.y = (area_centers[revisiting_order[center]].y * map_resolution) + map_origin.y;
+			current_center.x = (area_centers[revisiting_order[center]].x * map_resolution) + map_origin.position.x;
+			current_center.y = (area_centers[revisiting_order[center]].y * map_resolution) + map_origin.position.y;
 
 			// define request
 			cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;

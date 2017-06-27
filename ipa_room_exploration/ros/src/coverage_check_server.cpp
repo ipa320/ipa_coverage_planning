@@ -95,7 +95,7 @@ bool coverageCheckServer::checkCoverage(ipa_building_msgs::CheckCoverageRequest&
 
 	// check if the coverage check should be done for the footprint or the field of view
 	cv::Mat covered_areas = map.clone();
-	cv::Point2d map_origin(request.map_origin.x, request.map_origin.y);
+	cv::Point2d map_origin(request.map_origin.position.x, request.map_origin.position.y);
 	if(request.check_for_footprint==false)
 	{
 		ROS_INFO("Checking coverage for fov.");
