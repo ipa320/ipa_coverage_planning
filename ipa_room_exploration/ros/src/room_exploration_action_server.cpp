@@ -474,7 +474,26 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 	// if wanted, return the path as the result
 	if(return_path_ == true)
+	{
 		action_result.coverage_path = exploration_path;
+		// return path in PoseStamped format as well (e.g. necessary for move_base commands)
+		std::vector<geometry_msgs::PoseStamped> exploration_path_pose_stamped(exploration_path.size());
+		std_msgs::Header header;
+		header.stamp = ros::Time::now();
+		header.frame_id = "/map";
+		for (size_t i=0; i<exploration_path.size(); ++i)
+		{
+			exploration_path_pose_stamped[i].header = header;
+			exploration_path_pose_stamped[i].header.seq = i;
+			exploration_path_pose_stamped[i].pose.position.x = exploration_path[i].x;
+			exploration_path_pose_stamped[i].pose.position.y = exploration_path[i].y;
+			exploration_path_pose_stamped[i].pose.position.z = 0.;
+			Eigen::Quaterniond quaternion;
+			quaternion = Eigen::AngleAxisd((double)exploration_path[i].theta, Eigen::Vector3d::UnitZ());
+			tf::quaternionEigenToMsg(quaternion, exploration_path_pose_stamped[i].pose.orientation);
+		}
+		action_result.coverage_path_pose_stamped = exploration_path_pose_stamped;
+	}
 
 	// check if the path should be executed, if not end here
 	if(execute_path_ == false)

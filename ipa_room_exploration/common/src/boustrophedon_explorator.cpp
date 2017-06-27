@@ -603,7 +603,7 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		robot_pos = current_pos_vector[0];
 	}
 
-#ifdef DEBUG_VISUALIZATION
+//#ifdef DEBUG_VISUALIZATION
 	// testing
 	// transform the calculated path back to the originally rotated map
 	cv::Mat R_inv;
@@ -624,7 +624,8 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 //	for(size_t i=0; i<optimal_order.size()-1; ++i)
 //		cv::line(room_map_path, polygon_centers[optimal_order[i]], polygon_centers[optimal_order[i+1]], cv::Scalar(100), 1);
 	cv::imshow("room_map_path_intermediate", room_map_path);
-#endif
+	cv::waitKey();
+//#endif
 
 	// transform the calculated path back to the originally rotated map and create poses with an angle
 	std::vector<geometry_msgs::Pose2D> fov_poses;

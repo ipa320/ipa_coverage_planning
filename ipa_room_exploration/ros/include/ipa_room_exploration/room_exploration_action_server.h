@@ -74,6 +74,7 @@
 #include <opencv/highgui.h>
 // Eigen library
 #include <Eigen/Dense>
+#include <eigen_conversions/eigen_msg.h>
 // standard c++ libraries
 #include <iostream>
 #include <list>

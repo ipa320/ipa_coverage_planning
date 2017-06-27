@@ -14,5 +14,6 @@ int32 planning_mode						# 1 = plans a path for coverage with the robot footprin
 ---
 # result definition
 geometry_msgs/Pose2D[] coverage_path			# when the server should return the coverage path, this is done returning the points in an array that shows the order of visiting
+geometry_msgs/PoseStamped[] coverage_path_pose_stamped			# (same content as coverage_path but different format) when the server should return the coverage path, this is done returning the points in an array that shows the order of visiting
 ---
 # feedback definition

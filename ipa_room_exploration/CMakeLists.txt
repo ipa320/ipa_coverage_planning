@@ -4,6 +4,7 @@ project(ipa_room_exploration)
 set(catkin_RUN_PACKAGES
 	cob_map_accessibility_analysis
 	cv_bridge
+	eigen_conversions
 	geometry_msgs
 	ipa_building_msgs
 	ipa_building_navigation
