@@ -195,6 +195,9 @@ class BoustrophedonExplorer
 protected:
 	// pathplanner to check for the next nearest locations
 	AStarPlanner path_planner_;
+
+	// this function corrects obstacles that are one pixel width at 45deg angle, i.e. a 2x2 pixel neighborhood with [0, 255, 255, 0] or [255, 0, 0, 255]
+	void correctThinWalls(cv::Mat& room_map);
 public:
 	// constructor
 	BoustrophedonExplorer();

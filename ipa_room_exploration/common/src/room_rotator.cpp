@@ -63,13 +63,14 @@
 void RoomRotator::rotateRoom(const cv::Mat& room_map, cv::Mat& rotated_room_map, const cv::Mat& R, const cv::Rect& bounding_rect)
 {
 	// rotate the image
-	cv::warpAffine(room_map, rotated_room_map, R, bounding_rect.size(), cv::INTER_NEAREST);
+	cv::warpAffine(room_map, rotated_room_map, R, bounding_rect.size(), cv::INTER_AREA);
 
 	// apply a binary filter to create a binary image, also use a closing operator to smooth the output (the rotation might produce
 	// black pixels reaching into the white area that were not there before, causing new, wrong cells to open)
-	cv::threshold(rotated_room_map, rotated_room_map, 200, 255, CV_THRESH_BINARY);
-	cv::dilate(rotated_room_map, rotated_room_map, cv::Mat(), cv::Point(-1,-1), 1);
-	cv::erode(rotated_room_map, rotated_room_map, cv::Mat(), cv::Point(-1,-1), 1);
+	cv::threshold(rotated_room_map, rotated_room_map, 127, 255, CV_THRESH_BINARY);
+// this should not be used because it removes smaller obstacles like thin walls from the room and hence lets a planner generate paths through walls
+//	cv::dilate(rotated_room_map, rotated_room_map, cv::Mat(), cv::Point(-1,-1), 1);
+//	cv::erode(rotated_room_map, rotated_room_map, cv::Mat(), cv::Point(-1,-1), 1);
 }
 
 // compute the affine rotation matrix for rotating a room into parallel alignment with x-axis (longer side of the room is aligned with x-axis)

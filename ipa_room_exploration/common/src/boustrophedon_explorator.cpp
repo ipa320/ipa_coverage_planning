@@ -56,7 +56,8 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	room_rotation.computeRoomRotationMatrix(room_map, R, bbox, map_resolution);
 	room_rotation.rotateRoom(room_map, rotated_room_map, R, bbox);
 
-	// testing
+#ifdef DEBUG_VISUALIZATION
+//	// testing
 //	cv::Mat room_map_disp = room_map.clone();
 //	cv::circle(room_map_disp, starting_position, 3, cv::Scalar(160), CV_FILLED);
 //	cv::imshow("room_map", room_map_disp);
@@ -69,6 +70,7 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 //	cv::imshow("original", tester_map);
 //	cv::imshow("rotated_im.png", rotated_room_map);
 //	cv::waitKey();
+#endif
 
 	// *********************** II. Sweep a slice trough the map and mark the found cell boundaries. ***********************
 	ROS_INFO("Planning the boustrophedon path trough the room.");
@@ -111,6 +113,7 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		bool obstacle_hit = false; // bool to check if the line currently hit an obstacle, s.t. not all black pixels trigger an event
 		bool hit_white_pixel = false; // bool to check if a white pixel has been hit at the current slice, to start the slice at the first white pixel
 
+		// count number of segments within this row
 		for(size_t x=0; x<rotated_room_map.cols; ++x)
 		{
 			if(rotated_room_map.at<uchar>(y,x) == 255 && hit_white_pixel == false)
@@ -140,7 +143,6 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 			{
 				if(rotated_room_map.at<uchar>(y,x) == 255 && hit_white_pixel == false)
 					hit_white_pixel = true;
-
 				else if(hit_white_pixel == true && rotated_room_map.at<uchar>(y,x) == 0)
 				{
 					// check over black pixel for other black pixels, if none occur a critical point is found
@@ -182,13 +184,12 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 			{
 				if(rotated_room_map.at<uchar>(y-1,x) == 255 && hit_white_pixel == false)
 					hit_white_pixel = true;
-
 				else if(hit_white_pixel == true && rotated_room_map.at<uchar>(y-1,x) == 0)
 				{
 					// check over black pixel for other black pixels, if none occur a critical point is found
 					bool critical_point = true;
 					for(int dx=-1; dx<=1; ++dx)
-						if(rotated_room_map.at<uchar>(y,x+dx) == 0) // check at side after obstacle
+						if(rotated_room_map.at<uchar>(y,std::min(x+dx, rotated_room_map.cols-1)) == 0) // check at side after obstacle
 							critical_point = false;
 
 					// if a critical point is found mark the separation, note that this algorithm goes left and right
@@ -229,18 +230,18 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	// *********************** III. Find the separated cells. ***********************
 	std::vector<std::vector<cv::Point> > cells;
 	cv::Mat cell_copy = cell_map.clone();
+	correctThinWalls(cell_copy);
 	cv::findContours(cell_copy, cells, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+#ifdef DEBUG_VISUALIZATION
 //	 testing
 //	cv::Mat black_map = cv::Mat(cell_map.rows, cell_map.cols, cell_map.type(), cv::Scalar(0));
 //	for(size_t i=0; i<cells.size(); ++i)
 //	{
-//		for(size_t j=0; j<cells[i].size(); ++j)
-//		{
-//			cv::circle(black_map, cells[i][j], 2, cv::Scalar(127), CV_FILLED);
-//			cv::imshow("contours", black_map);
-//			cv::waitKey();
-//		}
+//		cv::drawContours(black_map, cells, i, cv::Scalar(127), CV_FILLED);
+//		cv::imshow("contours", black_map);
+//		cv::waitKey();
 //	}
+#endif
 
 	// create generalized Polygons out of the contours to handle the cells
 	std::vector<GeneralizedPolygon> cell_polygons;
@@ -442,6 +443,7 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		}
 #ifdef DEBUG_VISUALIZATION
 		cv::imshow("rotated_room_map", rotated_room_map_disp);
+		//cv::waitKey();
 #endif
 
 
@@ -603,7 +605,7 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		robot_pos = current_pos_vector[0];
 	}
 
-//#ifdef DEBUG_VISUALIZATION
+#ifdef DEBUG_VISUALIZATION
 	// testing
 	// transform the calculated path back to the originally rotated map
 	cv::Mat R_inv;
@@ -625,7 +627,7 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 //		cv::line(room_map_path, polygon_centers[optimal_order[i]], polygon_centers[optimal_order[i+1]], cv::Scalar(100), 1);
 	cv::imshow("room_map_path_intermediate", room_map_path);
 	cv::waitKey();
-//#endif
+#endif
 
 	// transform the calculated path back to the originally rotated map and create poses with an angle
 	std::vector<geometry_msgs::Pose2D> fov_poses;
@@ -692,4 +694,18 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	cv::imshow("room_map_path_final", fov_path_map);
 	cv::waitKey();
 #endif
+}
+
+void BoustrophedonExplorer::correctThinWalls(cv::Mat& room_map)
+{
+	for (int v=1; v<room_map.rows; ++v)
+	{
+		for (int u=1; u<room_map.cols; ++u)
+		{
+			if (room_map.at<uchar>(v-1,u-1)==255 && room_map.at<uchar>(v-1,u)==0 && room_map.at<uchar>(v,u-1)==0 && room_map.at<uchar>(v,u)==255)
+				room_map.at<uchar>(v,u)=0;
+			else if (room_map.at<uchar>(v-1,u-1)==0 && room_map.at<uchar>(v-1,u)==255 && room_map.at<uchar>(v,u-1)==255 && room_map.at<uchar>(v,u)==0)
+				room_map.at<uchar>(v,u-1)=0;
+		}
+	}
 }
