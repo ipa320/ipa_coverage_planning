@@ -142,17 +142,17 @@ public:
 		center_.y = room_center[1];
 	}
 
-	cv::Point getCenter()
+	cv::Point getCenter() const
 	{
 		return center_;
 	}
 
-	std::vector<cv::Point> getVertexes()
+	std::vector<cv::Point> getVertices() const
 	{
 		return vertices_;
 	}
 
-	void drawPolygon(cv::Mat& image, const cv::Scalar& color)
+	void drawPolygon(cv::Mat& image, const cv::Scalar& color) const
 	{
 		// draw polygon in an black image with necessary size
 		cv::Mat black_image = cv::Mat(max_y_+10, max_x_+10, CV_8UC1, cv::Scalar(0));
@@ -196,8 +196,30 @@ protected:
 	// pathplanner to check for the next nearest locations
 	AStarPlanner path_planner_;
 
+	// rotates the original map for a good axis alignment and divides it into Morse cells
+	// the functions tries two axis alignments with 90deg rotation difference and chooses the one with the lower number of cells
+	void findBestCellDecomposition(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
+			cv::Mat& R, cv::Rect& bbox, cv::Mat& rotated_room_map,
+			std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
+
+	// rotates the original map for a good axis alignment and divides it into Morse cells
+	// @param rotation_offset can be used to put an offset to the computed rotation for good axis alignment, in [rad]
+	void computeCellDecompositionWithRotation(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
+			const double rotation_offset, cv::Mat& R, cv::Rect& bbox, cv::Mat& rotated_room_map,
+			std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
+
+	// divides the provided map into Morse cells
+	void computeCellDecomposition(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
+			std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
+
 	// this function corrects obstacles that are one pixel width at 45deg angle, i.e. a 2x2 pixel neighborhood with [0, 255, 255, 0] or [255, 0, 0, 255]
 	void correctThinWalls(cv::Mat& room_map);
+
+	// computes the Boustrophedon path pattern for a single cell
+	void computeBoustrophedonPath(const cv::Mat& room_map, const float map_resolution, const GeneralizedPolygon& cell,
+			std::vector<cv::Point>& fov_middlepoint_path, cv::Point& robot_pos,
+			const int grid_spacing_as_int, const int half_grid_spacing_as_int, const double path_eps);
+
 public:
 	// constructor
 	BoustrophedonExplorer();

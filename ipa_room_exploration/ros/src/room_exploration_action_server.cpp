@@ -293,14 +293,14 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	const cv::Point2d map_origin(goal->map_origin.position.x, goal->map_origin.position.y);
 	const float map_resolution = goal->map_resolution;
 	const float map_resolution_inverse = 1./map_resolution;
-	std::cout << "map origin: " << map_origin << "       map resolution: " << map_resolution << std::endl;
+	std::cout << "map origin: " << map_origin << " m       map resolution: " << map_resolution << " m/cell" << std::endl;
 
 	const float robot_radius = goal->robot_radius;
 	const int robot_radius_in_pixel = (robot_radius / map_resolution);
-	std::cout << "robot radius: " << robot_radius << " m (" << robot_radius_in_pixel << " px)" << std::endl;
+	std::cout << "robot radius: " << robot_radius << " m   (" << robot_radius_in_pixel << " px)" << std::endl;
 
 	const cv::Point starting_position((goal->starting_position.x-map_origin.x)/map_resolution, (goal->starting_position.y-map_origin.y)/map_resolution);
-	std::cout << "starting point: " << starting_position << std::endl;
+	std::cout << "starting point: (" << goal->starting_position.x << ", " << goal->starting_position.y << ") m   (" << starting_position << " px)" << std::endl;
 
 	planning_mode_ = goal->planning_mode;
 	if (planning_mode_==PLAN_FOR_FOOTPRINT)
@@ -326,7 +326,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	removeUnconnectedRoomParts(room_map);
 
 	// get the grid size, to check the areas that should be revisited later
-	double grid_spacing_in_meter = 0.0;
+	double grid_spacing_in_meter = 0.0;		// is the square grid cell side length that fits into the circle with the robot's coverage radius or fov coverage radius
 	float fitting_circle_radius_in_meter = 0;
 	Eigen::Matrix<float, 2, 1> fitting_circle_center_point_in_meter;	// this is also considered the center of the field of view, because around this point the maximum radius incircle can be found that is still inside the fov
 	std::vector<Eigen::Matrix<float, 2, 1> > fov_corners_meter(4);
@@ -345,7 +345,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		grid_spacing_in_meter = goal->coverage_radius*std::sqrt(2);
 	}
 	// map the grid size to an int in pixel coordinates, using floor method
-	const double grid_spacing_in_pixel = grid_spacing_in_meter/map_resolution;
+	const double grid_spacing_in_pixel = grid_spacing_in_meter/map_resolution;		// is the square grid cell side length that fits into the circle with the robot's coverage radius or fov coverage radius, multiply with sqrt(2) to receive the whole working width
 	std::cout << "grid size: " << grid_spacing_in_meter << " m   (" << grid_spacing_in_pixel << " px)" << std::endl;
 	// set the cell_size_ for #4 convexSPP explorator or #5 flowNetwork explorator if it is not provided
 	if (cell_size_ <= 0)

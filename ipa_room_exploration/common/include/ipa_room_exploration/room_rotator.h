@@ -81,8 +81,9 @@ public:
 	// compute the affine rotation matrix for rotating a room into parallel alignment with x-axis (longer side of the room is aligned with x-axis)
 	// R is the transform
 	// bounding_rect is the ROI of the warped image
+	// rotation_offset is an optional offset to the determined rotation, in [rad]
 	void computeRoomRotationMatrix(const cv::Mat& room_map, cv::Mat& R, cv::Rect& bounding_rect, const double map_resolution,
-			const cv::Point* center=0);
+			const cv::Point* center=0, const double rotation_offset=0.);
 
 	// computes the major direction of the walls from a map (preferably one room)
 	// the map (room_map, CV_8UC1) is black (0) at impassable areas and white (255) on drivable areas
