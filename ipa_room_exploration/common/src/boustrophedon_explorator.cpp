@@ -87,7 +87,7 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	ConcordeTSPSolver tsp_solver;
 	std::vector<int> optimal_order = tsp_solver.solveConcordeTSP(rotated_room_map, polygon_centers, 0.25, 0.0, map_resolution, start_cell_index, 0);
 
-	// go trough the cells and determine the boustrophedon paths
+	// go trough the cells [in optimal visiting order] and determine the boustrophedon paths
 	ROS_INFO("Starting to get the paths for each cell, number of cells: %d", (int)cell_polygons.size());
 	const int grid_spacing_as_int = (int)std::floor(grid_spacing_in_pixel); // convert fov-radius to int
 	const int half_grid_spacing_as_int = (int)std::floor(0.5*grid_spacing_in_pixel); // convert fov-radius to int
@@ -475,6 +475,21 @@ void BoustrophedonExplorer::computeBoustrophedonPath(const cv::Mat& room_map, co
 	cell_rotation.computeRoomRotationMatrix(cell_map, R_cell, cell_bbox, map_resolution, &cell_center);
 	cell_rotation.rotateRoom(cell_map, rotated_cell_map, R_cell, cell_bbox);
 
+	// create inflated obstacles room map and rotate accordign to cell
+	//  --> used later for checking accessibility of Boustrophedon path inside the cell
+	cv::Mat inflated_room_map, rotated_inflated_room_map;
+	cv::erode(room_map, inflated_room_map, cv::Mat(), cv::Point(-1, -1), half_grid_spacing_as_int);
+	cell_rotation.rotateRoom(inflated_room_map, rotated_inflated_room_map, R_cell, cell_bbox);
+#ifdef DEBUG_VISUALIZATION
+	// display inflation
+	cv::Mat rotated_cell_map_copy = rotated_cell_map.clone();
+	for (int v=0; v<rotated_cell_map_copy.rows; ++v)
+		for (int u=0; u<rotated_cell_map_copy.cols; ++u)
+			if (rotated_cell_map_copy.at<uchar>(v,u)!=0 && rotated_inflated_room_map.at<uchar>(v,u)==0)
+				rotated_cell_map_copy.at<uchar>(v,u) = 128;
+	cv::imshow("rotated_cell_map_with_inflation", rotated_cell_map_copy);
+#endif
+
 	// get the min/max x/y values for this cell
 	int min_x=100000, max_x=0, min_y=100000, max_y=0;
 	std::vector<cv::Point> rotated_vertexes = cell.getVertices();
@@ -491,17 +506,16 @@ void BoustrophedonExplorer::computeBoustrophedonPath(const cv::Mat& room_map, co
 			min_y = rotated_vertexes[point].y;
 	}
 
-	// invert the rotation matrix to remap the determined points to the original cell
-	cv::Mat R_cell_inv;
-	cv::invertAffineTransform(R_cell, R_cell_inv);
-
 	// get the left and right edges of the path
 	std::vector<BoustrophedonHorizontalLine> path_lines;
 	int y=0, dx=0;
 
+//#########
 	// todo: create grid in external class - it is the same in all approaches
 	// todo: if first/last row or column in grid has accessible areas but center is inaccessible, create a node in the accessible area
 	// check where to start the planning of the path (if the cell is smaller that the fov_diameter start in the middle of it)
+
+	// todo: use inflated walls map (rotate into cell ROI, but keep inflated walls from original map, i.e. cell boundaries between two cells do not necessarily create an inflated obstacle)
 	if((max_y - min_y) <= grid_spacing_as_int)
 		y = min_y + 0.5 * (max_y - min_y);
 	else
@@ -569,6 +583,10 @@ void BoustrophedonExplorer::computeBoustrophedonPath(const cv::Mat& room_map, co
 	if(path_lines.size()==0)
 		return;
 
+	// invert the rotation matrix to remap the determined points to the original cell
+	cv::Mat R_cell_inv;
+	cv::invertAffineTransform(R_cell, R_cell_inv);
+
 	// get the edge nearest to the current robot position to start the boustrophedon path at by looking at the
 	// upper and lower horizontal path (possible nearest locations) for the edges transformed to the original coordinates (easier)
 	std::vector<cv::Point> outer_edges(4);
@@ -594,6 +612,7 @@ void BoustrophedonExplorer::computeBoustrophedonPath(const cv::Mat& room_map, co
 		if(dist2 < dist1)
 			start_from_left = false;
 
+#ifdef DEBUG_VISUALIZATION
 	cv::Mat room_map_disp = room_map.clone();
 	for (size_t i=0; i<outer_edges.size(); i+=2)
 		cv::line(room_map_disp, outer_edges[i], outer_edges[i+1], cv::Scalar(128), 1);
@@ -612,7 +631,6 @@ void BoustrophedonExplorer::computeBoustrophedonPath(const cv::Mat& room_map, co
 		else
 			cv::circle(room_map_disp, outer_edges[3], 3, cv::Scalar(64), CV_FILLED);
 	}
-#ifdef DEBUG_VISUALIZATION
 	cv::imshow("rotated_room_map", room_map_disp);
 	cv::waitKey();
 #endif
