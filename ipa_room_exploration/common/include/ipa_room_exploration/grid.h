@@ -61,6 +61,22 @@
 #include <vector>
 #include <opencv/cv.h>
 
+class BoustrophedonLine
+{
+public:
+	std::vector<cv::Point> upper_line;		// points of the upper part of the line (always filled first)
+	std::vector<cv::Point> lower_line;		// points of the potentially existing lower part of the line
+	bool has_two_valid_lines;		// true if both lines, upper and lower, concurrently provide valid alternative points at some locations (i.e. only if this is true, there are two individual lines of places to visit)
+
+	BoustrophedonLine()
+	: has_two_valid_lines(false)
+	{
+	}
+};
+
+class BoustrophedonGrid : public std::vector<BoustrophedonLine>
+{
+};
 
 class GridGenerator
 {
@@ -69,10 +85,10 @@ public:
 	{
 	}
 
-	// generates a standard grid with fixed spacing starting at the upper left accessible cell (because it is assumed that the map is provided
-	// with walls grown by the size of half robot radius, i.e. the map is eroded by the inaccessible areas). If the map is provided in its normal
-	// appearance, then the start_grid_at_first_free_pixel parameter should be set to false and the first grid center will be placed with appropriate
-	// distance to the walls.
+	// generates a standard grid with fixed spacing starting at the upper left accessible cell (if the map is provided
+	// with walls grown by the size of half robot radius, i.e. the map is eroded by the inaccessible areas) or starting at half grid distance
+	// from the walls (if the original map is provided). If the map is provided in its normal appearance, then the start_grid_at_first_free_pixel
+	// parameter should be set to false and the first grid center will be placed with appropriate distance to the walls.
 	// room_map = (optionally eroded) map of the room in [pixels] (erosion = growing of walls by robot radius --> inaccessible areas are already excluded)
 	// cell_centers = the computed grid cell center points in [pixels]
 	// cell_size = the grid spacing in [pixels]
@@ -217,5 +233,182 @@ public:
 			}
 		}
 		return false;
+	}
+
+
+	// Generates a grid with fixed vertical spacing and variable distance between the points in a line (parameter), s.t. the algorithm may create
+	// ordinary grid points or horizontal lines with defined vertical spacing. The generator considers obstacle safety distances and only places
+	// grid cells with sufficient distance to obstacles (parameter). If a grid point cannot be placed because it would be located in an obstacle
+	// or in the inaccessible area around an obstacle, then the algorithm tries to shift the point vertically up and down up to grid_spacing
+	// (parameter) units. As soon as it finds free space, the grid point is set there. It can happen that such a free point exists above and below
+	// the original placement of the grid point. Then the two options are store in an upper and lower trajectory and the user must later chose how
+	// to deal with these option.
+	// room_map = original map of the room as a CV_8UC1 map with 0=obstacles, 255=free space, in [pixels]
+	// inflated_room_map = map of the room with inflated obstacles (can be provided, if cv::Mat() is provided, it is computed here with map_inflation_radius)
+	// map_inflation_radius = the number of pixels obstacles shall be inflated if no precomputed inflated_room_map is provided (map_inflation_radius can be -1 otherwise), in [pixels]
+	// grid_points = a vector of BoustrophedonLine objects, each of them containing line information in upper_line and optionally another line in lower_line if two_valid_lines is true, in [pixels]
+	// min_max_map_coordinates = optionally precomputed min/max coordinates (min_x, max_x, min_y, max_y) of the room in room_map, if cv::Vec4i(0,0,0,0) is provided, min/max map coordinates are computed by this function, in [pixels]
+	// grid_spacing = the basic distance between two grid cell centers, is used for vertical grid spacing, in [pixels]
+	// half_grid_spacing = the rounded half distance between two grid cell centers (the user shall defined how it is rounded), in [pixels]
+	// grid_spacing_horizontal = this value allows to optionally specify the horizontal basic distance between two grid cell centers, it can be set to grid_spacing if the basic horzintal spacing shall be identical to the vertical spacing, in [pixels]
+	static void generateBoustrophedonGrid(const cv::Mat& room_map, cv::Mat& inflated_room_map, const int map_inflation_radius,
+			BoustrophedonGrid& grid_points, const cv::Vec4i& min_max_map_coordinates, const int grid_spacing, const int half_grid_spacing,
+			const int grid_spacing_horizontal)
+	{
+		// compute inflated_room_map if not provided
+		if (inflated_room_map.rows!=room_map.rows || inflated_room_map.cols!=room_map.cols)
+			cv::erode(room_map, inflated_room_map, cv::Mat(), cv::Point(-1, -1), map_inflation_radius);
+
+		// compute min/max map coordinates if necessary
+		int min_x=10000000, max_x=0, min_y=10000000, max_y=0;
+		if (min_max_map_coordinates[0]==0 && min_max_map_coordinates[1]==0 && min_max_map_coordinates[2]==0 && min_max_map_coordinates[3]==0)
+		{
+			for (int v=0; v<room_map.rows; ++v)
+			{
+				for (int u=0; u<room_map.cols; ++u)
+				{
+					if (room_map.at<uchar>(v,u) == 255)
+					{
+						if (min_x > u)
+							min_x = u;
+						if (max_x < u)
+							max_x = u;
+						if (min_y > v)
+							min_y = v;
+						if (max_y < v)
+							max_y = v;
+					}
+				}
+			}
+		}
+		else
+		{
+			min_x = min_max_map_coordinates[0];
+			max_x = min_max_map_coordinates[1];
+			min_y = min_max_map_coordinates[2];
+			max_y = min_max_map_coordinates[3];
+		}
+
+		// create grid
+		int y=0;
+		if((max_y - min_y) <= grid_spacing)
+			y = min_y + 0.5 * (max_y - min_y);
+		else
+			y = min_y + half_grid_spacing;
+		// loop through the vertical grid lines with regular grid spacing
+		for (; y<max_y+half_grid_spacing; y += grid_spacing)		// we use max_y+half_grid_spacing as upper bound to cover the bottom-most line as well
+		{
+			if (y > max_y)	// this should happen at most once for the bottom line
+				y = max_y-half_grid_spacing;
+
+			BoustrophedonLine line;
+			const cv::Point invalid_point(-1,-1);
+			// loop through the horizontal grid points with horizontal grid spacing length
+			for (int x=min_x; x<=max_x; x+=grid_spacing_horizontal)
+			{
+				// points are added to the grid line as follows:
+				//   1. if the original point is accessible --> point is added to upper_line, invalid point (-1,-1) is added to lower_line
+				//   2. if the original point is not accessible:
+				//      a) and no other point in the y-vicinity --> upper_line and lower_line are not updated
+				//      b) but some point above and none below --> valid point is added to upper_line, invalid point (-1,-1) is added to lower_line
+				//      c) but some point below and none above --> valid point is added to lower_line, invalid point (-1,-1) is added to upper_line
+				//      d) but some point below and above are --> valid points are added to upper_line and lower_line, respectively
+
+				// 1. check accessibility on regular location
+				if (inflated_room_map.at<uchar>(y,x)==255)
+				{
+					line.upper_line.push_back(cv::Point(x,y));
+					line.lower_line.push_back(invalid_point);
+				}
+				else // 2. check accessibility above or below the targeted point
+				{
+					// check accessibility above the target location
+					bool found_above = false;
+					int dy = -1;
+					for (; dy>-grid_spacing; --dy)
+					{
+						if (y+dy>=0 && inflated_room_map.at<uchar>(y+dy,x)==255)
+						{
+							found_above = true;
+							break;
+						}
+					}
+					if (found_above == true)
+					{
+						line.upper_line.push_back(cv::Point(x,y+dy));
+						line.lower_line.push_back(invalid_point);		// can be overwritten below if this point also exists
+					}
+
+					// check accessibility below the target location
+					bool found_below = false;
+					dy = 1;
+					for (; dy<grid_spacing; ++dy)
+					{
+						if (y+dy<inflated_room_map.rows && inflated_room_map.at<uchar>(y+dy,x)==255)
+						{
+							found_below = true;
+							break;
+						}
+					}
+					if (found_below == true)
+					{
+						if (found_above == true)	// update the existing entry
+						{
+							line.has_two_valid_lines = true;
+							line.lower_line.back().x = x;
+							line.lower_line.back().y = y+dy;
+						}
+						else	// create a new entry
+						{
+							line.upper_line.push_back(invalid_point);
+							line.lower_line.push_back(cv::Point(x,y+dy));
+						}
+					}
+				}
+			}
+
+			// clean the grid line data
+			// 1. if there are no valid points --> do not add the line
+			// 2. if two_valid_lines is true, there are two individual lines available with places to visit
+			// 3. else there is just one valid line with data potentially distributed over upper_line and lower_line
+			BoustrophedonLine cleaned_line;
+			if (line.upper_line.size()>0 && line.lower_line.size()>0)	// 1. check that there is valid data in the lines
+			{
+				// 2. if two_valid_lines is true, create two individual lines with places to visit
+				if (line.has_two_valid_lines == true)
+				{
+					cleaned_line.has_two_valid_lines = true;
+					// copy as much data as possible into the upper line (and remove from the lower)
+					for (size_t i=0; i<line.upper_line.size(); ++i)
+					{
+						if (line.upper_line[i]!=invalid_point)
+						{
+							cleaned_line.upper_line.push_back(line.upper_line[i]);		// keep the upper_line as is
+							if (line.lower_line[i]!=invalid_point)		// store the second valid point at this location in lower_line
+								cleaned_line.lower_line.push_back(line.lower_line[i]);
+						}
+						else	// the upper_line does not contain a valid point
+						{
+							if (line.lower_line[i]!=invalid_point)		// move the valid point from lower to upper line
+								cleaned_line.upper_line.push_back(line.lower_line[i]);
+						}
+					}
+				}
+				else	// 3. there is just one valid line that needs to be merged from lower_line and upper_line
+				{
+					for (size_t i=0; i<line.upper_line.size(); ++i)
+					{
+						if (line.upper_line[i]!=invalid_point)
+							cleaned_line.upper_line.push_back(line.upper_line[i]);		// keep the upper_line as is
+						else	// the upper_line does not contain a valid point
+							if (line.lower_line[i]!=invalid_point)		// move the valid point from lower to upper line
+								cleaned_line.upper_line.push_back(line.lower_line[i]);
+					}
+				}
+
+				// add cleaned line to the grid
+				grid_points.push_back(cleaned_line);
+			}
+		}
 	}
 };

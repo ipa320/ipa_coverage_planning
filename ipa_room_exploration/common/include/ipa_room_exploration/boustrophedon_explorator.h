@@ -72,6 +72,7 @@
 #include <ipa_room_exploration/meanshift2d.h>
 #include <ipa_room_exploration/fov_to_robot_mapper.h>
 #include <ipa_room_exploration/room_rotator.h>
+#include <ipa_room_exploration/grid.h>
 
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>
@@ -175,7 +176,7 @@ public:
 // boustrophedon path.
 struct BoustrophedonHorizontalLine
 {
-	cv::Point left_edge_, right_edge_;
+	cv::Point left_corner_, right_corner_;
 };
 
 
@@ -219,6 +220,15 @@ protected:
 	void computeBoustrophedonPath(const cv::Mat& room_map, const float map_resolution, const GeneralizedPolygon& cell,
 			std::vector<cv::Point>& fov_middlepoint_path, cv::Point& robot_pos,
 			const int grid_spacing_as_int, const int half_grid_spacing_as_int, const double path_eps);
+
+	// downsamples a given path original_path to waypoint distances of path_eps and appends the resulting path to downsampled_path
+	void downsamplePath(const std::vector<cv::Point>& original_path, std::vector<cv::Point>& downsampled_path,
+			cv::Point& cell_robot_pos, const double path_eps);
+
+	// downsamples a given path original_path to waypoint distances of path_eps in reverse order as given in original_path
+	// and appends the resulting path to downsampled_path
+	void downsamplePathReverse(const std::vector<cv::Point>& original_path, std::vector<cv::Point>& downsampled_path,
+			cv::Point& robot_pos, const double path_eps);
 
 public:
 	// constructor

@@ -49,7 +49,7 @@ LIBRARIES
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
 DEPENDS
-	libconcorde_tsp_solver
+#	libconcorde_tsp_solver
 	OpenCV
 	Boost
 )

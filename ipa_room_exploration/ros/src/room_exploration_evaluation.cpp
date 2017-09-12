@@ -469,7 +469,8 @@ public:
 				//cv::Mat path_map = room_map.clone();
 				for (size_t point=0; point<coverage_path.size(); ++point)
 				{
-					cv::circle(path_map, cv::Point(coverage_path[point].x, coverage_path[point].y), 2, cv::Scalar(128), -1);
+					// todo: draw path between cells with A star planner
+					cv::circle(path_map, cv::Point(coverage_path[point].x, coverage_path[point].y), 1, cv::Scalar(196), -1);
 					if (point > 0)
 						cv::line(path_map, cv::Point(coverage_path[point].x, coverage_path[point].y), cv::Point(coverage_path[point-1].x, coverage_path[point-1].y), cv::Scalar(128), 1);
 //					std::cout << "coverage_path[" << point << "]: x=" << coverage_path[point].x << ", y=" << coverage_path[point].y << ", theta=" << coverage_path[point].theta << std::endl;

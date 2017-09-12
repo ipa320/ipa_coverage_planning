@@ -31,7 +31,7 @@ cell_size: 4      #7
 
 # distance between two points when generating the path
 # [pixel], where one pixel is the size of one cell in the navigation grid map
-path_eps: 10.0
+path_eps: 8
 
 
 # parameters specific to the navigation of the robot along the computed coverage trajectory

@@ -113,10 +113,10 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	cv::circle(room_map_path, starting_position, 3, cv::Scalar(160), CV_FILLED);
 	for(size_t i=0; i<rotated_fov_middlepoint_path.size()-1; ++i)
 	{
-		cv::circle(room_map_path, rotated_fov_middlepoint_path[i], 2, cv::Scalar(200), CV_FILLED);
+		cv::circle(room_map_path, rotated_fov_middlepoint_path[i], 1, cv::Scalar(200), CV_FILLED);
 		cv::line(room_map_path, rotated_fov_middlepoint_path[i], rotated_fov_middlepoint_path[i+1], cv::Scalar(100), 1);
 	}
-	cv::circle(room_map_path, rotated_fov_middlepoint_path.back(), 2, cv::Scalar(200), CV_FILLED);
+	cv::circle(room_map_path, rotated_fov_middlepoint_path.back(), 1, cv::Scalar(200), CV_FILLED);
 	//	for(size_t i=0; i<optimal_order.size()-1; ++i)
 	//		cv::line(room_map_path, polygon_centers[optimal_order[i]], polygon_centers[optimal_order[i+1]], cv::Scalar(100), 1);
 	cv::imshow("room_map_path_intermediate", room_map_path);
@@ -475,19 +475,18 @@ void BoustrophedonExplorer::computeBoustrophedonPath(const cv::Mat& room_map, co
 	cell_rotation.computeRoomRotationMatrix(cell_map, R_cell, cell_bbox, map_resolution, &cell_center);
 	cell_rotation.rotateRoom(cell_map, rotated_cell_map, R_cell, cell_bbox);
 
-	// create inflated obstacles room map and rotate accordign to cell
+	// create inflated obstacles room map and rotate according to cell
 	//  --> used later for checking accessibility of Boustrophedon path inside the cell
 	cv::Mat inflated_room_map, rotated_inflated_room_map;
 	cv::erode(room_map, inflated_room_map, cv::Mat(), cv::Point(-1, -1), half_grid_spacing_as_int);
 	cell_rotation.rotateRoom(inflated_room_map, rotated_inflated_room_map, R_cell, cell_bbox);
+	cv::Mat rotated_inflated_cell_map = rotated_cell_map.clone();
+	for (int v=0; v<rotated_inflated_cell_map.rows; ++v)
+		for (int u=0; u<rotated_inflated_cell_map.cols; ++u)
+			if (rotated_inflated_cell_map.at<uchar>(v,u)!=0 && rotated_inflated_room_map.at<uchar>(v,u)==0)
+				rotated_inflated_cell_map.at<uchar>(v,u) = 128;
 #ifdef DEBUG_VISUALIZATION
-	// display inflation
-	cv::Mat rotated_cell_map_copy = rotated_cell_map.clone();
-	for (int v=0; v<rotated_cell_map_copy.rows; ++v)
-		for (int u=0; u<rotated_cell_map_copy.cols; ++u)
-			if (rotated_cell_map_copy.at<uchar>(v,u)!=0 && rotated_inflated_room_map.at<uchar>(v,u)==0)
-				rotated_cell_map_copy.at<uchar>(v,u) = 128;
-	cv::imshow("rotated_cell_map_with_inflation", rotated_cell_map_copy);
+	cv::imshow("rotated_cell_map_with_inflation", rotated_inflated_cell_map);
 #endif
 
 	// get the min/max x/y values for this cell
@@ -506,282 +505,169 @@ void BoustrophedonExplorer::computeBoustrophedonPath(const cv::Mat& room_map, co
 			min_y = rotated_vertexes[point].y;
 	}
 
-	// get the left and right edges of the path
-	std::vector<BoustrophedonHorizontalLine> path_lines;
-	int y=0, dx=0;
-
-//#########
-	// todo: create grid in external class - it is the same in all approaches
-	// todo: if first/last row or column in grid has accessible areas but center is inaccessible, create a node in the accessible area
-	// check where to start the planning of the path (if the cell is smaller that the fov_diameter start in the middle of it)
-
-	// todo: use inflated walls map (rotate into cell ROI, but keep inflated walls from original map, i.e. cell boundaries between two cells do not necessarily create an inflated obstacle)
-	if((max_y - min_y) <= grid_spacing_as_int)
-		y = min_y + 0.5 * (max_y - min_y);
-	else
-		y = min_y + half_grid_spacing_as_int;	//(min_y-1) + fov_coverage_radius_as_int;	// directly start driving at the border of the accessible room area
-	do
-	{
-		BoustrophedonHorizontalLine current_line;
-		cv::Point left_edge(-1, -1), right_edge(-1, -1);
-		// check the for the current row to the right/left for the first white pixel (valid position), starting from
-		// the minimal/maximal x value
-		dx = min_x + half_grid_spacing_as_int;
-		bool found = false;
-		// get the leftmost edges of the path
-		do
-		{
-			if(rotated_cell_map.at<uchar>(y, dx) == 255 && rotated_cell_map.at<uchar>(y, dx+half_grid_spacing_as_int) == 255)
-			{
-				left_edge = cv::Point(dx+half_grid_spacing_as_int, y); // add coverage radius s.t. the edge is not on the wall
-				found = true;
-			}
-			else
-				++dx;
-		} while(dx < (rotated_cell_map.cols-half_grid_spacing_as_int) && found == false); // dx < ... --> safety, should never hold
-
-		// get the rightmost edges of the path
-		dx = max_x;
-		found = false;
-		do
-		{
-			if(rotated_cell_map.at<uchar>(y, dx) == 255 && rotated_cell_map.at<uchar>(y, dx-half_grid_spacing_as_int) == 255)
-			{
-				right_edge = cv::Point(dx-half_grid_spacing_as_int, y); // subtract coverage radius s.t. edge is not on the wall
-				found = true;
-			}
-			else
-				--dx;
-		} while(dx >= half_grid_spacing_as_int && found == false);
-
-		// save found horizontal line, if one is found, transformed to the original orientation of the cell
-		if(left_edge.x>=0 && left_edge.y>=0 && right_edge.x>=0 && right_edge.y>=0)
-		{
-			current_line.left_edge_ = left_edge;
-			current_line.right_edge_ = right_edge;
-			path_lines.push_back(current_line);
-		}
-
-		// increase y by given coverage-radius value
-		y += grid_spacing_as_int;
-
-	} while(y <= max_y);
+	// compute the basic Boustrophedon grid lines
+	BoustrophedonGrid grid_lines;
+	GridGenerator::generateBoustrophedonGrid(rotated_cell_map, rotated_inflated_cell_map, -1, grid_lines, cv::Vec4i(min_x, max_x, min_y, max_y),
+			grid_spacing_as_int, half_grid_spacing_as_int, 1);
 
 #ifdef DEBUG_VISUALIZATION
-	// display
 	cv::Mat rotated_cell_map_disp = rotated_cell_map.clone();
-	for (size_t i=0; i<path_lines.size(); ++i)
-		cv::line(rotated_cell_map_disp, path_lines[i].left_edge_, path_lines[i].right_edge_, cv::Scalar(128), 1);
+	for (size_t i=0; i<grid_lines.size(); ++i)
+	{
+		for (size_t j=0; j+1<grid_lines[i].upper_line.size(); ++j)
+			cv::line(rotated_cell_map_disp, grid_lines[i].upper_line[j], grid_lines[i].upper_line[j+1], cv::Scalar(128), 1);
+		for (size_t j=0; j+1<grid_lines[i].lower_line.size(); ++j)
+			cv::line(rotated_cell_map_disp, grid_lines[i].lower_line[j], grid_lines[i].lower_line[j+1], cv::Scalar(196), 1);
+	}
 	cv::imshow("rotated_cell_map", rotated_cell_map_disp);
+	cv::waitKey();
 #endif
 
-
-	// ----------------------------------------------------------------------------------------------------------------------------
-
-
 	// if no edge could be found in the cell (e.g. if it is too small), ignore it
-	if(path_lines.size()==0)
+	if(grid_lines.size()==0)
 		return;
-
-	// invert the rotation matrix to remap the determined points to the original cell
-	cv::Mat R_cell_inv;
-	cv::invertAffineTransform(R_cell, R_cell_inv);
 
 	// get the edge nearest to the current robot position to start the boustrophedon path at by looking at the
 	// upper and lower horizontal path (possible nearest locations) for the edges transformed to the original coordinates (easier)
-	std::vector<cv::Point> outer_edges(4);
-	outer_edges[0] = path_lines[0].left_edge_;
-	outer_edges[1] = path_lines[0].right_edge_;
-	outer_edges[2] = path_lines.back().left_edge_;
-	outer_edges[3] = path_lines.back().right_edge_;
-	cv::transform(outer_edges, outer_edges, R_cell_inv);
-	double dist1 = path_planner_.planPath(room_map, robot_pos, outer_edges[0], 1.0, 0.0, map_resolution);
-	double dist2 = path_planner_.planPath(room_map, robot_pos, outer_edges[1], 1.0, 0.0, map_resolution);
-	double dist3= path_planner_.planPath(room_map, robot_pos, outer_edges[2], 1.0, 0.0, map_resolution);
-	double dist4 = path_planner_.planPath(room_map, robot_pos, outer_edges[3], 1.0, 0.0, map_resolution);
-
-	bool start_from_upper_path = true;
-	bool start_from_left = true; // Boolean to determine on which side the path should start and to check where the path ended
-	if((dist3 < dist1 && dist3 < dist2) || (dist4 < dist1 && dist4 < dist2)) // start on lower line
+	std::vector<cv::Point> outer_corners(4);
+	outer_corners[0] = grid_lines[0].upper_line[0];		// upper left corner
+	outer_corners[1] = grid_lines[0].upper_line.back();	// upper right corner
+	outer_corners[2] = grid_lines.back().upper_line[0];	// lower left corner
+	outer_corners[3] = grid_lines.back().upper_line.back();	// lower right corner
+	cv::Mat R_cell_inv;
+	cv::invertAffineTransform(R_cell, R_cell_inv);	// invert the rotation matrix to remap the determined points to the original cell
+	cv::transform(outer_corners, outer_corners, R_cell_inv);
+	double min_corner_dist = path_planner_.planPath(room_map, robot_pos, outer_corners[0], 1.0, 0.0, map_resolution);
+	int min_corner_index = 0;
+	for (int i=1; i<4; ++i)
 	{
-		start_from_upper_path = false;
-		if(dist4 < dist3)
-			start_from_left = false;
+		double dist = path_planner_.planPath(room_map, robot_pos, outer_corners[i], 1.0, 0.0, map_resolution);
+		if (dist < min_corner_dist)
+		{
+			min_corner_dist = dist;
+			min_corner_index = i;
+		}
 	}
-	else
-		if(dist2 < dist1)
-			start_from_left = false;
+	bool start_from_upper_path = (min_corner_index<2 ? true : false);
+	bool start_from_left = (min_corner_index%2==0 ? true : false); // boolean to determine on which side the path should start and to check where the path ended
 
 #ifdef DEBUG_VISUALIZATION
 	cv::Mat room_map_disp = room_map.clone();
-	for (size_t i=0; i<outer_edges.size(); i+=2)
-		cv::line(room_map_disp, outer_edges[i], outer_edges[i+1], cv::Scalar(128), 1);
+	for (size_t i=0; i<outer_corners.size(); i+=2)
+		cv::line(room_map_disp, outer_corners[i], outer_corners[i+1], cv::Scalar(128), 1);
 	cv::circle(room_map_disp, robot_pos, 3, cv::Scalar(160), CV_FILLED);
 	if (start_from_upper_path == true)
 	{
 		if (start_from_left == true)
-			cv::circle(room_map_disp, outer_edges[0], 3, cv::Scalar(64), CV_FILLED);
+			cv::circle(room_map_disp, outer_corners[0], 3, cv::Scalar(64), CV_FILLED);
 		else
-			cv::circle(room_map_disp, outer_edges[1], 3, cv::Scalar(64), CV_FILLED);
+			cv::circle(room_map_disp, outer_corners[1], 3, cv::Scalar(64), CV_FILLED);
 	}
 	else
 	{
 		if (start_from_left == true)
-			cv::circle(room_map_disp, outer_edges[2], 3, cv::Scalar(64), CV_FILLED);
+			cv::circle(room_map_disp, outer_corners[2], 3, cv::Scalar(64), CV_FILLED);
 		else
-			cv::circle(room_map_disp, outer_edges[3], 3, cv::Scalar(64), CV_FILLED);
+			cv::circle(room_map_disp, outer_corners[3], 3, cv::Scalar(64), CV_FILLED);
 	}
 	cv::imshow("rotated_room_map", room_map_disp);
-	cv::waitKey();
 #endif
 
-
-	// ----------------------------------------------------------------------------------------------------------------------------
-
-
-	// calculate the points between the edge points and create the boustrophedon path with this
+	// connect the boustrophedon paths
 	cv::Point cell_robot_pos;
 	bool start = true;
 	std::vector<cv::Point> current_fov_path;
 	if(start_from_upper_path == true) // plan the path starting from upper horizontal line
 	{
-		for(std::vector<BoustrophedonHorizontalLine>::iterator line=path_lines.begin(); line!=path_lines.end(); ++line)
+		for(BoustrophedonGrid::iterator line=grid_lines.begin(); line!=grid_lines.end(); ++line)
 		{
 			if(start == true) // at the beginning of path planning start at first horizontal line --> no vertical points between lines
 			{
 				if(start_from_left == true)
-					cell_robot_pos = line->left_edge_;
+					cell_robot_pos = line->upper_line[0];
 				else
-					cell_robot_pos = line->right_edge_;
+					cell_robot_pos = line->upper_line.back();
 				start = false;
 			}
 
-			if(start_from_left == true) // plan path to left and then to right edge
+			if(start_from_left == true) // plan path from left to right corner
 			{
-				// get points between horizontal lines by using the Astar-path
+				// get points on transition between horizontal lines by using the Astar-path
 				std::vector<cv::Point> astar_path;
-				path_planner_.planPath(rotated_cell_map, cell_robot_pos, line->left_edge_, 1.0, 0.0, map_resolution, 0, &astar_path);
-				for(size_t path_point=0; path_point<astar_path.size(); ++path_point)
-				{
-					if(cv::norm(cell_robot_pos - astar_path[path_point]) >= path_eps)
-					{
-						current_fov_path.push_back(astar_path[path_point]);
-						cell_robot_pos = astar_path[path_point];
-					}
-				}
-				current_fov_path.push_back(line->left_edge_);
+				path_planner_.planPath(rotated_inflated_cell_map, cell_robot_pos, line->upper_line[0], 1.0, 0.0, map_resolution, 0, &astar_path);
+				downsamplePath(astar_path, current_fov_path, cell_robot_pos, path_eps);
 
-				// get points between left and right edge
-				int dx = path_eps;
-				while((line->left_edge_.x+dx) < line->right_edge_.x)
-				{
-					current_fov_path.push_back(cv::Point(line->left_edge_.x+dx, line->left_edge_.y));
-					dx += path_eps;
-				}
-				current_fov_path.push_back(line->right_edge_);
+				// get points between left and right corner
+				downsamplePath(line->upper_line, current_fov_path, cell_robot_pos, path_eps);
 
-				// set robot position to right
-				cell_robot_pos = line->right_edge_;
-				start_from_left = false;
+				// add the lower path of the current line if available (and then start from the left side again next time)
+				if (line->has_two_valid_lines == true)
+					downsamplePathReverse(line->lower_line, current_fov_path, cell_robot_pos, path_eps);
+				else
+					start_from_left = false;	// start from the right side next time
 			}
-			else // plan path to right then to left edge
+			else // plan path from right to left corner
 			{
-				// get points between horizontal lines
+				// get points on transition between horizontal lines by using the Astar-path
 				std::vector<cv::Point> astar_path;
-				path_planner_.planPath(rotated_cell_map, cell_robot_pos, line->right_edge_, 1.0, 0.0, map_resolution, 0, &astar_path);
-				for(size_t path_point=0; path_point<astar_path.size(); ++path_point)
-				{
-					if(cv::norm(cell_robot_pos - astar_path[path_point]) >= path_eps)
-					{
-						current_fov_path.push_back(astar_path[path_point]);
-						cell_robot_pos = astar_path[path_point];
-					}
-				}
-				current_fov_path.push_back(line->right_edge_);
+				path_planner_.planPath(rotated_inflated_cell_map, cell_robot_pos, line->upper_line.back(), 1.0, 0.0, map_resolution, 0, &astar_path);
+				downsamplePath(astar_path, current_fov_path, cell_robot_pos, path_eps);
 
-				// get points between left and right edge
-				int dx = -path_eps;
-				while((line->right_edge_.x+dx) > line->left_edge_.x)
-				{
-					current_fov_path.push_back(cv::Point(line->right_edge_.x+dx, line->right_edge_.y));
-					dx -= path_eps;
-				}
-				current_fov_path.push_back(line->left_edge_);
+				// get points between right and left corner
+				downsamplePathReverse(line->upper_line, current_fov_path, cell_robot_pos, path_eps);
 
-				// set robot position to right
-				cell_robot_pos = line->left_edge_;
-				start_from_left = true;
+				// add the lower path of the current line if available (and then start from the right side again next time)
+				if (line->has_two_valid_lines == true)
+					downsamplePath(line->lower_line, current_fov_path, cell_robot_pos, path_eps);
+				else
+					start_from_left = true;	// start from the left side next time
 			}
 		}
 	}
 	else // plan the path from the lower horizontal line
 	{
-		for(std::vector<BoustrophedonHorizontalLine>::reverse_iterator line=path_lines.rbegin(); line!=path_lines.rend(); ++line)
+		for(BoustrophedonGrid::reverse_iterator line=grid_lines.rbegin(); line!=grid_lines.rend(); ++line)
 		{
 			if(start == true) // at the beginning of path planning start at first horizontal line --> no vertical points between lines
 			{
 				if(start_from_left == true)
-					cell_robot_pos = line->left_edge_;
+					cell_robot_pos = line->upper_line[0];
 				else
-					cell_robot_pos = line->right_edge_;
+					cell_robot_pos = line->upper_line.back();
 				start = false;
 			}
 
-			if(start_from_left == true) // plan path to left and then to right edge
+			if(start_from_left == true) // plan path from left to right corner
 			{
-				// get points between horizontal lines
+				// get points on transition between horizontal lines by using the Astar-path
 				std::vector<cv::Point> astar_path;
-				path_planner_.planPath(rotated_cell_map, cell_robot_pos, line->left_edge_, 1.0, 0.0, map_resolution, 0, &astar_path);
-				for(size_t path_point=0; path_point<astar_path.size(); ++path_point)
-				{
-					if(cv::norm(cell_robot_pos - astar_path[path_point]) >= path_eps)
-					{
-						current_fov_path.push_back(astar_path[path_point]);
-						cell_robot_pos = astar_path[path_point];
-					}
-				}
-				current_fov_path.push_back(line->left_edge_);
+				path_planner_.planPath(rotated_inflated_cell_map, cell_robot_pos, line->upper_line[0], 1.0, 0.0, map_resolution, 0, &astar_path);
+				downsamplePath(astar_path, current_fov_path, cell_robot_pos, path_eps);
 
-				// get points between left and right edge
-				int dx = path_eps;
-				while((line->left_edge_.x+dx) < line->right_edge_.x)
-				{
-					current_fov_path.push_back(cv::Point(line->left_edge_.x+dx, line->left_edge_.y));
-					dx += path_eps;
-				}
-				current_fov_path.push_back(line->right_edge_);
+				// get points between left and right corner
+				downsamplePath(line->upper_line, current_fov_path, cell_robot_pos, path_eps);
 
-				// set robot position to right
-				cell_robot_pos = line->right_edge_;
-				start_from_left = false;
+				// add the lower path of the current line if available (and then start from the left side again next time)
+				if (line->has_two_valid_lines == true)
+					downsamplePathReverse(line->lower_line, current_fov_path, cell_robot_pos, path_eps);
+				else
+					start_from_left = false;	// start from the right side next time
 			}
-			else // plan path to right then to left edge
+			else // plan path from right to left corner
 			{
-				// get points between horizontal lines
+				// get points on transition between horizontal lines by using the Astar-path
 				std::vector<cv::Point> astar_path;
-				path_planner_.planPath(rotated_cell_map, cell_robot_pos, line->right_edge_, 1.0, 0.0, map_resolution, 0, &astar_path);
-				for(size_t path_point=0; path_point<astar_path.size(); ++path_point)
-				{
-					if(cv::norm(cell_robot_pos - astar_path[path_point]) >= path_eps)
-					{
-						current_fov_path.push_back(astar_path[path_point]);
-						cell_robot_pos = astar_path[path_point];
-					}
-				}
-				current_fov_path.push_back(line->right_edge_);
+				path_planner_.planPath(rotated_inflated_cell_map, cell_robot_pos, line->upper_line.back(), 1.0, 0.0, map_resolution, 0, &astar_path);
+				downsamplePath(astar_path, current_fov_path, cell_robot_pos, path_eps);
 
-				// get points between left and right edge
-				int dx = -path_eps;
-				while((line->right_edge_.x+dx) > line->left_edge_.x)
-				{
-					current_fov_path.push_back(cv::Point(line->right_edge_.x+dx, line->right_edge_.y));
-					dx -= path_eps;
-				}
-				current_fov_path.push_back(line->left_edge_);
+				// get points between right and left corner
+				downsamplePathReverse(line->upper_line, current_fov_path, cell_robot_pos, path_eps);
 
-				// set robot position to right
-				cell_robot_pos = line->left_edge_;
-				start_from_left = true;
+				// add the lower path of the current line if available (and then start from the right side again next time)
+				if (line->has_two_valid_lines == true)
+					downsamplePath(line->lower_line, current_fov_path, cell_robot_pos, path_eps);
+				else
+					start_from_left = true;	// start from the left side next time
 			}
 		}
 	}
@@ -795,4 +681,46 @@ void BoustrophedonExplorer::computeBoustrophedonPath(const cv::Mat& room_map, co
 	std::vector<cv::Point> current_pos_vector(1, cell_robot_pos);
 	cv::transform(current_pos_vector, current_pos_vector, R_cell_inv);
 	robot_pos = current_pos_vector[0];
+}
+
+void BoustrophedonExplorer::downsamplePath(const std::vector<cv::Point>& original_path, std::vector<cv::Point>& downsampled_path,
+		cv::Point& robot_pos, const double path_eps)
+{
+	// downsample path
+	for(size_t path_point=0; path_point<original_path.size(); ++path_point)
+	{
+		if(cv::norm(robot_pos-original_path[path_point]) >= path_eps)
+		{
+			downsampled_path.push_back(original_path[path_point]);
+			robot_pos = original_path[path_point];
+		}
+	}
+	// add last element
+	if (original_path.size() > 0)
+	{
+		downsampled_path.push_back(original_path.back());
+		robot_pos = original_path.back();
+	}
+}
+
+void BoustrophedonExplorer::downsamplePathReverse(const std::vector<cv::Point>& original_path, std::vector<cv::Point>& downsampled_path,
+		cv::Point& robot_pos, const double path_eps)
+{
+	// downsample path
+	for(size_t path_point=original_path.size()-1; ; --path_point)
+	{
+		if(cv::norm(robot_pos-original_path[path_point]) >= path_eps)
+		{
+			downsampled_path.push_back(original_path[path_point]);
+			robot_pos = original_path[path_point];
+		}
+		if (path_point == 0)
+			break;
+	}
+	// add last element
+	if (original_path.size() > 0)
+	{
+		downsampled_path.push_back(original_path[0]);
+		robot_pos = original_path[0];
+	}
 }
