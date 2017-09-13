@@ -290,8 +290,9 @@ public:
 		}
 
 		// create grid
+		//std::cout << "((max_y - min_y) <= grid_spacing): min_y=" << min_y << "   max_y=" << max_y << "   grid_spacing=" << grid_spacing << std::endl;
 		int y=0;
-		if((max_y - min_y) <= grid_spacing)
+		if ((max_y - min_y) < grid_spacing)
 			y = min_y + 0.5 * (max_y - min_y);
 		else
 			y = min_y + half_grid_spacing;

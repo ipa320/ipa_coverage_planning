@@ -472,25 +472,27 @@ void BoustrophedonExplorer::computeBoustrophedonPath(const cv::Mat& room_map, co
 	cv::imshow("rotated_cell_map_with_inflation", rotated_inflated_cell_map);
 #endif
 
-	// get the min/max x/y values for this cell
-	int min_x=100000, max_x=0, min_y=100000, max_y=0;
-	std::vector<cv::Point> rotated_vertexes = cell.getVertices();
-	cv::transform(rotated_vertexes, rotated_vertexes, R_cell);
-	for(size_t point=0; point<rotated_vertexes.size(); ++point)
-	{
-		if(rotated_vertexes[point].x > max_x)
-			max_x = rotated_vertexes[point].x;
-		if(rotated_vertexes[point].y > max_y)
-			max_y = rotated_vertexes[point].y;
-		if(rotated_vertexes[point].x < min_x)
-			min_x = rotated_vertexes[point].x;
-		if(rotated_vertexes[point].y < min_y)
-			min_y = rotated_vertexes[point].y;
-	}
+	// this was deactivated because it is not as accurate as the direct check within GridGenerator::generateBoustrophedonGrid,
+	// because the rotation introduces some rounding errors
+//	// get the min/max x/y values for this cell
+//	int min_x=100000, max_x=0, min_y=100000, max_y=0;
+//	std::vector<cv::Point> rotated_vertexes = cell.getVertices();
+//	cv::transform(rotated_vertexes, rotated_vertexes, R_cell);
+//	for(size_t point=0; point<rotated_vertexes.size(); ++point)
+//	{
+//		if(rotated_vertexes[point].x > max_x)
+//			max_x = rotated_vertexes[point].x;
+//		if(rotated_vertexes[point].y > max_y)
+//			max_y = rotated_vertexes[point].y;
+//		if(rotated_vertexes[point].x < min_x)
+//			min_x = rotated_vertexes[point].x;
+//		if(rotated_vertexes[point].y < min_y)
+//			min_y = rotated_vertexes[point].y;
+//	}
 
 	// compute the basic Boustrophedon grid lines
 	BoustrophedonGrid grid_lines;
-	GridGenerator::generateBoustrophedonGrid(rotated_cell_map, rotated_inflated_cell_map, -1, grid_lines, cv::Vec4i(min_x, max_x, min_y, max_y),
+	GridGenerator::generateBoustrophedonGrid(rotated_cell_map, rotated_inflated_cell_map, -1, grid_lines, cv::Vec4i(0, 0, 0, 0), //cv::Vec4i(min_x, max_x, min_y, max_y),
 			grid_spacing_as_int, half_grid_spacing_as_int, 1);
 
 #ifdef DEBUG_VISUALIZATION
