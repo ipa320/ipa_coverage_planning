@@ -495,18 +495,14 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		action_result.coverage_path_pose_stamped = exploration_path_pose_stamped;
 	}
 
-	// check if the path should be executed, if not end here
-	if(execute_path_ == false)
-	{
-		room_exploration_server_.setSucceeded(action_result);
-		return;
-	}
-
-
 	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
-	navigateExplorationPath(exploration_path, goal->field_of_view, goal->coverage_radius, fitting_circle_center_point_in_meter.norm(),
-			map_resolution, goal->map_origin, grid_spacing_in_pixel);
-	ROS_INFO("Explored room.");
+	// [optionally] execute the path
+	if(execute_path_ == true)
+	{
+		navigateExplorationPath(exploration_path, goal->field_of_view, goal->coverage_radius, fitting_circle_center_point_in_meter.norm(),
+				map_resolution, goal->map_origin, grid_spacing_in_pixel);
+		ROS_INFO("Explored room.");
+	}
 
 	room_exploration_server_.setSucceeded(action_result);
 

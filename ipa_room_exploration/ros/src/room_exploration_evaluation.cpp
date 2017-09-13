@@ -278,13 +278,9 @@ public:
 				for (int x=0; x<map.cols; x++)
 				{
 					if (map.at<unsigned char>(y, x)>250)
-					{
 						map.at<unsigned char>(y, x)=255;
-					}
 					else //if (map.at<unsigned char>(y, x) != 255)
-					{
 						map.at<unsigned char>(y, x)=0;
-					}
 				}
 			}
 
@@ -630,7 +626,7 @@ public:
 		// get the distance to the middle-point
 		const double distance_robot_fov_middlepoint_in_meter = fitting_circle_center_point_in_meter.norm();
 
-		// evaluate the single configurations
+		// evaluate the individual configurations
 		for(std::vector<ExplorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
 		{
 			evaluateCoveragePaths(data, *config, data_storage_path, distance_robot_fov_middlepoint_in_meter);
@@ -638,7 +634,6 @@ public:
 	}
 
 	// function that reads out the calculated paths and does the evaluation for one configuration
-
 	void evaluateCoveragePaths(const ExplorationData& data, const ExplorationConfig& config, const std::string data_storage_path,
 			const double distance_robot_fov_middlepoint_in_meter)
 	{
