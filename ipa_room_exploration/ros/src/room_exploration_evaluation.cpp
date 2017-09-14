@@ -511,14 +511,14 @@ public:
 		cv_image.toImageMsg(map_msg);
 
 		// initialize action server for room exploration
-		actionlib::SimpleActionClient<ipa_building_msgs::RoomExplorationAction> ac_exp("room_exploration_server_6", true);
+		actionlib::SimpleActionClient<ipa_building_msgs::RoomExplorationAction> ac_exp("room_exploration_server", true);
 		ROS_INFO("Waiting for action server to start.");
 		ac_exp.waitForServer(); //will wait for infinite time
 		ROS_INFO("Action server started.");
 
 		// connect to dynamic reconfigure and set planning algorithm
 		ROS_INFO("Trying to connect to dynamic reconfigure server.");
-		DynamicReconfigureClient drc_exp(node_handle_, "room_exploration_server_6/set_parameters", "room_exploration_server_6/parameter_updates");
+		DynamicReconfigureClient drc_exp(node_handle_, "room_exploration_server/set_parameters", "room_exploration_server/parameter_updates");
 		ROS_INFO("Done connecting to the dynamic reconfigure server.");
 		if (evaluation_configuration.exploration_algorithm_==1)
 		{
@@ -579,9 +579,9 @@ public:
 		if (finished == false)
 		{
 			std::cout << "action server took too long" << std::endl;
-			std::string pid_cmd = "pidof room_exploration_server_6 > room_exploration_evaluation/expl_srv_pid_6.txt";
+			std::string pid_cmd = "pidof room_exploration_server > room_exploration_evaluation/expl_srv_pid.txt";
 			int pid_result = system(pid_cmd.c_str());
-			std::ifstream pid_reader("room_exploration_evaluation/expl_srv_pid_6.txt");
+			std::ifstream pid_reader("room_exploration_evaluation/expl_srv_pid.txt");
 			int value;
 			std::string line;
 			if (pid_reader.is_open())
@@ -591,7 +591,7 @@ public:
 					std::istringstream iss(line);
 					while (iss >> value)
 					{
-						std::cout << "PID of room_exploration_server_6: " << value << std::endl;
+						std::cout << "PID of room_exploration_server: " << value << std::endl;
 						std::stringstream ss;
 						ss << "kill " << value;
 						std::string kill_cmd = ss.str();
@@ -600,7 +600,7 @@ public:
 					}
 				}
 				pid_reader.close();
-				remove("room_exploration_evaluation/expl_srv_pid_6.txt");
+				remove("room_exploration_evaluation/expl_srv_pid.txt");
 			}
 			else
 			{
@@ -1469,46 +1469,46 @@ int main(int argc, char **argv)
 
 	// prepare relevant floor map data
 	std::vector< std::string > map_names;
-//	map_names.push_back("lab_ipa");
-//	map_names.push_back("lab_c_scan");
-//	map_names.push_back("Freiburg52_scan");
-//	map_names.push_back("Freiburg79_scan");
-//	map_names.push_back("lab_b_scan");
-//	map_names.push_back("lab_intel");
-//	map_names.push_back("Freiburg101_scan");
-//	map_names.push_back("lab_d_scan");
-//	map_names.push_back("lab_f_scan");
-//	map_names.push_back("lab_a_scan");
-//	map_names.push_back("NLB");
-//	map_names.push_back("office_a");
-//	map_names.push_back("office_b");
-//	map_names.push_back("office_c");
-//	map_names.push_back("office_d");
-//	map_names.push_back("office_e");
-//	map_names.push_back("office_f");
-//	map_names.push_back("office_g");
+	map_names.push_back("lab_ipa");
+	map_names.push_back("lab_c_scan");
+	map_names.push_back("Freiburg52_scan");
+	map_names.push_back("Freiburg79_scan");
+	map_names.push_back("lab_b_scan");
+	map_names.push_back("lab_intel");
+	map_names.push_back("Freiburg101_scan");
+	map_names.push_back("lab_d_scan");
+	map_names.push_back("lab_f_scan");
+	map_names.push_back("lab_a_scan");
+	map_names.push_back("NLB");
+	map_names.push_back("office_a");
+	map_names.push_back("office_b");
+	map_names.push_back("office_c");
+	map_names.push_back("office_d");
+	map_names.push_back("office_e");
+	map_names.push_back("office_f");
+	map_names.push_back("office_g");
 	map_names.push_back("office_h");
 	map_names.push_back("office_i");
-//	map_names.push_back("lab_ipa_furnitures");
-//	map_names.push_back("lab_c_scan_furnitures");
-//	map_names.push_back("Freiburg52_scan_furnitures");
-//	map_names.push_back("Freiburg79_scan_furnitures");
-//	map_names.push_back("lab_b_scan_furnitures");
-//	map_names.push_back("lab_intel_furnitures");
-//	map_names.push_back("Freiburg101_scan_furnitures");
-//	map_names.push_back("lab_d_scan_furnitures");
-//	map_names.push_back("lab_f_scan_furnitures");
-//	map_names.push_back("lab_a_scan_furnitures");
-//	map_names.push_back("NLB_furnitures");
-//	map_names.push_back("office_a_furnitures");
-//	map_names.push_back("office_b_furnitures");
-//	map_names.push_back("office_c_furnitures");
-//	map_names.push_back("office_d_furnitures");
-//	map_names.push_back("office_e_furnitures");
-//	map_names.push_back("office_f_furnitures");
-//	map_names.push_back("office_g_furnitures");
-//	map_names.push_back("office_h_furnitures");
-//	map_names.push_back("office_i_furnitures");
+	map_names.push_back("lab_ipa_furnitures");
+	map_names.push_back("lab_c_scan_furnitures");
+	map_names.push_back("Freiburg52_scan_furnitures");
+	map_names.push_back("Freiburg79_scan_furnitures");
+	map_names.push_back("lab_b_scan_furnitures");
+	map_names.push_back("lab_intel_furnitures");
+	map_names.push_back("Freiburg101_scan_furnitures");
+	map_names.push_back("lab_d_scan_furnitures");
+	map_names.push_back("lab_f_scan_furnitures");
+	map_names.push_back("lab_a_scan_furnitures");
+	map_names.push_back("NLB_furnitures");
+	map_names.push_back("office_a_furnitures");
+	map_names.push_back("office_b_furnitures");
+	map_names.push_back("office_c_furnitures");
+	map_names.push_back("office_d_furnitures");
+	map_names.push_back("office_e_furnitures");
+	map_names.push_back("office_f_furnitures");
+	map_names.push_back("office_g_furnitures");
+	map_names.push_back("office_h_furnitures");
+	map_names.push_back("office_i_furnitures");
 
 	std::vector<int> exploration_algorithms;
 //	exploration_algorithms.push_back(1);	// grid point exploration
@@ -1522,24 +1522,24 @@ int main(int argc, char **argv)
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
 	// measures in [m]
 	std::vector<geometry_msgs::Point32> fov_points(4);
-//	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
-//	fov_points[0].y = 0.35;
-//	fov_points[1].x = 0.15;
-//	fov_points[1].y = -0.35;
-//	fov_points[2].x = 1.15;
-//	fov_points[2].y = -0.65;
-//	fov_points[3].x = 1.15;
-//	fov_points[3].y = 0.65;
-//	int planning_mode = 2;	// viewpoint planning
-	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
-	fov_points[0].y = 0.3;
-	fov_points[1].x = -0.3;
-	fov_points[1].y = -0.3;
-	fov_points[2].x = 0.3;
-	fov_points[2].y = -0.3;
-	fov_points[3].x = 0.3;
-	fov_points[3].y = 0.3;
-	int planning_mode = 1;	// footprint planning
+	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
+	fov_points[0].y = 0.35;
+	fov_points[1].x = 0.15;
+	fov_points[1].y = -0.35;
+	fov_points[2].x = 1.15;
+	fov_points[2].y = -0.65;
+	fov_points[3].x = 1.15;
+	fov_points[3].y = 0.65;
+	int planning_mode = 2;	// viewpoint planning
+//	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
+//	fov_points[0].y = 0.3;
+//	fov_points[1].x = -0.3;
+//	fov_points[1].y = -0.3;
+//	fov_points[2].x = 0.3;
+//	fov_points[2].y = -0.3;
+//	fov_points[3].x = 0.3;
+//	fov_points[3].y = 0.3;
+//	int planning_mode = 1;	// footprint planning
 
 	const double robot_radius = 0.3;		// [m]
 	const double coverage_radius = 0.3;		// [m]
