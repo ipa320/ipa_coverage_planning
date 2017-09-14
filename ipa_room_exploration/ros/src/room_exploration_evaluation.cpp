@@ -258,7 +258,7 @@ public:
 	ExplorationEvaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::vector<std::string>& map_names, const float map_resolution,
 			const std::string& data_storage_path, const double robot_radius, const double coverage_radius,
 			const std::vector<geometry_msgs::Point32>& fov_points, const int planning_mode, const std::vector<int>& exploration_algorithms,
-			const double robot_speed, const double robot_rotation_speed)
+			const double robot_speed, const double robot_rotation_speed, bool do_path_planning=true, bool do_evaluation=true)
 	: node_handle_(nh)
 	{
 		// 1. create all needed configurations
@@ -292,33 +292,39 @@ public:
 		getRoomMaps(evaluation_data);
 
 		// 3. compute exploration paths for each room in the maps
-		std::string bugfile = data_storage_path + "bugfile.txt";
-		std::ofstream failed_maps(bugfile.c_str(), std::ios::out);
-		if (failed_maps.is_open())
-			failed_maps << "Maps that had a bug during the simulation and couldn't be finished: " << std::endl;
-		ROS_INFO("Evaluating the maps.");
-		for (size_t i=0; i<evaluation_data.size(); ++i)
+		if (do_path_planning == true)
 		{
-			std::stringstream error_output;
-			if (planCoveragePaths(evaluation_data[i], configs, data_storage_path, error_output)==false)
+			std::string bugfile = data_storage_path + "bugfile.txt";
+			std::ofstream failed_maps(bugfile.c_str(), std::ios::out);
+			if (failed_maps.is_open())
+				failed_maps << "Maps that had a bug during the simulation and couldn't be finished: " << std::endl;
+			ROS_INFO("Evaluating the maps.");
+			for (size_t i=0; i<evaluation_data.size(); ++i)
 			{
-				std::cout << "failed to compute exploration path for map " << evaluation_data[i].map_name_ << std::endl;
-				if (failed_maps.is_open())
-					failed_maps << evaluation_data[i].map_name_ << std::endl;
+				std::stringstream error_output;
+				if (planCoveragePaths(evaluation_data[i], configs, data_storage_path, error_output)==false)
+				{
+					std::cout << "failed to compute exploration path for map " << evaluation_data[i].map_name_ << std::endl;
+					if (failed_maps.is_open())
+						failed_maps << evaluation_data[i].map_name_ << std::endl;
+				}
+				if (failed_maps.is_open() && error_output.str().length()>1)
+					failed_maps << evaluation_data[i].map_name_ << std::endl << error_output.str();
 			}
-			if (failed_maps.is_open() && error_output.str().length()>1)
-				failed_maps << evaluation_data[i].map_name_ << std::endl << error_output.str();
+			if (failed_maps.is_open())
+				failed_maps.close();
 		}
-		if (failed_maps.is_open())
-			failed_maps.close();
 
 		// 4. evaluate the generated paths
 		// read out the computed paths and calculate the evaluation values
-		ROS_INFO("Reading out all saved paths.");
-		for (size_t i=0; i<evaluation_data.size(); ++i)
-			evaluateCoveragePaths(evaluation_data[i], configs, data_storage_path);
-		// accumulate all statistics in one file
-		writeCumulativeStatistics(evaluation_data, configs, data_storage_path);
+		if (do_evaluation == true)
+		{
+			ROS_INFO("Reading out all saved paths.");
+			for (size_t i=0; i<evaluation_data.size(); ++i)
+				evaluateCoveragePaths(evaluation_data[i], configs, data_storage_path);
+			// accumulate all statistics in one file
+			writeCumulativeStatistics(evaluation_data, configs, data_storage_path);
+		}
 	}
 
 	void getRoomMaps(std::vector<ExplorationData>& data_saver)
@@ -637,6 +643,8 @@ public:
 	void evaluateCoveragePaths(const ExplorationData& data, const ExplorationConfig& config, const std::string data_storage_path,
 			const double distance_robot_fov_middlepoint_in_meter)
 	{
+		const double map_resolution_inverse = 1.0/data.map_resolution_;	// in [pixel/m]
+
 		// todo: split into smaller functions?
 
 		// todo: make sure that all paths are generated with sufficient sampling steps (e.g. of 25 cm or more)
@@ -645,7 +653,7 @@ public:
 		std::cout << configuration_folder_name << data.map_name_ << std::endl;
 		
 		// 1. get the location of the results and open this file, read out the given paths and computation times for all rooms
-		std::vector<std::vector<geometry_msgs::Pose2D> > paths;
+		std::vector<std::vector<geometry_msgs::Pose2D> > paths;		// in [pixels]
 		std::vector<double> calculation_times;
 		readResultsFile(data, config, data_storage_path, paths, calculation_times);
 
@@ -694,7 +702,6 @@ public:
 			initial_pose.y = (robot_position.y*data.map_resolution_)+data.map_origin_.position.y;
 			initial_pose.theta = robot_position.theta;
 			current_pose_path_meter.push_back(initial_pose);
-
 			for(std::vector<geometry_msgs::Pose2D>::iterator pose=paths[room].begin()+1; pose!=paths[room].end(); ++pose)
 			{
 				// if a false pose has been saved, skip it
@@ -723,15 +730,15 @@ public:
 					{
 						// get the desired FoV-center position
 						MapAccessibilityAnalysis::Pose fov_center_px;		// in [px,px,rad]
-						fov_center_px.x = (pose->x + std::cos(pose->theta)*distance_robot_fov_middlepoint_in_meter);
-						fov_center_px.x = (fov_center_px.x-data.map_origin_.position.x) / data.map_resolution_;
-						fov_center_px.y = (pose->y + std::sin(pose->theta)*distance_robot_fov_middlepoint_in_meter);
-						fov_center_px.y = (fov_center_px.y-data.map_origin_.position.y) / data.map_resolution_;
+						fov_center_px.x = (pose->x + std::cos(pose->theta)*distance_robot_fov_middlepoint_in_meter*map_resolution_inverse);
+						//fov_center_px.x = (fov_center_px.x-data.map_origin_.position.x) / data.map_resolution_;
+						fov_center_px.y = (pose->y + std::sin(pose->theta)*distance_robot_fov_middlepoint_in_meter*map_resolution_inverse);
+						//fov_center_px.y = (fov_center_px.y-data.map_origin_.position.y) / data.map_resolution_;
 						fov_center_px.orientation = pose->theta;
 
 						std::vector<MapAccessibilityAnalysis::Pose> accessible_poses_on_perimeter;
 						map_accessibility_analysis.checkPerimeter(accessible_poses_on_perimeter, fov_center_px,
-								distance_robot_fov_middlepoint_in_meter/data.map_resolution_, PI/16., inflated_map,
+								distance_robot_fov_middlepoint_in_meter*map_resolution_inverse, PI/16., inflated_map,
 								true, cv::Point(pose->x, pose->y));
 
 						// find the closest accessible point on this perimeter
@@ -1288,6 +1295,7 @@ public:
 		// 1. get the location of the results and open this file
 		const std::string configuration_folder_name = config.generateConfigurationFolderString() + "/";
 		std::string log_filename = data_storage_path + configuration_folder_name + data.map_name_ + "_results.txt";
+		std::cout << "Reading file " << log_filename << std::endl;
 		std::ifstream reading_file(log_filename.c_str(), std::ios::in);
 
 		// 2. if the file could be opened, read out the given paths for all rooms
@@ -1514,24 +1522,24 @@ int main(int argc, char **argv)
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
 	// measures in [m]
 	std::vector<geometry_msgs::Point32> fov_points(4);
-//	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
-//	fov_points[0].y = 0.35;
-//	fov_points[1].x = 0.15;
-//	fov_points[1].y = -0.35;
-//	fov_points[2].x = 1.15;
-//	fov_points[2].y = -0.65;
-//	fov_points[3].x = 1.15;
-//	fov_points[3].y = 0.65;
-//	int planning_mode = 2;	// viewpoint planning
-	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
-	fov_points[0].y = 0.3;
-	fov_points[1].x = -0.3;
-	fov_points[1].y = -0.3;
-	fov_points[2].x = 0.3;
-	fov_points[2].y = -0.3;
-	fov_points[3].x = 0.3;
-	fov_points[3].y = 0.3;
-	int planning_mode = 1;	// footprint planning
+	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
+	fov_points[0].y = 0.35;
+	fov_points[1].x = 0.15;
+	fov_points[1].y = -0.35;
+	fov_points[2].x = 1.15;
+	fov_points[2].y = -0.65;
+	fov_points[3].x = 1.15;
+	fov_points[3].y = 0.65;
+	int planning_mode = 2;	// viewpoint planning
+//	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
+//	fov_points[0].y = 0.3;
+//	fov_points[1].x = -0.3;
+//	fov_points[1].y = -0.3;
+//	fov_points[2].x = 0.3;
+//	fov_points[2].y = -0.3;
+//	fov_points[3].x = 0.3;
+//	fov_points[3].y = 0.3;
+//	int planning_mode = 1;	// footprint planning
 
 	// todo: alg: 4 with footprint always crashes in TSP
 
@@ -1542,7 +1550,7 @@ int main(int argc, char **argv)
 	const float map_resolution = 0.05;		// [m/cell]
 
 	ExplorationEvaluation ev(nh, test_map_path, map_names, map_resolution, data_storage_path, robot_radius, coverage_radius, fov_points, planning_mode,
-			exploration_algorithms, robot_speed, robot_rotation_speed);
+			exploration_algorithms, robot_speed, robot_rotation_speed, false, true);
 	ros::shutdown();
 
 	//exit
