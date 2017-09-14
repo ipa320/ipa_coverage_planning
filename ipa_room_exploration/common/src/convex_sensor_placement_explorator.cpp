@@ -130,34 +130,10 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	cv::transform(starting_point_vector, starting_point_vector, R);
 	cv::Point rotated_starting_position = starting_point_vector[0];
 
-//	// compute min/max room coordinates
-//	int min_y = 1000000, max_y = 0, min_x = 1000000, max_x = 0;
-//	for (int y=0; y<rotated_room_map.rows; y++)
-//	{
-//		for (int x=0; x<rotated_room_map.cols; x++)
-//		{
-//			//find not reachable regions and make them black
-//			if (rotated_room_map.at<unsigned char>(y,x)==255)
-//			{
-//				if(y<min_y) min_y = y;
-//				if(y>max_y) max_y = y;
-//				if(x<min_x) min_x = x;
-//				if(x>max_x) max_x = x;
-//			}
-//		}
-//	}
-
 	// ************* II. Go trough the map and discretize it. *************
-	// todo: create grid in external class - it is the same in all approaches
-	// todo: if first/last row or column in grid has accessible areas but center is inaccessible, create a node in the accessible area
 	// get cells
-	std::vector<cv::Point> cell_centers_rotated, cell_centers;	// in [pixels]
-//	for(size_t y=min_y; y<=max_y; y+=cell_size_pixel)
-//		for(size_t x=min_x; x<=max_x; x+=cell_size_pixel)
-//			if(rotated_room_map.at<uchar>(y,x)==255)
-//				cell_centers.push_back(cv::Point(x,y));
-
 	// compute the basic Boustrophedon grid lines
+	std::vector<cv::Point> cell_centers_rotated, cell_centers;	// in [pixels]
 	cv::Mat inflated_rotated_room_map;
 	BoustrophedonGrid grid_lines;
 	GridGenerator::generateBoustrophedonGrid(rotated_room_map, inflated_rotated_room_map, half_cell_size, grid_lines, cv::Vec4i(0, 0, 0, 0),
@@ -175,15 +151,15 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	std::vector<cv::Point> fov_middlepoint_path_transformed;
 	cv::transform(cell_centers_rotated, cell_centers, R_inv);
 
-	// print grid
-	cv::Mat point_map = room_map.clone();
-	for(std::vector<cv::Point>::iterator point = cell_centers.begin(); point != cell_centers.end(); ++point)
-	{
-		cv::circle(point_map, *point, 2, cv::Scalar(127), CV_FILLED);
-		std::cout << "  - " << *point << "\n";
-	}
-	cv::imshow("grid", point_map);
-	cv::waitKey();
+//	// print grid
+//	cv::Mat point_map = room_map.clone();
+//	for(std::vector<cv::Point>::iterator point = cell_centers.begin(); point != cell_centers.end(); ++point)
+//	{
+//		cv::circle(point_map, *point, 2, cv::Scalar(127), CV_FILLED);
+//		std::cout << "  - " << *point << "\n";
+//	}
+//	cv::imshow("grid", point_map);
+//	cv::waitKey();
 
 	// get candidate sensing poses
 	std::vector<geometry_msgs::Pose2D> candidate_sensing_poses;
