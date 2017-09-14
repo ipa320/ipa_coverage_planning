@@ -86,10 +86,13 @@ void GridPointExplorator::tsp_solver_thread(const int tsp_solver, std::vector<in
 //			a path that covers all nodes and ends at the node where the path started. depending on this series the angle of the
 //			Poses are computed, by calculating a vector from the old node to the next and using the angle of this with the x-axis
 //			as angle for the Poses.
+// room_map = expects to receive the original, not inflated room map
 void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const double map_resolution,
 		const cv::Point starting_position, const cv::Point2d map_origin, const int cell_size, const bool plan_for_footprint,
 		const Eigen::Matrix<float, 2, 1> robot_to_fov_vector, int tsp_solver, int64_t tsp_solver_timeout)
 {
+	const int half_cell_size = cell_size/2;
+
 	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
 	// rotate map
 	cv::Mat R;
@@ -104,48 +107,64 @@ void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	cv::transform(starting_point_vector, starting_point_vector, R);
 	cv::Point rotated_starting_position = starting_point_vector[0];
 
-	// compute min/max room coordinates
-	cv::Point min_room(1000000, 1000000), max_room(0, 0);
-	for (int v=0; v<rotated_room_map.rows; ++v)
-	{
-		for (int u=0; u<rotated_room_map.cols; ++u)
-		{
-			if (rotated_room_map.at<uchar>(v,u)==255)
-			{
-				min_room.x = std::min(min_room.x, u);
-				min_room.y = std::min(min_room.y, v);
-				max_room.x = std::max(max_room.x, u);
-				max_room.y = std::max(max_room.y, v);
-			}
-		}
-	}
+//	// compute min/max room coordinates
+//	cv::Point min_room(1000000, 1000000), max_room(0, 0);
+//	for (int v=0; v<rotated_room_map.rows; ++v)
+//	{
+//		for (int u=0; u<rotated_room_map.cols; ++u)
+//		{
+//			if (rotated_room_map.at<uchar>(v,u)==255)
+//			{
+//				min_room.x = std::min(min_room.x, u);
+//				min_room.y = std::min(min_room.y, v);
+//				max_room.x = std::max(max_room.x, u);
+//				max_room.y = std::max(max_room.y, v);
+//			}
+//		}
+//	}
 
 	//******************* II. Get grid points *************************
 	// vector to store all found points
 	std::vector<cv::Point> grid_points;
 
-	// iterate trough the columns and rows with stepsize as the grid_size, start at the upper left point
-	//		the given min/max-Polygon stores the min/max coordinates in two points: the first showing the min and the other
-	//		showing the max coordinates
-	std::cout << "size of one grid line: " << cell_size << std::endl;
-	// todo: create grid in external class - it is the same in all approaches
-	// todo: if first/last row or column in grid has accessible areas but center is inaccessible, create a node in the accessible area
-	for(unsigned int v=min_room.y; v<=max_room.y; v+=cell_size)
+//	// iterate trough the columns and rows with stepsize as the grid_size, start at the upper left point
+//	//		the given min/max-Polygon stores the min/max coordinates in two points: the first showing the min and the other
+//	//		showing the max coordinates
+//	std::cout << "size of one grid line: " << cell_size << std::endl;
+//	// todo: create grid in external class - it is the same in all approaches
+//	// todo: if first/last row or column in grid has accessible areas but center is inaccessible, create a node in the accessible area
+//	for(unsigned int v=min_room.y; v<=max_room.y; v+=cell_size)
+//	{
+//		for(unsigned int u=min_room.x; u<=max_room.x; u+=cell_size)
+//		{
+//			// check if point is in the free space
+//			if(rotated_room_map.at<unsigned char>(v, u) == 255)
+//			{
+//				grid_points.push_back(cv::Point(u, v));
+//			}
+//		}
+//	}
+
+	// compute the basic Boustrophedon grid lines
+	cv::Mat inflated_rotated_room_map;
+	BoustrophedonGrid grid_lines;
+	GridGenerator::generateBoustrophedonGrid(rotated_room_map, inflated_rotated_room_map, half_cell_size, grid_lines, cv::Vec4i(0, 0, 0, 0),
+			cell_size, half_cell_size, cell_size);
+	// convert grid points format
+	for (BoustrophedonGrid::iterator line=grid_lines.begin(); line!=grid_lines.end(); ++line)
 	{
-		for(unsigned int u=min_room.x; u<=max_room.x; u+=cell_size)
-		{
-			// check if point is in the free space
-			if(rotated_room_map.at<unsigned char>(v, u) == 255)
-			{
-				grid_points.push_back(cv::Point(u, v));
-			}
-		}
+		grid_points.insert(grid_points.end(), line->upper_line.begin(), line->upper_line.end());
+		if (line->has_two_valid_lines == true)
+			grid_points.insert(grid_points.end(), line->lower_line.begin(), line->lower_line.end());
 	}
 
-	// print results
+//	// print results
 //	cv::Mat point_map = rotated_room_map.clone();
 //	for(std::vector<cv::Point>::iterator point = grid_points.begin(); point != grid_points.end(); ++point)
+//	{
 //		cv::circle(point_map, *point, 2, cv::Scalar(127), CV_FILLED);
+//		std::cout << "  - " << *point << "\n";
+//	}
 //	cv::imshow("grid", point_map);
 //	cv::waitKey();
 

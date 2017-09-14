@@ -290,6 +290,7 @@ public:
 		}
 
 		// create grid
+		const int squared_grid_spacing_horizontal = grid_spacing_horizontal*grid_spacing_horizontal;
 		//std::cout << "((max_y - min_y) <= grid_spacing): min_y=" << min_y << "   max_y=" << max_y << "   grid_spacing=" << grid_spacing << std::endl;
 		int y=0;
 		if ((max_y - min_y) < grid_spacing)
@@ -304,8 +305,10 @@ public:
 
 			BoustrophedonLine line;
 			const cv::Point invalid_point(-1,-1);
+			cv::Point last_added_grid_point_above(-10000,-10000), last_added_grid_point_below(-10000,-10000);	// for keeping the horizontal grid distance
+			cv::Point last_valid_grid_point_above(-1,-1), last_valid_grid_point_below(-1,-1);	// for adding the rightmost possible point
 			// loop through the horizontal grid points with horizontal grid spacing length
-			for (int x=min_x; x<=max_x; x+=grid_spacing_horizontal)
+			for (int x=min_x; x<=max_x; x+=1)
 			{
 				// points are added to the grid line as follows:
 				//   1. if the original point is accessible --> point is added to upper_line, invalid point (-1,-1) is added to lower_line
@@ -318,8 +321,14 @@ public:
 				// 1. check accessibility on regular location
 				if (inflated_room_map.at<uchar>(y,x)==255)
 				{
-					line.upper_line.push_back(cv::Point(x,y));
-					line.lower_line.push_back(invalid_point);
+					if (squaredPointDistance(last_added_grid_point_above,cv::Point(x,y))>=squared_grid_spacing_horizontal)
+					{
+						line.upper_line.push_back(cv::Point(x,y));
+						line.lower_line.push_back(invalid_point);
+						last_added_grid_point_above = cv::Point(x,y);
+					}
+					else
+						last_valid_grid_point_above = cv::Point(x,y);	// store this point and add it to the upper line if it was the rightmost point
 				}
 				else // 2. check accessibility above or below the targeted point
 				{
@@ -336,8 +345,14 @@ public:
 					}
 					if (found_above == true)
 					{
-						line.upper_line.push_back(cv::Point(x,y+dy));
-						line.lower_line.push_back(invalid_point);		// can be overwritten below if this point also exists
+						if (squaredPointDistance(last_added_grid_point_above,cv::Point(x,y+dy))>=squared_grid_spacing_horizontal)
+						{
+							line.upper_line.push_back(cv::Point(x,y+dy));
+							line.lower_line.push_back(invalid_point);		// can be overwritten below if this point also exists
+							last_added_grid_point_above = cv::Point(x,y+dy);
+						}
+						else
+							last_valid_grid_point_above = cv::Point(x,y+dy);	// store this point and add it to the upper line if it was the rightmost point
 					}
 
 					// check accessibility below the target location
@@ -353,18 +368,44 @@ public:
 					}
 					if (found_below == true)
 					{
-						if (found_above == true)	// update the existing entry
+						if (squaredPointDistance(last_added_grid_point_below,cv::Point(x,y+dy))>=squared_grid_spacing_horizontal)
 						{
-							line.has_two_valid_lines = true;
-							line.lower_line.back().x = x;
-							line.lower_line.back().y = y+dy;
+							if (found_above == true)	// update the existing entry
+							{
+								line.has_two_valid_lines = true;
+								line.lower_line.back().x = x;
+								line.lower_line.back().y = y+dy;
+							}
+							else	// create a new entry
+							{
+								line.upper_line.push_back(invalid_point);
+								line.lower_line.push_back(cv::Point(x,y+dy));
+							}
+							last_added_grid_point_below = cv::Point(x,y+dy);
 						}
-						else	// create a new entry
-						{
-							line.upper_line.push_back(invalid_point);
-							line.lower_line.push_back(cv::Point(x,y+dy));
-						}
+						else
+							last_valid_grid_point_below = cv::Point(x,y+dy);	// store this point and add it to the lower line if it was the rightmost point
 					}
+				}
+			}
+			// add the rightmost points if available
+			if (last_valid_grid_point_above.x > -1 && last_valid_grid_point_above.x > last_added_grid_point_above.x)
+			{
+				// upper point is valid
+				line.upper_line.push_back(last_valid_grid_point_above);
+				if (last_valid_grid_point_below.x > -1 && last_valid_grid_point_below.x > last_added_grid_point_below.x)
+					line.lower_line.push_back(last_valid_grid_point_below);
+				else
+					line.lower_line.push_back(invalid_point);
+			}
+			else
+			{
+				// upper point is invalid
+				if (last_valid_grid_point_below.x > -1 && last_valid_grid_point_below.x > last_added_grid_point_below.x)
+				{
+					// lower point is valid
+					line.upper_line.push_back(invalid_point);
+					line.lower_line.push_back(last_valid_grid_point_below);
 				}
 			}
 
@@ -411,5 +452,10 @@ public:
 				grid_points.push_back(cleaned_line);
 			}
 		}
+	}
+
+	static double squaredPointDistance(const cv::Point& p1, const cv::Point& p2)
+	{
+		return (p1.x-p2.x)*(p1.x-p2.x) + (p1.y-p2.y)*(p1.y-p2.y);
 	}
 };
