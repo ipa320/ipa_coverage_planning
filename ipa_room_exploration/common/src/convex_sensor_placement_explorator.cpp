@@ -78,9 +78,11 @@ void convexSPPExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::
 	}
 }
 
-// Function that is used to get a coverage path that covers the free space of the given map. It is programmed after
+// Function that is used to get a coverage path that covers the free space of the given map. It is programmed according to
 //
-// Arain, M. A., Cirillo, M., Bennetts, V. H., Schaffernicht, E., Trincavelli, M., & Lilienthal, A. J. (2015, May). Efficient measurement planning for remote gas sensing with mobile robots. In 2015 IEEE International Conference on Robotics and Automation (ICRA) (pp. 3428-3434). IEEE.
+//   Arain, M. A., Cirillo, M., Bennetts, V. H., Schaffernicht, E., Trincavelli, M., & Lilienthal, A. J. (2015, May).
+//   Efficient measurement planning for remote gas sensing with mobile robots.
+//   In 2015 IEEE International Conference on Robotics and Automation (ICRA) (pp. 3428-3434). IEEE.
 //
 // In this paper a linear program is used to get the minimal set of sensing poses to check the whole area for gas, but it
 // can also be used to to do coverage path planning by defining the visibility function in a certain way. To do so the
@@ -104,7 +106,7 @@ void convexSPPExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::
 //	IV.	Read out the chosen sensing poses (those corresponding to a variable of the solution equal to one) and create a
 //		path trough all of them. The path is created by applying a repetitive nearest neighbor algorithm. This algorithm
 //		solves a TSP for the chosen poses, with each pose being the start node once. Out of the computed paths then the
-//		shortest is chosen, which is an Hamiltonian cycle trough the graph. After this path has been obtained, determine
+//		shortest is chosen, which is an Hamiltonian cycle through the graph. After this path has been obtained, determine
 //		the pose in the cycle that is closest to the start position, which becomes the start of the fov-path.
 void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
 		const float map_resolution, const cv::Point starting_position, const cv::Point2d map_origin,
@@ -112,6 +114,8 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		const Eigen::Matrix<float, 2, 1>& robot_to_fov_vector_meter, const double largest_robot_to_footprint_distance_meter,
 		const uint sparsity_check_range, const bool plan_for_footprint)
 {
+	const int half_cell_size = cell_size_pixel/2;
+
 	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
 	// rotate map
 	cv::Mat R;
@@ -126,32 +130,45 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	cv::transform(starting_point_vector, starting_point_vector, R);
 	cv::Point rotated_starting_position = starting_point_vector[0];
 
-	// compute min/max room coordinates
-	int min_y = 1000000, max_y = 0, min_x = 1000000, max_x = 0;
-	for (int y=0; y<rotated_room_map.rows; y++)
-	{
-		for (int x=0; x<rotated_room_map.cols; x++)
-		{
-			//find not reachable regions and make them black
-			if (rotated_room_map.at<unsigned char>(y,x)==255)
-			{
-				if(y<min_y) min_y = y;
-				if(y>max_y) max_y = y;
-				if(x<min_x) min_x = x;
-				if(x>max_x) max_x = x;
-			}
-		}
-	}
+//	// compute min/max room coordinates
+//	int min_y = 1000000, max_y = 0, min_x = 1000000, max_x = 0;
+//	for (int y=0; y<rotated_room_map.rows; y++)
+//	{
+//		for (int x=0; x<rotated_room_map.cols; x++)
+//		{
+//			//find not reachable regions and make them black
+//			if (rotated_room_map.at<unsigned char>(y,x)==255)
+//			{
+//				if(y<min_y) min_y = y;
+//				if(y>max_y) max_y = y;
+//				if(x<min_x) min_x = x;
+//				if(x>max_x) max_x = x;
+//			}
+//		}
+//	}
 
 	// ************* II. Go trough the map and discretize it. *************
 	// todo: create grid in external class - it is the same in all approaches
 	// todo: if first/last row or column in grid has accessible areas but center is inaccessible, create a node in the accessible area
 	// get cells
 	std::vector<cv::Point> cell_centers;
-	for(size_t y=min_y; y<=max_y; y+=cell_size_pixel)
-		for(size_t x=min_x; x<=max_x; x+=cell_size_pixel)
-			if(rotated_room_map.at<uchar>(y,x)==255)
-				cell_centers.push_back(cv::Point(x,y));
+//	for(size_t y=min_y; y<=max_y; y+=cell_size_pixel)
+//		for(size_t x=min_x; x<=max_x; x+=cell_size_pixel)
+//			if(rotated_room_map.at<uchar>(y,x)==255)
+//				cell_centers.push_back(cv::Point(x,y));
+
+	// compute the basic Boustrophedon grid lines
+	cv::Mat inflated_rotated_room_map;
+	BoustrophedonGrid grid_lines;
+	GridGenerator::generateBoustrophedonGrid(rotated_room_map, inflated_rotated_room_map, half_cell_size, grid_lines, cv::Vec4i(0, 0, 0, 0),
+			cell_size_pixel, half_cell_size, cell_size_pixel);
+	// convert grid points format
+	for (BoustrophedonGrid::iterator line=grid_lines.begin(); line!=grid_lines.end(); ++line)
+	{
+		cell_centers.insert(cell_centers.end(), line->upper_line.begin(), line->upper_line.end());
+		if (line->has_two_valid_lines == true)
+			cell_centers.insert(cell_centers.end(), line->lower_line.begin(), line->lower_line.end());
+	}
 
 	// get candidate sensing poses
 	std::vector<geometry_msgs::Pose2D> candidate_sensing_poses;
@@ -191,9 +208,10 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	std::vector<double> W(number_of_candidates, 1.0); // initial weights
 
 	// construct V
-	cv::Mat V = cv::Mat(cell_centers.size(), number_of_candidates, CV_8U); // binary variables
+	cv::Mat V = cv::Mat::zeros(cell_centers.size(), number_of_candidates, CV_8U); // binary variables
 
 	// check observable cells from each candidate pose
+	const double map_resolution_inverse = 1./map_resolution;
 	for(std::vector<geometry_msgs::Pose2D>::iterator pose=candidate_sensing_poses.begin(); pose!=candidate_sensing_poses.end(); ++pose)
 	{
 		// get the transformed field of view
@@ -216,7 +234,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 
 				// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
 				// values
-				cv::Point current_point = cv::Point((transformed_vector(0, 0) - map_origin.x)/map_resolution, (transformed_vector(1, 0) - map_origin.y)/map_resolution);
+				cv::Point current_point = cv::Point((transformed_vector(0, 0) - map_origin.x)*map_resolution_inverse, (transformed_vector(1, 0) - map_origin.y)*map_resolution_inverse);
 				current_point.x = std::max(current_point.x, 0);
 				current_point.y = std::max(current_point.y, 0);
 				current_point.x = std::min(current_point.x, rotated_room_map.cols);
@@ -228,8 +246,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		// for each pose check the cells that are closer than the max distance from robot to fov-corner and more far away
 		// than the min distance, also only check points that span an angle to the robot-to-fov vector smaller than the
 		// max found angle to the corners
-		// when planning for the robot footprint simply check if it is smaller away to the pose than the given coverage
-		// radius
+		// when planning for the robot footprint simply check if its distance to the pose is at most the given coverage radius
 //		cv::Mat black_map = cv::Mat(rotated_room_map.rows, rotated_room_map.cols, rotated_room_map.type(), cv::Scalar(0));
 //		cv::circle(black_map, cv::Point(pose->x, pose->y), 3, cv::Scalar(200), CV_FILLED);
 //		cv::fillConvexPoly(black_map, transformed_fov_points, cv::Scalar(150));
@@ -489,29 +506,35 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 
 		// insert pose mapped to global coordinates
 		geometry_msgs::Pose2D current_pose;
-		if (plan_for_footprint == false)
-		{
+//		if (plan_for_footprint == false)
+//		{
 			current_pose.x = (chosen_poses[best_order[pose]].x*map_resolution)+map_origin.x;
 			current_pose.y = (chosen_poses[best_order[pose]].y*map_resolution)+map_origin.y;
 			current_pose.theta = chosen_poses[best_order[pose]].theta;
 			path.push_back(current_pose);
-		}
-		else
-		{
-			current_pose.x = chosen_poses[best_order[pose]].x;
-			current_pose.y = chosen_poses[best_order[pose]].y;
-			current_pose.theta = chosen_poses[best_order[pose]].theta;
-			fov_poses.push_back(current_pose);
-		}
+//		}
+//		else
+//		{
+//			current_pose.x = chosen_poses[best_order[pose]].x;
+//			current_pose.y = chosen_poses[best_order[pose]].y;
+//			current_pose.theta = chosen_poses[best_order[pose]].theta;
+//			fov_poses.push_back(current_pose);
+//		}
 	}
 
-	// *********************** VI. Get the robot path out of the fov path. ***********************
-	if (plan_for_footprint == true)
-	{
-		// go trough all computed fov poses and compute the corresponding robot pose
-		ROS_INFO("Starting to map from field of view pose to robot pose");
-		mapPath(room_map, path, fov_poses, robot_to_fov_vector_meter, map_resolution, map_origin, starting_position);
-	}
+//	// *********************** VI. Get the robot path out of the fov path. ***********************
+//	if (plan_for_footprint == true) //todo: ?
+//	{
+//		// go trough all computed fov poses and compute the corresponding robot pose
+//		ROS_INFO("Starting to map from field of view pose to robot pose");
+//		mapPath(room_map, path, fov_poses, robot_to_fov_vector_meter, map_resolution, map_origin, starting_position);
+//	}
+
+
+
+
+
+
 
 //	testing
 //	cv::Mat test_map = room_map.clone();

@@ -79,7 +79,7 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 
 	// map the given robot to fov vector into pixel coordinates
 	Eigen::Matrix<float, 2, 1> robot_to_fov_vector_pixel;
-	robot_to_fov_vector_pixel << (robot_to_fov_vector(0,0)-map_origin.x)*map_resolution_inv, (robot_to_fov_vector(1,0)-map_origin.y)*map_resolution_inv;
+	robot_to_fov_vector_pixel << robot_to_fov_vector(0,0)*map_resolution_inv, robot_to_fov_vector(1,0)*map_resolution_inv;
 	const double fov_radius_pixel = robot_to_fov_vector_pixel.norm();
 
 	// go trough the given poses and calculate accessible robot poses
