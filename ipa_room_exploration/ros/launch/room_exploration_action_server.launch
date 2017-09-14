@@ -2,11 +2,11 @@
 <launch>
 
 	<!--  -->
-	<node ns="room_exploration" pkg="ipa_room_exploration" type="room_exploration_server" name="room_exploration_server" output="screen" respawn="true" respawn_delay="2">
+	<node ns="room_exploration_4" pkg="ipa_room_exploration" type="room_exploration_server" name="room_exploration_server_4" output="screen" respawn="true" respawn_delay="2">
 		<rosparam command="load" file="$(find ipa_room_exploration)/ros/launch/room_exploration_action_server_params.yaml"/>
 	</node>
 
 	<!-- run cob_map_accessibility_analysis_server and coverage_check_server-->
-	<include file="$(find ipa_room_exploration)/ros/launch/cob_map_accessibility_analysis.launch"/>
-	<include file="$(find ipa_room_exploration)/ros/launch/coverage_check_server.launch"/>
+	<!--include file="$(find ipa_room_exploration)/ros/launch/cob_map_accessibility_analysis.launch"/-->  <!-- should be replaced by lib interface -->
+	<!--include file="$(find ipa_room_exploration)/ros/launch/coverage_check_server.launch"/-->  <!-- todo: activate -->
 </launch>

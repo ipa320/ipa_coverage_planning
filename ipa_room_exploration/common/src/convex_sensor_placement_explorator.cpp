@@ -330,6 +330,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	uint number_of_iterations = 0;
 	std::vector<uint> sparsity_measures; // vector that stores the computed sparsity measures to check convergence
 	const double euler_constant = std::exp(1.0);
+	Timer tim;
 	do
 	{
 		// increase number of iterations
@@ -365,7 +366,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		}
 
 		std::cout << "Iteration: " << number_of_iterations << ", sparsity: " << sparsity_measures.back() << std::endl;
-	}while(sparsity_converged == false && number_of_iterations <= 150);
+	} while(sparsity_converged == false && number_of_iterations <= 150 && tim.getElapsedTimeInSec() < 1200);	// wait no longer than 20 minutes
 
 	// 2. Reduce the optimization problem by discarding the candidate poses that correspond to an optimization variable
 	//	  equal to 0, i.e. those that are not considered any further.

@@ -810,7 +810,7 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 		// 5. go to each center and use the map_accessability_server to find a robot pose around it s.t. it can be covered
 		//	  by the fov
 		double pi_8 = PI/8;
-		std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";
+		std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";	// todo: replace with library interface
 	//	robot_poses.clear();
 		for(size_t center = 0; center < revisiting_order.size(); ++center)
 		{
@@ -956,7 +956,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 		center.y = nav_goal.y + relative_vector.y;
 
 		// check for another robot pose to reach the desired fov-position
-		std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";
+		std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";	// todo: replace with library interface
 		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Response response;
 		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
 		check_request.center = center;

@@ -511,14 +511,14 @@ public:
 		cv_image.toImageMsg(map_msg);
 
 		// initialize action server for room exploration
-		actionlib::SimpleActionClient<ipa_building_msgs::RoomExplorationAction> ac_exp("room_exploration_server", true);
+		actionlib::SimpleActionClient<ipa_building_msgs::RoomExplorationAction> ac_exp("room_exploration_server_4", true);
 		ROS_INFO("Waiting for action server to start.");
 		ac_exp.waitForServer(); //will wait for infinite time
 		ROS_INFO("Action server started.");
 
 		// connect to dynamic reconfigure and set planning algorithm
 		ROS_INFO("Trying to connect to dynamic reconfigure server.");
-		DynamicReconfigureClient drc_exp(node_handle_, "room_exploration_server/set_parameters", "room_exploration_server/parameter_updates");
+		DynamicReconfigureClient drc_exp(node_handle_, "room_exploration_server_4/set_parameters", "room_exploration_server_4/parameter_updates");
 		ROS_INFO("Done connecting to the dynamic reconfigure server.");
 		if (evaluation_configuration.exploration_algorithm_==1)
 		{
@@ -573,15 +573,15 @@ public:
 		if(evaluation_configuration.exploration_algorithm_==5)	// different timeout for the flowNetworkExplorator, because it can be much slower than the others
 			finished = ac_exp.waitForResult(ros::Duration(600));		// todo: adapt if necessary
 		else
-			finished = ac_exp.waitForResult(ros::Duration(1800));
+			finished = ac_exp.waitForResult(ros::Duration(3600));
 
 		//if it takes too long the server should be killed and restarted
 		if (finished == false)
 		{
 			std::cout << "action server took too long" << std::endl;
-			std::string pid_cmd = "pidof room_exploration_server > room_exploration_evaluation/expl_srv_pid.txt";
+			std::string pid_cmd = "pidof room_exploration_server_4 > room_exploration_evaluation/expl_srv_pid_4.txt";
 			int pid_result = system(pid_cmd.c_str());
-			std::ifstream pid_reader("room_exploration_evaluation/expl_srv_pid.txt");
+			std::ifstream pid_reader("room_exploration_evaluation/expl_srv_pid_4.txt");
 			int value;
 			std::string line;
 			if (pid_reader.is_open())
@@ -591,7 +591,7 @@ public:
 					std::istringstream iss(line);
 					while (iss >> value)
 					{
-						std::cout << "PID of room_exploration_server: " << value << std::endl;
+						std::cout << "PID of room_exploration_server_4: " << value << std::endl;
 						std::stringstream ss;
 						ss << "kill " << value;
 						std::string kill_cmd = ss.str();
@@ -600,7 +600,7 @@ public:
 					}
 				}
 				pid_reader.close();
-				remove("room_exploration_evaluation/expl_srv_pid.txt");
+				remove("room_exploration_evaluation/expl_srv_pid_4.txt");
 			}
 			else
 			{
@@ -1469,9 +1469,9 @@ int main(int argc, char **argv)
 
 	// prepare relevant floor map data
 	std::vector< std::string > map_names;
-	map_names.push_back("lab_ipa");
-	map_names.push_back("lab_c_scan");
-	map_names.push_back("Freiburg52_scan");
+//	map_names.push_back("lab_ipa");
+//	map_names.push_back("lab_c_scan");
+//	map_names.push_back("Freiburg52_scan");
 //	map_names.push_back("Freiburg79_scan");
 //	map_names.push_back("lab_b_scan");
 //	map_names.push_back("lab_intel");
@@ -1505,10 +1505,10 @@ int main(int argc, char **argv)
 //	map_names.push_back("office_c_furnitures");
 //	map_names.push_back("office_d_furnitures");
 //	map_names.push_back("office_e_furnitures");
-//	map_names.push_back("office_f_furnitures");
-//	map_names.push_back("office_g_furnitures");
-//	map_names.push_back("office_h_furnitures");
-//	map_names.push_back("office_i_furnitures");
+	map_names.push_back("office_f_furnitures");
+	map_names.push_back("office_g_furnitures");
+	map_names.push_back("office_h_furnitures");
+	map_names.push_back("office_i_furnitures");
 
 	std::vector<int> exploration_algorithms;
 //	exploration_algorithms.push_back(1);	// grid point exploration
@@ -1546,11 +1546,11 @@ int main(int argc, char **argv)
 	const double robot_radius = 0.3;		// [m]
 	const double coverage_radius = 0.3;		// [m]
 	const double robot_speed = 0.3;			// [m/s]
-	const double robot_rotation_speed = 0.1;	// [rad/s]
+	const double robot_rotation_speed = 0.52;	// [rad/s]
 	const float map_resolution = 0.05;		// [m/cell]
 
 	ExplorationEvaluation ev(nh, test_map_path, map_names, map_resolution, data_storage_path, robot_radius, coverage_radius, fov_points, planning_mode,
-			exploration_algorithms, robot_speed, robot_rotation_speed, false, true);
+			exploration_algorithms, robot_speed, robot_rotation_speed, true, false);
 	ros::shutdown();
 
 	//exit
