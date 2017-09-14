@@ -519,7 +519,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	// create the path starting from the found start
 	std::vector<cv::Point> fov_poses;
 	std::vector<int>::iterator start = std::find(best_order.begin(), best_order.end(), starting_index); // obtain iterator to index in best order to start path creation from there
-	for(size_t pose=start-best_order.begin(); path.size()!=chosen_poses.size(); ++pose)
+	for(size_t pose=start-best_order.begin(); path.size()!=chosen_poses.size() && fov_poses.size()!=chosen_poses.size(); ++pose)
 	{
 
 		// check if end has been reached, if true start from the beginning again
