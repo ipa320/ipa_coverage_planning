@@ -206,6 +206,7 @@ std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_
 	// if there is an error, just set unsorted order to 1, 2, 3, ...
 	if (unsorted_order.size() != path_length_matrix.rows)
 	{
+		std::cout << "ConcordeTSPSolver::solveConcordeTSP: Warning: Optimized order invalid, taking standard order 1, 2, 3, ..." << std::endl;
 		unsorted_order.clear();
 		unsorted_order.resize(path_length_matrix.rows);
 		for (int i=0; i<path_length_matrix.rows; ++i)
