@@ -27,7 +27,7 @@ goal_eps: 0.0     #0.35
 # (this parameter is only relevant to the algorithms #4 = convexSPP explorator, #5 = flowNetwork explorator,
 #  the other methods utilize the computed optimal maximum grid size)
 # int
-cell_size: 4      #7
+cell_size: 0       #4      #7
 
 # distance between two points when generating the path
 # [pixel], where one pixel is the size of one cell in the navigation grid map

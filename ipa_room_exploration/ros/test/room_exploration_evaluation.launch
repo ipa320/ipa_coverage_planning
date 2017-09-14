@@ -2,6 +2,6 @@
 <launch>
 
   <!--  -->
-  <node ns="room_exploration_4" pkg="ipa_room_exploration" type="room_exploration_evaluation" name="room_exploration_evaluation" output="screen"/>
+  <node ns="room_exploration_0" pkg="ipa_room_exploration" type="room_exploration_evaluation" name="room_exploration_evaluation" output="screen"/>
 
 </launch>

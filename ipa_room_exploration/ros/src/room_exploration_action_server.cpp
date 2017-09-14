@@ -144,7 +144,7 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	}
 	else if(path_planning_algorithm_ == 4) // set convexSPP explorator parameters
 	{
-		node_handle_.param("cell_size", cell_size_, 10);
+		node_handle_.param("cell_size", cell_size_, 0);
 		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
 		node_handle_.param("delta_theta", delta_theta_, 1.570796);
 		std::cout << "room_exploration/delta_theta = " << delta_theta_ << std::endl;
@@ -153,7 +153,7 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	{
 		node_handle_.param("path_eps", path_eps_, 3.0);
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
-		node_handle_.param("cell_size", cell_size_, 10);
+		node_handle_.param("cell_size", cell_size_, 0);
 		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
 		node_handle_.param("curvature_factor", curvature_factor_, 1.1);
 		std::cout << "room_exploration/curvature_factor = " << curvature_factor_ << std::endl;
