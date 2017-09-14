@@ -35,6 +35,9 @@ void NeuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 					 const cv::Point starting_position, const cv::Point2d map_origin, const double grid_spacing_in_pixel,
 					 const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector, bool show_path_computation)
 {
+	const int grid_spacing_as_int = std::floor(grid_spacing_in_pixel);
+	const int half_grid_spacing_as_int = std::floor(grid_spacing_in_pixel*0.5);
+
 	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
 	cv::Mat R;
 	cv::Rect bbox;
@@ -58,6 +61,8 @@ void NeuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 			}
 		}
 	}
+	cv::Mat inflated_rotated_room_map;
+	cv::erode(rotated_room_map, inflated_rotated_room_map, cv::Mat(), cv::Point(-1, -1), half_grid_spacing_as_int);
 
 	// ****************** II. Create the neural network ******************
 	// reset previously computed neurons
@@ -67,22 +72,24 @@ void NeuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 	int number_of_free_neurons = 0;
 	// todo: create grid in external class - it is the same in all approaches
 	// todo: if first/last row or column in grid has accessible areas but center is inaccessible, create a node in the accessible area
-	for(size_t y=min_room.y; y<max_room.y; y+=std::floor(grid_spacing_in_pixel))
+	for(size_t y=min_room.y+half_grid_spacing_as_int; y<max_room.y; y+=grid_spacing_as_int)
 	{
 		// for the current row create a new set of neurons to span the network over time
 		std::vector<Neuron> current_network_row;
-		for(size_t x=min_room.x; x<max_room.x; x+=std::floor(grid_spacing_in_pixel))
+		for(size_t x=min_room.x+half_grid_spacing_as_int; x<max_room.x; x+=grid_spacing_as_int)
 		{
 			// create free neuron
-			if(rotated_room_map.at<uchar>(y,x) == 255)
+			cv::Point cell_center(x,y);
+			if (GridGenerator::completeCellTest(inflated_rotated_room_map, cell_center, grid_spacing_as_int))
+			//if(rotated_room_map.at<uchar>(y,x) == 255)
 			{
-				Neuron current_neuron(cv::Point(x,y), A_, B_, D_, E_, mu_, step_size_, false);
+				Neuron current_neuron(cell_center, A_, B_, D_, E_, mu_, step_size_, false);
 				current_network_row.push_back(current_neuron);
 				++number_of_free_neurons;
 			}
 			else // obstacle neuron
 			{
-				Neuron current_neuron(cv::Point(x,y), A_, B_, D_, E_, mu_, step_size_, true);
+				Neuron current_neuron(cell_center, A_, B_, D_, E_, mu_, step_size_, true);
 				current_network_row.push_back(current_neuron);
 			}
 		}
