@@ -663,11 +663,11 @@ public:
 		cv::Mat gradient_map = computeGradientMap(map);
 
 
+		// 3. overall, average path length and variance of it for the calculated paths and get the numbers of the turns
 		AStarPlanner path_planner;
 		MapAccessibilityAnalysis map_accessibility_analysis;
-		// 2.1 overall, average path length and variance of it for the calculated paths and get the numbers of the turns
 		cv::Mat inflated_map;
-		const int robot_radius_in_pixel = cvRound(data.robot_radius_ / (double)data.map_resolution_);
+		const int robot_radius_in_pixel = cvRound(data.robot_radius_ * map_resolution_inverse);
 		map_accessibility_analysis.inflateMap(map, inflated_map, robot_radius_in_pixel);
 		//cv::erode(map, inflated_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
 		cv::Mat path_map = inflated_map.clone();
@@ -694,7 +694,7 @@ public:
 			double previous_angle = paths[room].begin()->theta;
 			double current_rotation_abs = 0.0;
 			int current_number_of_rotations = 0, current_number_of_crossings = 0;
-			geometry_msgs::Pose2D robot_position = paths[room][0];
+			geometry_msgs::Pose2D robot_position = paths[room][0];	// in [pixels]
 
 			// initialize path
 			geometry_msgs::Pose2D initial_pose;
@@ -723,11 +723,35 @@ public:
 				{
 					if (data.planning_mode_ == FOOTPRINT)
 					{
-						// todo:
 						// check circles with growing radius around the desired point
+						for (double factor=0.33; factor<=1.0 && found_next==false; factor+=0.33)
+						{
+							// check perimeter for accessible poses
+							MapAccessibilityAnalysis::Pose target_pose(pose->x, pose->y, pose->theta);
+							std::vector<MapAccessibilityAnalysis::Pose> accessible_poses_on_perimeter;
+							map_accessibility_analysis.checkPerimeter(accessible_poses_on_perimeter, target_pose,
+									factor*data.coverage_radius_*map_resolution_inverse, PI/32., inflated_map,
+									true, cv::Point(robot_position.x, robot_position.y));
+
+							// find the closest accessible point on this perimeter
+							double min_distance_sqr = std::numeric_limits<double>::max();
+							for(std::vector<MapAccessibilityAnalysis::Pose>::iterator new_pose=accessible_poses_on_perimeter.begin(); new_pose!=accessible_poses_on_perimeter.end(); ++new_pose)
+							{
+								const double dist_sqr = (new_pose->x-robot_position.x)*(new_pose->x-robot_position.x) + (new_pose->y-robot_position.y)*(new_pose->y-robot_position.y);
+								if (dist_sqr < min_distance_sqr)
+								{
+									next_pose.x = new_pose->x;
+									next_pose.y = new_pose->y;
+									next_pose.theta = pose->theta;	// use the orientation of the original pose
+									min_distance_sqr = dist_sqr;
+									found_next = true;
+								}
+							}
+						}
 					}
 					else if (data.planning_mode_ == FIELD_OF_VIEW)
 					{
+						// todo: ATTENTION: this only applies to a centered field of view, i.e. with an fov to robot offset with only x component like [0.6, 0]
 						// get the desired FoV-center position
 						MapAccessibilityAnalysis::Pose fov_center_px;		// in [px,px,rad]
 						fov_center_px.x = (pose->x + std::cos(pose->theta)*distance_robot_fov_middlepoint_in_meter*map_resolution_inverse);
@@ -736,10 +760,11 @@ public:
 						//fov_center_px.y = (fov_center_px.y-data.map_origin_.position.y) / data.map_resolution_;
 						fov_center_px.orientation = pose->theta;
 
+						// check perimeter for accessible poses
 						std::vector<MapAccessibilityAnalysis::Pose> accessible_poses_on_perimeter;
 						map_accessibility_analysis.checkPerimeter(accessible_poses_on_perimeter, fov_center_px,
-								distance_robot_fov_middlepoint_in_meter*map_resolution_inverse, PI/16., inflated_map,
-								true, cv::Point(pose->x, pose->y));
+								distance_robot_fov_middlepoint_in_meter*map_resolution_inverse, PI/32., inflated_map,
+								true, cv::Point(robot_position.x, robot_position.y));
 
 						// find the closest accessible point on this perimeter
 						double min_distance_sqr = std::numeric_limits<double>::max();
@@ -772,42 +797,50 @@ public:
 				if(angle_difference!=0.0)
 				{
 					current_rotation_abs += angle_difference;
-					if (angle_difference > 0.1)		// only count substantial rotations
+					if (angle_difference > 0.52)		//0.1	// only count substantial rotations
 						++current_number_of_rotations;
 				}
 				// save current angle of pose
 				previous_angle = next_pose.theta;
 
 				// create output map to show path --> also check if one point has already been visited
-				cv::LineIterator line(map_copy, cv::Point(next_pose.x, next_pose.y), cv::Point(robot_position.x, robot_position.y), 8);
 				cv::circle(map_copy, cv::Point(next_pose.x, next_pose.y), 2, cv::Scalar(100), CV_FILLED);
-				bool has_crossing = false;
-				for(int pos=1; pos<line.count-1; pos++, ++line)
-				{
-					cv::Point current_point = line.pos();
-					if(map_copy.at<uchar>(current_point)==127)
-						has_crossing = true;
-					else
-						map_copy.at<uchar>(current_point)=127;
-//						cv::imshow("er", inflated_map);
-//						cv::waitKey();
-				}
-				if (has_crossing == true)				// todo: why is the A* path not checked for crossings?
-					++current_number_of_crossings;
-//					cv::line(inflated_map, cv::Point(next_pose.x, next_pose.y), cv::Point(robot_position.x, robot_position.y), cv::Scalar(100));
-//					cv::imshow("er", inflated_map);
-//					cv::waitKey();
+//				cv::LineIterator line(map_copy, cv::Point(next_pose.x, next_pose.y), cv::Point(robot_position.x, robot_position.y), 8);
+//				bool has_crossing = false;
+//				for(int pos=1; pos<line.count-1; pos++, ++line)
+//				{
+//					cv::Point current_point = line.pos();
+//					if(map_copy.at<uchar>(current_point)==127)
+//						has_crossing = true;
+//					else
+//						map_copy.at<uchar>(current_point)=127;
+////						cv::imshow("er", inflated_map);
+////						cv::waitKey();
+//				}
+//				if (has_crossing == true)				// why is the A* path not checked for crossings?
+//					++current_number_of_crossings;
+////					cv::line(inflated_map, cv::Point(next_pose.x, next_pose.y), cv::Point(robot_position.x, robot_position.y), cv::Scalar(100));
+////					cv::imshow("er", inflated_map);
+////					cv::waitKey();
 
 				// find pathlength and path between two consecutive poses
 				std::vector<cv::Point> current_interpolated_path;	// vector that stores the current path from one pose to another
-				current_pathlength += path_planner.planPath(map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
+				current_pathlength += path_planner.planPath(inflated_map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
 
 				if(current_interpolated_path.size()==0)
 					continue;
 
 				// transform the cv::Point path to geometry_msgs::Pose2D --> last point has, first point was already gone a defined angle
+				// also create output map to show path --> and check if one point has already been visited
+				bool has_crossing = false;
 				for(std::vector<cv::Point>::iterator point=current_interpolated_path.begin()+1; point!=current_interpolated_path.end(); ++point)
 				{
+					// check if point has been visited before and draw point into map
+					if(map_copy.at<uchar>(*point)==127)
+						has_crossing = true;
+					else
+						map_copy.at<uchar>(*point)=127;
+
 					// mark in path map
 					path_map.at<uchar>(*point)=127;
 
@@ -825,6 +858,8 @@ public:
 					// add the pose to the path
 					current_pose_path_meter.push_back(current_pose);
 				}
+				if (has_crossing == true)
+					++current_number_of_crossings;
 
 				// set robot_position to new one
 				robot_position = next_pose;
@@ -859,16 +894,16 @@ public:
 		// calculate the overall pathlength, the average and the variance
 		double overall_pathlength = std::accumulate(pathlengths_for_map.begin(), pathlengths_for_map.end(), 0.0);
 		double average_pathlength = overall_pathlength/nonzero_paths;
-		double pathlength_variance_squared = 0;
+		//double pathlength_variance_squared = 0;
 		std::vector<double> travel_times_in_rooms;
 		for(std::vector<double>::iterator length=pathlengths_for_map.begin(); length!=pathlengths_for_map.end(); ++length)
 		{
-			pathlength_variance_squared += std::pow(*length-average_pathlength, 2);
+			//pathlength_variance_squared += std::pow(*length-average_pathlength, 2);
 			travel_times_in_rooms.push_back(*length/data.robot_speed_);
 		}
-		pathlength_variance_squared /= nonzero_paths;
+		//pathlength_variance_squared /= nonzero_paths;
 
-		// 2. calculate the execution time by using the robot speed and the rotation speed
+		// 4. calculate the execution time by using the robot speed and the rotation speed
 		double average_execution_time = 0.0;
 		double execution_time_squared_variance = 0.0;
 		double overall_execution_time = overall_pathlength/data.robot_speed_; // travel time
@@ -888,11 +923,11 @@ public:
 			execution_time_squared_variance += std::pow(rotation_times_in_rooms[room]+travel_times_in_rooms[room]-average_execution_time, 2);
 		}
 
-		// 3. calculate turn specific values
+		// 5. calculate turn specific values
 		double number_of_turns_deviation = 0.0, turn_value_deviation = 0.0;
 		double average_number_of_turns = std::accumulate(number_of_rotations.begin(), number_of_rotations.end(), 0);
-		double average_turn_value = std::accumulate(rotation_values.begin(), rotation_values.end(), 0);
 		average_number_of_turns /= number_of_rotations.size();
+		double average_turn_value = std::accumulate(rotation_values.begin(), rotation_values.end(), 0);
 		average_turn_value /= rotation_values.size();
 		for(size_t room=0; room<number_of_rotations.size(); ++room)
 		{
@@ -902,7 +937,7 @@ public:
 		number_of_turns_deviation /= number_of_rotations.size();
 		turn_value_deviation /= rotation_values.size();
 
-		// 4. coverage percentage and number of covering each pixel when executing the coverage paths
+		// 6. coverage percentage and number of covering each pixel when executing the coverage paths
 		std::vector<double> room_areas;
 		std::vector<double> area_covered_percentages;
 		std::vector<double> numbers_of_coverages;
@@ -1008,7 +1043,7 @@ public:
 				coverage_number_deviation += std::pow(average_coverage_number-*cov, 2);
 		coverage_number_deviation /= numbers_of_coverages.size();
 
-		// 5. compute average computation time and deviation
+		// 7. compute average computation time and deviation
 		double average_computation_time = std::accumulate(calculation_times.begin(), calculation_times.end(), 0.0);
 		average_computation_time /= calculation_times.size();
 		double computation_time_deviation = 0.0;
@@ -1016,7 +1051,7 @@ public:
 			computation_time_deviation += std::pow(average_computation_time-*tim, 2);
 		computation_time_deviation /= calculation_times.size();
 
-		// 6. for each part of the path calculate the parallelism with respect to the nearest wall and the nearest trajectory part
+		// 8. for each part of the path calculate the parallelism with respect to the nearest wall and the nearest trajectory part
 		std::vector<std::vector<double> > wall_angle_differences, trajectory_angle_differences;
 		std::vector<std::vector<double> > revisit_times; // vector that stores the index-differences of the current pose and the point of its nearest neighboring trajectory
 		const double trajectory_parallelism_check_range = 1.0/data.map_resolution_; // valid check-radius when checking for the parallelism to another part of the trajectory, [pixels], TODO: use 1.5*grid_spacing_in_pixel
@@ -1218,7 +1253,7 @@ public:
 		trajectory_deviation /= room_trajectory_averages.size();
 		revisit_deviation /= room_revisit_averages.size();
 
-		// 7. calculate the number of crossings related values
+		// 9. calculate the number of crossings related values
 		double average_crossings = std::accumulate(numbers_of_crossings.begin(), numbers_of_crossings.end(), 0.0);
 		average_crossings /= numbers_of_crossings.size();
 		double deviation_crossings = 0.0;
@@ -1226,14 +1261,14 @@ public:
 			deviation_crossings += *cr;
 		deviation_crossings /= numbers_of_crossings.size();
 
-		// 8. calculate the subjective measure for the paths
+		// 10. calculate the subjective measure for the paths
 		// TODO: set up the correct computation --> external computation so far
 		double subjective_measure = average_wall_angle_difference + average_trajectory_angle_difference
 				- 1.0*average_pathlength - 1.0*average_computation_time - 1.0*average_revisit_times - 1.0/3.0*average_crossings - 1.0*average_number_of_turns;
 		subjective_measure /= 7.0;
 
 
-		// ---------- 9. store all resutls to a file ----------
+		// ---------- 11. store all resutls to a file ----------
 		// print the found average evaluation values to a local file
 		std::stringstream output;
 		output << "Expl" << config.exploration_algorithm_ << ", number of rooms: " << paths.size() << ", number of valid paths: "
@@ -1514,10 +1549,10 @@ int main(int argc, char **argv)
 //	exploration_algorithms.push_back(1);	// grid point exploration
 //	exploration_algorithms.push_back(2);	// boustrophedon exploration
 //	exploration_algorithms.push_back(3);	// neural network exploration
-	exploration_algorithms.push_back(4);	// convex SPP exploration
+//	exploration_algorithms.push_back(4);	// convex SPP exploration
 //	exploration_algorithms.push_back(5);	// flow network exploration
 //	exploration_algorithms.push_back(6);	// energy functional exploration
-//	exploration_algorithms.push_back(7);	// voronoi exploration
+	exploration_algorithms.push_back(7);	// voronoi exploration
 
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
 	// measures in [m]
