@@ -181,7 +181,7 @@ struct ExplorationData
 	geometry_msgs::Pose2D robot_start_position_;
 	double robot_radius_;	// [m], effective robot radius, taking the enlargement of the costmap into account, in [meter]
 	double coverage_radius_;	// [m], radius that is used to plan the coverage planning for the robot and not the field of view, assuming that the part that needs to cover everything (e.g. the cleaning part) can be represented by a fitting circle (e.g. smaller than the actual part to ensure coverage), in [meter]
-	std::vector<geometry_msgs::Point32> fov_points_;
+	std::vector<geometry_msgs::Point32> fov_points_;	// [m]
 	enum PlanningMode planning_mode_;	// 1 = plans a path for coverage with the robot footprint, 2 = plans a path for coverage with the robot's field of view
 	double robot_speed_; // [m/s]
 	double robot_rotation_speed_; // [rad/s]
@@ -803,8 +803,8 @@ public:
 				// save current angle of pose
 				previous_angle = next_pose.theta;
 
-				// create output map to show path --> also check if one point has already been visited
-				cv::circle(map_copy, cv::Point(next_pose.x, next_pose.y), 2, cv::Scalar(100), CV_FILLED);
+//				// create output map to show path --> also check if one point has already been visited
+//				cv::circle(map_copy, cv::Point(next_pose.x, next_pose.y), 2, cv::Scalar(96), CV_FILLED);
 //				cv::LineIterator line(map_copy, cv::Point(next_pose.x, next_pose.y), cv::Point(robot_position.x, robot_position.y), 8);
 //				bool has_crossing = false;
 //				for(int pos=1; pos<line.count-1; pos++, ++line)
@@ -833,6 +833,7 @@ public:
 				// transform the cv::Point path to geometry_msgs::Pose2D --> last point has, first point was already gone a defined angle
 				// also create output map to show path --> and check if one point has already been visited
 				bool has_crossing = false;
+				cv::circle(map_copy, cv::Point(next_pose.x, next_pose.y), 2, cv::Scalar(96), CV_FILLED);
 				for(std::vector<cv::Point>::iterator point=current_interpolated_path.begin()+1; point!=current_interpolated_path.end(); ++point)
 				{
 					// check if point has been visited before and draw point into map
@@ -958,13 +959,13 @@ public:
 			ipa_building_msgs::CheckCoverageRequest coverage_request;
 			ipa_building_msgs::CheckCoverageResponse coverage_response;
 			// fill request
-			// todo: adapt for footprint and fov
-			cv::Mat eroded_room_map = data.room_maps_[room].clone();
-			cv::erode(eroded_room_map, eroded_room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
+			// todo: generalize fov coverage check with an outer raycasting circle
+		//	cv::Mat eroded_room_map;
+		//	cv::erode(data.room_maps_[room], eroded_room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
 			sensor_msgs::ImageConstPtr service_image;
 			cv_bridge::CvImage cv_image;
 			cv_image.encoding = "mono8";
-			cv_image.image = eroded_room_map;
+			cv_image.image = data.room_maps_[room];	//eroded_room_map;
 			service_image = cv_image.toImageMsg();
 			coverage_request.input_map = *service_image;
 			coverage_request.path = interpolated_paths[path_index];
@@ -987,7 +988,7 @@ public:
 				for (int v=0; v<seen_positions_map.rows; ++v)
 					for (int u=0; u<seen_positions_map.cols; ++u)
 						if (seen_positions_map.at<uchar>(v,u)==127)
-							map_coverage.at<uchar>(v,u)=127;
+							map_coverage.at<uchar>(v,u)=208;
 
 				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.number_of_coverage_image, sensor_msgs::image_encodings::TYPE_32SC1);
 				number_of_coverages_map = cv_ptr_obj->image;
@@ -1025,9 +1026,17 @@ public:
 			++path_index;
 		}
 		std::cout << "checked coverage for all rooms" << std::endl;
-		// save the map with the drawn in coverage paths
+		// save the map with the drawn in coverage areas
 		const std::string coverage_image_path = data_storage_path + configuration_folder_name + data.map_name_ + "_coverage.png";
 		cv::imwrite(coverage_image_path.c_str(), map_coverage);
+		// save the map with the drawn in path and coverage areas
+		cv::Mat map_path_coverage = map_coverage.clone();
+		const std::string path_coverage_image_path = data_storage_path + configuration_folder_name + data.map_name_ + "_paths_coverage_eval.png";
+		for (int v=0; v<map_copy.rows; ++v)
+			for (int u=0; u<map_copy.cols; ++u)
+				if (map_copy.at<uchar>(v,u)==127 || map_copy.at<uchar>(v,u)==96)
+					map_path_coverage.at<uchar>(v,u) = map_copy.at<uchar>(v,u);
+		cv::imwrite(path_coverage_image_path.c_str(), map_path_coverage);
 
 		// calculate average coverage and deviation
 		double average_coverage_percentage = std::accumulate(area_covered_percentages.begin(), area_covered_percentages.end(), 0.0);
@@ -1547,34 +1556,34 @@ int main(int argc, char **argv)
 
 	std::vector<int> exploration_algorithms;
 //	exploration_algorithms.push_back(1);	// grid point exploration
-//	exploration_algorithms.push_back(2);	// boustrophedon exploration
+	exploration_algorithms.push_back(2);	// boustrophedon exploration
 //	exploration_algorithms.push_back(3);	// neural network exploration
 //	exploration_algorithms.push_back(4);	// convex SPP exploration
 //	exploration_algorithms.push_back(5);	// flow network exploration
 //	exploration_algorithms.push_back(6);	// energy functional exploration
-	exploration_algorithms.push_back(7);	// voronoi exploration
+//	exploration_algorithms.push_back(7);	// voronoi exploration
 
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
 	// measures in [m]
 	std::vector<geometry_msgs::Point32> fov_points(4);
-	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
-	fov_points[0].y = 0.35;
-	fov_points[1].x = 0.15;
-	fov_points[1].y = -0.35;
-	fov_points[2].x = 1.15;
-	fov_points[2].y = -0.65;
-	fov_points[3].x = 1.15;
-	fov_points[3].y = 0.65;
-	int planning_mode = 2;	// viewpoint planning
-//	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
-//	fov_points[0].y = 0.3;
-//	fov_points[1].x = -0.3;
-//	fov_points[1].y = -0.3;
-//	fov_points[2].x = 0.3;
-//	fov_points[2].y = -0.3;
-//	fov_points[3].x = 0.3;
-//	fov_points[3].y = 0.3;
-//	int planning_mode = 1;	// footprint planning
+//	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
+//	fov_points[0].y = 0.35;
+//	fov_points[1].x = 0.15;
+//	fov_points[1].y = -0.35;
+//	fov_points[2].x = 1.15;
+//	fov_points[2].y = -0.65;
+//	fov_points[3].x = 1.15;
+//	fov_points[3].y = 0.65;
+//	int planning_mode = 2;	// viewpoint planning
+	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
+	fov_points[0].y = 0.3;
+	fov_points[1].x = -0.3;
+	fov_points[1].y = -0.3;
+	fov_points[2].x = 0.3;
+	fov_points[2].y = -0.3;
+	fov_points[3].x = 0.3;
+	fov_points[3].y = 0.3;
+	int planning_mode = 1;	// footprint planning
 
 	const double robot_radius = 0.3;		// [m]
 	const double coverage_radius = 0.3;		// [m]
@@ -1583,7 +1592,7 @@ int main(int argc, char **argv)
 	const float map_resolution = 0.05;		// [m/cell]
 
 	ExplorationEvaluation ev(nh, test_map_path, map_names, map_resolution, data_storage_path, robot_radius, coverage_radius, fov_points, planning_mode,
-			exploration_algorithms, robot_speed, robot_rotation_speed, true, false);
+			exploration_algorithms, robot_speed, robot_rotation_speed, false, true);
 	ros::shutdown();
 
 	//exit

@@ -30,6 +30,9 @@ bool coverageCheckServer::checkCoverage(ipa_building_msgs::CheckCoverageRequest&
 			fov_vectors.push_back(current_vector);
 		}
 
+		// todo: replace this definition by a circle around the robot center with radius=largest fov point distance, define visibility sectors on that circle given by the fov points
+		// to increase the general applicability to arbitrary fov definitions
+
 		// get angles between robot_pose and fov-corners in relative coordinates to find the edge that spans the largest angle with
 		// the robot-center --> the raycasting goals at least have to cover this angle
 		float dot = fov_vectors[0].transpose()*fov_vectors[1];
@@ -84,7 +87,7 @@ bool coverageCheckServer::checkCoverage(ipa_building_msgs::CheckCoverageRequest&
 	cv_ptr_obj = cv_bridge::toCvCopy(request.input_map, sensor_msgs::image_encodings::MONO8);
 	cv::Mat map = cv_ptr_obj->image;
 
-	// create a map that stores the number of coveragres during the execution, if wanted
+	// create a map that stores the number of coverages during the execution, if wanted
 	cv::Mat black_image = cv::Mat(map.rows, map.cols, CV_32SC1, cv::Scalar(0));
 	cv::Mat* image_pointer = NULL;
 	if(request.check_number_of_coverages==true)
@@ -140,6 +143,8 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 			const Eigen::Matrix<float, 2, 1> raycasting_corner_2, const float map_resolution, const cv::Point2d map_origin,
 			cv::Mat* number_of_coverages_image)
 {
+	const float map_resolution_inverse = 1./map_resolution;
+
 	// go trough each given robot pose
 	for(std::vector<geometry_msgs::Pose2D>::const_iterator current_pose = robot_poses.begin(); current_pose != robot_poses.end(); ++current_pose)
 	{
@@ -160,11 +165,11 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 			fov_point << field_of_view_points[point].x, field_of_view_points[point].y;
 
 			// linear transformation
-			Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R * fov_point;
+			Eigen::Matrix<float, 2, 1> transformed_fov_point = pose_as_matrix + R * fov_point;
 
 			// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
 			// values
-			cv::Point current_point = cv::Point((transformed_vector(0, 0) - map_origin.x)/map_resolution, (transformed_vector(1, 0) - map_origin.y)/map_resolution);
+			cv::Point current_point = cv::Point((transformed_fov_point(0, 0) - map_origin.x)*map_resolution_inverse, (transformed_fov_point(1, 0) - map_origin.y)*map_resolution_inverse);
 			current_point.x = std::max(current_point.x, 0);
 			current_point.y = std::max(current_point.y, 0);
 			current_point.x = std::min(current_point.x, reachable_areas_map.cols);
@@ -179,12 +184,12 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 		Eigen::Matrix<float, 2, 1> transformed_corner_2 = pose_as_matrix + R * raycasting_corner_2;
 
 		// convert to openCV format
-		cv::Point transformed_corner_cv_1 = cv::Point((transformed_corner_1(0, 0) - map_origin.x)/map_resolution, (transformed_corner_1(1, 0) - map_origin.y)/map_resolution);
+		cv::Point transformed_corner_cv_1 = cv::Point((transformed_corner_1(0, 0) - map_origin.x)*map_resolution_inverse, (transformed_corner_1(1, 0) - map_origin.y)*map_resolution_inverse);
 		transformed_corner_cv_1.x = std::max(transformed_corner_cv_1.x, 0);
 		transformed_corner_cv_1.y = std::max(transformed_corner_cv_1.y, 0);
 		transformed_corner_cv_1.x = std::min(transformed_corner_cv_1.x, reachable_areas_map.cols);
 		transformed_corner_cv_1.y = std::min(transformed_corner_cv_1.y, reachable_areas_map.rows);
-		cv::Point transformed_corner_cv_2 = cv::Point((transformed_corner_2(0, 0) - map_origin.x)/map_resolution, (transformed_corner_2(1, 0) - map_origin.y)/map_resolution);
+		cv::Point transformed_corner_cv_2 = cv::Point((transformed_corner_2(0, 0) - map_origin.x)*map_resolution_inverse, (transformed_corner_2(1, 0) - map_origin.y)*map_resolution_inverse);
 		transformed_corner_cv_2.x = std::max(transformed_corner_cv_2.x, 0);
 		transformed_corner_cv_2.y = std::max(transformed_corner_cv_2.y, 0);
 		transformed_corner_cv_2.x = std::min(transformed_corner_cv_2.x, reachable_areas_map.cols);
@@ -199,7 +204,7 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 			raycasting_goals[i] = border_line.pos();
 
 		// transform pose into OpenCV format
-		cv::Point pose_cv((current_pose->x - map_origin.x)/map_resolution, (current_pose->y - map_origin.y)/map_resolution);
+		cv::Point pose_cv((current_pose->x - map_origin.x)*map_resolution_inverse, (current_pose->y - map_origin.y)*map_resolution_inverse);
 
 		// go trough the found raycasting goals and draw the field-of-view
 		for(std::vector<cv::Point>::iterator goal = raycasting_goals.begin(); goal != raycasting_goals.end(); ++goal)
@@ -243,8 +248,10 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 			const double coverage_radius, const float map_resolution,
 			const cv::Point2d map_origin, cv::Mat* number_of_coverages_image)
 {
+	const float map_resolution_inverse = 1./map_resolution;
+
 	cv::Mat map_copy = reachable_areas_map.clone(); // copy to draw positions that get later drawn into free space of the original map
-	const int coverage_radius_pixel = coverage_radius/map_resolution;
+	const int coverage_radius_pixel = coverage_radius*map_resolution_inverse;
 	// iterate trough all poses and draw them into the given map
 	for(std::vector<geometry_msgs::Pose2D>::const_iterator pose=robot_poses.begin(); pose!=robot_poses.end(); ++pose)
 	{
@@ -269,7 +276,7 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 //
 //			// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
 //			// values
-//			cv::Point current_point = cv::Point((transformed_vector(0, 0) - map_origin.x)/map_resolution, (transformed_vector(1, 0) - map_origin.y)/map_resolution);
+//			cv::Point current_point = cv::Point((transformed_vector(0, 0) - map_origin.x)*map_resolution_inverse, (transformed_vector(1, 0) - map_origin.y)*map_resolution_inverse);
 //			current_point.x = std::max(current_point.x, 0);
 //			current_point.y = std::max(current_point.y, 0);
 //			current_point.x = std::min(current_point.x, map_copy.cols);
@@ -278,7 +285,7 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 //		}
 
 		// draw the transformed robot footprint
-		cv::Point current_point((pose->x-map_origin.x)/map_resolution, (pose->y-map_origin.y)/map_resolution);
+		cv::Point current_point((pose->x-map_origin.x)*map_resolution_inverse, (pose->y-map_origin.y)*map_resolution_inverse);
 		cv::circle(map_copy, current_point, coverage_radius_pixel, cv::Scalar(127), -1);
 //		cv::fillConvexPoly(map_copy, transformed_footprint_points, cv::Scalar(127));
 
@@ -288,7 +295,7 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 			cv::Mat coverage_area = cv::Mat::zeros(map_copy.rows, map_copy.cols, CV_32SC1);
 			cv::circle(coverage_area, current_point, coverage_radius_pixel, cv::Scalar(1), -1);
 			*number_of_coverages_image = *number_of_coverages_image + coverage_area;
-//			int current_value = number_of_coverages_image->at<int>(cv::Point((pose->x-map_origin.x)/map_resolution, (pose->y-map_origin.y)/map_resolution));
+//			int current_value = number_of_coverages_image->at<int>(cv::Point((pose->x-map_origin.x)*map_resolution_inverse, (pose->y-map_origin.y)*map_resolution_inverse));
 //			cv::fillConvexPoly(*number_of_coverages_image, transformed_footprint_points, cv::Scalar(current_value+1));
 		}
 	}
