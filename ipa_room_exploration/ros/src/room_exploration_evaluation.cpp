@@ -567,7 +567,7 @@ public:
 		if(evaluation_configuration.exploration_algorithm_==5)	// different timeout for the flowNetworkExplorator, because it can be much slower than the others
 			finished = ac_exp.waitForResult(ros::Duration(600));		// todo: adapt if necessary
 		else
-			finished = ac_exp.waitForResult(ros::Duration(1800));
+			finished = ac_exp.waitForResult(ros::Duration(4000));
 
 		//if it takes too long the server should be killed and restarted
 		if (finished == false)
@@ -1464,47 +1464,47 @@ int main(int argc, char **argv)
 	map_names.push_back("lab_ipa");
 	map_names.push_back("lab_c_scan");
 	map_names.push_back("Freiburg52_scan");
-//	map_names.push_back("Freiburg79_scan");
-//	map_names.push_back("lab_b_scan");
-//	map_names.push_back("lab_intel");
-//	map_names.push_back("Freiburg101_scan");
-//	map_names.push_back("lab_d_scan");
-//	map_names.push_back("lab_f_scan");
-//	map_names.push_back("lab_a_scan");
-//	map_names.push_back("NLB");
-//	map_names.push_back("office_a");
-//	map_names.push_back("office_b");
-//	map_names.push_back("office_c");
-//	map_names.push_back("office_d");
-//	map_names.push_back("office_e");
-//	map_names.push_back("office_f");
-//	map_names.push_back("office_g");
-//	map_names.push_back("office_h");
-//	map_names.push_back("office_i");
-//	map_names.push_back("lab_ipa_furnitures");
-//	map_names.push_back("lab_c_scan_furnitures");
-//	map_names.push_back("Freiburg52_scan_furnitures");
-//	map_names.push_back("Freiburg79_scan_furnitures");
-//	map_names.push_back("lab_b_scan_furnitures");
-//	map_names.push_back("lab_intel_furnitures");
-//	map_names.push_back("Freiburg101_scan_furnitures");
-//	map_names.push_back("lab_d_scan_furnitures");
-//	map_names.push_back("lab_f_scan_furnitures");
-//	map_names.push_back("lab_a_scan_furnitures");
-//	map_names.push_back("NLB_furnitures");
-//	map_names.push_back("office_a_furnitures");
-//	map_names.push_back("office_b_furnitures");
-//	map_names.push_back("office_c_furnitures");
-//	map_names.push_back("office_d_furnitures");
-//	map_names.push_back("office_e_furnitures");
-//	map_names.push_back("office_f_furnitures");
-//	map_names.push_back("office_g_furnitures");
-//	map_names.push_back("office_h_furnitures");
-//	map_names.push_back("office_i_furnitures");
+	map_names.push_back("Freiburg79_scan");
+	map_names.push_back("lab_b_scan");
+	map_names.push_back("lab_intel");
+	map_names.push_back("Freiburg101_scan");
+	map_names.push_back("lab_d_scan");
+	map_names.push_back("lab_f_scan");
+	map_names.push_back("lab_a_scan");
+	map_names.push_back("NLB");
+	map_names.push_back("office_a");
+	map_names.push_back("office_b");
+	map_names.push_back("office_c");
+	map_names.push_back("office_d");
+	map_names.push_back("office_e");
+	map_names.push_back("office_f");
+	map_names.push_back("office_g");
+	map_names.push_back("office_h");
+	map_names.push_back("office_i");
+	map_names.push_back("lab_ipa_furnitures");
+	map_names.push_back("lab_c_scan_furnitures");
+	map_names.push_back("Freiburg52_scan_furnitures");
+	map_names.push_back("Freiburg79_scan_furnitures");
+	map_names.push_back("lab_b_scan_furnitures");
+	map_names.push_back("lab_intel_furnitures");
+	map_names.push_back("Freiburg101_scan_furnitures");
+	map_names.push_back("lab_d_scan_furnitures");
+	map_names.push_back("lab_f_scan_furnitures");
+	map_names.push_back("lab_a_scan_furnitures");
+	map_names.push_back("NLB_furnitures");
+	map_names.push_back("office_a_furnitures");
+	map_names.push_back("office_b_furnitures");
+	map_names.push_back("office_c_furnitures");
+	map_names.push_back("office_d_furnitures");
+	map_names.push_back("office_e_furnitures");
+	map_names.push_back("office_f_furnitures");
+	map_names.push_back("office_g_furnitures");
+	map_names.push_back("office_h_furnitures");
+	map_names.push_back("office_i_furnitures");
 
 	std::vector<int> exploration_algorithms;
-	exploration_algorithms.push_back(1);	// grid point exploration
-//	exploration_algorithms.push_back(2);	// boustrophedon exploration
+//	exploration_algorithms.push_back(1);	// grid point exploration
+	exploration_algorithms.push_back(2);	// boustrophedon exploration
 //	exploration_algorithms.push_back(3);	// neural network exploration
 //	exploration_algorithms.push_back(4);	// convex SPP exploration
 //	exploration_algorithms.push_back(5);	// flow network exploration
@@ -1514,24 +1514,24 @@ int main(int argc, char **argv)
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
 	// measures in [m]
 	std::vector<geometry_msgs::Point32> fov_points(4);
-//	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
-//	fov_points[0].y = 0.35;
-//	fov_points[1].x = 0.15;
-//	fov_points[1].y = -0.35;
-//	fov_points[2].x = 1.15;
-//	fov_points[2].y = -0.65;
-//	fov_points[3].x = 1.15;
-//	fov_points[3].y = 0.65;
-//	int planning_mode = 2;	// viewpoint planning
-	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
-	fov_points[0].y = 0.3;
-	fov_points[1].x = -0.3;
-	fov_points[1].y = -0.3;
-	fov_points[2].x = 0.3;
-	fov_points[2].y = -0.3;
-	fov_points[3].x = 0.3;
-	fov_points[3].y = 0.3;
-	int planning_mode = 1;	// footprint planning
+	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
+	fov_points[0].y = 0.35;
+	fov_points[1].x = 0.15;
+	fov_points[1].y = -0.35;
+	fov_points[2].x = 1.15;
+	fov_points[2].y = -0.65;
+	fov_points[3].x = 1.15;
+	fov_points[3].y = 0.65;
+	int planning_mode = 2;	// viewpoint planning
+//	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
+//	fov_points[0].y = 0.3;
+//	fov_points[1].x = -0.3;
+//	fov_points[1].y = -0.3;
+//	fov_points[2].x = 0.3;
+//	fov_points[2].y = -0.3;
+//	fov_points[3].x = 0.3;
+//	fov_points[3].y = 0.3;
+//	int planning_mode = 1;	// footprint planning
 
 	// todo: alg: 4 with footprint always crashes in TSP
 
