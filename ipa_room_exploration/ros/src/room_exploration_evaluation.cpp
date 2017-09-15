@@ -1513,10 +1513,10 @@ int main(int argc, char **argv)
 	std::vector<int> exploration_algorithms;
 //	exploration_algorithms.push_back(1);	// grid point exploration
 //	exploration_algorithms.push_back(2);	// boustrophedon exploration
-	exploration_algorithms.push_back(3);	// neural network exploration
+//	exploration_algorithms.push_back(3);	// neural network exploration
 //	exploration_algorithms.push_back(4);	// convex SPP exploration
 //	exploration_algorithms.push_back(5);	// flow network exploration
-//	exploration_algorithms.push_back(6);	// energy functional exploration
+	exploration_algorithms.push_back(6);	// energy functional exploration
 //	exploration_algorithms.push_back(7);	// voronoi exploration
 
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.

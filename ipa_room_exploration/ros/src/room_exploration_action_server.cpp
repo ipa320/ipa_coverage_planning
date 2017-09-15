@@ -431,8 +431,13 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			room_rotation.transformPointPathToPosePath(fov_path);
 
 			// map fov-path to robot-path
-			cv::Point start_pos(fov_path.begin()->x, fov_path.begin()->y);
-			mapPath(room_map, exploration_path, fov_path, fitting_circle_center_point_in_meter, map_resolution, map_origin, start_pos);
+			//cv::Point start_pos(fov_path.begin()->x, fov_path.begin()->y);
+			//mapPath(room_map, exploration_path, fov_path, fitting_circle_center_point_in_meter, map_resolution, map_origin, start_pos);
+			ROS_INFO("Starting to map from field of view pose to robot pose");
+			cv::Point robot_starting_position = (fov_path.size()>0 ? cv::Point(fov_path[0].x, fov_path[0].y) : starting_position);
+			cv::Mat inflated_room_map;
+			cv::erode(room_map, inflated_room_map, cv::Mat(), cv::Point(-1, -1), (int)std::floor(2.*fitting_circle_radius_in_meter/map_resolution));
+			mapPath(inflated_room_map, path, fov_path, fitting_circle_center_point_in_meter, map_resolution, map_origin, robot_starting_position);
 		}
 		else
 		{

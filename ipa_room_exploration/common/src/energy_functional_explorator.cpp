@@ -70,6 +70,9 @@ void EnergyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 			const cv::Point starting_position, const cv::Point2d map_origin, const double grid_spacing_in_pixel,
 			const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector)
 {
+	const int grid_spacing_as_int = std::floor(grid_spacing_in_pixel);
+	const int half_grid_spacing_as_int = std::floor(grid_spacing_in_pixel*0.5);
+
 	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
 	cv::Mat R;
 	cv::Rect bbox;
@@ -78,42 +81,60 @@ void EnergyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 	room_rotation.computeRoomRotationMatrix(room_map, R, bbox, map_resolution);
 	room_rotation.rotateRoom(room_map, rotated_room_map, R, bbox);
 
-	// *********************** II. Find the nodes and their neighbors ***********************
-	// get the nodes in the free space
-	std::vector<std::vector<EnergyExploratorNode> > nodes; // 2-dimensional vector to easily find the neighbors
-	int number_of_nodes = 0;
-	GridGenerator grid_generator;
 	// compute min/max room coordinates
-	int min_y = 1000000, min_x = 1000000;
+	cv::Point min_room(1000000, 1000000), max_room(0, 0);
 	for (int v=0; v<rotated_room_map.rows; ++v)
 	{
 		for (int u=0; u<rotated_room_map.cols; ++u)
 		{
 			if (rotated_room_map.at<uchar>(v,u)==255)
 			{
-				min_x = std::min(min_x, u);
-				min_y = std::min(min_y, v);
+				min_room.x = std::min(min_room.x, u);
+				min_room.y = std::min(min_room.y, v);
+				max_room.x = std::max(max_room.x, u);
+				max_room.y = std::max(max_room.y, v);
 			}
 		}
 	}
-	if (min_x-grid_spacing_in_pixel > 0)
-		min_x -= grid_spacing_in_pixel;
-	if (min_y-grid_spacing_in_pixel > 0)
-		min_y -= grid_spacing_in_pixel;
+	cv::Mat inflated_rotated_room_map;
+	cv::erode(rotated_room_map, inflated_rotated_room_map, cv::Mat(), cv::Point(-1, -1), half_grid_spacing_as_int);
+
+	// *********************** II. Find the nodes and their neighbors ***********************
+	// get the nodes in the free space
+	std::vector<std::vector<EnergyExploratorNode> > nodes; // 2-dimensional vector to easily find the neighbors
+	int number_of_nodes = 0;
+
+//	// compute min/max room coordinates
+//	int min_y = 1000000, min_x = 1000000;
+//	for (int v=0; v<rotated_room_map.rows; ++v)
+//	{
+//		for (int u=0; u<rotated_room_map.cols; ++u)
+//		{
+//			if (rotated_room_map.at<uchar>(v,u)==255)
+//			{
+//				min_x = std::min(min_x, u);
+//				min_y = std::min(min_y, v);
+//			}
+//		}
+//	}
+//	if (min_x-grid_spacing_as_int > 0)
+//		min_x -= grid_spacing_as_int;
+//	if (min_y-grid_spacing_as_int > 0)
+//		min_y -= grid_spacing_as_int;
 
 	// todo: create grid in external class - it is the same in all approaches
 	// todo: if first/last row or column in grid has accessible areas but center is inaccessible, create a node in the accessible area
-	for(size_t y=min_y; y<rotated_room_map.rows; y+=grid_spacing_in_pixel)
+	for(int y=min_room.y+half_grid_spacing_as_int; y<max_room.y; y+=grid_spacing_as_int)
 	{
 		// for the current row create a new set of neurons to span the network over time
 		std::vector<EnergyExploratorNode> current_row;
-		for(size_t x=min_x; x<rotated_room_map.cols; x+=grid_spacing_in_pixel)
+		for(int x=min_room.x+half_grid_spacing_as_int; x<max_room.x; x+=grid_spacing_as_int)
 		{
 			// create node if the current point is in the free space
 			EnergyExploratorNode current_node;
 			current_node.center_ = cv::Point(x,y);
-			if(rotated_room_map.at<uchar>(y,x) == 255)				// could make sense to test all pixels of the cell, not only the center
-			//if (grid_generator.completeCellTest(rotated_room_map, current_node.center_, grid_spacing_in_pixel) == true)
+			//if(rotated_room_map.at<uchar>(y,x) == 255)				// could make sense to test all pixels of the cell, not only the center
+			if (GridGenerator::completeCellTest(inflated_rotated_room_map, current_node.center_, grid_spacing_as_int) == true)
 			{
 				current_node.obstacle_ = false;
 				current_node.visited_ = false;
@@ -358,5 +379,10 @@ void EnergyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 //	cv::waitKey();
 
 	// ****************** IV. Map the found fov path to the robot path ******************
-	mapPath(room_map, path, fov_poses, robot_to_fov_vector, map_resolution, map_origin, starting_position);
+	//mapPath(room_map, path, fov_poses, robot_to_fov_vector, map_resolution, map_origin, starting_position);
+	ROS_INFO("Starting to map from field of view pose to robot pose");
+	cv::Point robot_starting_position = (fov_poses.size()>0 ? cv::Point(fov_poses[0].x, fov_poses[0].y) : starting_position);
+	cv::Mat inflated_room_map;
+	cv::erode(room_map, inflated_room_map, cv::Mat(), cv::Point(-1, -1), half_grid_spacing_as_int);
+	mapPath(inflated_room_map, path, fov_poses, robot_to_fov_vector, map_resolution, map_origin, robot_starting_position);
 }

@@ -70,17 +70,15 @@ void NeuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 
 	// go trough the map and create the neurons
 	int number_of_free_neurons = 0;
-	// todo: create grid in external class - it is the same in all approaches
-	// todo: if first/last row or column in grid has accessible areas but center is inaccessible, create a node in the accessible area
-	for(size_t y=min_room.y+half_grid_spacing_as_int; y<max_room.y; y+=grid_spacing_as_int)
+	for(int y=min_room.y+half_grid_spacing_as_int; y<max_room.y; y+=grid_spacing_as_int)
 	{
 		// for the current row create a new set of neurons to span the network over time
 		std::vector<Neuron> current_network_row;
-		for(size_t x=min_room.x+half_grid_spacing_as_int; x<max_room.x; x+=grid_spacing_as_int)
+		for(int x=min_room.x+half_grid_spacing_as_int; x<max_room.x; x+=grid_spacing_as_int)
 		{
 			// create free neuron
 			cv::Point cell_center(x,y);
-			if (GridGenerator::completeCellTest(inflated_rotated_room_map, cell_center, grid_spacing_as_int))
+			if (GridGenerator::completeCellTest(inflated_rotated_room_map, cell_center, grid_spacing_as_int) == true)
 			//if(rotated_room_map.at<uchar>(y,x) == 255)
 			{
 				Neuron current_neuron(cell_center, A_, B_, D_, E_, mu_, step_size_, false);
@@ -98,6 +96,7 @@ void NeuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 		neurons_.push_back(current_network_row);
 	}
 
+	// todo: do not limit to direct neighbors but cycle through all neurons for finding the best next
 	// go trough the found neurons and get the direct neighbors of each
 	for(size_t row=0; row<neurons_.size(); ++row)
 	{
@@ -353,5 +352,9 @@ void NeuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 
 	// ****************** III. Map the found fov path to the robot path ******************
 	// go trough all computed fov poses and compute the corresponding robot pose
-	mapPath(room_map, path, fov_poses, robot_to_fov_vector, map_resolution, map_origin, starting_position);
+	ROS_INFO("Starting to map from field of view pose to robot pose");
+	cv::Point robot_starting_position = (fov_poses.size()>0 ? cv::Point(fov_poses[0].x, fov_poses[0].y) : starting_position);
+	cv::Mat inflated_room_map;
+	cv::erode(room_map, inflated_room_map, cv::Mat(), cv::Point(-1, -1), half_grid_spacing_as_int);
+	mapPath(inflated_room_map, path, fov_poses, robot_to_fov_vector, map_resolution, map_origin, robot_starting_position);
 }
