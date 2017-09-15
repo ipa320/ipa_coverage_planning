@@ -144,7 +144,7 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	}
 	else if(path_planning_algorithm_ == 4) // set convexSPP explorator parameters
 	{
-		node_handle_.param("cell_size", cell_size_, 10);
+		node_handle_.param("cell_size", cell_size_, 0);
 		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
 		node_handle_.param("delta_theta", delta_theta_, 1.570796);
 		std::cout << "room_exploration/delta_theta = " << delta_theta_ << std::endl;
@@ -153,7 +153,7 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	{
 		node_handle_.param("path_eps", path_eps_, 3.0);
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
-		node_handle_.param("cell_size", cell_size_, 10);
+		node_handle_.param("cell_size", cell_size_, 0);
 		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
 		node_handle_.param("curvature_factor", curvature_factor_, 1.1);
 		std::cout << "room_exploration/curvature_factor = " << curvature_factor_ << std::endl;
@@ -413,26 +413,31 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		if(planning_mode_==PLAN_FOR_FOV)
 		{
 			// convert fov-radius to pixel integer
-			const int fov_diameter_as_int = (int)std::floor(2.*fitting_circle_radius_in_meter/map_resolution);
-			std::cout << "fov diameter in pixel: " << fov_diameter_as_int << std::endl;
+			const int grid_spacing_as_int = (int)std::floor(grid_spacing_in_pixel);
+			std::cout << "grid spacing in pixel: " << grid_spacing_as_int << std::endl;
 
 			// create the object that plans the path, based on the room-map
-			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, fov_diameter_as_int); // diameter in pixel (full working width can be used here because tracks are planned in parallel motion)
+			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, grid_spacing_as_int); // a perfect alignment of the paths cannot be assumed here (in contrast to footprint planning) because the well-aligned fov trajectory is mapped to robot locations that may not be on parallel tracks
 			// get the exploration path
 			std::vector<geometry_msgs::Pose2D> fov_path_uncleaned;
 			vm.generatePath(fov_path_uncleaned, cv::Mat());
 
 			// clean path from subsequent double occurrences of the same pose
 			std::vector<geometry_msgs::Pose2D> fov_path;
-			downsampleTrajectory(fov_path_uncleaned, fov_path, 5*5);
+			downsampleTrajectory(fov_path_uncleaned, fov_path, 5.*5.); //5*5);
 
 			// convert to poses with angles
 			RoomRotator room_rotation;
 			room_rotation.transformPointPathToPosePath(fov_path);
 
 			// map fov-path to robot-path
-			cv::Point start_pos(fov_path.begin()->x, fov_path.begin()->y);
-			mapPath(room_map, exploration_path, fov_path, fitting_circle_center_point_in_meter, map_resolution, map_origin, start_pos);
+			//cv::Point start_pos(fov_path.begin()->x, fov_path.begin()->y);
+			//mapPath(room_map, exploration_path, fov_path, fitting_circle_center_point_in_meter, map_resolution, map_origin, start_pos);
+			ROS_INFO("Starting to map from field of view pose to robot pose");
+			cv::Point robot_starting_position = (fov_path.size()>0 ? cv::Point(fov_path[0].x, fov_path[0].y) : starting_position);
+			cv::Mat inflated_room_map;
+			cv::erode(room_map, inflated_room_map, cv::Mat(), cv::Point(-1, -1), (int)std::floor(fitting_circle_radius_in_meter/map_resolution));
+			mapPath(inflated_room_map, exploration_path, fov_path, fitting_circle_center_point_in_meter, map_resolution, map_origin, robot_starting_position);
 		}
 		else
 		{
@@ -441,13 +446,13 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			std::cout << "coverage radius in pixel: " << coverage_diameter << std::endl;
 
 			// create the object that plans the path, based on the room-map
-			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, coverage_diameter); // diameter in pixel (full working width can be used here because tracks are planned in parallel motion)
+			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, coverage_diameter-1); // diameter in pixel (full working width can be used here because tracks are planned in parallel motion)
 			// get the exploration path
 			std::vector<geometry_msgs::Pose2D> exploration_path_uncleaned;
 			vm.generatePath(exploration_path_uncleaned, cv::Mat());
 
 			// clean path from subsequent double occurrences of the same pose
-			downsampleTrajectory(exploration_path_uncleaned, exploration_path, 3.5*3.5);
+			downsampleTrajectory(exploration_path_uncleaned, exploration_path, 3.5*3.5); //3.5*3.5);
 
 			// convert to poses with angles
 			RoomRotator room_rotation;
@@ -810,7 +815,7 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 		// 5. go to each center and use the map_accessability_server to find a robot pose around it s.t. it can be covered
 		//	  by the fov
 		double pi_8 = PI/8;
-		std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";
+		std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";	// todo: replace with library interface
 	//	robot_poses.clear();
 		for(size_t center = 0; center < revisiting_order.size(); ++center)
 		{
@@ -956,7 +961,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 		center.y = nav_goal.y + relative_vector.y;
 
 		// check for another robot pose to reach the desired fov-position
-		std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";
+		std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";	// todo: replace with library interface
 		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Response response;
 		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
 		check_request.center = center;

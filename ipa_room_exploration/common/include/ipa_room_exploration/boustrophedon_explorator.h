@@ -69,6 +69,7 @@
 #include <Eigen/Dense>
 
 #include <ipa_building_navigation/concorde_TSP.h>
+#include <ipa_building_navigation/genetic_TSP.h>
 #include <ipa_room_exploration/meanshift2d.h>
 #include <ipa_room_exploration/fov_to_robot_mapper.h>
 #include <ipa_room_exploration/room_rotator.h>

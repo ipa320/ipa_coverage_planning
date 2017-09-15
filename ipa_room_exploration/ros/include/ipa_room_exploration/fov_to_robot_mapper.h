@@ -91,6 +91,7 @@
 // is minimized.
 // Important: the room map needs to be an unsigned char single channel image, if inaccessible areas should be excluded, provide the inflated map
 // robot_to_fov_vector in [m]
+// returns robot_path in [m,m,rad]
 void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_path,
 		const std::vector<geometry_msgs::Pose2D>& fov_path, const Eigen::Matrix<float, 2, 1>& robot_to_fov_vector,
 		const double map_resolution, const cv::Point2d map_origin, const cv::Point& starting_point);

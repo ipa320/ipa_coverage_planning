@@ -79,7 +79,7 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 
 	// map the given robot to fov vector into pixel coordinates
 	Eigen::Matrix<float, 2, 1> robot_to_fov_vector_pixel;
-	robot_to_fov_vector_pixel << (robot_to_fov_vector(0,0)-map_origin.x)*map_resolution_inv, (robot_to_fov_vector(1,0)-map_origin.y)*map_resolution_inv;
+	robot_to_fov_vector_pixel << robot_to_fov_vector(0,0)*map_resolution_inv, robot_to_fov_vector(1,0)*map_resolution_inv;
 	const double fov_radius_pixel = robot_to_fov_vector_pixel.norm();
 
 	// go trough the given poses and calculate accessible robot poses
@@ -227,6 +227,7 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 
 // computes the field of view center and the radius of the maximum incircle of a given field of view quadrilateral
 // the metric coordinates are relative to the robot base coordinate system (i.e. the robot center)
+// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
 // fitting_circle_center_point_in_meter this is also considered the center of the field of view, because around this point the maximum radius incircle can be found that is still inside the fov
 // fov_resolution resolution of the fov center and incircle computations, in [pixels/m]
 void computeFOVCenterAndRadius(const std::vector<Eigen::Matrix<float, 2, 1> >& fov_corners_meter,

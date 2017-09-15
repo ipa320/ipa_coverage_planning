@@ -158,7 +158,7 @@ public:
 	// cell_size = the grid spacing in [pixels]
 	// returns true if any accessible cell was found in the cell area and then cell_center is returned with an updated value. If the cell does not contain
 	//         any accessible pixel, the return value is false.
-	bool completeCellTest(const cv::Mat& room_map, cv::Point& cell_center, const int cell_size)
+	static bool completeCellTest(const cv::Mat& room_map, cv::Point& cell_center, const int cell_size)
 	{
 		const int x = cell_center.x;
 		const int y = cell_center.y;

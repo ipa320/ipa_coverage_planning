@@ -76,7 +76,7 @@ void RoomRotator::rotateRoom(const cv::Mat& room_map, cv::Mat& rotated_room_map,
 // compute the affine rotation matrix for rotating a room into parallel alignment with x-axis (longer side of the room is aligned with x-axis)
 // R is the transform
 // bounding_rect is the ROI of the warped image
-void RoomRotator::computeRoomRotationMatrix(const cv::Mat& room_map, cv::Mat& R, cv::Rect& bounding_rect,
+double RoomRotator::computeRoomRotationMatrix(const cv::Mat& room_map, cv::Mat& R, cv::Rect& bounding_rect,
 		const double map_resolution, const cv::Point* center, const double rotation_offset)
 {
 	// rotation angle of the map s.t. the most occurring gradient is in 90 degree to the x-axis
@@ -108,6 +108,8 @@ void RoomRotator::computeRoomRotationMatrix(const cv::Mat& room_map, cv::Mat& R,
 	// adjust transformation matrix
 	R.at<double>(0,2) += bounding_rect.width/2.0 - center_of_rotation.x;
 	R.at<double>(1,2) += bounding_rect.height/2.0 - center_of_rotation.y;
+
+	return rotation_angle;
 }
 
 // computes the major direction of the walls from a map (preferably one room)

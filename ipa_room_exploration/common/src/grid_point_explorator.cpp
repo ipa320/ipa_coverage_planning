@@ -107,43 +107,9 @@ void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	cv::transform(starting_point_vector, starting_point_vector, R);
 	cv::Point rotated_starting_position = starting_point_vector[0];
 
-//	// compute min/max room coordinates
-//	cv::Point min_room(1000000, 1000000), max_room(0, 0);
-//	for (int v=0; v<rotated_room_map.rows; ++v)
-//	{
-//		for (int u=0; u<rotated_room_map.cols; ++u)
-//		{
-//			if (rotated_room_map.at<uchar>(v,u)==255)
-//			{
-//				min_room.x = std::min(min_room.x, u);
-//				min_room.y = std::min(min_room.y, v);
-//				max_room.x = std::max(max_room.x, u);
-//				max_room.y = std::max(max_room.y, v);
-//			}
-//		}
-//	}
-
 	//******************* II. Get grid points *************************
 	// vector to store all found points
 	std::vector<cv::Point> grid_points;
-
-//	// iterate trough the columns and rows with stepsize as the grid_size, start at the upper left point
-//	//		the given min/max-Polygon stores the min/max coordinates in two points: the first showing the min and the other
-//	//		showing the max coordinates
-//	std::cout << "size of one grid line: " << cell_size << std::endl;
-//	// todo: create grid in external class - it is the same in all approaches
-//	// todo: if first/last row or column in grid has accessible areas but center is inaccessible, create a node in the accessible area
-//	for(unsigned int v=min_room.y; v<=max_room.y; v+=cell_size)
-//	{
-//		for(unsigned int u=min_room.x; u<=max_room.x; u+=cell_size)
-//		{
-//			// check if point is in the free space
-//			if(rotated_room_map.at<unsigned char>(v, u) == 255)
-//			{
-//				grid_points.push_back(cv::Point(u, v));
-//			}
-//		}
-//	}
 
 	// compute the basic Boustrophedon grid lines
 	cv::Mat inflated_rotated_room_map;
@@ -278,6 +244,10 @@ void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 
 	// *********************** III. Get the robot path out of the fov path. ***********************
 	// go trough all computed fov poses and compute the corresponding robot pose
+	//mapPath(room_map, path, path_fov_poses, robot_to_fov_vector, map_resolution, map_origin, starting_position);
 	ROS_INFO("Starting to map from field of view pose to robot pose");
-	mapPath(room_map, path, path_fov_poses, robot_to_fov_vector, map_resolution, map_origin, starting_position);
+	cv::Point robot_starting_position = (path_fov_poses.size()>0 ? cv::Point(path_fov_poses[0].x, path_fov_poses[0].y) : starting_position);
+	cv::Mat inflated_room_map;
+	cv::erode(room_map, inflated_room_map, cv::Mat(), cv::Point(-1, -1), half_cell_size);
+	mapPath(inflated_room_map, path, path_fov_poses, robot_to_fov_vector, map_resolution, map_origin, robot_starting_position);
 }

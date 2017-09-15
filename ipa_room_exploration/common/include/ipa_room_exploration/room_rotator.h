@@ -82,7 +82,8 @@ public:
 	// R is the transform
 	// bounding_rect is the ROI of the warped image
 	// rotation_offset is an optional offset to the determined rotation, in [rad]
-	void computeRoomRotationMatrix(const cv::Mat& room_map, cv::Mat& R, cv::Rect& bounding_rect, const double map_resolution,
+	// returns the computed optimal rotation angle, in [rad]
+	double computeRoomRotationMatrix(const cv::Mat& room_map, cv::Mat& R, cv::Rect& bounding_rect, const double map_resolution,
 			const cv::Point* center=0, const double rotation_offset=0.);
 
 	// computes the major direction of the walls from a map (preferably one room)

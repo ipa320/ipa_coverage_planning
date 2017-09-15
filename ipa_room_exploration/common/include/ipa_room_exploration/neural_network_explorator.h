@@ -15,6 +15,7 @@
 #include <ipa_room_exploration/neuron_class.h>
 #include <ipa_room_exploration/fov_to_robot_mapper.h>
 #include <ipa_room_exploration/room_rotator.h>
+#include <ipa_room_exploration/grid.h>
 
 /*!
  *****************************************************************
