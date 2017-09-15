@@ -353,6 +353,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 
 	// ***************** II. plan the path using the wanted planner *****************
+	// todo: provide the inflated map or the robot radius to the functions
 	Eigen::Matrix<float, 2, 1> zero_vector;
 	zero_vector << 0, 0;
 	std::vector<geometry_msgs::Pose2D> exploration_path;

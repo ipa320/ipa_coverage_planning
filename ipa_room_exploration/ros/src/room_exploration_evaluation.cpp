@@ -714,7 +714,9 @@ public:
 				// find an accessible next pose
 				geometry_msgs::Pose2D next_pose;
 				bool found_next = false;
-				if(inflated_map.at<uchar>(pose->y, pose->x)!=0) // if calculated pose is accessible, use it as next pose
+				// todo: go back to inflated_map --> but then solve problems like starting position in obstacle or too close to wall
+				//if(inflated_map.at<uchar>(pose->y, pose->x)!=0) // if calculated pose is accessible, use it as next pose
+				if(map.at<uchar>(pose->y, pose->x)!=0) // if calculated pose is accessible, use it as next pose
 				{
 					next_pose = *pose;
 					found_next = true;
@@ -730,7 +732,7 @@ public:
 							MapAccessibilityAnalysis::Pose target_pose(pose->x, pose->y, pose->theta);
 							std::vector<MapAccessibilityAnalysis::Pose> accessible_poses_on_perimeter;
 							map_accessibility_analysis.checkPerimeter(accessible_poses_on_perimeter, target_pose,
-									factor*data.coverage_radius_*map_resolution_inverse, PI/32., inflated_map,
+									factor*data.coverage_radius_*map_resolution_inverse, PI/32., map,	//inflated_map, // todo: go back to inflated_map
 									true, cv::Point(robot_position.x, robot_position.y));
 
 							// find the closest accessible point on this perimeter
@@ -763,7 +765,7 @@ public:
 						// check perimeter for accessible poses
 						std::vector<MapAccessibilityAnalysis::Pose> accessible_poses_on_perimeter;
 						map_accessibility_analysis.checkPerimeter(accessible_poses_on_perimeter, fov_center_px,
-								distance_robot_fov_middlepoint_in_meter*map_resolution_inverse, PI/32., inflated_map,
+								distance_robot_fov_middlepoint_in_meter*map_resolution_inverse, PI/32., map,	//inflated_map, // todo: go back to inflated_map
 								true, cv::Point(robot_position.x, robot_position.y));
 
 						// find the closest accessible point on this perimeter
@@ -825,7 +827,9 @@ public:
 
 				// find pathlength and path between two consecutive poses
 				std::vector<cv::Point> current_interpolated_path;	// vector that stores the current path from one pose to another
-				current_pathlength += path_planner.planPath(inflated_map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
+				//current_pathlength += path_planner.planPath(inflated_map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
+				// todo: go back to inflated_map
+				current_pathlength += path_planner.planPath(map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
 
 				if(current_interpolated_path.size()==0)
 					continue;
@@ -1566,24 +1570,24 @@ int main(int argc, char **argv)
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
 	// measures in [m]
 	std::vector<geometry_msgs::Point32> fov_points(4);
-//	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
-//	fov_points[0].y = 0.35;
-//	fov_points[1].x = 0.15;
-//	fov_points[1].y = -0.35;
-//	fov_points[2].x = 1.15;
-//	fov_points[2].y = -0.65;
-//	fov_points[3].x = 1.15;
-//	fov_points[3].y = 0.65;
-//	int planning_mode = 2;	// viewpoint planning
-	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
-	fov_points[0].y = 0.3;
-	fov_points[1].x = -0.3;
-	fov_points[1].y = -0.3;
-	fov_points[2].x = 0.3;
-	fov_points[2].y = -0.3;
-	fov_points[3].x = 0.3;
-	fov_points[3].y = 0.3;
-	int planning_mode = 1;	// footprint planning
+	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
+	fov_points[0].y = 0.35;
+	fov_points[1].x = 0.15;
+	fov_points[1].y = -0.35;
+	fov_points[2].x = 1.15;
+	fov_points[2].y = -0.65;
+	fov_points[3].x = 1.15;
+	fov_points[3].y = 0.65;
+	int planning_mode = 2;	// viewpoint planning
+//	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
+//	fov_points[0].y = 0.3;
+//	fov_points[1].x = -0.3;
+//	fov_points[1].y = -0.3;
+//	fov_points[2].x = 0.3;
+//	fov_points[2].y = -0.3;
+//	fov_points[3].x = 0.3;
+//	fov_points[3].y = 0.3;
+//	int planning_mode = 1;	// footprint planning
 
 	const double robot_radius = 0.3;		// [m]
 	const double coverage_radius = 0.3;		// [m]
