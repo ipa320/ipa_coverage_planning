@@ -827,9 +827,10 @@ public:
 
 				// find pathlength and path between two consecutive poses
 				std::vector<cv::Point> current_interpolated_path;	// vector that stores the current path from one pose to another
-				//current_pathlength += path_planner.planPath(inflated_map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
+				//double length_planner = path_planner.planPath(inflated_map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
 				// todo: go back to inflated_map
-				current_pathlength += path_planner.planPath(map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
+				double length_planner = path_planner.planPath(map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
+				current_pathlength += (length_planner > 1e5 ? 0. : length_planner);
 
 				if(current_interpolated_path.size()==0)
 					continue;
@@ -1559,8 +1560,8 @@ int main(int argc, char **argv)
 	map_names.push_back("office_i_furnitures");
 
 	std::vector<int> exploration_algorithms;
-//	exploration_algorithms.push_back(1);	// grid point exploration
-	exploration_algorithms.push_back(2);	// boustrophedon exploration
+	exploration_algorithms.push_back(1);	// grid point exploration
+//	exploration_algorithms.push_back(2);	// boustrophedon exploration
 //	exploration_algorithms.push_back(3);	// neural network exploration
 //	exploration_algorithms.push_back(4);	// convex SPP exploration
 //	exploration_algorithms.push_back(5);	// flow network exploration
