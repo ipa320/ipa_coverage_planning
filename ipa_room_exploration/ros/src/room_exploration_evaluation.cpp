@@ -1042,7 +1042,7 @@ public:
 			for (int u=0; u<map_copy.cols; ++u)
 			{
 				if (map_coverage.at<uchar>(v,u)==255)
-					map_path_coverage.at<uchar>(v,u) = 216;		// left over uncovered areas
+					map_path_coverage.at<uchar>(v,u) = 176;		// left over uncovered areas
 				if (map_copy.at<uchar>(v,u)==127 || map_copy.at<uchar>(v,u)==196)
 					map_path_coverage.at<uchar>(v,u) = map_copy.at<uchar>(v,u);
 			}
@@ -1567,9 +1567,9 @@ int main(int argc, char **argv)
 
 	std::vector<int> exploration_algorithms;
 //	exploration_algorithms.push_back(1);	// grid point exploration
-//	exploration_algorithms.push_back(2);	// boustrophedon exploration
+	exploration_algorithms.push_back(2);	// boustrophedon exploration
 //	exploration_algorithms.push_back(3);	// neural network exploration
-	exploration_algorithms.push_back(4);	// convex SPP exploration
+//	exploration_algorithms.push_back(4);	// convex SPP exploration
 //	exploration_algorithms.push_back(5);	// flow network exploration
 //	exploration_algorithms.push_back(6);	// energy functional exploration
 //	exploration_algorithms.push_back(7);	// voronoi exploration
@@ -1603,7 +1603,7 @@ int main(int argc, char **argv)
 	const float map_resolution = 0.05;		// [m/cell]
 
 	ExplorationEvaluation ev(nh, test_map_path, map_names, map_resolution, data_storage_path, robot_radius, coverage_radius, fov_points, planning_mode,
-			exploration_algorithms, robot_speed, robot_rotation_speed, false, true);
+			exploration_algorithms, robot_speed, robot_rotation_speed, true, true);
 	ros::shutdown();
 
 	//exit
