@@ -838,7 +838,7 @@ public:
 				// transform the cv::Point path to geometry_msgs::Pose2D --> last point has, first point was already gone a defined angle
 				// also create output map to show path --> and check if one point has already been visited
 				bool has_crossing = false;
-				cv::circle(map_copy, cv::Point(next_pose.x, next_pose.y), 2, cv::Scalar(96), CV_FILLED);
+				cv::circle(map_copy, cv::Point(next_pose.x, next_pose.y), 1, cv::Scalar(196), CV_FILLED);
 				for(std::vector<cv::Point>::iterator point=current_interpolated_path.begin()+1; point!=current_interpolated_path.end(); ++point)
 				{
 					// check if point has been visited before and draw point into map
@@ -1035,12 +1035,18 @@ public:
 		const std::string coverage_image_path = data_storage_path + configuration_folder_name + data.map_name_ + "_coverage.png";
 		cv::imwrite(coverage_image_path.c_str(), map_coverage);
 		// save the map with the drawn in path and coverage areas
-		cv::Mat map_path_coverage = map_coverage.clone();
+		cv::Mat map_path_coverage = map.clone();
 		const std::string path_coverage_image_path = data_storage_path + configuration_folder_name + data.map_name_ + "_paths_coverage_eval.png";
 		for (int v=0; v<map_copy.rows; ++v)
+		{
 			for (int u=0; u<map_copy.cols; ++u)
-				if (map_copy.at<uchar>(v,u)==127 || map_copy.at<uchar>(v,u)==96)
+			{
+				if (map_coverage.at<uchar>(v,u)==255)
+					map_path_coverage.at<uchar>(v,u) = 216;		// left over uncovered areas
+				if (map_copy.at<uchar>(v,u)==127 || map_copy.at<uchar>(v,u)==196)
 					map_path_coverage.at<uchar>(v,u) = map_copy.at<uchar>(v,u);
+			}
+		}
 		cv::imwrite(path_coverage_image_path.c_str(), map_path_coverage);
 
 		// calculate average coverage and deviation
@@ -1560,10 +1566,10 @@ int main(int argc, char **argv)
 	map_names.push_back("office_i_furnitures");
 
 	std::vector<int> exploration_algorithms;
-	exploration_algorithms.push_back(1);	// grid point exploration
+//	exploration_algorithms.push_back(1);	// grid point exploration
 //	exploration_algorithms.push_back(2);	// boustrophedon exploration
 //	exploration_algorithms.push_back(3);	// neural network exploration
-//	exploration_algorithms.push_back(4);	// convex SPP exploration
+	exploration_algorithms.push_back(4);	// convex SPP exploration
 //	exploration_algorithms.push_back(5);	// flow network exploration
 //	exploration_algorithms.push_back(6);	// energy functional exploration
 //	exploration_algorithms.push_back(7);	// voronoi exploration
@@ -1571,24 +1577,24 @@ int main(int argc, char **argv)
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
 	// measures in [m]
 	std::vector<geometry_msgs::Point32> fov_points(4);
-	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
-	fov_points[0].y = 0.35;
-	fov_points[1].x = 0.15;
-	fov_points[1].y = -0.35;
-	fov_points[2].x = 1.15;
-	fov_points[2].y = -0.65;
-	fov_points[3].x = 1.15;
-	fov_points[3].y = 0.65;
-	int planning_mode = 2;	// viewpoint planning
-//	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
-//	fov_points[0].y = 0.3;
-//	fov_points[1].x = -0.3;
-//	fov_points[1].y = -0.3;
-//	fov_points[2].x = 0.3;
-//	fov_points[2].y = -0.3;
-//	fov_points[3].x = 0.3;
-//	fov_points[3].y = 0.3;
-//	int planning_mode = 1;	// footprint planning
+//	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
+//	fov_points[0].y = 0.35;
+//	fov_points[1].x = 0.15;
+//	fov_points[1].y = -0.35;
+//	fov_points[2].x = 1.15;
+//	fov_points[2].y = -0.65;
+//	fov_points[3].x = 1.15;
+//	fov_points[3].y = 0.65;
+//	int planning_mode = 2;	// viewpoint planning
+	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
+	fov_points[0].y = 0.3;
+	fov_points[1].x = -0.3;
+	fov_points[1].y = -0.3;
+	fov_points[2].x = 0.3;
+	fov_points[2].y = -0.3;
+	fov_points[3].x = 0.3;
+	fov_points[3].y = 0.3;
+	int planning_mode = 1;	// footprint planning
 
 	const double robot_radius = 0.3;		// [m]
 	const double coverage_radius = 0.3;		// [m]
