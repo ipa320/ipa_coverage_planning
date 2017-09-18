@@ -353,6 +353,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 
 	// ***************** II. plan the path using the wanted planner *****************
+	// todo: provide the inflated map or the robot radius to the functions
 	Eigen::Matrix<float, 2, 1> zero_vector;
 	zero_vector << 0, 0;
 	std::vector<geometry_msgs::Pose2D> exploration_path;
@@ -442,11 +443,13 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		else
 		{
 			// convert coverage-radius to pixel integer
-			int coverage_diameter = (int)std::floor(2.*goal->coverage_radius/map_resolution);
-			std::cout << "coverage radius in pixel: " << coverage_diameter << std::endl;
+			//int coverage_diameter = (int)std::floor(2.*goal->coverage_radius/map_resolution);
+			//std::cout << "coverage radius in pixel: " << coverage_diameter << std::endl;
+			const int grid_spacing_as_int = (int)std::floor(grid_spacing_in_pixel);
+			std::cout << "grid spacing in pixel: " << grid_spacing_as_int << std::endl;
 
 			// create the object that plans the path, based on the room-map
-			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, coverage_diameter-1); // diameter in pixel (full working width can be used here because tracks are planned in parallel motion)
+			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, grid_spacing_as_int);	//coverage_diameter-1); // diameter in pixel (full working width can be used here because tracks are planned in parallel motion)
 			// get the exploration path
 			std::vector<geometry_msgs::Pose2D> exploration_path_uncleaned;
 			vm.generatePath(exploration_path_uncleaned, cv::Mat());
