@@ -471,7 +471,6 @@ public:
 				//cv::Mat path_map = room_map.clone();
 				for (size_t point=0; point<coverage_path.size(); ++point)
 				{
-					// todo: draw path between cells with A star planner
 					cv::circle(path_map, cv::Point(coverage_path[point].x, coverage_path[point].y), 1, cv::Scalar(196), -1);
 					if (point > 0)
 						cv::line(path_map, cv::Point(coverage_path[point].x, coverage_path[point].y), cv::Point(coverage_path[point-1].x, coverage_path[point-1].y), cv::Scalar(128), 1);
@@ -715,8 +714,8 @@ public:
 				geometry_msgs::Pose2D next_pose;
 				bool found_next = false;
 				// todo: go back to inflated_map --> but then solve problems like starting position in obstacle or too close to wall
-				//if(inflated_map.at<uchar>(pose->y, pose->x)!=0) // if calculated pose is accessible, use it as next pose
-				if(map.at<uchar>(pose->y, pose->x)!=0) // if calculated pose is accessible, use it as next pose
+				if(inflated_map.at<uchar>(pose->y, pose->x)!=0) // if calculated pose is accessible, use it as next pose
+				//if(map.at<uchar>(pose->y, pose->x)!=0) // if calculated pose is accessible, use it as next pose
 				{
 					next_pose = *pose;
 					found_next = true;
@@ -732,7 +731,7 @@ public:
 							MapAccessibilityAnalysis::Pose target_pose(pose->x, pose->y, pose->theta);
 							std::vector<MapAccessibilityAnalysis::Pose> accessible_poses_on_perimeter;
 							map_accessibility_analysis.checkPerimeter(accessible_poses_on_perimeter, target_pose,
-									factor*data.coverage_radius_*map_resolution_inverse, PI/32., map,	//inflated_map, // todo: go back to inflated_map
+									factor*data.coverage_radius_*map_resolution_inverse, PI/32., inflated_map,	//inflated_map, // todo: go back to inflated_map
 									true, cv::Point(robot_position.x, robot_position.y));
 
 							// find the closest accessible point on this perimeter
@@ -765,7 +764,7 @@ public:
 						// check perimeter for accessible poses
 						std::vector<MapAccessibilityAnalysis::Pose> accessible_poses_on_perimeter;
 						map_accessibility_analysis.checkPerimeter(accessible_poses_on_perimeter, fov_center_px,
-								distance_robot_fov_middlepoint_in_meter*map_resolution_inverse, PI/32., map,	//inflated_map, // todo: go back to inflated_map
+								distance_robot_fov_middlepoint_in_meter*map_resolution_inverse, PI/32., inflated_map,	//inflated_map, // todo: go back to inflated_map
 								true, cv::Point(robot_position.x, robot_position.y));
 
 						// find the closest accessible point on this perimeter
@@ -827,9 +826,9 @@ public:
 
 				// find pathlength and path between two consecutive poses
 				std::vector<cv::Point> current_interpolated_path;	// vector that stores the current path from one pose to another
-				//double length_planner = path_planner.planPath(inflated_map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
+				double length_planner = path_planner.planPath(inflated_map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
 				// todo: go back to inflated_map
-				double length_planner = path_planner.planPath(map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
+				//double length_planner = path_planner.planPath(map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
 				current_pathlength += (length_planner > 1e5 ? 0. : length_planner);
 
 				if(current_interpolated_path.size()==0)
@@ -1527,43 +1526,43 @@ int main(int argc, char **argv)
 	map_names.push_back("lab_ipa");
 	map_names.push_back("lab_c_scan");
 	map_names.push_back("Freiburg52_scan");
-	map_names.push_back("Freiburg79_scan");
-	map_names.push_back("lab_b_scan");
-	map_names.push_back("lab_intel");
-	map_names.push_back("Freiburg101_scan");
-	map_names.push_back("lab_d_scan");
-	map_names.push_back("lab_f_scan");
-	map_names.push_back("lab_a_scan");
-	map_names.push_back("NLB");
-	map_names.push_back("office_a");
-	map_names.push_back("office_b");
-	map_names.push_back("office_c");
-	map_names.push_back("office_d");
-	map_names.push_back("office_e");
-	map_names.push_back("office_f");
-	map_names.push_back("office_g");
-	map_names.push_back("office_h");
-	map_names.push_back("office_i");
+//	map_names.push_back("Freiburg79_scan");
+//	map_names.push_back("lab_b_scan");
+//	map_names.push_back("lab_intel");
+//	map_names.push_back("Freiburg101_scan");
+//	map_names.push_back("lab_d_scan");
+//	map_names.push_back("lab_f_scan");
+//	map_names.push_back("lab_a_scan");
+//	map_names.push_back("NLB");
+//	map_names.push_back("office_a");
+//	map_names.push_back("office_b");
+//	map_names.push_back("office_c");
+//	map_names.push_back("office_d");
+//	map_names.push_back("office_e");
+//	map_names.push_back("office_f");
+//	map_names.push_back("office_g");
+//	map_names.push_back("office_h");
+//	map_names.push_back("office_i");
 	map_names.push_back("lab_ipa_furnitures");
 	map_names.push_back("lab_c_scan_furnitures");
 	map_names.push_back("Freiburg52_scan_furnitures");
-	map_names.push_back("Freiburg79_scan_furnitures");
-	map_names.push_back("lab_b_scan_furnitures");
-	map_names.push_back("lab_intel_furnitures");
-	map_names.push_back("Freiburg101_scan_furnitures");
-	map_names.push_back("lab_d_scan_furnitures");
-	map_names.push_back("lab_f_scan_furnitures");
-	map_names.push_back("lab_a_scan_furnitures");
-	map_names.push_back("NLB_furnitures");
-	map_names.push_back("office_a_furnitures");
-	map_names.push_back("office_b_furnitures");
-	map_names.push_back("office_c_furnitures");
-	map_names.push_back("office_d_furnitures");
-	map_names.push_back("office_e_furnitures");
-	map_names.push_back("office_f_furnitures");
-	map_names.push_back("office_g_furnitures");
-	map_names.push_back("office_h_furnitures");
-	map_names.push_back("office_i_furnitures");
+//	map_names.push_back("Freiburg79_scan_furnitures");
+//	map_names.push_back("lab_b_scan_furnitures");
+//	map_names.push_back("lab_intel_furnitures");
+//	map_names.push_back("Freiburg101_scan_furnitures");
+//	map_names.push_back("lab_d_scan_furnitures");
+//	map_names.push_back("lab_f_scan_furnitures");
+//	map_names.push_back("lab_a_scan_furnitures");
+//	map_names.push_back("NLB_furnitures");
+//	map_names.push_back("office_a_furnitures");
+//	map_names.push_back("office_b_furnitures");
+//	map_names.push_back("office_c_furnitures");
+//	map_names.push_back("office_d_furnitures");
+//	map_names.push_back("office_e_furnitures");
+//	map_names.push_back("office_f_furnitures");
+//	map_names.push_back("office_g_furnitures");
+//	map_names.push_back("office_h_furnitures");
+//	map_names.push_back("office_i_furnitures");
 
 	std::vector<int> exploration_algorithms;
 //	exploration_algorithms.push_back(1);	// grid point exploration
@@ -1603,7 +1602,7 @@ int main(int argc, char **argv)
 	const float map_resolution = 0.05;		// [m/cell]
 
 	ExplorationEvaluation ev(nh, test_map_path, map_names, map_resolution, data_storage_path, robot_radius, coverage_radius, fov_points, planning_mode,
-			exploration_algorithms, robot_speed, robot_rotation_speed, true, true);
+			exploration_algorithms, robot_speed, robot_rotation_speed, false, true);
 	ros::shutdown();
 
 	//exit
