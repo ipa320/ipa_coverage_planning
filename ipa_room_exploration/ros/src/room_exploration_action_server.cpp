@@ -89,8 +89,8 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	map_frame_ = "map";
 	node_handle_.param<std::string>("map_frame", map_frame_);
 	std::cout << "room_exploration/map_frame = " << map_frame_ << std::endl;
-	camera_frame_ = "camera";
-	node_handle_.param<std::string>("camera_frame", camera_frame_);
+    camera_frame_ = "base_link";
+    node_handle_.param<std::string>("camera_frame", camera_frame_);
 	std::cout << "room_exploration/camera_frame = " << camera_frame_ << std::endl;
 
 
@@ -466,7 +466,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			for(size_t pos=0; pos<exploration_path.size(); ++pos)
 			{
 				exploration_path[pos].x = (exploration_path[pos].x * map_resolution) + map_origin.x;
-				exploration_path[pos].y = (exploration_path[pos].y * map_resolution) + map_origin.y;
+                exploration_path[pos].y = (exploration_path[pos].y * map_resolution) + map_origin.y;
 			}
 		}
 	}
@@ -610,7 +610,7 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
 	// 1. publish navigation goals
 	std::vector<geometry_msgs::Pose2D> robot_poses;
-	for(size_t nav_goal = 0; nav_goal < exploration_path.size(); ++nav_goal)
+    for(size_t map_oriented_pose = 0; map_oriented_pose < exploration_path.size(); ++map_oriented_pose)
 	{
 		// check if the path should be continued or not
 		bool interrupted = false;
@@ -630,7 +630,7 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 			ROS_INFO("Interrupt order canceled, resuming coverage path now.");
 
 		// if no interrupt is wanted, publish the navigation goal
-		publishNavigationGoal(exploration_path[nav_goal], map_frame_, camera_frame_, robot_poses, distance_robot_fov_middlepoint, goal_eps_, true); // eps = 0.35
+        publishNavigationGoal(exploration_path[map_oriented_pose], map_frame_, camera_frame_, robot_poses, distance_robot_fov_middlepoint, goal_eps_, true); // eps = 0.35
 	}
 
 	std::cout << "published all navigation goals, starting to check seen area" << std::endl;
@@ -916,7 +916,14 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 		ROS_INFO("Waiting for the move_base action server to come up");
 	}
 
-	std::cout << "navigation goal: (" << nav_goal.x << ", "  << nav_goal.y << ", " << nav_goal.theta << ")" << std::endl;
+
+    geometry_msgs::Pose2D map_oriented_pose;
+
+    map_oriented_pose.x = nav_goal.x;
+    map_oriented_pose.y = -nav_goal.y;
+    map_oriented_pose.theta = -nav_goal.theta;
+
+    std::cout << "navigation goal: (" << map_oriented_pose.x << ", "  << map_oriented_pose.y << ", " << map_oriented_pose.theta << ")" << std::endl;
 
 	move_base_msgs::MoveBaseGoal move_base_goal;
 
@@ -924,10 +931,11 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 	move_base_goal.target_pose.header.frame_id = "map";
 	move_base_goal.target_pose.header.stamp = ros::Time::now();
 
-	move_base_goal.target_pose.pose.position.x = nav_goal.x;
-	move_base_goal.target_pose.pose.position.y = nav_goal.y;
-	move_base_goal.target_pose.pose.orientation.z = std::sin(nav_goal.theta/2);
-	move_base_goal.target_pose.pose.orientation.w = std::cos(nav_goal.theta/2);
+
+    move_base_goal.target_pose.pose.position.x = map_oriented_pose.x;
+    move_base_goal.target_pose.pose.position.y = map_oriented_pose.y;
+    move_base_goal.target_pose.pose.orientation.z = std::sin(map_oriented_pose.theta/2);
+    move_base_goal.target_pose.pose.orientation.w = std::cos(map_oriented_pose.theta/2);
 
 	// send goal to the move_base sever, when one is found
 	ROS_INFO("Sending goal");
@@ -961,8 +969,10 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 			transform.getBasis().getRPY(roll, pitch, yaw);
 			current_pose.theta = yaw;
 
-			if((current_pose.x-nav_goal.x)*(current_pose.x-nav_goal.x) + (current_pose.y-nav_goal.y)*(current_pose.y-nav_goal.y) <= eps*eps)
+            if((current_pose.x-map_oriented_pose.x)*(current_pose.x-map_oriented_pose.x) + (current_pose.y-map_oriented_pose.y)*(current_pose.y-map_oriented_pose.y) <= eps*eps)
+            {
 				near_pos = true;
+            }
 
 			robot_poses.push_back(current_pose);
 		}
@@ -987,11 +997,11 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 
 		// get the desired fov-position
 		geometry_msgs::Pose2D relative_vector;
-		relative_vector.x = std::cos(nav_goal.theta)*robot_to_fov_middlepoint_distance;
-		relative_vector.y = std::sin(nav_goal.theta)*robot_to_fov_middlepoint_distance;
+        relative_vector.x = std::cos(map_oriented_pose.theta)*robot_to_fov_middlepoint_distance;
+        relative_vector.y = std::sin(map_oriented_pose.theta)*robot_to_fov_middlepoint_distance;
 		geometry_msgs::Pose2D center;
-		center.x = nav_goal.x + relative_vector.x;
-		center.y = nav_goal.y + relative_vector.y;
+        center.x = map_oriented_pose.x + relative_vector.x;
+        center.y = map_oriented_pose.y + relative_vector.y;
 
 		// check for another robot pose to reach the desired fov-position
 		std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";	// todo: replace with library interface

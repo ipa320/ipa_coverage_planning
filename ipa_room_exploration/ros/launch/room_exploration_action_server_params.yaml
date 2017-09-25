@@ -7,7 +7,7 @@
 # 6 = energyFunctional explorator
 # 7 = voronoi explorator
 # int
-room_exploration_algorithm: 2
+room_exploration_algorithm: 6
 
 # minimal area of not seen sections that they are revisited after the first go trough the room
 # double
@@ -46,7 +46,7 @@ return_path: true
 
 # boolean used to determine whether the server should navigate the robot along the computed coverage path
 # bool
-execute_path: false
+execute_path: true
 
 # this variable turns the functionality on/off to revisit areas that haven't been seen during the execution of the coverage path,
 # due to uncertainties or dynamic obstacles
@@ -67,7 +67,7 @@ map_frame: "map"
 
 # string that carries the name of the camera frame, that is in the same kinematic chain as the map_frame and shows the camera pose
 # string
-camera_frame: "camera"
+camera_frame: "base_link"
 
 
 
