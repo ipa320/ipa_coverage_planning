@@ -69,7 +69,6 @@
 // Ros
 #include <ros/ros.h>
 // service
-//#include <cob_map_accessibility_analysis/CheckPerimeterAccessibility.h>
 #include <cob_map_accessibility_analysis/map_accessibility_analysis.h>
 // OpenCv
 #include <opencv/cv.h>

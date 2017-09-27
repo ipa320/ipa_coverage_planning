@@ -218,16 +218,7 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 		if (found_pose==false)
 		{
 			++not_found;
-			//std::cout << "No fov pose for (" << pose->x << ", " << pose->y << ")" << std::endl;
 		}
-
-//		testing
-//		std::cout << robot_pos << ", " << cv::Point(pose->x, pose->y) << std::endl;
-//		cv::Mat room_copy = room_map.clone();
-//		cv::line(room_copy, robot_pos, cv::Point(pose->x, pose->y), cv::Scalar(127), 1);
-//		cv::circle(room_copy, robot_pos, 2, cv::Scalar(100), CV_FILLED);
-//		cv::imshow("pose", room_copy);
-//		cv::waitKey();
 	}
 	std::cout << "Found with map_accessibility: " << found_with_map_acc << ",   with shift: " << found_with_shift
 			<< ",   with A*: " << found_with_astar << ",   not found: " << not_found << std::endl;
@@ -309,11 +300,4 @@ void computeFOVCenterAndRadius(const std::vector<Eigen::Matrix<float, 2, 1> >& f
 	cv::Point2d center_point = cv::Point2d(10*(int)(((max_dist_point.x+min_point.x-1)+5.)*0.1), 10*(int)(((max_dist_point.y+min_point.y-1)+5.)*0.1))*(1./fov_resolution);
 	std::cout << "center point: " << center_point << " m" << std::endl;
 	fitting_circle_center_point_in_meter << center_point.x, center_point.y;
-
-//	// display
-//	cv::normalize(fov_distance_transform, fov_distance_transform, 0, 1, cv::NORM_MINMAX);
-//	cv::circle(fov_distance_transform, max_dist_point, 2, cv::Scalar(0.2), -1);
-//	cv::imshow("fov_image", fov_image);
-//	cv::imshow("fov_distance_transform", fov_distance_transform);
-//	cv::waitKey();
 }

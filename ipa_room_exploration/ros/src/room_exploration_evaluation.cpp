@@ -399,9 +399,6 @@ public:
 				{
 					room_maps.push_back(room_map);
 					chosen_bb.push_back(bounding_boxes[room-1]);
-//					cv::rectangle(room_map, bounding_boxes[room-1], cv::Scalar(127), 2);
-//					cv::imshow("room", room_map);
-//					cv::waitKey();
 				}
 			}
 
@@ -468,18 +465,12 @@ public:
 				output << std::endl;
 
 				// display path
-				//cv::Mat path_map = room_map.clone();
 				for (size_t point=0; point<coverage_path.size(); ++point)
 				{
 					cv::circle(path_map, cv::Point(coverage_path[point].x, coverage_path[point].y), 1, cv::Scalar(196), -1);
 					if (point > 0)
 						cv::line(path_map, cv::Point(coverage_path[point].x, coverage_path[point].y), cv::Point(coverage_path[point-1].x, coverage_path[point-1].y), cv::Scalar(128), 1);
-//					std::cout << "coverage_path[" << point << "]: x=" << coverage_path[point].x << ", y=" << coverage_path[point].y << ", theta=" << coverage_path[point].theta << std::endl;
-//					cv::imshow("path", path_map);
-//					cv::waitKey();
 				}
-//				cv::imshow("path", path_map);
-//				cv::waitKey();
 			}
 			const std::string img_filename = data_storage_path + configuration_folder_name + data.map_name_ + "_paths.png";
 			cv::imwrite(img_filename.c_str(), path_map);
@@ -668,7 +659,6 @@ public:
 		cv::Mat inflated_map;
 		const int robot_radius_in_pixel = cvRound(data.robot_radius_ * map_resolution_inverse);
 		map_accessibility_analysis.inflateMap(map, inflated_map, robot_radius_in_pixel);
-		//cv::erode(map, inflated_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
 		cv::Mat path_map = inflated_map.clone();
 		std::vector<double> pathlengths_for_map;
 		std::vector<std::vector<geometry_msgs::Pose2D> > interpolated_paths; // variable that stores the path points and the points between them
@@ -680,7 +670,6 @@ public:
 		cv::Mat map_copy = map.clone();
 		for(size_t room=0; room<paths.size(); ++room)
 		{
-			//std::cout << "room " << room << ", size of path: " << paths[room].size() << std::endl;
 
 			// check for false pose
 			if(paths[room].size()==0 || (paths[room][0].x==-1 && paths[room][0].y==-1))
@@ -715,7 +704,6 @@ public:
 				bool found_next = false;
 				// todo: go back to inflated_map --> but then solve problems like starting position in obstacle or too close to wall
 				if(inflated_map.at<uchar>(pose->y, pose->x)!=0) // if calculated pose is accessible, use it as next pose
-				//if(map.at<uchar>(pose->y, pose->x)!=0) // if calculated pose is accessible, use it as next pose
 				{
 					next_pose = *pose;
 					found_next = true;
@@ -804,26 +792,6 @@ public:
 				// save current angle of pose
 				previous_angle = next_pose.theta;
 
-//				// create output map to show path --> also check if one point has already been visited
-//				cv::circle(map_copy, cv::Point(next_pose.x, next_pose.y), 2, cv::Scalar(96), CV_FILLED);
-//				cv::LineIterator line(map_copy, cv::Point(next_pose.x, next_pose.y), cv::Point(robot_position.x, robot_position.y), 8);
-//				bool has_crossing = false;
-//				for(int pos=1; pos<line.count-1; pos++, ++line)
-//				{
-//					cv::Point current_point = line.pos();
-//					if(map_copy.at<uchar>(current_point)==127)
-//						has_crossing = true;
-//					else
-//						map_copy.at<uchar>(current_point)=127;
-////						cv::imshow("er", inflated_map);
-////						cv::waitKey();
-//				}
-//				if (has_crossing == true)				// why is the A* path not checked for crossings?
-//					++current_number_of_crossings;
-////					cv::line(inflated_map, cv::Point(next_pose.x, next_pose.y), cv::Point(robot_position.x, robot_position.y), cv::Scalar(100));
-////					cv::imshow("er", inflated_map);
-////					cv::waitKey();
-
 				// find pathlength and path between two consecutive poses
 				std::vector<cv::Point> current_interpolated_path;	// vector that stores the current path from one pose to another
 				double length_planner = path_planner.planPath(inflated_map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
@@ -882,19 +850,13 @@ public:
 
 			// transform the pixel length to meter
 			current_pathlength *= data.map_resolution_;
-//				std::cout << "length: " << current_pathlength << "m" << std::endl;
 			pathlengths_for_map.push_back(current_pathlength);
-//				cv::imshow("room paths", inflated_map);
-//				cv::waitKey();
 		}
 		std::cout << "got and drawn paths" << std::endl;
 
 		// save the map with the drawn in coverage paths
 		const std::string image_path = data_storage_path + configuration_folder_name + data.map_name_ + "_paths_eval.png";
-//			std::cout << image_path << std::endl;
 		cv::imwrite(image_path.c_str(), map_copy);
-//			cv::imshow("room paths", room_map);
-//			cv::waitKey();
 
 		// calculate the overall pathlength, the average and the variance
 		double overall_pathlength = std::accumulate(pathlengths_for_map.begin(), pathlengths_for_map.end(), 0.0);
@@ -964,8 +926,6 @@ public:
 			ipa_building_msgs::CheckCoverageResponse coverage_response;
 			// fill request
 			// todo: generalize fov coverage check with an outer raycasting circle
-		//	cv::Mat eroded_room_map;
-		//	cv::erode(data.room_maps_[room], eroded_room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
 			sensor_msgs::ImageConstPtr service_image;
 			cv_bridge::CvImage cv_image;
 			cv_image.encoding = "mono8";
@@ -1001,9 +961,6 @@ public:
 			{
 				ROS_INFO("Error when calling the coverage check server.");
 			}
-			// todo: error handling necessary?
-//				cv::imshow("seen", seen_positions_map);
-//				cv::waitKey();
 
 			// get the area of the whole room
 			const int white_room_pixels = cv::countNonZero(data.room_maps_[room]);
@@ -1091,7 +1048,6 @@ public:
 					continue;
 				dy = dy/norm;
 				dx = dx/norm;
-//					std::cout << "dx: " << dx << ", dy: " << dy << std::endl;
 
 				// go in the directions of both normals and find the nearest wall
 				int iteration_index = 0;
@@ -1143,13 +1099,6 @@ public:
 							exceeded_trajectory_parallelism_check_range = true;
 					}
 
-//						cv::Mat test_map = map.clone();
-//						cv::circle(test_map, cv::Point(pose->x, pose->y), 2, cv::Scalar(127), CV_FILLED);
-//						cv::circle(test_map, cv::Point((pose+1)->x, (pose+1)->y), 2, cv::Scalar(127), CV_FILLED);
-//						cv::circle(test_map, n1, 2, cv::Scalar(127), CV_FILLED);
-//						cv::circle(test_map, n2, 2, cv::Scalar(127), CV_FILLED);
-//						cv::imshow("normals", test_map);
-//						cv::waitKey();
 				} while ((hit_wall==false  && iteration_index<=1000) || (hit_trajectory==false && exceeded_trajectory_parallelism_check_range==false));
 
 				// if a wall/obstacle was found, determine the gradient at this position and compare it to the direction of the path
@@ -1157,7 +1106,6 @@ public:
 				if(hit_wall==true)
 				{
 					double gradient = gradient_map.at<double>(wall_pixel);
-					//cv::Point2f grad_vector(std::cos(gradient), std::sin(gradient));
 					cv::Point2f normal_vector(-std::sin(gradient), std::cos(gradient));
 					const double delta_theta = std::acos(normal_vector.x*dx + normal_vector.y*dy);
 					const double delta_theta_score = std::abs(0.5*PI-delta_theta)*(1./(0.5*PI));// parallel if delta_theta close to 0 or PI
@@ -1173,16 +1121,13 @@ public:
 					int neighbor_index = -1;
 					for(std::vector<geometry_msgs::Pose2D>::const_iterator neighbor=interpolated_paths[valid_room_index].begin(); neighbor!=interpolated_paths[valid_room_index].end(); ++neighbor)
 					{
-//							std::cout << *neighbor << ", " << world_neighbor << std::endl;
 						if(world_neighbor.x==neighbor->x && world_neighbor.y==neighbor->y)
 						{
-//								std::cout << "gotz" << std::endl;
 							neighbor_index = neighbor-interpolated_paths[valid_room_index].begin();
 						}
 					}
 					if (neighbor_index == -1)
 						ROS_WARN("ExplorationEvaluation:evaluateCoveragePaths: parallelism check to trajectory, neighbor_index==-1 --> did not find the neighbor.");
-//						std::cout << "index: " << pose_index << ", n: " << neighbor_index << std::endl;
 
 					// save the found index difference, i.e. the difference in percentage of path completion between current node and neighboring path point
 					current_revisit_times.push_back(std::abs((double)pose_index/(double)paths[room].size() - (double)neighbor_index/(double)interpolated_paths[valid_room_index].size()));
@@ -1213,17 +1158,14 @@ public:
 					{
 						const double delta_theta_score = std::abs(0.5*PI-delta_theta1)*(1./(0.5*PI));// parallel if delta_theta close to 0 or PI
 						current_trajectory_angle_differences.push_back(delta_theta_score);
-//							std::cout << delta_theta1 << std::endl;
 					}
 					else if(delta_theta2<=delta_theta1 && delta_theta2!=1e3)
 					{
 						const double delta_theta_score = std::abs(0.5*PI-delta_theta2)*(1./(0.5*PI));// parallel if delta_theta close to 0 or PI
 						current_trajectory_angle_differences.push_back(delta_theta_score);
-//							std::cout << delta_theta2 << std::endl;
 					}
 				}
 			}
-//				std::cout << "got all gradients" << std::endl;
 
 			// save found values
 			wall_angle_differences.push_back(current_wall_angle_differences);
@@ -1379,13 +1321,6 @@ public:
 					// if the time limit was exceeded or a bug appeared, save a -1
 					if(line.find("exceeded")!=std::string::npos || line.find("bug")!=std::string::npos)
 					{
-						//std::cout << "bug or exceeded calculation time" << std::endl;
-						// set max calculation time
-//							if(config.exploration_algorithm_==5) // higher max time for flowNetwork explorator
-//								calculation_time = 10800;
-//							else
-//								calculation_time = 1800;
-
 						// save a invalid pose, to show that this room has no coverage path
 						geometry_msgs::Pose2D false_pose;
 						false_pose.x = -1;
@@ -1398,7 +1333,6 @@ public:
 						double calculation_time = 0.;
 						sscanf(str, "%*[^0-9]%lf", &calculation_time);
 						calculation_times.push_back(calculation_time);
-						//std::cout << "calculation time: " << calculation_time << "s" << std::endl;
 					}
 					initial = false;
 				}
@@ -1429,7 +1363,6 @@ public:
 						++pos_counter;
 
 					}
-					//std::cout << "   x: " << x << ", y: " << y << ", theta: " << theta << std::endl;
 
 					// save the found pose
 					if(x>0 && y>0)
@@ -1526,43 +1459,9 @@ int main(int argc, char **argv)
 	map_names.push_back("lab_ipa");
 	map_names.push_back("lab_c_scan");
 	map_names.push_back("Freiburg52_scan");
-//	map_names.push_back("Freiburg79_scan");
-//	map_names.push_back("lab_b_scan");
-//	map_names.push_back("lab_intel");
-//	map_names.push_back("Freiburg101_scan");
-//	map_names.push_back("lab_d_scan");
-//	map_names.push_back("lab_f_scan");
-//	map_names.push_back("lab_a_scan");
-//	map_names.push_back("NLB");
-//	map_names.push_back("office_a");
-//	map_names.push_back("office_b");
-//	map_names.push_back("office_c");
-//	map_names.push_back("office_d");
-//	map_names.push_back("office_e");
-//	map_names.push_back("office_f");
-//	map_names.push_back("office_g");
-//	map_names.push_back("office_h");
-//	map_names.push_back("office_i");
 	map_names.push_back("lab_ipa_furnitures");
 	map_names.push_back("lab_c_scan_furnitures");
 	map_names.push_back("Freiburg52_scan_furnitures");
-//	map_names.push_back("Freiburg79_scan_furnitures");
-//	map_names.push_back("lab_b_scan_furnitures");
-//	map_names.push_back("lab_intel_furnitures");
-//	map_names.push_back("Freiburg101_scan_furnitures");
-//	map_names.push_back("lab_d_scan_furnitures");
-//	map_names.push_back("lab_f_scan_furnitures");
-//	map_names.push_back("lab_a_scan_furnitures");
-//	map_names.push_back("NLB_furnitures");
-//	map_names.push_back("office_a_furnitures");
-//	map_names.push_back("office_b_furnitures");
-//	map_names.push_back("office_c_furnitures");
-//	map_names.push_back("office_d_furnitures");
-//	map_names.push_back("office_e_furnitures");
-//	map_names.push_back("office_f_furnitures");
-//	map_names.push_back("office_g_furnitures");
-//	map_names.push_back("office_h_furnitures");
-//	map_names.push_back("office_i_furnitures");
 
 	std::vector<int> exploration_algorithms;
 //	exploration_algorithms.push_back(1);	// grid point exploration
@@ -1576,33 +1475,15 @@ int main(int argc, char **argv)
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
 	// measures in [m]
 	std::vector<geometry_msgs::Point32> fov_points(4);
-	fov_points[0].x = 0.04035;		// this field of view represents the off-center iMop floor wiping device
-	fov_points[0].y = -0.136;
-	fov_points[1].x = 0.04035;
-	fov_points[1].y = 0.364;
-	fov_points[2].x = 0.54035;		// todo: this definition is mirrored on x (y-coordinates are inverted) to work properly --> check why, make it work the intuitive way
-	fov_points[2].y = 0.364;
-	fov_points[3].x = 0.54035;
-	fov_points[3].y = -0.136;
-	int planning_mode = 2;	// viewpoint planning
-//	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
-//	fov_points[0].y = 0.35;
-//	fov_points[1].x = 0.15;
-//	fov_points[1].y = -0.35;
-//	fov_points[2].x = 1.15;
-//	fov_points[2].y = -0.65;
-//	fov_points[3].x = 1.15;
-//	fov_points[3].y = 0.65;
-//	int planning_mode = 2;	// viewpoint planning
-//	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
-//	fov_points[0].y = 0.3;
-//	fov_points[1].x = -0.3;
-//	fov_points[1].y = -0.3;
-//	fov_points[2].x = 0.3;
-//	fov_points[2].y = -0.3;
-//	fov_points[3].x = 0.3;
-//	fov_points[3].y = 0.3;
-//	int planning_mode = 1;	// footprint planning
+	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
+	fov_points[0].y = 0.3;
+	fov_points[1].x = -0.3;
+	fov_points[1].y = -0.3;
+	fov_points[2].x = 0.3;
+	fov_points[2].y = -0.3;
+	fov_points[3].x = 0.3;
+	fov_points[3].y = 0.3;
+	int planning_mode = 1;	// footprint planning
 
 	const double robot_radius = 0.3;		// [m]
 	const double coverage_radius = 0.3;		// [m]

@@ -60,6 +60,7 @@
 
 #include <ipa_room_exploration/room_exploration_action_server.h>
 
+
 // constructor
 RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string name_of_the_action) :
 	node_handle_(nh),
@@ -313,9 +314,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv_bridge::CvImagePtr cv_ptr_obj;
 	cv_ptr_obj = cv_bridge::toCvCopy(goal->input_map, sensor_msgs::image_encodings::MONO8);
 	cv::Mat room_map = cv_ptr_obj->image;
-
-	// erode map so that not reachable areas are not considered - we are using the closing operation instead to work on the original but cleaned up map
-	//cv::erode(room_map, room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
 
 	// closing operation to neglect inaccessible areas and map errors/artifacts
 	// todo: make closing neighborhood size a parameter
@@ -649,14 +647,6 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 		// save the costmap as Mat of the same type as the given map (8UC1)
 		cv::Mat costmap_as_mat;//(global_map.cols, global_map.rows, CV_8UC1);
 
-//		// fill one row and then go to the next one (storing method of ros)
-//		for(size_t u = 0; u < costmap_as_mat.cols; ++u)
-//		{
-//			for(size_t v = 0; v < costmap_as_mat.rows; ++v)
-//			{
-//				costmap_as_mat.at<uchar>(u,v) = (uchar) pixel_values[v+u*global_map.rows];
-//			}
-//		}
 		mapToMat(global_costmap, costmap_as_mat);
 
 		// 70% probability of being an obstacle
@@ -718,15 +708,6 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 				return;
 			}
 		}
-//		cv::imshow("covered", seen_positions_map);
-//		cv::waitKey();
-//		cv::Mat copy = room_map.clone();
-
-		// testing, parameter to show
-//		cv::namedWindow("initially seen areas", cv::WINDOW_NORMAL);
-//		cv::imshow("initially seen areas", seen_positions_map);
-//		cv::resizeWindow("initially seen areas", 600, 600);
-//		cv::waitKey();
 
 		// apply a binary filter on the image, making the drawn seen areas black
 		cv::threshold(seen_positions_map, seen_positions_map, 150, 255, cv::THRESH_BINARY);
@@ -813,18 +794,6 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 			}
 		}
 
-		// testing
-//		black_map = room_map.clone();
-//		for(size_t i = 0; i < area_centers.size(); ++i)
-//		{
-//			cv::circle(black_map, area_centers[i], 2, cv::Scalar(127), CV_FILLED);
-//			std::cout << area_centers[i] << std::endl;
-//		}
-//		cv::namedWindow("revisiting areas", cv::WINDOW_NORMAL);
-//		cv::imshow("revisiting areas", black_map);
-//		cv::resizeWindow("revisiting areas", 600, 600);
-	//	cv::waitKey();
-
 		// 4. plan a tsp path trough the centers of the left areas
 		// find the center that is nearest to the current robot position, which becomes the start node for the tsp
 		geometry_msgs::Pose2D current_robot_pose = robot_poses.back();
@@ -889,12 +858,6 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 				std::cout << "center not reachable on perimeter" << std::endl;
 			}
 		}
-
-//		drawSeenPoints(copy, robot_poses, goal->field_of_view, corner_point_1, corner_point_2, map_resolution, map_origin);
-//		cv::namedWindow("seen areas", cv::WINDOW_NORMAL);
-//		cv::imshow("seen areas", copy);
-//		cv::resizeWindow("seen areas", 600, 600);
-//		cv::waitKey();
 	}
 }
 
@@ -958,7 +921,6 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 			listener.waitForTransform(map_frame, camera_frame, time, ros::Duration(2.0)); // 5.0
 			listener.lookupTransform(map_frame, camera_frame, time, transform);
 
-//			ROS_INFO("Got a transform! x = %f, y = %f", transform.getOrigin().x(), transform.getOrigin().y());
 			sleep_duration.sleep();
 
 			// save the current pose if a transform could be found
@@ -970,15 +932,13 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 			current_pose.theta = yaw;
 
             if((current_pose.x-map_oriented_pose.x)*(current_pose.x-map_oriented_pose.x) + (current_pose.y-map_oriented_pose.y)*(current_pose.y-map_oriented_pose.y) <= eps*eps)
-            {
 				near_pos = true;
-            }
 
 			robot_poses.push_back(current_pose);
 		}
 		catch(tf::TransformException &ex)
 		{
-			ROS_INFO("Couldn't get transform!");// %s", ex.what());
+      ROS_WARN_STREAM("Couldn't get transform from " << camera_frame << " to " << map_frame << "!");// %s", ex.what());
 		}
 
 	}while(mv_base_client.getState() != actionlib::SimpleClientGoalState::ABORTED && mv_base_client.getState() != actionlib::SimpleClientGoalState::SUCCEEDED

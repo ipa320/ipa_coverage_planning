@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(ipa_room_exploration)
 
+add_compile_options(-std=c++11)
+
 set(catkin_RUN_PACKAGES
 	cob_map_accessibility_analysis
 	cv_bridge
@@ -8,6 +10,7 @@ set(catkin_RUN_PACKAGES
 	geometry_msgs
 	ipa_building_msgs
 	ipa_building_navigation
+        ipa_navigation_utils
 	laser_geometry
 	libconcorde_tsp_solver
 	move_base_msgs

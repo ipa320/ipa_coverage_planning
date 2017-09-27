@@ -175,9 +175,7 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 			current_point.x = std::min(current_point.x, reachable_areas_map.cols);
 			current_point.y = std::min(current_point.y, reachable_areas_map.rows);
 			transformed_fov_points.push_back(current_point);
-//			std::cout << current_point << std::endl;
 		}
-//		std::cout << std::endl;
 
 		// transform corners for raycasting
 		Eigen::Matrix<float, 2, 1> transformed_corner_1 = pose_as_matrix + R * raycasting_corner_1;
@@ -255,39 +253,9 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 	// iterate trough all poses and draw them into the given map
 	for(std::vector<geometry_msgs::Pose2D>::const_iterator pose=robot_poses.begin(); pose!=robot_poses.end(); ++pose)
 	{
-//		// get the rotation matrix
-//		float sin_theta = std::sin(pose->theta);
-//		float cos_theta = std::cos(pose->theta);
-//		Eigen::Matrix<float, 2, 2> R;
-//		R << cos_theta, -sin_theta, sin_theta, cos_theta;
-
-//		// transform footprint points
-//		std::vector<cv::Point> transformed_footprint_points;
-//		Eigen::Matrix<float, 2, 1> pose_as_matrix;
-//		pose_as_matrix << pose->x, pose->y;
-//		for(size_t point = 0; point < robot_footprint.size(); ++point)
-//		{
-//			// transform fov-point from geometry_msgs::Point32 to Eigen::Matrix
-//			Eigen::Matrix<float, 2, 1> footprint_point;
-//			footprint_point << robot_footprint[point].x, robot_footprint[point].y;
-//
-//			// linear transformation
-//			Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R * footprint_point;
-//
-//			// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
-//			// values
-//			cv::Point current_point = cv::Point((transformed_vector(0, 0) - map_origin.x)*map_resolution_inverse, (transformed_vector(1, 0) - map_origin.y)*map_resolution_inverse);
-//			current_point.x = std::max(current_point.x, 0);
-//			current_point.y = std::max(current_point.y, 0);
-//			current_point.x = std::min(current_point.x, map_copy.cols);
-//			current_point.y = std::min(current_point.y, map_copy.rows);
-//			transformed_footprint_points.push_back(current_point);
-//		}
-
 		// draw the transformed robot footprint
 		cv::Point current_point((pose->x-map_origin.x)*map_resolution_inverse, (pose->y-map_origin.y)*map_resolution_inverse);
 		cv::circle(map_copy, current_point, coverage_radius_pixel, cv::Scalar(127), -1);
-//		cv::fillConvexPoly(map_copy, transformed_footprint_points, cv::Scalar(127));
 
 		// update the number of visits at this location, if wanted
 		if(number_of_coverages_image!=NULL)
@@ -295,8 +263,6 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 			cv::Mat coverage_area = cv::Mat::zeros(map_copy.rows, map_copy.cols, CV_32SC1);
 			cv::circle(coverage_area, current_point, coverage_radius_pixel, cv::Scalar(1), -1);
 			*number_of_coverages_image = *number_of_coverages_image + coverage_area;
-//			int current_value = number_of_coverages_image->at<int>(cv::Point((pose->x-map_origin.x)*map_resolution_inverse, (pose->y-map_origin.y)*map_resolution_inverse));
-//			cv::fillConvexPoly(*number_of_coverages_image, transformed_footprint_points, cv::Scalar(current_value+1));
 		}
 	}
 
