@@ -90,7 +90,9 @@ int main(int argc, char **argv)
 	cv_image.toImageMsg(labeling);
 
   geometry_msgs::Pose map_origin;
-  map_origin.position = origin;
+  map_origin.position.x = origin[0];
+  map_origin.position.y = origin[1];
+  map_origin.position.z = origin[2];
 
 	geometry_msgs::Pose2D starting_position;
   starting_position.x = 0.0;
