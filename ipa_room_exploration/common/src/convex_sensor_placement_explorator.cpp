@@ -144,6 +144,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	// rotate back to original image
 	cv::Mat R_inv;
 	cv::invertAffineTransform(R, R_inv);
+	std::vector<cv::Point> fov_middlepoint_path_transformed;
 	cv::transform(cell_centers_rotated, cell_centers, R_inv);
 
 	// get candidate sensing poses

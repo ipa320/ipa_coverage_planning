@@ -38,7 +38,6 @@ int main(int argc, char **argv)
 
 	actionlib::SimpleActionClient<ipa_building_msgs::RoomExplorationAction> ac("room_exploration_server", true);
 
-
   // read params
   std::string env_pack_path;
   ipa_utils::getRosParam(priv_nh, "env_pack", env_pack_path, "");
@@ -54,7 +53,7 @@ int main(int argc, char **argv)
   ipa_utils::getRosParam(priv_nh, "robot_radius", robot_radius, 1.0);
 
 
-  const std::string image_path = env_pack_path + "/envs/" + map_name + file_name;
+  const std::string image_path = env_pack_path + "/envs/" + map_name + "/" + file_name;
 
   cv::Mat map = cv::imread(image_path, 0);
 	//make non-white pixels black
