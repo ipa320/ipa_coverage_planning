@@ -1,7 +1,6 @@
 #include <ipa_room_exploration/boustrophedon_explorator.h>
 
 //#define DEBUG_VISUALIZATION
-#define DEBUG_VISUALIZATION_FINAL
 
 // Constructor
 BoustrophedonExplorer::BoustrophedonExplorer()
@@ -161,7 +160,7 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	cv::erode(room_map, inflated_room_map, cv::Mat(), cv::Point(-1, -1), half_grid_spacing_as_int);
 	mapPath(inflated_room_map, path, fov_poses, robot_to_fov_vector, map_resolution, map_origin, robot_starting_position);
 
-#if defined(DEBUG_VISUALIZATION) || defined(DEBUG_VISUALIZATION_FINAL)
+#ifdef DEBUG_VISUALIZATION
 	// testing
 	std::cout << "printing path" << std::endl;
 	cv::Mat fov_path_map = room_map.clone();
