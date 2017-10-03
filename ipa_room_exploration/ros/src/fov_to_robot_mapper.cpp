@@ -100,7 +100,8 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 		if(accessible_poses_on_perimeter.size()!=0)
 		{
 			// todo: also consider complete visibility of the fov_center (or whole cell) as a selection criterion
-			// go trough the found accessible positions and take the one that minimizes the angle between approach vector and robot heading direction to the fov_center
+			// todo: extend with a complete consideration of the exact robot footprint
+			// go trough the found accessible positions and take the one that minimizes the angle between approach vector and robot heading direction at the target position
 			// and which lies in the half circle around fov_center which is "behind" the fov_center pose's orientation
 			double max_cos_alpha = -10;
 			MapAccessibilityAnalysis::Pose best_pose;

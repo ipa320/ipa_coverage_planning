@@ -135,6 +135,8 @@ protected:
 	double goal_eps_;				// distance between the published navigation goal and the robot to publish the next
 									// navigation goal in the path
 
+	bool display_trajectory_;		// display final trajectory plan step by step
+
 	int cell_size_;					// size of one cell that is used to discretize the free space
 
 	double min_cell_area_;			// minimal area a cell can have, when using the boustrophedon explorator

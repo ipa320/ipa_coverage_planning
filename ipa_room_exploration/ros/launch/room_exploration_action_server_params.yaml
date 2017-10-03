@@ -33,6 +33,10 @@ cell_size: 0       #4      #7
 # [pixel], where one pixel is the size of one cell in the navigation grid map
 path_eps: 2
 
+# display final trajectory plan step by step
+# bool
+display_trajectory: false
+
 
 # parameters specific to the navigation of the robot along the computed coverage trajectory
 # =========================================================================================
