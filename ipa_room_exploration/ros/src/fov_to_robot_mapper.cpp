@@ -81,6 +81,8 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 	Eigen::Matrix<float, 2, 1> robot_to_fov_vector_pixel;
 	robot_to_fov_vector_pixel << robot_to_fov_vector(0,0)*map_resolution_inv, robot_to_fov_vector(1,0)*map_resolution_inv;
 	const double fov_radius_pixel = robot_to_fov_vector_pixel.norm();
+	const double fov_to_front_offset_angle = atan2((double)robot_to_fov_vector(1,0), (double)robot_to_fov_vector(0,0));
+	std::cout << "mapPath: fov_to_front_offset_angle: " << fov_to_front_offset_angle << "rad (" << fov_to_front_offset_angle*180./PI << "deg)" << std::endl;
 
 	// go trough the given poses and calculate accessible robot poses
 	// first try with A*, if this fails, call map_accessibility_analysis and finally try a directly computed pose shift
@@ -98,7 +100,7 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 		if(accessible_poses_on_perimeter.size()!=0)
 		{
 			// todo: also consider complete visibility of the fov_center (or whole cell) as a selection criterion
-			// go trough the found accessible positions and take the one that minimizes the angle between approach vector and viewing direction to the fov_center
+			// go trough the found accessible positions and take the one that minimizes the angle between approach vector and robot heading direction to the fov_center
 			// and which lies in the half circle around fov_center which is "behind" the fov_center pose's orientation
 			double max_cos_alpha = -10;
 			MapAccessibilityAnalysis::Pose best_pose;
@@ -106,16 +108,22 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 			for(std::vector<MapAccessibilityAnalysis::Pose>::iterator perimeter_pose = accessible_poses_on_perimeter.begin(); perimeter_pose != accessible_poses_on_perimeter.end(); ++perimeter_pose)
 			{
 				// exclude positions that are ahead of the moving direction
-				cv::Point2d viewing = cv::Point2d(fov_center.x, fov_center.y) - cv::Point2d(perimeter_pose->x, perimeter_pose->y);
-				double viewing_norm = sqrt((double)viewing.x*viewing.x+viewing.y*viewing.y);
-				if ((cos(fov_center.orientation)*viewing.x+sin(fov_center.orientation)*viewing.y)/viewing_norm < 0)
+				//cv::Point2d heading = cv::Point2d(fov_center.x, fov_center.y) - cv::Point2d(perimeter_pose->x, perimeter_pose->y);
+				//const double heading_norm = sqrt((double)heading.x*heading.x+heading.y*heading.y);
+				perimeter_pose->orientation -= fov_to_front_offset_angle; // robot heading correction of off-center fov
+				cv::Point2d heading = cv::Point2d(cos(perimeter_pose->orientation), sin(perimeter_pose->orientation));
+				const double heading_norm = 1.;
+				if ((cos(fov_center.orientation)*heading.x+sin(fov_center.orientation)*heading.y)/heading_norm < 0)
 					continue;
 
 				// rank by cos(angle) between approach direction and viewing direction
-				cv::Point2d approach = cv::Point2d(perimeter_pose->x, perimeter_pose->y) - cv::Point2d(robot_pos.x, robot_pos.y);
+				//cv::Point2d approach = cv::Point2d(perimeter_pose->x, perimeter_pose->y) - cv::Point2d(robot_pos.x, robot_pos.y);
+				//const double approach_norm = sqrt(approach.x*approach.x+approach.y*approach.y);
+				cv::Point2d approach = cv::Point2d(cos(fov_center.orientation), sin(fov_center.orientation));
+				const double approach_norm = 1.;
 				double cos_alpha = 1.;		// only remains 1.0 if robot_pose and perimeter_pose are identical
 				if (approach.x!=0 || approach.y!=0)	// compute the cos(angle) between approach direction and viewing direction
-					cos_alpha = (approach.x*viewing.x + approach.y*viewing.y)/(sqrt(approach.x*approach.x+approach.y*approach.y)*viewing_norm);
+					cos_alpha = (approach.x*heading.x + approach.y*heading.y)/(approach_norm*heading_norm);
 				//std::cout << " - perimeter_pose = " << perimeter_pose->x << ", " << perimeter_pose->y << "     cos_alpha = " << cos_alpha << "   max_cos_alpha = " << max_cos_alpha << std::endl;
 				if(cos_alpha>max_cos_alpha)
 				{
