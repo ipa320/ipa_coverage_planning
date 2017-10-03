@@ -181,19 +181,25 @@ void RoomRotator::transformPointPathToPosePath(const std::vector<cv::Point>& poi
 		current_pose.x = current_point.x;
 		current_pose.y = current_point.y;
 		current_pose.theta = 0.;
+		cv::Point vector(0,0);
 		if (point_index > 0)
 		{
+			// compute the direction as the line from the previous point to the current point
 			cv::Point previous_point = point_path[point_index-1];
-			cv::Point vector = current_point - previous_point;
-			current_pose.theta = std::atan2(vector.y, vector.x);
+			vector = current_point - previous_point;
 		}
 		else if (point_path.size() >= 2)
 		{
+			// for the first point take the direction between first and second point
 			cv::Point next_point = point_path[point_index+1];
-			cv::Point vector = next_point - current_point;
-			current_pose.theta = std::atan2(vector.y, vector.x);
+			vector = next_point - current_point;
 		}
-		pose_path.push_back(current_pose);
+		// only sample different points
+		if (vector.x!=0 || vector.y!=0)
+		{
+			current_pose.theta = std::atan2(vector.y, vector.x);
+			pose_path.push_back(current_pose);
+		}
 	}
 }
 

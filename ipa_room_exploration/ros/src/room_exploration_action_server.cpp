@@ -60,6 +60,7 @@
 
 #include <ipa_room_exploration/room_exploration_action_server.h>
 
+#define DEBUG_VISUALIZATION
 
 // constructor
 RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string name_of_the_action) :
@@ -469,6 +470,36 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			}
 		}
 	}
+
+#ifdef DEBUG_VISUALIZATION
+	// display finally planned path
+	std::cout << "printing path" << std::endl;
+	for(size_t step=1; step<exploration_path.size(); ++step)
+	{
+		cv::Mat fov_path_map = room_map.clone();
+		cv::resize(fov_path_map, fov_path_map, cv::Size(), 2, 2, cv::INTER_LINEAR);
+		if (exploration_path.size() > 0)
+			cv::circle(fov_path_map, 2*cv::Point((exploration_path[0].x-map_origin.x)/map_resolution, (exploration_path[0].y-map_origin.y)/map_resolution), 2, cv::Scalar(150), CV_FILLED);
+		for(size_t i=1; i<=step; ++i)
+		{
+			cv::Point p1((exploration_path[i-1].x-map_origin.x)/map_resolution, (exploration_path[i-1].y-map_origin.y)/map_resolution);
+			cv::Point p2((exploration_path[i].x-map_origin.x)/map_resolution, (exploration_path[i].y-map_origin.y)/map_resolution);
+			cv::circle(fov_path_map, 2*p2, 2, cv::Scalar(200), CV_FILLED);
+			cv::line(fov_path_map, 2*p1, 2*p2, cv::Scalar(150), 1);
+			cv::Point p3(p2.x+5*cos(exploration_path[i].theta), p2.y+5*sin(exploration_path[i].theta));
+			if (i==step)
+			{
+				cv::circle(fov_path_map, 2*p2, 2, cv::Scalar(80), CV_FILLED);
+				cv::line(fov_path_map, 2*p1, 2*p2, cv::Scalar(150), 1);
+				cv::line(fov_path_map, 2*p2, 2*p3, cv::Scalar(50), 1);
+			}
+		}
+		cv::imshow("cell path", fov_path_map);
+		cv::waitKey();
+	}
+//	cv::imshow("room_map_path_final", fov_path_map);
+//	cv::waitKey();
+#endif
 
 	ROS_INFO("Room exploration planning finished.");
 
