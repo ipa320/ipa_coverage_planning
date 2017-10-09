@@ -51,6 +51,15 @@ int main(int argc, char **argv)
   ipa_utils::getRosParam(priv_nh, "origin", origin, origin);
   double robot_radius;
   ipa_utils::getRosParam(priv_nh, "robot_radius", robot_radius, 1.0);
+  double coverage_radius;
+  ipa_utils::getRosParam(priv_nh, "coverage_radius", coverage_radius, 1.0);
+  std::vector<double> start_pos = {0, 0, 0};
+  ipa_utils::getRosParam(priv_nh, "starting_position", start_pos, start_pos);
+
+  if (start_pos.size() != 3) {
+    ROS_FATAL("starting_position must contain 3 values");
+    return -1;
+  }
 
 
   const std::string image_path = env_pack_path + "/envs/" + map_name + "/" + file_name;
@@ -94,9 +103,9 @@ int main(int argc, char **argv)
   map_origin.position.z = origin[2];
 
 	geometry_msgs::Pose2D starting_position;
-  starting_position.x = 0.0;
-  starting_position.y = 0.0;
-  starting_position.theta = 0.0;
+  starting_position.x = start_pos[0];
+  starting_position.y = start_pos[1];
+  starting_position.theta = start_pos[2];
 
 	std::vector<geometry_msgs::Point32> fov_points(4);
 	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
@@ -114,7 +123,7 @@ int main(int argc, char **argv)
   goal.map_resolution = resolution;
 	goal.map_origin = map_origin;
   goal.robot_radius = robot_radius; // turtlebot, used for sim 0.177, 0.4
-  goal.coverage_radius = 1.0;
+  goal.coverage_radius = coverage_radius;
 	goal.field_of_view = fov_points;
 	goal.starting_position = starting_position;
 	goal.planning_mode = planning_mode;
