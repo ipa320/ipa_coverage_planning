@@ -15,6 +15,7 @@
 #include <geometry_msgs/Polygon.h>
 #include <geometry_msgs/Point32.h>
 #include <nav_msgs/OccupancyGrid.h>
+#include <nav_msgs/Path.h>
 
 #include <ipa_navigation_utils/utils.h>
 #include <ipa_building_msgs/RoomExplorationAction.h>
@@ -37,6 +38,7 @@ int main(int argc, char **argv)
   ros::NodeHandle priv_nh("~");
 
 	actionlib::SimpleActionClient<ipa_building_msgs::RoomExplorationAction> ac("room_exploration_server", true);
+  ros::Publisher path_pub = priv_nh.advertise<nav_msgs::Path>("coverage_path", 2);
 
   // read params
   std::string env_pack_path;
@@ -50,9 +52,9 @@ int main(int argc, char **argv)
   std::vector<double> origin (3,0);
   ipa_utils::getRosParam(priv_nh, "origin", origin, origin);
   double robot_radius;
-  ipa_utils::getRosParam(priv_nh, "robot_radius", robot_radius, 1.0);
+  ipa_utils::getRosParam(priv_nh, "robot_radius", robot_radius, 0.0);
   double coverage_radius;
-  ipa_utils::getRosParam(priv_nh, "coverage_radius", coverage_radius, 1.0);
+  ipa_utils::getRosParam(priv_nh, "coverage_radius", coverage_radius, 0.0);
   std::vector<double> start_pos = {0, 0, 0};
   ipa_utils::getRosParam(priv_nh, "starting_position", start_pos, start_pos);
 
@@ -133,6 +135,12 @@ int main(int argc, char **argv)
 	ipa_building_msgs::RoomExplorationResultConstPtr action_result = ac.getResult();
 
 	std::cout << "Got a path with " << action_result->coverage_path.size() << " nodes." << std::endl;
+
+  nav_msgs::Path coverage_path;
+  coverage_path.header.frame_id = "map";
+  coverage_path.header.stamp = ros::Time::now();
+  coverage_path.poses = action_result->coverage_path_pose_stamped;
+  path_pub.publish(coverage_path);
 
 	// display path
 	const double inverse_map_resolution = 1./goal.map_resolution;

@@ -19,7 +19,7 @@ left_sections_min_area: 0.01
 # can be turned off (0) when used with real robot
 # double
 # [pixel], where one pixel is the size of one cell in the navigation grid map
-goal_eps: 0.0     #0.35
+goal_eps: 1.0     #0.35
 
 # size of one cell when discretizing the free space, smaller value means a more detailed discretization
 # in [pixel], where one pixel is the size of one cell in the navigation grid map
