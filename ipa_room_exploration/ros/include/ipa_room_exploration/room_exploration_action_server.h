@@ -171,6 +171,7 @@ protected:
 	int64_t tsp_solver_timeout_;	// a sophisticated solver like Concorde or Genetic can be interrupted if it does not find a solution within this time, in [s], and then falls back to the nearest neighbor solver
 
   ros::Publisher path_pub_;
+  bool use_dyn_goal_eps_;
 
 	int grid_line_length_; // size of the grid-lines that the grid-point-explorator lays over the map
 	double path_eps_; // the distance between points when generating a path

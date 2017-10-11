@@ -69,6 +69,7 @@ map_frame: "map"
 # string
 camera_frame: "base_link"
 
+use_dyn_goal_eps: false
 
 
 # parameters specific for the grid point explorator

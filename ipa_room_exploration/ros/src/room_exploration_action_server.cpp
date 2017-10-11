@@ -176,6 +176,8 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	else
 		ROS_INFO("Areas not seen after the initial execution of the path will NOT be revisited.");
 
+  node_handle_.param("use_dyn_goal_eps", use_dyn_goal_eps_, true);
+
 	// min area for revisiting left sections
 	node_handle_.param("left_sections_min_area", left_sections_min_area_, 10.0);
 	std::cout << "room_exploration/left_sections_min_area_ = " << left_sections_min_area_ << std::endl;
@@ -652,14 +654,21 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 		// if no interrupt is wanted, publish the navigation goal
     pose = exploration_path[map_oriented_pose];
     double temp_goal_eps = 0;
-    if (map_oriented_pose != 0)
+    if (use_dyn_goal_eps_)
     {
-      double delta_theta = std::fabs(last_pose.theta - pose.theta);
-      if (delta_theta > M_PI * 0.5)
-        delta_theta = M_PI * 0.5;
-      temp_goal_eps = (M_PI * 0.5 - delta_theta) / (M_PI * 0.5) * goal_eps_;
+      if (map_oriented_pose != 0)
+      {
+        double delta_theta = std::fabs(last_pose.theta - pose.theta);
+        if (delta_theta > M_PI * 0.5)
+          delta_theta = M_PI * 0.5;
+        temp_goal_eps = (M_PI * 0.5 - delta_theta) / (M_PI * 0.5) * goal_eps_;
+      }
+      pose.y = map_height - (pose.y - map_origin.position.y) + map_origin.position.y;
     }
-    pose.y = map_height - (pose.y - map_origin.position.y) + map_origin.position.y;
+    else
+    {
+      temp_goal_eps = goal_eps_;
+    }
     publishNavigationGoal(pose, map_frame_, camera_frame_, robot_poses, distance_robot_fov_middlepoint, temp_goal_eps, true); // eps = 0.35
     last_pose = pose;
 	}
@@ -917,7 +926,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 
     map_oriented_pose.x = nav_goal.x;
     map_oriented_pose.y = nav_goal.y;
-    map_oriented_pose.theta = -nav_goal.theta;
+    map_oriented_pose.theta = nav_goal.theta;
 
     std::cout << "navigation goal: (" << map_oriented_pose.x << ", "  << map_oriented_pose.y << ", " << map_oriented_pose.theta << ")" << std::endl;
 
