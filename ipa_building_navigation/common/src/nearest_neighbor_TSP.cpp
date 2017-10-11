@@ -68,10 +68,10 @@ std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& path_l
 			double saved_distance = 100000000000000; //saver for distance to current next node
 			for (int current_neighbor = 0; current_neighbor < path_length_matrix.cols; current_neighbor++)
 			{
-				if (!contains(calculated_order, current_neighbor)) //check if current neighbor hasn't been visited yet
+				if (!contains<int>(calculated_order, current_neighbor)) //check if current neighbor hasn't been visited yet
 				{
 					if (path_length_matrix.at<double>(current_node, current_neighbor) < saved_distance
-				        && path_length_matrix.at<double>(current_node, current_neighbor) > 0)
+							&& path_length_matrix.at<double>(current_node, current_neighbor) > 0)
 					{
 						next_node = current_neighbor;
 						saved_distance = path_length_matrix.at<double>(current_node, current_neighbor);
@@ -100,7 +100,12 @@ std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& origin
 	cv::Mat distance_matrix_ref;
 	if (distance_matrix != 0)
 		distance_matrix_ref = *distance_matrix;
-	DistanceMatrix::constructDistanceMatrix(distance_matrix_ref, original_map, points, downsampling_factor, robot_radius, map_resolution, pathplanner_);
+	DistanceMatrix distance_matrix_computation;
+	distance_matrix_computation.constructDistanceMatrix(distance_matrix_ref, original_map, points, downsampling_factor, robot_radius, map_resolution, pathplanner_);
+
+	// todo: check whether distance matrix contains infinite path lenghts and if this is true, create a new distance matrix with maximum size clique of reachable points
+	// then solve TSP and re-index points to original indices
+	// and do not forget to copy fix to ipa_building_navigation
 
 	return (solveNearestTSP(distance_matrix_ref, start_node));
 }

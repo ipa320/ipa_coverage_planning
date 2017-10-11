@@ -5,6 +5,8 @@
 
 #include <ipa_room_segmentation/timer.h>
 
+#include <boost/filesystem.hpp>
+
 AdaboostClassifier::AdaboostClassifier()
 {
 	//save the angles between the simulated beams, used in the following algorithm
@@ -58,10 +60,6 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 					temporary_features.resize(features.cols);
 					for (int i=0; i<features.cols; ++i)
 						temporary_features[i] = features.at<float>(0,i);
-//					for (int f = 1; f <= get_feature_count(); f++)
-//					{
-//						temporary_features.push_back((float) get_feature(temporary_beams, angles_for_simulation_, cv::Point(x, y), f));
-//					}
 					room_features.push_back(temporary_features);
 					temporary_features.clear();
 				}
@@ -94,10 +92,6 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 					temporary_features.resize(features.cols);
 					for (int i=0; i<features.cols; ++i)
 						temporary_features[i] = features.at<float>(0,i);
-//					for (int f = 1; f <= get_feature_count(); f++)
-//					{
-//						temporary_features.push_back(get_feature(temporary_beams, angles_for_simulation_, cv::Point(x, y), f));
-//					}
 					hallway_features.push_back(temporary_features);
 					temporary_features.clear();
 				}
@@ -140,11 +134,22 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 //	}
 //	fs.release();
 
+	// check if path for storing classifier models exists
+	boost::filesystem::path storage_path(classifier_storage_path);
+	if (boost::filesystem::exists(storage_path) == false)
+	{
+		if (boost::filesystem::create_directories(storage_path) == false && boost::filesystem::exists(storage_path) == false)
+		{
+			std::cout << "Error: AdaboostClassifier::trainClassifiers: Could not create directory " << storage_path << std::endl;
+			return;
+		}
+	}
+
 	//*********hallway***************
 	// Train a boost classifier
 	hallway_boost_.train(hallway_features_mat, CV_ROW_SAMPLE, hallway_labels_mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
 	//save the trained booster
-	std::string filename_hallway = classifier_storage_path + "trained_hallway_boost.xml";
+	std::string filename_hallway = classifier_storage_path + "semantic_hallway_boost.xml";
 	hallway_boost_.save(filename_hallway.c_str(), "boost");
 	ROS_INFO("Done hallway classifiers.");
 
@@ -152,7 +157,7 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 	// Train a boost classifier
 	room_boost_.train(room_features_mat, CV_ROW_SAMPLE, room_labels_mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
 	//save the trained booster
-	std::string filename_room = classifier_storage_path + "trained_room_boost.xml";
+	std::string filename_room = classifier_storage_path + "semantic_room_boost.xml";
 	room_boost_.save(filename_room.c_str(), "boost");
 	//set the trained-variabel true, so the labeling-algorithm knows the classifiers have been trained already
 	trained_ = true;
@@ -160,14 +165,15 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 	ROS_INFO("Finished training the algorithm.");
 }
 
-void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription,
-        double room_area_factor_lower_limit, double room_area_factor_upper_limit, const std::string& classifier_storage_path, bool display_results)
+void AdaboostClassifier::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat& segmented_map, double map_resolution_from_subscription,
+        double room_area_factor_lower_limit, double room_area_factor_upper_limit, const std::string& classifier_storage_path,
+        const std::string& classifier_default_path, bool display_results)
 {
 	//******************Semantic-labeling function based on AdaBoost*****************************
 	//This function calculates single-valued features for every white Pixel in the given occupancy-gridmap and classifies it
 	//using the AdaBoost-algorithm from OpenCV. It does the following steps:
 	//	I. If the classifiers hasn't been trained before they should load the training-results saved in the
-	//	   training_results folder
+	//	   classifier_models folder
 	//	II. Go trough each Pixel of the given map. If this Pixel is white simulate the laser-beams for it and calculate each
 	//		of the implemented features.
 	//	III. Apply a median-Filter on the labeled map to smooth the output of it.
@@ -183,17 +189,34 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 	//***********************I. check if classifiers has already been trained*****************************
 	if (!trained_) //classifiers hasn't been trained before so they should be loaded
 	{
-		std::string filename_room = classifier_storage_path + "trained_room_boost.xml";
+		// check if path for storing classifier models exists
+		boost::filesystem::path storage_path(classifier_storage_path);
+		if (boost::filesystem::exists(storage_path) == false)
+		{
+			if (boost::filesystem::create_directories(storage_path) == false && boost::filesystem::exists(storage_path) == false)
+			{
+				std::cout << "Error: AdaboostClassifier::segmentMap: Could not create directory " << storage_path << std::endl;
+				return;
+			}
+		}
+
+		std::string filename_room = classifier_storage_path + "semantic_room_boost.xml";
+		std::string filename_room_default = classifier_default_path + "semantic_room_boost.xml";
+		if (boost::filesystem::exists(boost::filesystem::path(filename_room)) == false)
+			boost::filesystem::copy_file(filename_room_default, filename_room);
 		room_boost_.load(filename_room.c_str());
-		std::string filename_hallway = classifier_storage_path + "trained_hallway_boost.xml";
+
+		std::string filename_hallway = classifier_storage_path + "semantic_hallway_boost.xml";
+		std::string filename_hallway_default = classifier_default_path + "semantic_hallway_boost.xml";
+		if (boost::filesystem::exists(boost::filesystem::path(filename_hallway)) == false)
+			boost::filesystem::copy_file(filename_hallway_default, filename_hallway);
 		hallway_boost_.load(filename_hallway.c_str());
+
 		trained_ = true;
 		ROS_INFO("Loaded training results.");
 	}
 
 	//*************** II. Go trough each Point and label it as room or hallway.**************************
-	Timer tim;//, tim2;
-//	double ray_time = 0., feature_time = 0.;
 #pragma omp parallel for
 	for (int y = 0; y < original_map_to_be_labeled.rows; y++)
 	{
@@ -203,14 +226,10 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 			if (original_map_to_be_labeled.at<unsigned char>(y, x) == 255)
 			{
 				std::vector<double> temporary_beams;
-//				tim2.start();
 				raycasting_.raycasting(original_map_to_be_labeled, cv::Point(x, y), temporary_beams);
-//				ray_time += tim2.getElapsedTimeInMilliSec();
 				std::vector<float> temporary_features;
 				cv::Mat features_mat; //OpenCV expects a 32-floating-point Matrix as feature input
-//				tim2.start();
 				lsf.get_features(temporary_beams, angles_for_simulation_, cv::Point(x, y), features_mat);
-//				feature_time += tim2.getElapsedTimeInMilliSec();
 				//classify each Point
 				float room_sum = room_boost_.predict(features_mat, cv::Mat(), cv::Range::all(), false, true);
 				float hallway_sum = hallway_boost_.predict(features_mat, cv::Mat(), cv::Range::all(), false, true);
@@ -232,7 +251,7 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 			}
 		}
 	}
-	std::cout << "labeled all white pixels: " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;	//,    ray_time=" << ray_time << "        feature_time=" << feature_time << std::endl;
+	std::cout << "labeled all white pixels: " << std::endl;
 	//******************** III. Apply a median filter over the image to smooth the results.***************************
 	cv::Mat temporary_map = original_map_to_be_labeled.clone();
 	cv::medianBlur(temporary_map, temporary_map, 3);
@@ -250,7 +269,6 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 		}
 	}
 //	cv::imshow("thresholded", temporary_map);
-//	cv::imwrite("/home/rmb/Bilder/semantic_classified.png", temporary_map);
 //	cv::waitKey();
 	if(display_results)
 	{
@@ -312,7 +330,7 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 					temporary_watershed_centers.push_back(cv::Point(random_x, random_y));
 					center_counter++;
 				}
-			} while (center_counter <= (map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(contours[contour_counter])) / 8);		// todo: parameter
+			} while (center_counter <= (map_resolution_from_subscription * map_resolution_from_subscription * cv::contourArea(contours[contour_counter])) / 8);
 			cv::Mat temporary_Map_to_wavefront;
 			contour_Map.convertTo(temporary_Map_to_wavefront, CV_32SC1, 256, 0);
 			//draw the centers as white circles into a black map and give the center-map and the contour-map to the opencv watershed-algorithm
@@ -397,7 +415,6 @@ void AdaboostClassifier::semanticLabeling(const cv::Mat& map_to_be_labeled, cv::
 	//spread the coloured regions to regions, which were too small and aren't drawn into the map
 	wavefrontRegionGrowing(segmented_map);
 	//make sure previously black pixels are still black
-	// todo: why is this necessary? it seems like this should not alter any data.
 	for (int v = 0; v < map_to_be_labeled.rows; ++v)
 	{
 		for (int u = 0; u < map_to_be_labeled.cols; ++u)

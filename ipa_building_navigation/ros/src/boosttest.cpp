@@ -93,7 +93,8 @@ int main(int argc, char **argv)
 		//construct distance matrix once
 		std::cout << "constructing distance matrix" << std::endl;
 		AStarPlanner planner;
-		DistanceMatrix::constructDistanceMatrix(distance_matrix, map, nodes, downsampling, robot_radius, map_resolution, planner);
+		DistanceMatrix distance_matrix_computation;
+		distance_matrix_computation.constructDistanceMatrix(distance_matrix, map, nodes, downsampling, robot_radius, map_resolution, planner);
 
 		std::cout << "solving TSPs" << std::endl;
 		clock_gettime(CLOCK_MONOTONIC,  &t0);

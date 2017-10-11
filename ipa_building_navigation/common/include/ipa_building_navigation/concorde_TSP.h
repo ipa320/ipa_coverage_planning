@@ -55,13 +55,17 @@ protected:
 	//Function to read the saved TSP order.
 	std::vector<int> readFromFile();
 
-//	//Function to construct the distance matrix, showing the pathlength from node to node
-//	void constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points,
-//	        double downsampling_factor, double robot_radius, double map_resolution);
+	void distance_matrix_thread(DistanceMatrix& distance_matrix_computation, cv::Mat& distance_matrix,
+			const cv::Mat& original_map, const std::vector<cv::Point>& points, double downsampling_factor,
+			double robot_radius, double map_resolution, AStarPlanner& path_planner);
+
+	bool abort_computation_;
 
 public:
 	//Constructor
 	ConcordeTSPSolver();
+
+	void abortComputation();
 
 	//Functions to solve the TSP. It needs a distance matrix, that shows the pathlengths between two nodes of the problem.
 	//This matrix has to be symmetrical or else the TSPlib must be changed. The int shows the index in the Matrix.

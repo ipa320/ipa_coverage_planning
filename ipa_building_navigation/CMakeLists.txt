@@ -2,61 +2,33 @@ cmake_minimum_required(VERSION 2.8.3)
 project(ipa_building_navigation)
 
 set(catkin_RUN_PACKAGES
+	actionlib
+	cv_bridge
+	geometry_msgs
+	ipa_building_msgs
+	libconcorde_tsp_solver
 	roscpp
 	roslib
-	concorde_tsp_solver
-	actionlib
-	actionlib_msgs
-	std_msgs
 	sensor_msgs
-	geometry_msgs
-	cv_bridge
-	ipa_room_segmentation
 )
 
 set(catkin_BUILD_PACKAGES
 	${catkin_RUN_PACKAGES}
 	cmake_modules
-	message_generation
+	dynamic_reconfigure
 )
 
 ## Find catkin macros and libraries
 find_package(catkin REQUIRED COMPONENTS
 	${catkin_BUILD_PACKAGES}
-	genmsg
+)
+
+generate_dynamic_reconfigure_options(
+  cfg/BuildingNavigation.cfg
 )
 
 find_package(OpenCV REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system)
-
-
-# Add the Files for actionlib
-add_action_files(
-	DIRECTORY action
-	FILES FindRoomSequenceWithCheckpoints.action
-)
-
-# Generate messages in the 'msg' folder
-add_message_files(
-	FILES RoomSequence.msg
-)
-
-## Generate services in the 'srv' folder
-#add_service_files(
-#	FILES
-#)
-
-
-# Generate added messages and services with any dependencies listed here
-generate_messages(
-	DEPENDENCIES
-		std_msgs
-		actionlib_msgs
-		sensor_msgs
-		geometry_msgs
-		ipa_room_segmentation
-)
-
+find_package(Boost REQUIRED COMPONENTS system thread chrono)
 
 ###################################
 ## catkin specific configuration ##
@@ -73,11 +45,11 @@ INCLUDE_DIRS
 	common/include
 	ros/include
 LIBRARIES
+	tsp_solvers
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
-	message_runtime
-	actionlib_msgs
 DEPENDS
+#	libconcorde_tsp_solver
 	OpenCV
 	Boost
 )
@@ -98,28 +70,42 @@ include_directories(
 	${Boost_INCLUDE_DIRS}
 )
 
-#tester for different functions
-#add_executable(a_star_tester ros/src/tester.cpp common/src/A_star_pathplanner.cpp common/src/node.cpp common/src/nearest_neighbor_TSP.cpp common/src/genetic_TSP.cpp common/src/concorde_TSP.cpp common/src/maximal_clique_finder.cpp common/src/contains.cpp common/src/set_cover_solver.cpp common/src/trolley_position_finder.cpp)
-#target_link_libraries(a_star_tester ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES})
-#add_dependencies(a_star_tester ${catkin_EXPORTED_TARGETS})
-
-add_executable(TSP_evaluation ros/src/boosttest.cpp common/src/A_star_pathplanner.cpp common/src/node.cpp common/src/nearest_neighbor_TSP.cpp common/src/genetic_TSP.cpp common/src/concorde_TSP.cpp common/src/contains.cpp)
-target_link_libraries(TSP_evaluation ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
-add_dependencies(TSP_evaluation ${catkin_EXPORTED_TARGETS})
+# TSP library
+add_library(tsp_solvers
+	common/src/A_star_pathplanner.cpp
+	common/src/node.cpp
+	common/src/nearest_neighbor_TSP.cpp
+	common/src/genetic_TSP.cpp
+	common/src/concorde_TSP.cpp
+)
+target_link_libraries(tsp_solvers
+	${catkin_LIBRARIES}
+	${OpenCV_LIBRARIES}
+	${Boost_LIBRARIES}
+)
+add_dependencies(tsp_solvers
+	${catkin_EXPORTED_TARGETS}
+	${${PROJECT_NAME}_EXPORTED_TARGETS}
+)
 
 # action provider
 add_executable(room_sequence_planning_server
 	ros/src/room_sequence_planning_action_server.cpp
-	common/src/A_star_pathplanner.cpp common/src/node.cpp
-	common/src/nearest_neighbor_TSP.cpp
-	common/src/genetic_TSP.cpp
-	common/src/concorde_TSP.cpp
 	common/src/maximal_clique_finder.cpp
-	common/src/contains.cpp
 	common/src/set_cover_solver.cpp
-	common/src/trolley_position_finder.cpp)
-target_link_libraries(room_sequence_planning_server ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES})
-add_dependencies(room_sequence_planning_server ${catkin_EXPORTED_TARGETS})
+	common/src/trolley_position_finder.cpp
+)
+target_link_libraries(room_sequence_planning_server
+	tsp_solvers
+	${catkin_LIBRARIES}
+	${OpenCV_LIBRARIES}
+	${Boost_LIBRARIES}
+)
+add_dependencies(room_sequence_planning_server
+	${catkin_EXPORTED_TARGETS}
+	${${PROJECT_NAME}_EXPORTED_TARGETS}
+	${PROJECT_NAME}_gencfg
+)
 
 # client for testing purpose
 add_executable(room_sequence_planning_client ros/src/room_sequence_planning_action_client.cpp)
@@ -127,20 +113,37 @@ target_link_libraries(room_sequence_planning_client
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBRARIES}
 )
-add_dependencies(room_sequence_planning_client ${catkin_EXPORTED_TARGETS} ${ipa_building_navigation_EXPORTED_TARGETS})
+add_dependencies(room_sequence_planning_client ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 # client for testing purpose
 add_executable(room_sequence_planning_evaluation 
 	ros/src/room_sequence_planning_evaluation.cpp
 	common/src/A_star_pathplanner.cpp
-	common/src/node.cpp)
+	common/src/node.cpp
+)
 target_link_libraries(room_sequence_planning_evaluation
-	${catkin_LIBRARIES} 
+	${catkin_LIBRARIES}
 	${OpenCV_LIBRARIES}
 )
-add_dependencies(room_sequence_planning_evaluation ${catkin_EXPORTED_TARGETS} ${ipa_building_navigation_EXPORTED_TARGETS})
+add_dependencies(room_sequence_planning_evaluation ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
- 
+# evaluation
+add_executable(TSP_evaluation
+	ros/src/boosttest.cpp
+)
+target_link_libraries(TSP_evaluation
+	tsp_solvers
+	${catkin_LIBRARIES}
+	${OpenCV_LIBRARIES}
+)
+add_dependencies(TSP_evaluation ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
+
+#tester for different functions
+#add_executable(a_star_tester ros/src/tester.cpp common/src/A_star_pathplanner.cpp common/src/node.cpp common/src/nearest_neighbor_TSP.cpp common/src/genetic_TSP.cpp common/src/concorde_TSP.cpp common/src/maximal_clique_finder.cpp common/src/set_cover_solver.cpp common/src/trolley_position_finder.cpp)
+#target_link_libraries(a_star_tester ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES})
+#add_dependencies(a_star_tester ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
+
+
 #############
 ## Install ##
 #############
@@ -170,6 +173,7 @@ install(DIRECTORY ros/include/${PROJECT_NAME}/
 #	PATTERN ".svn" EXCLUDE
 #)
 
+##uncomment this if you use launch and yaml files
 install(DIRECTORY ros/launch
 	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/ros
 	PATTERN ".svn" EXCLUDE

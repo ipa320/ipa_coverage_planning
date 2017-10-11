@@ -1,9 +1,26 @@
 #include <ipa_building_navigation/genetic_TSP.h>
 
+#include <boost/thread.hpp>
+#include <boost/chrono.hpp>
+
 //Default constructor
 GeneticTSPSolver::GeneticTSPSolver()
+: abort_computation_(false)
 {
 
+}
+
+void GeneticTSPSolver::distance_matrix_thread(DistanceMatrix& distance_matrix_computation, cv::Mat& distance_matrix,
+		const cv::Mat& original_map, const std::vector<cv::Point>& points, double downsampling_factor,
+		double robot_radius, double map_resolution, AStarPlanner& path_planner)
+{
+	distance_matrix_computation.constructDistanceMatrix(distance_matrix, original_map, points, downsampling_factor,
+				robot_radius, map_resolution, pathplanner_);
+}
+
+void GeneticTSPSolver::abortComputation()
+{
+	abort_computation_ = true;
 }
 
 ////Function to construct the distance matrix from the given points. See the definition at solveGeneticTSP for the style of this matrix.
@@ -187,6 +204,7 @@ std::vector<int> GeneticTSPSolver::getBestPath(const std::vector<std::vector<int
 //don't compute distance matrix
 std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& path_length_Matrix, const int start_Node)
 {
+	std::vector<int> return_vector;
 	NearestNeighborTSPSolver nearest_neighbor_solver;
 
 	std::vector<int> calculated_path = nearest_neighbor_solver.solveNearestTSP(path_length_Matrix, start_Node);
@@ -201,6 +219,9 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& path_length_Ma
 
 		do
 		{
+			if (abort_computation_==true)
+				return return_vector;
+
 			number_of_generations++;
 			changed_path = false;
 			std::vector < std::vector<int> > current_generation_paths; //vector to save the current generation
@@ -225,14 +246,12 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& path_length_Ma
 	}
 
 	//return the calculated path without the last node (same as start node)
-	std::vector<int> returning_vector;
-
 	for(size_t node = 0; node < calculated_path.size()-1; ++node)
 	{
-		returning_vector.push_back(calculated_path[node]);
+		return_vector.push_back(calculated_path[node]);
 	}
 
-	return returning_vector;
+	return return_vector;
 }
 
 //compute distance matrix and maybe returning it
@@ -243,7 +262,29 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& original_map, 
 	cv::Mat distance_matrix_ref;
 	if (distance_matrix != 0)
 		distance_matrix_ref = *distance_matrix;
-	DistanceMatrix::constructDistanceMatrix(distance_matrix_ref, original_map, points, downsampling_factor, robot_radius, map_resolution, pathplanner_);
+	DistanceMatrix distance_matrix_computation;
+	boost::thread t(boost::bind(&GeneticTSPSolver::distance_matrix_thread, this, boost::ref(distance_matrix_computation),
+			boost::ref(distance_matrix_ref), boost::cref(original_map), boost::cref(points), downsampling_factor,
+			robot_radius, map_resolution, boost::ref(pathplanner_)));
+	bool finished = false;
+	while (finished==false)
+	{
+		if (abort_computation_==true)
+			distance_matrix_computation.abortComputation();
+		finished = t.try_join_for(boost::chrono::milliseconds(10));
+	}
+//	DistanceMatrix distance_matrix_computation;
+//	distance_matrix_computation.constructDistanceMatrix(distance_matrix_ref, original_map, points, downsampling_factor, robot_radius, map_resolution, pathplanner_);
+
+	if (abort_computation_==true)
+	{
+		std::vector<int> return_vector;
+		return return_vector;
+	}
+
+	// todo: check whether distance matrix contains infinite path lenghts and if this is true, create a new distance matrix with maximum size clique of reachable points
+	// then solve TSP and re-index points to original indices
+	// and do not forget to copy fix to ipa_building_navigation
 
 	return (solveGeneticTSP(distance_matrix_ref, start_Node));
 }

@@ -13,27 +13,23 @@
 	</description>
 	<author email="florian.jordan@ipa.fraunhofer.de">Florian Jordan</author>
 	<maintainer email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</maintainer>
-	<license>LGPL</license>
+	<license>LGPL for academic and non-commercial use; for commercial use, please contact Fraunhofer IPA</license>
 	<url>http://ros.org/wiki/ipa_building_navigation</url>
 
 	<buildtool_depend>catkin</buildtool_depend>
 	
+	<depend>actionlib</depend>
+	<depend>boost</depend>
 	<depend>cmake_modules</depend>
 	<depend>cv_bridge</depend>
+	<depend>dynamic_reconfigure</depend>
+	<depend>geometry_msgs</depend>
+	<depend>ipa_building_msgs</depend>
+	<depend>libconcorde_tsp_solver</depend>
 	<depend>libopencv-dev</depend>
+	<depend>message_generation</depend>
 	<depend>roscpp</depend>
 	<depend>roslib</depend>
-	<depend>concorde_tsp_solver</depend>
-	<depend>actionlib</depend>
-	<depend>actionlib_msgs</depend>
-	<depend>std_msgs</depend>
 	<depend>sensor_msgs</depend>
-	<depend>geometry_msgs</depend>
-	<depend>message_generation</depend>
-	<depend>genmsg</depend>
-	<depend>boost</depend>
-	<depend>ipa_room_segmentation</depend>
-
-	<exec_depend>message_runtime</exec_depend>
 
 </package>

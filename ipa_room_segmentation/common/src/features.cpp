@@ -193,9 +193,9 @@ double LaserScannerFeatures::calc_feature3(const std::vector<double>& beams, dou
 	//get the difference betweeen the last and the first beam
 	val1 = maxval;
 	val2 = maxval;
-	if (beams[beams.size()] < maxval)
+	if (beams[beams.size()-1] < maxval)
 	{
-		val1 = beams[beams.size() - 1];
+		val1 = beams[beams.size()-1];
 	}
 	if (beams[0] < maxval)
 	{
@@ -243,9 +243,9 @@ double LaserScannerFeatures::calc_feature4(const std::vector<double>& beams, dou
 	//add the difference from last to first point
 	v = maxval;
 	w = maxval;
-	if (beams[beams.size()] < maxval)
+	if (beams[beams.size()-1] < maxval)
 	{
-		v = beams[beams.size() - 1];
+		v = beams[beams.size()-1];
 	}
 	if (beams[0] < maxval)
 	{

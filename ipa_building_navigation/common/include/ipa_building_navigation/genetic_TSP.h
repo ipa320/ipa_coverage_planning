@@ -48,13 +48,17 @@ protected:
 	//function that selects the best path from the given paths
 	std::vector<int> getBestPath(const std::vector<std::vector<int> > paths, const cv::Mat& pathlength_Matrix, bool& changed);
 
-//	//Function to construct the distance matrix, showing the pathlength from node to node
-//	void constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const int number_of_nodes, const std::vector<cv::Point>& points,
-//	        double downsampling_factor, double robot_radius, double map_resolution);
+	void distance_matrix_thread(DistanceMatrix& distance_matrix_computation, cv::Mat& distance_matrix,
+			const cv::Mat& original_map, const std::vector<cv::Point>& points, double downsampling_factor,
+			double robot_radius, double map_resolution, AStarPlanner& path_planner);
+
+	bool abort_computation_;
 
 public:
 	//constructor
 	GeneticTSPSolver();
+
+	void abortComputation();
 
 	//Solving-algorithms for the given TSP. It returns a vector of int, which is the order from this solution. The int shows
 	//the index in the Matrix. There are two functions for different cases:

@@ -10,9 +10,27 @@
 
 class DistanceMatrix
 {
+protected:
+
+	bool abort_computation_;
+
 public:
-	static void constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const std::vector<cv::Point>& points,
-			double downsampling_factor, double robot_radius, double map_resolution, AStarPlanner& path_planner)
+
+	DistanceMatrix()
+	: abort_computation_(false)
+	{
+	}
+
+	void abortComputation()
+	{
+		abort_computation_ = true;
+	}
+
+	// REMARK:	paths is a pointer that points to a 3D vector that has dimensionality NxN in the outer vectors to store
+	//			the paths in a matrix manner
+	void constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const std::vector<cv::Point>& points,
+			double downsampling_factor, double robot_radius, double map_resolution, AStarPlanner& path_planner,
+			std::vector<std::vector<std::vector<cv::Point> > >* paths=NULL)
 	{
 		Timer tim;
 
@@ -33,10 +51,33 @@ public:
 				{
 					if (j > i) //only compute upper right triangle of matrix, rest is symmetrically added
 					{
-						//cv::Point neighbor = downsampling_factor * points[j];
-						double length = path_planner.planPath(original_map, downsampled_map, points[i], points[j], downsampling_factor, 0., map_resolution);
-						distance_matrix.at<double>(i, j) = length;
-						distance_matrix.at<double>(j, i) = length; //symmetrical-Matrix --> saves half the computation time
+						if (abort_computation_==true)
+							return;
+
+						if(paths!=NULL)
+						{
+							std::vector<cv::Point> current_path;
+							double length = path_planner.planPath(original_map, downsampled_map, points[i], points[j], downsampling_factor, 0., map_resolution, 0, NULL, &current_path);
+							distance_matrix.at<double>(i, j) = length;
+							distance_matrix.at<double>(j, i) = length; //symmetrical-Matrix --> saves half the computation time
+
+							// remap path points to original map size
+							for(std::vector<cv::Point>::iterator point=current_path.begin(); point!=current_path.end(); ++point)
+							{
+								point->x = point->x/downsampling_factor;
+								point->y = point->y/downsampling_factor;
+							}
+
+							paths->at(i).at(j) = current_path;
+							paths->at(j).at(i) = current_path;
+						}
+						else
+						{
+							double length = path_planner.planPath(original_map, downsampled_map, points[i], points[j], downsampling_factor, 0., map_resolution);
+							distance_matrix.at<double>(i, j) = length;
+							distance_matrix.at<double>(j, i) = length; //symmetrical-Matrix --> saves half the computation time
+
+						}
 					}
 				}
 				else

@@ -7,11 +7,12 @@
 
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
-#include <ipa_room_segmentation/MapSegmentationAction.h>
+#include <ipa_building_msgs/MapSegmentationAction.h>
 #include <sensor_msgs/image_encodings.h>
 
 #include <ipa_room_segmentation/timer.h>
 #include <ipa_room_segmentation/evaluation_segmentation.h>
+#include <ipa_room_segmentation/dynamic_reconfigure_client.h>
 
 #include <iostream>
 #include <list>
@@ -67,7 +68,7 @@ bool check_inner_pixel(const cv::Mat& map, const int u, const int v)
 	return true;
 }
 
-void calculate_basic_measures(const cv::Mat& map, const int number_rooms, std::vector<double>& areas, std::vector<double>& perimeters,
+void calculate_basic_measures(const cv::Mat& map, const double map_resolution, const int number_rooms, std::vector<double>& areas, std::vector<double>& perimeters,
 		std::vector<double>& area_perimeter_compactness, std::vector<double>& bb_area_compactness, std::vector<double>& pca_eigenvalue_ratio)
 {
 	areas.clear();
@@ -84,7 +85,7 @@ void calculate_basic_measures(const cv::Mat& map, const int number_rooms, std::v
 	std::vector< std::vector< cv::Point > > room_contours(number_rooms);
 	std::vector< std::vector< cv::Point > > filled_rooms(number_rooms);
 
-	const double map_resolution = 0.0500; // m/cell
+	//const double map_resolution = 0.0500; // m/cell
 	for(size_t v = 0; v < map.rows; ++v)
 	{
 		for(size_t u = 0; u < map.cols; ++u)
@@ -124,10 +125,10 @@ void calculate_basic_measures(const cv::Mat& map, const int number_rooms, std::v
 }
 
 //calculate the compactness of the rooms. Compactness factor is given by area/perimeter
-std::vector<double> calculate_compactness(std::vector<std::vector<cv::Point> > rooms)
+std::vector<double> calculate_compactness(std::vector<std::vector<cv::Point> > rooms, const double map_resolution)
 {
 	double current_area, current_perimeter;
-	double map_resolution = 0.05000;
+	//double map_resolution = 0.05000;
 	std::vector<double> compactness_factors;
 	//calculate the area and perimeter for each room using opencv
 	for (int current_room = 0; current_room < rooms.size(); current_room++)
@@ -140,11 +141,11 @@ std::vector<double> calculate_compactness(std::vector<std::vector<cv::Point> > r
 }
 
 //calculate too much area of the bounding box
-std::vector<double> calculate_bounding_error(std::vector<std::vector<cv::Point> > rooms)
+std::vector<double> calculate_bounding_error(std::vector<std::vector<cv::Point> > rooms, const double map_resolution)
 {
 	std::vector<double> space_errors;
 	double bounding_box_area, room_area;
-	double map_resolution = 0.05000;
+	//double map_resolution = 0.05000;
 	cv::RotatedRect current_bounding_box;
 	//calculate the rotated bounding box for each room and subtract the roomarea from it
 	for (int current_room = 0; current_room < rooms.size(); current_room++) {
@@ -158,10 +159,10 @@ std::vector<double> calculate_bounding_error(std::vector<std::vector<cv::Point> 
 }
 
 //calculate area for every room
-std::vector<double> calculate_areas(std::vector<std::vector<cv::Point> > rooms)
+std::vector<double> calculate_areas(std::vector<std::vector<cv::Point> > rooms, const double map_resolution)
 {
 	std::vector<double> calculated_areas;
-	double map_resolution = 0.0500;
+	//double map_resolution = 0.0500;
 	for (int current_room = 0; current_room < rooms.size(); current_room++)
 	{
 		calculated_areas.push_back(map_resolution * map_resolution * cv::contourArea(rooms[current_room]));
@@ -170,10 +171,10 @@ std::vector<double> calculate_areas(std::vector<std::vector<cv::Point> > rooms)
 }
 
 //calculate area for every room
-std::vector<double> calculate_areas_from_segmented_map(const cv::Mat& map, const int number_rooms)
+std::vector<double> calculate_areas_from_segmented_map(const cv::Mat& map, const double map_resolution, const int number_rooms)
 {
 	std::vector<double> calculated_areas(number_rooms, 0.);
-	const double map_resolution = 0.0500; // m/cell
+	//const double map_resolution = 0.0500; // m/cell
 	for(size_t v = 0; v < map.rows; ++v)
 		for(size_t u = 0; u < map.cols; ++u)
 			if(map.at<int>(v,u) != 0)
@@ -308,11 +309,11 @@ double calc_average_distance(std::vector<std::vector<cv::Point> > rooms)
 }
 
 //Calculate standard deviation of room-areas
-double calc_area_deviation(std::vector<std::vector<cv::Point> > rooms)
+double calc_area_deviation(std::vector<std::vector<cv::Point> > rooms, const double map_resolution)
 {
 	double sigma = 0.0;
 	double mean = 0.0;
-	std::vector<double> areas = calculate_areas(rooms);
+	std::vector<double> areas = calculate_areas(rooms, map_resolution);
 	//calculate the average room-area
 	for (int current_room = 0; current_room < areas.size(); current_room++) {
 		mean += areas[current_room];
@@ -369,11 +370,11 @@ double calc_quotients_deviation(std::vector<std::vector<cv::Point> > rooms)
 }
 
 //Calculate standard deviation of bounding-box-errors
-double calc_errors_deviation(std::vector<std::vector<cv::Point> > rooms)
+double calc_errors_deviation(std::vector<std::vector<cv::Point> > rooms, const double map_resolution)
 {
 	double sigma = 0.0;
 	double mean = 0.0;
-	std::vector<double> errors = calculate_bounding_error(rooms);
+	std::vector<double> errors = calculate_bounding_error(rooms, map_resolution);
 	//calculate the average room-area
 	for (int current_room = 0; current_room < errors.size(); current_room++) {
 		mean += errors[current_room];
@@ -397,6 +398,8 @@ int segmentationNameToNumber(const std::string name)
 		return 3;
 	else if (name.compare("4semantic") == 0)
 		return 4;
+	else if (name.compare("5vrf") == 0)
+		return 5;
 	return 1;
 }
 
@@ -404,16 +407,31 @@ int segmentationNameToNumber(const std::string name)
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "evaluation");
 	ros::NodeHandle n;
+//	ros::Subscriber semantic_labeler = n.Subscribe("Laser_scanner", 1000, segmentation_algorithm);
 	ROS_INFO("Evaluation of the segmented maps. Calculates some Parameters describing the rooms.");
+//	ros::spin();
 
-	double map_resolution = 0.0500;
+	double map_resolution = 0.05;
 
 	std::vector<std::string> segmentation_names;
 	segmentation_names.push_back("1morphological");
 	segmentation_names.push_back("2distance");
 	segmentation_names.push_back("3voronoi");
 	segmentation_names.push_back("4semantic");
+	segmentation_names.push_back("5vrf");
 
+//	std::string map_name = "NLB";
+////		"lab_ipa" //done
+////		"lab_c_scan" //done
+////		"Freiburg52_scan" //done
+////		"Freiburg79_scan" //done
+////		"lab_b_scan" //done
+////		"lab_intel" //done
+////		"Freiburg101_scan" //done
+////		"lab_d_scan" //done
+////		"lab_f_scan" //done
+////		"lab_a_scan" //done
+////		"NLB" //done
 	std::vector< std::string > map_names;
 	map_names.push_back("lab_ipa");
 	map_names.push_back("lab_c_scan");
@@ -519,22 +537,67 @@ int main(int argc, char **argv) {
 			cv_image.toImageMsg(labeling);
 			// create the action client --> "name of server"
 			// true causes the client to spin its own thread
-			actionlib::SimpleActionClient<ipa_room_segmentation::MapSegmentationAction> ac("/room_segmentation/room_segmentation_server", true);
+			actionlib::SimpleActionClient<ipa_building_msgs::MapSegmentationAction> ac("room_segmentation_server", true);
 
 			ROS_INFO("Waiting for action server to start.");
 			// wait for the action server to start
 			ac.waitForServer(); //will wait for infinite time
-
 			ROS_INFO("Action server started, sending goal.");
+
+			// send dynamic reconfigure config
+			DynamicReconfigureClient drc(n, "room_segmentation_server/set_parameters", "room_segmentation_server/parameter_updates");
+			const int room_segmentation_algorithm = segmentationNameToNumber(segmentation_names[segmentation_index]);
+			drc.setConfig("room_segmentation_algorithm", room_segmentation_algorithm);
+			if(room_segmentation_algorithm == 1) //morpho
+			{
+				drc.setConfig("room_area_factor_lower_limit_morphological", 0.8);
+				drc.setConfig("room_area_factor_upper_limit_morphological", 47.0);
+				ROS_INFO("You have chosen the morphological segmentation.");
+			}
+			if(room_segmentation_algorithm == 2) //distance
+			{
+				drc.setConfig("room_area_factor_lower_limit_distance", 0.35);
+				drc.setConfig("room_area_factor_upper_limit_distance", 163.0);
+				ROS_INFO("You have chosen the distance segmentation.");
+			}
+			if(room_segmentation_algorithm == 3) //voronoi
+			{
+				drc.setConfig("room_area_factor_lower_limit_voronoi", 0.1);	//1.53;
+				drc.setConfig("room_area_factor_upper_limit_voronoi", 1000000.);	//120.0;
+				drc.setConfig("voronoi_neighborhood_index", 280);
+				drc.setConfig("max_iterations", 150);
+				drc.setConfig("min_critical_point_distance_factor", 0.5); //1.6;
+				drc.setConfig("max_area_for_merging", 12.5);
+				ROS_INFO("You have chosen the Voronoi segmentation");
+			}
+			if(room_segmentation_algorithm == 4) //semantic
+			{
+				drc.setConfig("room_area_factor_lower_limit_semantic", 1.0);
+				drc.setConfig("room_area_factor_upper_limit_semantic", 1000000.);//23.0;
+				ROS_INFO("You have chosen the semantic segmentation.");
+			}
+			if(room_segmentation_algorithm == 5) //voronoi random field
+			{
+				drc.setConfig("room_area_lower_limit_voronoi_random", 1.53); //1.53
+				drc.setConfig("room_area_upper_limit_voronoi_random", 1000000.); //1000000.0
+				drc.setConfig("max_iterations", 150);
+				drc.setConfig("voronoi_random_field_epsilon_for_neighborhood", 7);
+				drc.setConfig("min_neighborhood_size", 5);
+				drc.setConfig("min_voronoi_random_field_node_distance", 7.0); // [pixel]
+				drc.setConfig("max_voronoi_random_field_inference_iterations", 9000);
+				drc.setConfig("max_area_for_merging", 12.5);
+				ROS_INFO("You have chosen the Voronoi random field segmentation.");
+			}
+
 			// send a goal to the action
-			ipa_room_segmentation::MapSegmentationGoal goal;
+			ipa_building_msgs::MapSegmentationGoal goal;
 			goal.input_map = labeling;
 			goal.map_origin.position.x = 0;
 			goal.map_origin.position.y = 0;
-			goal.map_resolution = 0.05;
+			goal.map_resolution = map_resolution;
 			goal.return_format_in_meter = false;
 			goal.return_format_in_pixel = true;
-			goal.room_segmentation_algorithm = segmentationNameToNumber(segmentation_names[segmentation_index]);
+			//goal.room_segmentation_algorithm = segmentationNameToNumber(segmentation_names[segmentation_index]);
 			goal.robot_radius = 0.3;
 			Timer tim;
 			ac.sendGoal(goal);
@@ -548,7 +611,8 @@ int main(int argc, char **argv) {
 			ROS_INFO("Finished successfully!");
 
 			// retrieve segmentation
-			ipa_room_segmentation::MapSegmentationResultConstPtr result = ac.getResult();
+			ipa_building_msgs::MapSegmentationResultConstPtr result = ac.getResult();
+			std::cout << "number of found doorways: " << result->doorway_points.size() << std::endl;
 			cv_bridge::CvImagePtr cv_ptr_seq = cv_bridge::toCvCopy(result->segmented_map, sensor_msgs::image_encodings::TYPE_32SC1);
 			cv::Mat segmented_map = cv_ptr_seq->image;
 
@@ -576,7 +640,7 @@ int main(int argc, char **argv) {
 			std::vector<double> area_perimeter_compactness;
 			std::vector<double> bb_area_compactness;
 			std::vector<double> pca_eigenvalue_ratio;
-			calculate_basic_measures(segmented_map, (int)result->room_information_in_pixel.size(), areas, perimeters, area_perimeter_compactness, bb_area_compactness, pca_eigenvalue_ratio);
+			calculate_basic_measures(segmented_map, map_resolution, (int)result->room_information_in_pixel.size(), areas, perimeters, area_perimeter_compactness, bb_area_compactness, pca_eigenvalue_ratio);
 
 			// runtime
 			results[segmentation_index].at<double>(0, image_index) = runtime;

@@ -1,0 +1,14 @@
+# The request message provides a segmented map which consists of cells with label 0 for inaccessible areas and other number from 1 to N
+# for labeling membership with one of the N segmented areas.
+# The return message shall deliver the same map but with only one area (segment_of_interest) labeled as 255 and the remainder labeled
+# as inaccessible with 0.
+
+sensor_msgs/Image segmented_map		# a map segmented into N areas which carry the respective segment number in every pixel cell,
+									# format 32SC1, room labels from 1 to N, 0 represents inaccessible cells (e.g. walls)
+int32 segment_of_interest		# the specific area label of the area of which a map shall be created
+
+---
+
+sensor_msgs/Image segmented_area	# a map that only contains the area which is labeled with segment_of_interest in segmented_map,
+									# the parts of that area are labeled as 255 in this map and the remainder is labeled as inaccessible with 0
+									# data type is a 8bit single-channel image (format 8UC1)
