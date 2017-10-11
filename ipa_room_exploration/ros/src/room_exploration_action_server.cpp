@@ -934,7 +934,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
     move_base_goal.target_pose.pose.orientation.w = std::cos(map_oriented_pose.theta/2);
 
 	// send goal to the move_base sever, when one is found
-	ROS_INFO("Sending goal");
+  ROS_INFO_STREAM("Sending goal with eps " << eps);
 	mv_base_client.sendGoal(move_base_goal);
 
 	// wait until goal is reached or the goal is aborted
