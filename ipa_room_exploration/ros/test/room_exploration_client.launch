@@ -3,7 +3,8 @@
 
   <arg name="env_pack" default="$(find cob_default_env_config)" />
   <arg name="robot_env" default="$(optenv ROBOT_ENV !!NO_ROBOT_ENV_SET!!)"/>
-  <arg name="robot_radius" default="1.0"/>
+  <arg name="robot_radius" default="0.1"/>
+  <arg name="coverage_radius" default="0.2"/>
 
   <!--  -->
   <node ns="room_exploration" pkg="ipa_room_exploration" type="room_exploration_client" name="room_exploration_client" output="screen">
@@ -11,6 +12,7 @@
     <param name="env_pack" value="$(arg env_pack)"/>
     <param name="robot_env" value="$(arg robot_env)"/>
     <param name="robot_radius" value="$(arg robot_radius)"/>
+    <param name="coverage_radius" value="$(arg coverage_radius)"/>
   </node>
 
 

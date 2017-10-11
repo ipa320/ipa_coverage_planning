@@ -180,7 +180,9 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	node_handle_.param("left_sections_min_area", left_sections_min_area_, 10.0);
 	std::cout << "room_exploration/left_sections_min_area_ = " << left_sections_min_area_ << std::endl;
 
-	//Start action server
+  path_pub_ = node_handle_.advertise<nav_msgs::Path>("coverage_path", 2);
+
+  //Start action server
 	room_exploration_server_.start();
 
 	ROS_INFO("Action server for room exploration has been initialized......");
@@ -508,27 +510,45 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		return;
 	}
 
+  //Quick and dirty, find better solution to fix orientation
+  std::vector<geometry_msgs::PoseStamped> exploration_path_pose_stamped(exploration_path.size());
+  std_msgs::Header header;
+  header.stamp = ros::Time::now();
+  header.frame_id = "/map";
+  for (size_t i=0; i<exploration_path.size(); ++i)
+  {
+    exploration_path_pose_stamped[i].header = header;
+    exploration_path_pose_stamped[i].header.seq = i;
+    exploration_path_pose_stamped[i].pose.position.x = exploration_path[i].x;
+    exploration_path_pose_stamped[i].pose.position.y = (room_map.rows * map_resolution) - (exploration_path[i].y - map_origin.y) + map_origin.y;
+    exploration_path_pose_stamped[i].pose.position.z = 0.;
+    Eigen::Quaterniond quaternion;
+    quaternion = Eigen::AngleAxisd((double)exploration_path[i].theta, Eigen::Vector3d::UnitZ());
+    tf::quaternionEigenToMsg(quaternion, exploration_path_pose_stamped[i].pose.orientation);
+  }
+
+  ipa_utils::reorientInDrivingDirection(&exploration_path_pose_stamped ,0);
+
+  for (size_t i=0; i<exploration_path_pose_stamped.size(); ++i)
+  {
+    tf::Quaternion quaternion;
+    tf::quaternionMsgToTF(exploration_path_pose_stamped[i].pose.orientation, quaternion);
+    exploration_path[i].theta = tf::getYaw(quaternion);
+  }
+
+
 	// if wanted, return the path as the result
 	if(return_path_ == true)
 	{
 		action_result.coverage_path = exploration_path;
 		// return path in PoseStamped format as well (e.g. necessary for move_base commands)
-		std::vector<geometry_msgs::PoseStamped> exploration_path_pose_stamped(exploration_path.size());
-		std_msgs::Header header;
-		header.stamp = ros::Time::now();
-		header.frame_id = "/map";
-		for (size_t i=0; i<exploration_path.size(); ++i)
-		{
-			exploration_path_pose_stamped[i].header = header;
-			exploration_path_pose_stamped[i].header.seq = i;
-			exploration_path_pose_stamped[i].pose.position.x = exploration_path[i].x;
-      exploration_path_pose_stamped[i].pose.position.y = (room_map.rows * map_resolution) - (exploration_path[i].y - map_origin.y) + map_origin.y;
-			exploration_path_pose_stamped[i].pose.position.z = 0.;
-			Eigen::Quaterniond quaternion;
-			quaternion = Eigen::AngleAxisd((double)exploration_path[i].theta, Eigen::Vector3d::UnitZ());
-			tf::quaternionEigenToMsg(quaternion, exploration_path_pose_stamped[i].pose.orientation);
-		}
 		action_result.coverage_path_pose_stamped = exploration_path_pose_stamped;
+
+    nav_msgs::Path coverage_path;
+    coverage_path.header.frame_id = "map";
+    coverage_path.header.stamp = ros::Time::now();
+    coverage_path.poses = exploration_path_pose_stamped;
+    path_pub_.publish(coverage_path);
 	}
 
 	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************

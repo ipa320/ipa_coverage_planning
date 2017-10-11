@@ -91,11 +91,13 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Polygon.h>
 #include <geometry_msgs/Point32.h>
+#include <nav_msgs/Path.h>
 #include <nav_msgs/OccupancyGrid.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
 // specific from this package
 #include <ipa_navigation_utils/utils.h>
+#include <ipa_navigation_utils/geometry.h>
 #include <ipa_building_navigation/concorde_TSP.h>
 #include <ipa_room_exploration/RoomExplorationConfig.h>
 #include <ipa_room_exploration/grid_point_explorator.h>
@@ -168,6 +170,7 @@ protected:
 						//3 = Concorde solver
 	int64_t tsp_solver_timeout_;	// a sophisticated solver like Concorde or Genetic can be interrupted if it does not find a solution within this time, in [s], and then falls back to the nearest neighbor solver
 
+  ros::Publisher path_pub_;
 
 	int grid_line_length_; // size of the grid-lines that the grid-point-explorator lays over the map
 	double path_eps_; // the distance between points when generating a path
