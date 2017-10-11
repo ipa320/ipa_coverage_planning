@@ -628,6 +628,8 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
 	// 1. publish navigation goals
 	std::vector<geometry_msgs::Pose2D> robot_poses;
+  geometry_msgs::Pose2D last_pose;
+  geometry_msgs::Pose2D pose;
     for(size_t map_oriented_pose = 0; map_oriented_pose < exploration_path.size(); ++map_oriented_pose)
 	{
 		// check if the path should be continued or not
@@ -648,9 +650,18 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 			ROS_INFO("Interrupt order canceled, resuming coverage path now.");
 
 		// if no interrupt is wanted, publish the navigation goal
-    auto pose = exploration_path[map_oriented_pose];
+    pose = exploration_path[map_oriented_pose];
+    double temp_goal_eps = 0;
+    if (map_oriented_pose != 0)
+    {
+      double delta_theta = std::fabs(last_pose.theta - pose.theta);
+      if (delta_theta > M_PI * 0.5)
+        delta_theta = M_PI * 0.5;
+      temp_goal_eps = (M_PI * 0.5 - delta_theta) / (M_PI * 0.5) * goal_eps_;
+    }
     pose.y = map_height - (pose.y - map_origin.position.y) + map_origin.position.y;
-        publishNavigationGoal(pose, map_frame_, camera_frame_, robot_poses, distance_robot_fov_middlepoint, goal_eps_, true); // eps = 0.35
+    publishNavigationGoal(pose, map_frame_, camera_frame_, robot_poses, distance_robot_fov_middlepoint, temp_goal_eps, true); // eps = 0.35
+    last_pose = pose;
 	}
 
 	std::cout << "published all navigation goals, starting to check seen area" << std::endl;
