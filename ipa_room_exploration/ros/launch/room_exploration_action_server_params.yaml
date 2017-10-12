@@ -7,7 +7,7 @@
 # 6 = energyFunctional explorator
 # 7 = voronoi explorator
 # int
-room_exploration_algorithm: 6
+room_exploration_algorithm: 2
 
 # minimal area of not seen sections that they are revisited after the first go trough the room
 # double
@@ -19,7 +19,12 @@ left_sections_min_area: 0.01
 # can be turned off (0) when used with real robot
 # double
 # [pixel], where one pixel is the size of one cell in the navigation grid map
-goal_eps: 1.0     #0.35
+goal_eps: 0.0     #0.35
+
+# use a dynamic goal distance criterion: the larger the path's curvature, the more accurate the navigation.
+# Use 'goal_eps' param as maximum distance on straight paths and zero distance (accurate goal approaching) on 90° curves.
+# bool
+use_dyn_goal_eps: false
 
 # size of one cell when discretizing the free space, smaller value means a more detailed discretization
 # in [pixel], where one pixel is the size of one cell in the navigation grid map
@@ -46,7 +51,7 @@ return_path: true
 
 # boolean used to determine whether the server should navigate the robot along the computed coverage path
 # bool
-execute_path: true
+execute_path: false
 
 # this variable turns the functionality on/off to revisit areas that haven't been seen during the execution of the coverage path,
 # due to uncertainties or dynamic obstacles
@@ -68,8 +73,6 @@ map_frame: "map"
 # string that carries the name of the camera frame, that is in the same kinematic chain as the map_frame and shows the camera pose
 # string
 camera_frame: "base_link"
-
-use_dyn_goal_eps: false
 
 
 # parameters specific for the grid point explorator
