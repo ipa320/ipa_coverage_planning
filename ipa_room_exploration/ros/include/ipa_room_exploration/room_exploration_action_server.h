@@ -96,8 +96,6 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
 // specific from this package
-#include <ipa_navigation_utils/utils.h>
-#include <ipa_navigation_utils/geometry.h>
 #include <ipa_building_navigation/concorde_TSP.h>
 #include <ipa_room_exploration/RoomExplorationConfig.h>
 #include <ipa_room_exploration/grid_point_explorator.h>
@@ -170,8 +168,8 @@ protected:
 						//3 = Concorde solver
 	int64_t tsp_solver_timeout_;	// a sophisticated solver like Concorde or Genetic can be interrupted if it does not find a solution within this time, in [s], and then falls back to the nearest neighbor solver
 
-    ros::Publisher path_pub_; // a publisher sending the path as a nav_msgs::Path before executing
-    bool use_dyn_goal_eps_; // using a dynamic goal distance criterion: the larger the path's curvature, the more accurate the navigation
+	ros::Publisher path_pub_; // a publisher sending the path as a nav_msgs::Path before executing
+	bool use_dyn_goal_eps_; // using a dynamic goal distance criterion: the larger the path's curvature, the more accurate the navigation
 
 	int grid_line_length_; // size of the grid-lines that the grid-point-explorator lays over the map
 	double path_eps_; // the distance between points when generating a path
@@ -208,7 +206,7 @@ protected:
 	// excute the planned trajectory and drive to unexplored areas after moving along the computed path
 	void navigateExplorationPath(const std::vector<geometry_msgs::Pose2D>& exploration_path,
 			const std::vector<geometry_msgs::Point32>& field_of_view, const double coverage_radius, const double distance_robot_fov_middlepoint,
-            const float map_resolution, const geometry_msgs::Pose& map_origin, const double grid_spacing_in_pixel, const double map_height);
+			const float map_resolution, const geometry_msgs::Pose& map_origin, const double grid_spacing_in_pixel, const double map_height);
 
 	// function to publish a navigation goal, it returns true if the goal could be reached
 	// eps_x and eps_y are used to define a epsilon neighborhood around the goal in which a new nav_goal gets published

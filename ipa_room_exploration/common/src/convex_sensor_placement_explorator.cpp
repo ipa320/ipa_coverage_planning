@@ -147,6 +147,16 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	std::vector<cv::Point> fov_middlepoint_path_transformed;
 	cv::transform(cell_centers_rotated, cell_centers, R_inv);
 
+//	// print grid
+//	cv::Mat point_map = room_map.clone();
+//	for(std::vector<cv::Point>::iterator point = cell_centers.begin(); point != cell_centers.end(); ++point)
+//	{
+//		cv::circle(point_map, *point, 2, cv::Scalar(127), CV_FILLED);
+//		std::cout << "  - " << *point << "\n";
+//	}
+//	cv::imshow("grid", point_map);
+//	cv::waitKey();
+
 	// get candidate sensing poses
 	std::vector<geometry_msgs::Pose2D> candidate_sensing_poses;
 	double delta_angle = (plan_for_footprint == true ? 4.*PI : delta_theta);
@@ -279,6 +289,22 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		}
 	}
 	std::cout << "number of optimization variables: " << W.size() << std::endl;
+
+//	testing
+//	for(size_t i=0; i<cell_centers.size(); ++i)
+//	{
+//		cv::Mat black_map = cv::Mat(room_map.rows, room_map.cols, room_map.type(), cv::Scalar(0));
+//		cv::circle(black_map, cell_centers[i], 2, cv::Scalar(127), CV_FILLED);
+//		for(size_t j=0; j<V.cols; ++j)
+//		{
+//			if(V.at<uchar>(i, j) == 1)
+//			{
+//				cv::circle(black_map, cv::Point(candidate_sensing_poses[j].x, candidate_sensing_poses[j].y), 2, cv::Scalar(100), CV_FILLED);
+//				cv::imshow("candidates", black_map);
+//				cv::waitKey();
+//			}
+//		}
+//	}
 
 	// ************* IV. Solve the different linear problems. *************
 	// 1. solve the weighted optimization problem until a convergence in the sparsity is reached or a defined number of

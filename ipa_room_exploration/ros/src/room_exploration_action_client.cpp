@@ -16,7 +16,6 @@
 #include <geometry_msgs/Point32.h>
 #include <nav_msgs/OccupancyGrid.h>
 
-#include <ipa_navigation_utils/utils.h>
 #include <ipa_building_msgs/RoomExplorationAction.h>
 #include <ipa_room_exploration/dynamic_reconfigure_client.h>
 #include <ipa_room_exploration/timer.h>
@@ -38,31 +37,44 @@ int main(int argc, char **argv)
 
 	actionlib::SimpleActionClient<ipa_building_msgs::RoomExplorationAction> ac("room_exploration_server", true);
 
-        // read params
-        std::string env_pack_path;
-        ipa_utils::getRosParam(priv_nh, "env_pack", env_pack_path, "");
-        std::string map_name;
-        ipa_utils::getRosParam(priv_nh, "robot_env", map_name, "ipa-apartment");
-        std::string file_name;
-        ipa_utils::getRosParam(priv_nh, "image", file_name, "map.pgm");
-        double resolution;
-        ipa_utils::getRosParam(priv_nh, "resolution", resolution, 0.05);
-        std::vector<double> origin (3,0);
-        ipa_utils::getRosParam(priv_nh, "origin", origin, origin);
-        double robot_radius;
-        ipa_utils::getRosParam(priv_nh, "robot_radius", robot_radius, 0.3);
-        double coverage_radius;
-        ipa_utils::getRosParam(priv_nh, "coverage_radius", coverage_radius, 1.0);
-        std::vector<double> start_pos = {0, 0, 0};
-        ipa_utils::getRosParam(priv_nh, "starting_position", start_pos, start_pos);
+	// read params
+	bool use_test_maps;
+	priv_nh.param("use_test_maps", use_test_maps, true);
+	double resolution;
+	priv_nh.param("resolution", resolution, 0.05);
+	std::vector<double> origin (3,0);
+	priv_nh.param("origin", origin, origin);
+	double robot_radius;
+	priv_nh.param("robot_radius", robot_radius, 0.3);
+	double coverage_radius;
+	priv_nh.param("coverage_radius", coverage_radius, 1.0);
+	std::vector<double> start_pos = {0, 0, 0};
+	priv_nh.param("starting_position", start_pos, start_pos);
 
-        if (start_pos.size() != 3) {
-        ROS_FATAL("starting_position must contain 3 values");
-        return -1;
-        }
+	if (start_pos.size() != 3)
+	{
+		ROS_FATAL("starting_position must contain 3 values");
+		return -1;
+	}
 
+	std::string image_path;
+	if (use_test_maps)
+	{
+		// read in test map
+		const std::string test_map_path = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/";
+		image_path = test_map_path + "lab_ipa.png";
+	}
+	else
+	{
+		std::string env_pack_path;
+		priv_nh.param<std::string>("env_pack", env_pack_path, "ipa_room_segmentation");
+		std::string file_name;
+		priv_nh.param<std::string>("image", file_name, "map.pgm");
+		std::string map_name;
+		priv_nh.param<std::string>("robot_env", map_name, "lab_ipa");
 
-	const std::string image_path = env_pack_path + "/envs/" + map_name + "/" + file_name;
+		image_path = env_pack_path + "/envs/" + map_name + "/" + file_name;
+	}
 
 	cv::Mat map = cv::imread(image_path, 0);
 	//make non-white pixels black
@@ -84,6 +96,29 @@ int main(int argc, char **argv)
 	}
 	std::cout << "map-size: " << map.rows << "x" << map.cols << std::endl;
 
+//	const std::string topic = "/move_base/global_costmap/costmap";
+//	nav_msgs::OccupancyGrid grid;
+//	grid = *(ros::topic::waitForMessage<nav_msgs::OccupancyGrid>(topic, nh));
+//	ROS_INFO("got grid");
+//
+//	std::vector<signed char> dats;
+//	dats = grid.data;
+//
+//	std::cout << dats.size() << std::endl;
+//	int s = 200;
+//	cv::Mat test_map = cv::Mat(s, s, map.type());
+//
+//	for(size_t u = 0; u < test_map.cols; ++u)
+//	{
+//		for(size_t v = 0; v < test_map.rows; ++v)
+//		{
+//			test_map.at<uchar>(u,v) = (uchar) dats[v+u*s];
+//		}
+//	}
+//
+//	cv::imshow("testtt", test_map);
+//	cv::waitKey();
+
 	ROS_INFO("Waiting for action server to start.");
 	// wait for the action server to start
 	ac.waitForServer(); //will wait for infinite time
@@ -97,10 +132,10 @@ int main(int argc, char **argv)
 	cv_image.image = map;
 	cv_image.toImageMsg(labeling);
 
-        geometry_msgs::Pose map_origin;
-        map_origin.position.x = origin[0];
-        map_origin.position.y = origin[1];
-        map_origin.position.z = origin[2];
+	geometry_msgs::Pose map_origin;
+	map_origin.position.x = origin[0];
+	map_origin.position.y = origin[1];
+	map_origin.position.z = origin[2];
 
 	geometry_msgs::Pose2D starting_position;
 	starting_position.x = start_pos[0];
@@ -108,6 +143,15 @@ int main(int argc, char **argv)
 	starting_position.theta = start_pos[2];
 
 	std::vector<geometry_msgs::Point32> fov_points(4);
+//	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
+//	fov_points[0].y = 0.35;
+//	fov_points[1].x = 0.15;
+//	fov_points[1].y = -0.35;
+//	fov_points[2].x = 1.15;
+//	fov_points[2].y = -0.65;
+//	fov_points[3].x = 1.15;
+//	fov_points[3].y = 0.65;
+//	int planning_mode = 2;	// viewpoint planning
 	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
 	fov_points[0].y = 0.3;
 	fov_points[1].x = -0.3;
