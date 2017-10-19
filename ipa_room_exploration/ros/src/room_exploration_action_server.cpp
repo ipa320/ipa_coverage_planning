@@ -640,6 +640,7 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 
 		// if no interrupt is wanted, publish the navigation goal
 		pose = exploration_path[map_oriented_pose];
+		// todo: convert map to image properly, then this coordinate correction here becomes obsolete
 		pose.y = map_height - (pose.y - map_origin.position.y) + map_origin.position.y;
 		double temp_goal_eps = 0;
 		if (use_dyn_goal_eps_)
