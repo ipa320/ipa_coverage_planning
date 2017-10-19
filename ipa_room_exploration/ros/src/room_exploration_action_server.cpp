@@ -740,6 +740,12 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 			}
 		}
 
+		// testing, parameter to show
+//		cv::namedWindow("initially seen areas", cv::WINDOW_NORMAL);
+//		cv::imshow("initially seen areas", seen_positions_map);
+//		cv::resizeWindow("initially seen areas", 600, 600);
+//		cv::waitKey();
+
 		// apply a binary filter on the image, making the drawn seen areas black
 		cv::threshold(seen_positions_map, seen_positions_map, 150, 255, cv::THRESH_BINARY);
 
@@ -824,6 +830,18 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 				area_centers[i] = grid_areas[i][0];
 			}
 		}
+		
+		// testing
+//		black_map = room_map.clone();
+//		for(size_t i = 0; i < area_centers.size(); ++i)
+//		{
+//			cv::circle(black_map, area_centers[i], 2, cv::Scalar(127), CV_FILLED);
+//			std::cout << area_centers[i] << std::endl;
+//		}
+//		cv::namedWindow("revisiting areas", cv::WINDOW_NORMAL);
+//		cv::imshow("revisiting areas", black_map);
+//		cv::resizeWindow("revisiting areas", 600, 600);
+//		cv::waitKey();
 
 		// 4. plan a tsp path trough the centers of the left areas
 		// find the center that is nearest to the current robot position, which becomes the start node for the tsp
@@ -889,6 +907,12 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 				std::cout << "center not reachable on perimeter" << std::endl;
 			}
 		}
+		
+//		drawSeenPoints(copy, robot_poses, goal->field_of_view, corner_point_1, corner_point_2, map_resolution, map_origin);
+//		cv::namedWindow("seen areas", cv::WINDOW_NORMAL);
+//		cv::imshow("seen areas", copy);
+//		cv::resizeWindow("seen areas", 600, 600);
+//		cv::waitKey();
 	}
 }
 
