@@ -128,9 +128,6 @@ void convexSPPExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::
 	CbcModel model(*solver_pointer);
 	model.solver()->setHintParam(OsiDoReducePrint, true, OsiHintTry);
 
-//	CbcHeuristicLocal heuristic2(model);
-//	model.addHeuristic(&heuristic2);
-
 	model.initialSolve();
 	model.branchAndBound();
 
@@ -139,7 +136,6 @@ void convexSPPExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::
 
 	for(size_t res=0; res<C.size(); ++res)
 	{
-//		std::cout << solution[i] << std::endl;
 		C[res] = solution[res];
 	}
 }
@@ -309,9 +305,6 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		// than the min distance, also only check points that span an angle to the robot-to-fov vector smaller than the
 		// max found angle to the corners
 		// when planning for the robot footprint simply check if its distance to the pose is at most the given coverage radius
-//		cv::Mat black_map = cv::Mat(room_map.rows, room_map.cols, room_map.type(), cv::Scalar(0));
-//		cv::circle(black_map, cv::Point(pose->x, pose->y), 3, cv::Scalar(200), CV_FILLED);
-//		cv::fillConvexPoly(black_map, transformed_fov_points, cv::Scalar(150));
 		for(std::vector<cv::Point>::iterator neighbor=cell_centers.begin(); neighbor!=cell_centers.end(); ++neighbor)
 		{
 			// compute pose to neighbor vector
@@ -322,7 +315,6 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 			// if neighbor is in the possible distance range check it further, distances given in [pixel]
 			if(plan_for_footprint==false && distance<=largest_robot_to_footprint_distance_pixel)
 			{
-//				cv::circle(black_map, *neighbor, 2, cv::Scalar(50), CV_FILLED);
 
 				if(cv::pointPolygonTest(transformed_fov_points, *neighbor, false) >= 0) // point inside
 				{
@@ -336,7 +328,6 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 					if(hit_obstacle == false)
 					{
 						V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 1;
-//						cv::circle(black_map, *neighbor, 2, cv::Scalar(100), CV_FILLED);
 					}
 					else	// neighbor cell not observable
 						V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 0;
@@ -362,8 +353,6 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 			else // point not in the right range to be inside the fov
 				V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 0;
 		}
-//		cv::imshow("observable cells", black_map);
-//		cv::waitKey();
 	}
 	std::cout << "number of optimization variables: " << W.size() << std::endl;
 
@@ -479,12 +468,6 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 			chosen_positions.push_back(cv::Point(reduced_sensing_candidates[result-C_reduced.begin()].x, reduced_sensing_candidates[result-C_reduced.begin()].y));
 		}
 	}
-
-//	// NOT NECESSARY, rotation back was done earlier after grid generation
-//	// rotate back the chosen view points to the original map
-//	room_rotation.transformPathBackToOriginalRotation(chosen_positions, chosen_poses, R);
-//	for (size_t i=0; i<chosen_poses.size(); ++i)
-//		chosen_positions[i] = cv::Point(chosen_poses[i].x, chosen_poses[i].y);
 
 	if (chosen_positions.size()==0)
 	{
@@ -605,65 +588,4 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 			path[i].y = path[i].y * map_resolution + map_origin.y;
 		}
 	}
-//	if (plan_for_footprint == true) //todo: ?
-//	{
-//		// go trough all computed fov poses and compute the corresponding robot pose
-//		ROS_INFO("Starting to map from field of view pose to robot pose");
-//		mapPath(room_map, path, fov_poses, robot_to_fov_vector_meter, map_resolution, map_origin, starting_position);
-//	}
-
-
-
-
-
-
-
-//	testing
-//	cv::Mat test_map = room_map.clone();
-//	for(std::vector<geometry_msgs::Pose2D>::iterator pose=chosen_poses.begin(); pose!=chosen_poses.end(); ++pose)
-//	{
-//		float sin_theta = std::sin(pose->theta);
-//		float cos_theta = std::cos(pose->theta);
-//		Eigen::Matrix<float, 2, 2> R_fov;
-//		R_fov << cos_theta, -sin_theta, sin_theta, cos_theta;
-//
-//		// transform field of view points
-//		std::vector<cv::Point> transformed_fov_points;
-//		Eigen::Matrix<float, 2, 1> pose_as_matrix;
-//		pose_as_matrix << (pose->x*map_resolution)+map_origin.x, (pose->y*map_resolution)+map_origin.y; // convert to [meter]
-//		for(size_t point = 0; point < field_of_view.size(); ++point)
-//		{
-//			// transform fov-point from geometry_msgs::Point32 to Eigen::Matrix
-//			Eigen::Matrix<float, 2, 1> fov_point;
-//			fov_point << field_of_view[point].x, field_of_view[point].y;
-//
-//			// linear transformation
-//			Eigen::Matrix<float, 2, 1> transformed_vector = pose_as_matrix + R_fov * fov_point;
-//
-//			// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
-//			// values
-//			cv::Point current_point = cv::Point((transformed_vector(0, 0) - map_origin.x)/map_resolution, (transformed_vector(1, 0) - map_origin.y)/map_resolution);
-//			current_point.x = std::max(current_point.x, 0);
-//			current_point.y = std::max(current_point.y, 0);
-//			current_point.x = std::min(current_point.x, room_map.cols);
-//			current_point.y = std::min(current_point.y, room_map.rows);
-//			transformed_fov_points.push_back(current_point);
-//		}
-//
-//		// rotate the vector from the robot to the field of view middle point
-//		Eigen::Matrix<float, 2, 1> transformed_robot_to_middlepoint_vector = R_fov * robot_to_fov_middlepoint_vector;
-//
-//		cv::fillConvexPoly(test_map, transformed_fov_points, cv::Scalar(200));
-//	}
-//	for(size_t i=0; i<cell_centers.size(); ++i)
-//		cv::circle(test_map, cell_centers[i], 2, cv::Scalar(100), CV_FILLED);
-//	for(size_t i=0; i<path.size()-1; ++i)
-//	{
-//		cv::circle(test_map, cv::Point(path[i].x/map_resolution, path[i].y/map_resolution), 5, cv::Scalar(100), CV_FILLED);
-//		cv::line(test_map, cv::Point(path[i].x/map_resolution, path[i].y/map_resolution), cv::Point(path[i+1].x/map_resolution, path[i+1].y/map_resolution), cv::Scalar(127), 2);
-//	}
-//	cv::circle(test_map, cv::Point(path.back().x/map_resolution, path.back().y/map_resolution), 5, cv::Scalar(100), CV_FILLED);
-
-//	cv::imshow("seen areas", test_map);
-//	cv::waitKey();
 }

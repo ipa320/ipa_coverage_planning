@@ -218,7 +218,6 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 		if (found_pose==false)
 		{
 			++not_found;
-			//std::cout << "No fov pose for (" << pose->x << ", " << pose->y << ")" << std::endl;
 		}
 
 //		testing

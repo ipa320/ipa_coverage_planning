@@ -21,6 +21,11 @@ left_sections_min_area: 0.01
 # [pixel], where one pixel is the size of one cell in the navigation grid map
 goal_eps: 0.0     #0.35
 
+# use a dynamic goal distance criterion: the larger the path's curvature, the more accurate the navigation.
+# Use 'goal_eps' param as maximum distance on straight paths and zero distance (accurate goal approaching) on 90° curves.
+# bool
+use_dyn_goal_eps: false
+
 # size of one cell when discretizing the free space, smaller value means a more detailed discretization
 # in [pixel], where one pixel is the size of one cell in the navigation grid map
 # (if set to 0 or smaller, the cell size is automatically determined with the largest possible value)
@@ -67,8 +72,7 @@ map_frame: "map"
 
 # string that carries the name of the camera frame, that is in the same kinematic chain as the map_frame and shows the camera pose
 # string
-camera_frame: "camera"
-
+camera_frame: "base_link"
 
 
 # parameters specific for the grid point explorator
