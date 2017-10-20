@@ -282,7 +282,6 @@ void FlowNetworkExplorator::solveGurobiOptimizationProblem(std::vector<double>& 
 #ifdef GUROBI_FOUND
 	std::cout << "Creating and solving linear program with Gurobi." << std::endl;
 	// initialize the problem
-	CoinModel problem_builder;
 	GRBEnv *env = new GRBEnv();
     GRBModel model = GRBModel(*env);
 //    model.set("Threads", "1");

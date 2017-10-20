@@ -76,6 +76,10 @@
 #include <coin/CoinModel.hpp>
 #include <coin/CbcModel.hpp>
 #include <coin/CbcHeuristicLocal.hpp>
+// if available, use Gurobi
+#ifdef GUROBI_FOUND
+	#include "gurobi_c++.h"
+#endif
 
 #include <ipa_building_navigation/A_star_pathplanner.h>
 #include <ipa_building_navigation/distance_matrix.h>
@@ -117,6 +121,11 @@
 class convexSPPExplorator
 {
 protected:
+	// function that is used to create and solve a Gurobi optimization problem out of the given matrices and vectors, if
+	// Gurobi was found on the computer
+	template<typename T>
+	void solveGurobiOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<double>* W);
+
 	// function that is used to create and solve a Qsopt optimization problem out of the given matrices and vectors
 	template<typename T>
 	void solveOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<double>* W);

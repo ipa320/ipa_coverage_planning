@@ -6,6 +6,73 @@ convexSPPExplorator::convexSPPExplorator()
 
 }
 
+// function that is used to create and solve a Gurobi optimization problem out of the given matrices and vectors, if
+// Gurobi was found on the computer
+template<typename T>
+void convexSPPExplorator::solveGurobiOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<double>* W)
+{
+#ifdef GUROBI_FOUND
+	std::cout << "Creating and solving linear program with Gurobi." << std::endl;
+	// initialize the problem
+	GRBEnv *env = new GRBEnv();
+    GRBModel model = GRBModel(*env);
+
+    // vector that stores the variables of the problem
+    std::vector<GRBVar> optimization_variables;
+
+	// add the optimization variables to the problem
+	int number_of_variables = 0;
+	for(size_t var=0; var<C.size(); ++var) // initial stage
+	{
+		if(W != NULL) // if a weight-vector is provided, use it to set the weights for the variables
+		{
+			GRBVar current_variable = model.addVar(0.0, 1.0, W->operator[](var), GRB_CONTINUOUS);
+			optimization_variables.push_back(current_variable);
+			++number_of_variables;
+		}
+		else
+		{
+			GRBVar current_variable = model.addVar(0.0, 1.0, 1.0, GRB_BINARY);
+			optimization_variables.push_back(current_variable);
+			++number_of_variables;
+		}
+	}
+	std::cout << "number of variables in the problem: " << number_of_variables << std::endl;
+
+	// inequality constraints to ensure that every position has been seen at least once
+	for(size_t row=0; row<V.rows; ++row)
+	{
+		// gather the indices of the variables that are used in this constraint (row), i.e. where V[row][column] == 1
+		std::vector<int> variable_indices;
+		for(size_t col=0; col<V.cols; ++col)
+			if(V.at<uchar>(row, col) == 1)
+				variable_indices.push_back((int) col);
+
+		// add the constraint, if the current cell can be covered by the given arcs, indices=1 in this constraint
+		if(variable_indices.size()>0)
+		{
+			GRBLinExpr current_coverage_constraint;
+			for(size_t var=0; var<variable_indices.size(); ++var)
+				current_coverage_constraint += optimization_variables[variable_indices[var]];
+			model.addConstr(current_coverage_constraint>=1);
+		}
+	}
+
+	// solve the optimization
+	model.optimize();
+
+	// retrieve solution
+	std::cout << "retrieving solution" << std::endl;
+	for(size_t var=0; var<number_of_variables; ++var)
+	{
+		C[var]= optimization_variables[var].get(GRB_DoubleAttr_X);
+	}
+
+	// garbage collection
+	delete env;
+#endif
+}
+
 // Function that creates a Qsopt optimization problem and solves it, using the given matrices and vectors.
 template<typename T>
 void convexSPPExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::Mat& V, const std::vector<double>* W)
@@ -19,7 +86,7 @@ void convexSPPExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::
 	int rval;
 	for(size_t variable=0; variable<C.size(); ++variable)
 	{
-		if(W != NULL) // if a weight-vector is provided, use it to set the weights for the var>iables
+		if(W != NULL) // if a weight-vector is provided, use it to set the weights for the variables
 		{
 			problem_builder.setColBounds(variable, 0.0, 1.0);
 			problem_builder.setObjective(variable, W->operator[](variable));
@@ -30,7 +97,6 @@ void convexSPPExplorator::solveOptimizationProblem(std::vector<T>& C, const cv::
 			problem_builder.setObjective(variable, 1.0);
 			problem_builder.setInteger(variable);
 		}
-
 	}
 
 	// inequality constraints to ensure that every position has been seen at least once
@@ -333,7 +399,11 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		++number_of_iterations;
 
 		// solve optimization of the current step
-		solveOptimizationProblem(C, V, &W);
+		#ifdef GUROBI_FOUND
+			solveGurobiOptimizationProblem(C, V, &W);
+		#else
+			solveOptimizationProblem(C, V, &W);
+		#endif
 
 		// update epsilon and W
 		const int exponent = 1 + (number_of_iterations - 1)*0.1;
@@ -391,8 +461,11 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	// solve the final optimization problem
 	std::cout << "new_number_of_variables=" << new_number_of_variables << std::endl;
 	std::vector<int> C_reduced(new_number_of_variables);
+#ifdef GUROBI_FOUND
+	solveGurobiOptimizationProblem(C_reduced, V_reduced, NULL);
+#else
 	solveOptimizationProblem(C_reduced, V_reduced, NULL);
-
+#endif
 
 	// ************* V. Retrieve solution and find a path trough the chosen poses. *************
 	// read out solution
