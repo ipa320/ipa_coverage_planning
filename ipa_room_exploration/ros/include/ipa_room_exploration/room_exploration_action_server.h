@@ -70,8 +70,8 @@
 #include <tf/transform_listener.h>
 #include <dynamic_reconfigure/server.h>
 // OpenCV specific
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
 // Eigen library
 #include <Eigen/Dense>
 #include <eigen_conversions/eigen_msg.h>

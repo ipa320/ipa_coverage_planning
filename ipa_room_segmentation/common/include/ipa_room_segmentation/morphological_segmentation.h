@@ -1,5 +1,5 @@
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include <iostream>
 #include <list>
 #include <vector>

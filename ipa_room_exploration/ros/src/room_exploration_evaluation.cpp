@@ -69,8 +69,8 @@
 #include <fstream>
 #include <numeric>
 
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 #include <cv_bridge/cv_bridge.h>
 
@@ -572,7 +572,7 @@ public:
 		if(evaluation_configuration.exploration_algorithm_==5)	// different timeout for the flowNetworkExplorator, because it can be much slower than the others
 			finished = ac_exp.waitForResult(ros::Duration(600));		// todo: adapt if necessary
 		else
-			finished = ac_exp.waitForResult(ros::Duration(3600));
+			finished = ac_exp.waitForResult(ros::Duration(36000));
 
 		//if it takes too long the server should be killed and restarted
 		if (finished == false)
@@ -1566,25 +1566,25 @@ int main(int argc, char **argv)
 
 	std::vector<int> exploration_algorithms;
 //	exploration_algorithms.push_back(1);	// grid point exploration
-	exploration_algorithms.push_back(2);	// boustrophedon exploration
+//	exploration_algorithms.push_back(2);	// boustrophedon exploration
 //	exploration_algorithms.push_back(3);	// neural network exploration
 //	exploration_algorithms.push_back(4);	// convex SPP exploration
 //	exploration_algorithms.push_back(5);	// flow network exploration
 //	exploration_algorithms.push_back(6);	// energy functional exploration
-//	exploration_algorithms.push_back(7);	// voronoi exploration
+	exploration_algorithms.push_back(7);	// voronoi exploration
 
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
 	// measures in [m]
 	std::vector<geometry_msgs::Point32> fov_points(4);
-	fov_points[0].x = 0.04035;		// this field of view represents the off-center iMop floor wiping device
-	fov_points[0].y = -0.136;
-	fov_points[1].x = 0.04035;
-	fov_points[1].y = 0.364;
-	fov_points[2].x = 0.54035;		// todo: this definition is mirrored on x (y-coordinates are inverted) to work properly --> check why, make it work the intuitive way
-	fov_points[2].y = 0.364;
-	fov_points[3].x = 0.54035;
-	fov_points[3].y = -0.136;
-	int planning_mode = 2;	// viewpoint planning
+//	fov_points[0].x = 0.04035;		// this field of view represents the off-center iMop floor wiping device
+//	fov_points[0].y = -0.136;
+//	fov_points[1].x = 0.04035;
+//	fov_points[1].y = 0.364;
+//	fov_points[2].x = 0.54035;		// todo: this definition is mirrored on x (y-coordinates are inverted) to work properly --> check why, make it work the intuitive way
+//	fov_points[2].y = 0.364;
+//	fov_points[3].x = 0.54035;
+//	fov_points[3].y = -0.136;
+//	int planning_mode = 2;	// viewpoint planning
 //	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
 //	fov_points[0].y = 0.35;
 //	fov_points[1].x = 0.15;
@@ -1594,15 +1594,15 @@ int main(int argc, char **argv)
 //	fov_points[3].x = 1.15;
 //	fov_points[3].y = 0.65;
 //	int planning_mode = 2;	// viewpoint planning
-//	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
-//	fov_points[0].y = 0.3;
-//	fov_points[1].x = -0.3;
-//	fov_points[1].y = -0.3;
-//	fov_points[2].x = 0.3;
-//	fov_points[2].y = -0.3;
-//	fov_points[3].x = 0.3;
-//	fov_points[3].y = 0.3;
-//	int planning_mode = 1;	// footprint planning
+	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
+	fov_points[0].y = 0.3;
+	fov_points[1].x = -0.3;
+	fov_points[1].y = -0.3;
+	fov_points[2].x = 0.3;
+	fov_points[2].y = -0.3;
+	fov_points[3].x = 0.3;
+	fov_points[3].y = 0.3;
+	int planning_mode = 1;	// footprint planning
 
 	const double robot_radius = 0.3;		// [m]
 	const double coverage_radius = 0.3;		// [m]
@@ -1611,7 +1611,7 @@ int main(int argc, char **argv)
 	const float map_resolution = 0.05;		// [m/cell]
 
 	ExplorationEvaluation ev(nh, test_map_path, map_names, map_resolution, data_storage_path, robot_radius, coverage_radius, fov_points, planning_mode,
-			exploration_algorithms, robot_speed, robot_rotation_speed, true, false);
+			exploration_algorithms, robot_speed, robot_rotation_speed, true, true);
 	ros::shutdown();
 
 	//exit

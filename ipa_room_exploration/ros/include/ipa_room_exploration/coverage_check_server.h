@@ -2,8 +2,8 @@
 #include <ros/ros.h>
 // OpenCV
 #include <cv_bridge/cv_bridge.h>
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
 // Eigen library
 #include <Eigen/Dense>
 // c++ standard libraries

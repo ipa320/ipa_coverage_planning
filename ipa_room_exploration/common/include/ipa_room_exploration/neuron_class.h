@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
 
 /*!
  *****************************************************************

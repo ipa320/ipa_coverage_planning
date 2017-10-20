@@ -71,8 +71,8 @@
 // service
 #include <cob_map_accessibility_analysis/map_accessibility_analysis.h>
 // OpenCv
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
 // msgs
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Polygon.h>

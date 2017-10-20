@@ -59,7 +59,7 @@
 
 #pragma once
 #include <vector>
-#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
 
 class BoustrophedonLine
 {

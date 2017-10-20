@@ -2,8 +2,8 @@
 
 #include <ipa_room_segmentation/voronoi_random_field_segmentation.h>
 
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 #include <ros/package.h>
 

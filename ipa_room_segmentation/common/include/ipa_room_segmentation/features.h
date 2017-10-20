@@ -2,7 +2,7 @@
 //number of Features that can be calculated: 23
 #pragma once
 
-#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
 
 
 class LaserScannerFeatures

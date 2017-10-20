@@ -1,6 +1,6 @@
 // OpenCV
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
 // standard c++ includes
 #include <iostream>
 #include <vector>

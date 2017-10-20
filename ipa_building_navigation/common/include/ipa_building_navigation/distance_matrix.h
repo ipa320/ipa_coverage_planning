@@ -3,7 +3,7 @@
 #pragma once
 
 #include <vector>
-#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
 #include <ipa_building_navigation/A_star_pathplanner.h>
 
 #include <ipa_building_navigation/timer.h>

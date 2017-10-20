@@ -1,14 +1,13 @@
 //Header for featurecalculation
 //number of Features that can be calculated: 25
 #pragma once
-#include <opencv/cv.h>
 #include <queue>
 #include <iostream>
 #include <list>
 #include <vector>
 #include <numeric>
 #include <math.h>
-#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
 
 #include <ipa_room_segmentation/contains.h>
 

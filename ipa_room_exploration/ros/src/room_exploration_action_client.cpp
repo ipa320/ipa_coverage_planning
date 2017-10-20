@@ -4,8 +4,8 @@
 #include <string>
 #include <vector>
 
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 #include <cv_bridge/cv_bridge.h>
 
@@ -125,7 +125,7 @@ int main(int argc, char **argv)
 
 	ROS_INFO("Action server started, sending goal.");
 
-	DynamicReconfigureClient drc_exp(nh, "room_exploration_server/set_parameters", "room_exploration_server/parameter_updates");
+	DynamicReconfigureClient drc_exp(priv_nh, "room_exploration_server/set_parameters", "room_exploration_server/parameter_updates");
 	drc_exp.setConfig("room_exploration_algorithm", 2);
 //	drc_exp.setConfig("path_eps", 3);
 //	drc_exp.setConfig("grid_line_length", 15);

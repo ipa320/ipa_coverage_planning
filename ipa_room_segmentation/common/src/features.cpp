@@ -2,7 +2,7 @@
 #include <list>
 #include <vector>
 #include <math.h>
-#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
 
 #include <ipa_room_segmentation/features.h>
 

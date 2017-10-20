@@ -10,8 +10,8 @@
 #include <cstdlib>
 #include <stdio.h>
 
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 #include <fstream>
 
