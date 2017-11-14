@@ -117,42 +117,9 @@ class RoomExplorationServer
 protected:
 
 	enum PlanningMode {PLAN_FOR_FOOTPRINT=1, PLAN_FOR_FOV=2};
+	int planning_mode_; // 1 = plans a path for coverage with the robot footprint, 2 = plans a path for coverage with the robot's field of view
 
-	int path_planning_algorithm_;	// variable to specify which algorithm is going to be used to plan a path
-										// 1: grid point explorator
-										// 2: boustrophedon explorator
-										// 3: neural network explorator
-										// 4: convexSPP explorator
-										// 5: flowNetwork explorator
-										// 6: energyFunctional explorator
-
-	bool interrupt_navigation_publishing_;	// variable that interrupts the publishing of navigation goals as long as needed, e.g. when
-											// during the execution of the coverage path a trashbin is found and one wants to empty it
-											// directly and resume the path later.
-
-	double left_sections_min_area_; // variable to determine the minimal area that not seen sections must have before they
-									// are revisited after one go trough the room
-
-	double goal_eps_;				// distance between the published navigation goal and the robot to publish the next
-									// navigation goal in the path
-
-	bool display_trajectory_;		// display final trajectory plan step by step
-
-	int cell_size_;					// size of one cell that is used to discretize the free space
-
-	double min_cell_area_;			// minimal area a cell can have, when using the boustrophedon explorator
-
-	double delta_theta_;			// sampling angle when creating possible sensing poses in the convexSPP explorator
-
-	bool return_path_;				// boolean used to determine if the server should return the computed coverage path in the response message
-	bool execute_path_;				// boolean used to determine whether the server should navigate the robot along the computed coverage path
-	bool revisit_areas_;			// variable that turns functionality on/off to revisit areas that haven't been seen during the
-									// execution of the coverage path, due to uncertainites or dynamical obstacles
-	std::string global_costmap_topic_;	// name of the global costmap topic
-	std::string coverage_check_service_name_;	// name of the service to call for a coverage check of the driven trajectory
-	std::string map_frame_;			// string that carries the name of the map frame, used for tracking of the robot
-	std::string camera_frame_;				// string that carries the name of the camera frame, that is in the same kinematic chain as the map_frame and shows the camera pose
-
+	ros::Publisher path_pub_; // a publisher sending the path as a nav_msgs::Path before executing
 
 	GridPointExplorator grid_point_planner; // object that uses the grid point method to plan a path trough a room
 	BoustrophedonExplorer boustrophedon_explorer_; // object that uses the boustrophedon exploration method to plan a path trough the room
@@ -161,23 +128,50 @@ protected:
 	FlowNetworkExplorator flow_network_explorator_; // object that uses the flow network exploration method to create an exploration path
 	EnergyFunctionalExplorator energy_functional_explorator_; // object that uses the energy functional exploration method to create an exploration path
 
-	// parameters for the different planners
+	// parameters
+	int room_exploration_algorithm_;	// variable to specify which algorithm is going to be used to plan a path
+										// 1: grid point explorator
+										// 2: boustrophedon explorator
+										// 3: neural network explorator
+										// 4: convexSPP explorator
+										// 5: flowNetwork explorator
+										// 6: energyFunctional explorator
+	bool display_trajectory_;		// display final trajectory plan step by step
+
+	// parameters on map correction
+	int map_correction_closing_neighborhood_size_;	// Applies a closing operation to neglect inaccessible areas and map errors/artifacts if the
+													// map_correction_closing_neighborhood_size parameter is larger than 0.
+													// The parameter then specifies the iterations (or neighborhood size) of that closing operation.
+
+	// parameters specific to the navigation of the robot along the computed coverage trajectory
+	bool return_path_;				// boolean used to determine if the server should return the computed coverage path in the response message
+	bool execute_path_;				// boolean used to determine whether the server should navigate the robot along the computed coverage path
+	double goal_eps_;				// distance between the published navigation goal and the robot to publish the next
+									// navigation goal in the path
+	bool use_dyn_goal_eps_;		// using a dynamic goal distance criterion: the larger the path's curvature, the more accurate the navigation
+	bool interrupt_navigation_publishing_;	// variable that interrupts the publishing of navigation goals as long as needed, e.g. when during the execution
+											// of the coverage path a trash bin is found and one wants to empty it directly and resume the path later.
+	bool revisit_areas_;			// variable that turns functionality on/off to revisit areas that haven't been seen during the
+									// execution of the coverage path, due to uncertainties or dynamic obstacles
+	double left_sections_min_area_; // variable to determine the minimal area that not seen sections must have before they
+									// are revisited after one run through the room
+	std::string global_costmap_topic_;	// name of the global costmap topic
+	std::string coverage_check_service_name_;	// name of the service to call for a coverage check of the driven trajectory
+	std::string map_frame_;			// string that carries the name of the map frame, used for tracking of the robot
+	std::string camera_frame_;				// string that carries the name of the camera frame, that is in the same kinematic chain as the map_frame and shows the camera pose
+
+	// parameters specific to the grid point explorator
 	int tsp_solver_;	// indicates which TSP solver should be used
 						//1 = Nearest Neighbor
 						//2 = Genetic solver
 						//3 = Concorde solver
 	int64_t tsp_solver_timeout_;	// a sophisticated solver like Concorde or Genetic can be interrupted if it does not find a solution within this time, in [s], and then falls back to the nearest neighbor solver
 
-	ros::Publisher path_pub_; // a publisher sending the path as a nav_msgs::Path before executing
-	bool use_dyn_goal_eps_; // using a dynamic goal distance criterion: the larger the path's curvature, the more accurate the navigation
+	// parameters specific for the boustrophedon explorator
+	double min_cell_area_;			// minimal area a cell can have, when using the boustrophedon explorator
+	double path_eps_;		// the distance between points when generating a path
 
-	int grid_line_length_; // size of the grid-lines that the grid-point-explorator lays over the map
-	double path_eps_; // the distance between points when generating a path
-	int planning_mode_; // 1 = plans a path for coverage with the robot footprint, 2 = plans a path for coverage with the robot's field of view
-	double curvature_factor_; // double that shows the factor, an arc can be longer than a straight arc when using the flowNetwork explorator
-	double max_distance_factor_; // double that shows how much an arc can be longer than the maximal distance of the room, which is determined by the min/max coordinates that are set in the goal
-
-	// neural network explorator specific parameters
+	// parameters specific for the neural network explorator, see "A Neural Network Approach to Complete Coverage Path Planning" from Simon X. Yang and Chaomin Luo
 	double step_size_; // step size for integrating the state dynamics
 	int A_; // decaying parameter that pulls the activity of a neuron closer to zero, larger value means faster decreasing
 	int B_; // increasing parameter that tries to increase the activity of a neuron when it's not too big already, higher value means a higher desired value and a faster increasing at the beginning
@@ -186,8 +180,14 @@ protected:
 	double mu_; // parameter to set the importance of the states of neighboring neurons to the dynamics, higher value means higher influence
 	double delta_theta_weight_; // parameter to set the importance of the traveleing direction from the previous step and the next step, a higher value means that the robot should turn less
 
-	// vornoi explorator specific parameters
-	int max_track_width_;
+	// parameters specific for the convexSPP explorator
+	int cell_size_;				// size of one cell that is used to discretize the free space
+	double delta_theta_;			// sampling angle when creating possible sensing poses in the convexSPP explorator
+
+	// parameters specific for the flowNetwork explorator
+	double curvature_factor_; // double that shows the factor, an arc can be longer than a straight arc when using the flowNetwork explorator
+	double max_distance_factor_; // double that shows how much an arc can be longer than the maximal distance of the room, which is determined by the min/max coordinates that are set in the goal
+
 
 	// callback function for dynamic reconfigure
 	void dynamic_reconfigure_callback(ipa_room_exploration::RoomExplorationConfig &config, uint32_t level);

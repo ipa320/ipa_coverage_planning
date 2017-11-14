@@ -9,10 +9,28 @@
 # int
 room_exploration_algorithm: 2
 
-# minimal area of not seen sections that they are revisited after the first go trough the room
-# double
-# [m^2]
-left_sections_min_area: 0.01
+# display final trajectory plan step by step
+# bool
+display_trajectory: false
+
+
+# map correction
+# ==============
+# Applies a closing operation to neglect inaccessible areas and map errors/artifacts if the map_correction_closing_neighborhood_size parameter is larger than 0.
+# The parameter then specifies the iterations (or neighborhood size) of that closing operation.
+# int
+map_correction_closing_neighborhood_size: 2
+
+
+# parameters specific to the navigation of the robot along the computed coverage trajectory
+# =========================================================================================
+# boolean used to determine if the server should return the computed coverage path in the response message
+# bool
+return_path: true
+
+# boolean used to determine whether the server should navigate the robot along the computed coverage path
+# bool
+execute_path: false
 
 # min distance between the robot and the published navigation goal before the next goal in the path gets published
 # hack for slow turtle sim (publish new goals already when close to goal, then takes some time to command new goal)
@@ -26,37 +44,20 @@ goal_eps: 0.0     #0.35
 # bool
 use_dyn_goal_eps: false
 
-# size of one cell when discretizing the free space, smaller value means a more detailed discretization
-# in [pixel], where one pixel is the size of one cell in the navigation grid map
-# (if set to 0 or smaller, the cell size is automatically determined with the largest possible value)
-# (this parameter is only relevant to the algorithms #4 = convexSPP explorator, #5 = flowNetwork explorator,
-#  the other methods utilize the computed optimal maximum grid size)
-# int
-cell_size: 0       #4      #7
-
-# distance between two points when generating the path
-# [pixel], where one pixel is the size of one cell in the navigation grid map
-path_eps: 2
-
-# display final trajectory plan step by step
+# variable that interrupts the publishing of navigation goals as long as needed, e.g. when during the execution of the coverage path
+# a trash bin is found and one wants to empty it directly and resume the path later.
 # bool
-display_trajectory: false
-
-
-# parameters specific to the navigation of the robot along the computed coverage trajectory
-# =========================================================================================
-# boolean used to determine if the server should return the computed coverage path in the response message
-# bool
-return_path: true
-
-# boolean used to determine whether the server should navigate the robot along the computed coverage path
-# bool
-execute_path: false
+interrupt_navigation_publishing: false
 
 # this variable turns the functionality on/off to revisit areas that haven't been seen during the execution of the coverage path,
 # due to uncertainties or dynamic obstacles
 # bool
 revisit_areas: false
+
+# minimal area of not seen sections that they are revisited after the first run through the room
+# double
+# [m^2]
+left_sections_min_area: 0.01
 
 # name of the global costmap topic
 # string
@@ -75,7 +76,7 @@ map_frame: "map"
 camera_frame: "base_link"
 
 
-# parameters specific for the grid point explorator
+# parameters specific to the grid point explorator
 # =================================================
 # indicates which TSP solver should be used
 #   1 = Nearest Neighbor
@@ -94,7 +95,13 @@ tsp_solver_timeout: 600
 # ====================================================
 # min area a cell must have to be determined for the path generation
 # [pixel^2]
+# double
 min_cell_area: 10.0
+
+# distance between two points when generating the (line) path
+# [pixel], where one pixel is the size of one cell in the navigation grid map
+# double
+path_eps: 2.0
 
 # parameters specific for the neural network explorator, see "A Neural Network Approach to Complete Coverage Path Planning" from Simon X. Yang and Chaomin Luo
 # =====================================================
@@ -115,6 +122,14 @@ delta_theta_weight: 0.15
 
 # parameters specific for the convexSPP explorator
 # ================================================
+# size of one cell when discretizing the free space, smaller value means a more detailed discretization
+# in [pixel], where one pixel is the size of one cell in the navigation grid map
+# (if set to 0 or smaller, the cell size is automatically determined with the largest possible value)
+# (this parameter is only relevant to the algorithms #4 = convexSPP explorator, #5 = flowNetwork explorator,
+#  the other methods utilize the computed optimal maximum grid size)
+# int
+cell_size: 0       #4      #7
+
 # angular sampling step when creating possible sensing poses, in [rad]
 # double
 delta_theta: 0.78539816339      #1.570796
@@ -123,6 +138,11 @@ delta_theta: 0.78539816339      #1.570796
 # ==================================================
 # factor, an arc can be longer than a straight arc, higher values allow more arcs to be considered in the optimization problem
 # Important: if too small, maybe the problem becomes infeasible and the optimizer won't work correctly
-curvature_factor: 3 # 1.1
+curvature_factor: 1.1
+
 # factor, an arc can be longer than the maximal distance of the room, which is determined by the min/max coordinates that are set in the goal
-max_distance_factor: 3 # 1.0
+max_distance_factor: 1.0
+
+# cell_size: see # parameters specific for the convexSPP explorator
+
+# path_eps: see # parameters specific for the boustrophedon explorator
