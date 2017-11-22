@@ -433,7 +433,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, grid_spacing_as_int); // a perfect alignment of the paths cannot be assumed here (in contrast to footprint planning) because the well-aligned fov trajectory is mapped to robot locations that may not be on parallel tracks
 			// get the exploration path
 			std::vector<geometry_msgs::Pose2D> fov_path_uncleaned;
-			vm.generatePath(fov_path_uncleaned, cv::Mat());
+			vm.setSingleRoom(true); //to force to consider all rooms
+			vm.generatePath(fov_path_uncleaned, cv::Mat(), room_gridmap.info.width/2,room_gridmap.info.height/2 /*start position in mid*/);
 
 			// clean path from subsequent double occurrences of the same pose
 			std::vector<geometry_msgs::Pose2D> fov_path;
@@ -464,7 +465,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, grid_spacing_as_int);	//coverage_diameter-1); // diameter in pixel (full working width can be used here because tracks are planned in parallel motion)
 			// get the exploration path
 			std::vector<geometry_msgs::Pose2D> exploration_path_uncleaned;
-			vm.generatePath(exploration_path_uncleaned, cv::Mat());
+			vm.setSingleRoom(true); //to force to consider all rooms
+			vm.generatePath(exploration_path_uncleaned, cv::Mat(), room_gridmap.info.width/2,room_gridmap.info.height/2 /*start position in mid*/);
 
 			// clean path from subsequent double occurrences of the same pose
 			downsampleTrajectory(exploration_path_uncleaned, exploration_path, 3.5*3.5); //3.5*3.5);
