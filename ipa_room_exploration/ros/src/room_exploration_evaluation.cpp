@@ -676,7 +676,7 @@ public:
 		std::vector<double> rotation_values;
 		std::vector<int> number_of_rotations, numbers_of_crossings;
 
-		// draw paths --> extra function
+		// draw paths
 		cv::Mat map_copy = map.clone();
 		for(size_t room=0; room<paths.size(); ++room)
 		{
@@ -688,108 +688,38 @@ public:
 			else
 				++nonzero_paths;
 
+			// initialize statistics
 			double current_pathlength = 0.0;
-			std::vector<geometry_msgs::Pose2D> current_pose_path_meter;	// in [m,m,rad]
-			double previous_angle = paths[room].begin()->theta;
 			double current_rotation_abs = 0.0;
 			int current_number_of_rotations = 0, current_number_of_crossings = 0;
-			geometry_msgs::Pose2D robot_position = paths[room][0];	// in [pixels]
-
 			// initialize path
-			geometry_msgs::Pose2D initial_pose;
-			initial_pose.x = (robot_position.x*data.map_resolution_)+data.map_origin_.position.x;
-			initial_pose.y = (robot_position.y*data.map_resolution_)+data.map_origin_.position.y;
-			initial_pose.theta = robot_position.theta;
-			current_pose_path_meter.push_back(initial_pose);
-			for(std::vector<geometry_msgs::Pose2D>::iterator pose=paths[room].begin()+1; pose!=paths[room].end(); ++pose)
+			geometry_msgs::Pose2D current_pose_px = paths[room][0];	// in [pixels]
+			geometry_msgs::Pose2D initial_pose_m;	// in [m]
+			initial_pose_m.x = (current_pose_px.x*data.map_resolution_)+data.map_origin_.position.x;
+			initial_pose_m.y = (current_pose_px.y*data.map_resolution_)+data.map_origin_.position.y;
+			initial_pose_m.theta = current_pose_px.theta;
+			std::vector<geometry_msgs::Pose2D> current_pose_path_meter;	// in [m,m,rad]
+			current_pose_path_meter.push_back(initial_pose_m);
+
+			// loop through trajectory points
+			double previous_angle = paths[room].begin()->theta;
+			for(std::vector<geometry_msgs::Pose2D>::iterator pose_px=paths[room].begin()+1; pose_px!=paths[room].end(); ++pose_px)
 			{
 				// if a false pose has been saved, skip it
-				if(robot_position.x==-1 && robot_position.y==-1)
+				if(current_pose_px.x==-1 && current_pose_px.y==-1)
 				{
 					ROS_WARN("ExplorationEvaluation:evaluateCoveragePaths: robot_position.x==-1 && robot_position.y==-1 --> this should never happen.");
 					continue;
 				}
 
 				// find an accessible next pose
-				geometry_msgs::Pose2D next_pose;
-				bool found_next = false;
-				// todo: go back to inflated_map --> but then solve problems like starting position in obstacle or too close to wall
-				if(inflated_map.at<uchar>(pose->y, pose->x)!=0) // if calculated pose is accessible, use it as next pose
-				//if(map.at<uchar>(pose->y, pose->x)!=0) // if calculated pose is accessible, use it as next pose
-				{
-					next_pose = *pose;
-					found_next = true;
-				}
-				else // use the map accessibility server to find another accessible pose
-				{
-					if (data.planning_mode_ == FOOTPRINT)
-					{
-						// check circles with growing radius around the desired point
-						for (double factor=0.33; factor<=1.0 && found_next==false; factor+=0.33)
-						{
-							// check perimeter for accessible poses
-							MapAccessibilityAnalysis::Pose target_pose(pose->x, pose->y, pose->theta);
-							std::vector<MapAccessibilityAnalysis::Pose> accessible_poses_on_perimeter;
-							map_accessibility_analysis.checkPerimeter(accessible_poses_on_perimeter, target_pose,
-									factor*data.coverage_radius_*map_resolution_inverse, PI/32., inflated_map,	//inflated_map, // todo: go back to inflated_map
-									true, cv::Point(robot_position.x, robot_position.y));
-
-							// find the closest accessible point on this perimeter
-							double min_distance_sqr = std::numeric_limits<double>::max();
-							for(std::vector<MapAccessibilityAnalysis::Pose>::iterator new_pose=accessible_poses_on_perimeter.begin(); new_pose!=accessible_poses_on_perimeter.end(); ++new_pose)
-							{
-								const double dist_sqr = (new_pose->x-robot_position.x)*(new_pose->x-robot_position.x) + (new_pose->y-robot_position.y)*(new_pose->y-robot_position.y);
-								if (dist_sqr < min_distance_sqr)
-								{
-									next_pose.x = new_pose->x;
-									next_pose.y = new_pose->y;
-									next_pose.theta = pose->theta;	// use the orientation of the original pose
-									min_distance_sqr = dist_sqr;
-									found_next = true;
-								}
-							}
-						}
-					}
-					else if (data.planning_mode_ == FIELD_OF_VIEW)
-					{
-						// todo: ATTENTION: this only applies to a centered field of view, i.e. with an fov to robot offset with only x component like [0.6, 0]
-						// get the desired FoV-center position
-						MapAccessibilityAnalysis::Pose fov_center_px;		// in [px,px,rad]
-						fov_center_px.x = (pose->x + std::cos(pose->theta)*distance_robot_fov_middlepoint_in_meter*map_resolution_inverse);
-						//fov_center_px.x = (fov_center_px.x-data.map_origin_.position.x) / data.map_resolution_;
-						fov_center_px.y = (pose->y + std::sin(pose->theta)*distance_robot_fov_middlepoint_in_meter*map_resolution_inverse);
-						//fov_center_px.y = (fov_center_px.y-data.map_origin_.position.y) / data.map_resolution_;
-						fov_center_px.orientation = pose->theta;
-
-						// check perimeter for accessible poses
-						std::vector<MapAccessibilityAnalysis::Pose> accessible_poses_on_perimeter;
-						map_accessibility_analysis.checkPerimeter(accessible_poses_on_perimeter, fov_center_px,
-								distance_robot_fov_middlepoint_in_meter*map_resolution_inverse, PI/32., inflated_map,	//inflated_map, // todo: go back to inflated_map
-								true, cv::Point(robot_position.x, robot_position.y));
-
-						// find the closest accessible point on this perimeter
-						double min_distance_sqr = std::numeric_limits<double>::max();
-						for(std::vector<MapAccessibilityAnalysis::Pose>::iterator new_pose=accessible_poses_on_perimeter.begin(); new_pose!=accessible_poses_on_perimeter.end(); ++new_pose)
-						{
-							const double dist_sqr = (new_pose->x-pose->x)*(new_pose->x-pose->x) + (new_pose->y-pose->y)*(new_pose->y-pose->y);
-							if (dist_sqr < min_distance_sqr)
-							{
-								next_pose.x = new_pose->x;
-								next_pose.y = new_pose->y;
-								next_pose.theta = new_pose->orientation;
-								min_distance_sqr = dist_sqr;
-								found_next = true;
-							}
-						}
-					}
-				}
-
-				// if no accessible position could be found, go to next possible path point
+				geometry_msgs::Pose2D next_pose_px = *pose_px;
+				bool found_next = findAccessiblePose(inflated_map, current_pose_px, next_pose_px, data, distance_robot_fov_middlepoint_in_meter);
 				if(found_next==false)
-					continue;
+					continue;	// if no accessible position could be found, go to next possible path point
 
 				// get the angle and check if it is the same as before, if not add the rotation
-				double angle_difference = next_pose.theta - previous_angle;
+				double angle_difference = next_pose_px.theta - previous_angle;
 				while (angle_difference < -PI)
 					angle_difference += 2*PI;
 				while (angle_difference > PI)
@@ -802,7 +732,7 @@ public:
 						++current_number_of_rotations;
 				}
 				// save current angle of pose
-				previous_angle = next_pose.theta;
+				previous_angle = next_pose_px.theta;
 
 //				// create output map to show path --> also check if one point has already been visited
 //				cv::circle(map_copy, cv::Point(next_pose.x, next_pose.y), 2, cv::Scalar(96), CV_FILLED);
@@ -826,7 +756,7 @@ public:
 
 				// find pathlength and path between two consecutive poses
 				std::vector<cv::Point> current_interpolated_path;	// vector that stores the current path from one pose to another
-				double length_planner = path_planner.planPath(inflated_map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
+				double length_planner = path_planner.planPath(inflated_map, cv::Point(current_pose_px.x, current_pose_px.y), cv::Point(next_pose_px.x, next_pose_px.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
 				// todo: go back to inflated_map
 				//double length_planner = path_planner.planPath(map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
 				current_pathlength += (length_planner > 1e5 ? 0. : length_planner);
@@ -837,7 +767,7 @@ public:
 				// transform the cv::Point path to geometry_msgs::Pose2D --> last point has, first point was already gone a defined angle
 				// also create output map to show path --> and check if one point has already been visited
 				bool has_crossing = false;
-				cv::circle(map_copy, cv::Point(next_pose.x, next_pose.y), 1, cv::Scalar(196), CV_FILLED);
+				cv::circle(map_copy, cv::Point(next_pose_px.x, next_pose_px.y), 1, cv::Scalar(196), CV_FILLED);
 				for(std::vector<cv::Point>::iterator point=current_interpolated_path.begin()+1; point!=current_interpolated_path.end(); ++point)
 				{
 					// check if point has been visited before and draw point into map
@@ -856,7 +786,7 @@ public:
 
 					// if the current point is the last, use the provided angle
 					if(point-current_interpolated_path.begin()==current_interpolated_path.size()-1)
-						current_pose.theta = (pose+1)->theta;
+						current_pose.theta = (pose_px+1)->theta;
 					else // calculate angle s.t. it points to the next point
 						current_pose.theta = std::atan2((point+1)->y-point->y, (point+1)->x-point->x);			// todo: check if this makes sense (orientation computation at pixel level)
 
@@ -867,7 +797,7 @@ public:
 					++current_number_of_crossings;
 
 				// set robot_position to new one
-				robot_position = next_pose;
+				current_pose_px = next_pose_px;
 			}
 
 			// save number of crossings of the path
@@ -1477,6 +1407,83 @@ public:
 			}
 		}
 		return gradient_map;
+	}
+
+	bool findAccessiblePose(const cv::Mat& inflated_map, const geometry_msgs::Pose2D& current_pose_px, geometry_msgs::Pose2D& target_pose_px, const ExplorationData& data,
+			const double distance_robot_fov_middlepoint_in_meter)
+	{
+		const double map_resolution_inverse = 1.0/data.map_resolution_;	// in [pixel/m]
+
+		MapAccessibilityAnalysis map_accessibility_analysis;
+		bool found_next = false;
+		if(inflated_map.at<uchar>(target_pose_px.y, target_pose_px.x)!=0) // if calculated target pose is accessible, use it as next pose
+		{
+			found_next = true;
+		}
+		else // use the map accessibility server to find another accessible target pose
+		{
+			const MapAccessibilityAnalysis::Pose target_pose_px_copy(target_pose_px.x, target_pose_px.y, target_pose_px.theta);
+			if (data.planning_mode_ == FOOTPRINT)
+			{
+				// check circles with growing radius around the desired point until a dislocation of data.coverage_radius_ would be exceeded
+				for (double factor=0.33; factor<=1.0 && found_next==false; factor+=0.33)
+				{
+					// check perimeter for accessible poses
+					std::vector<MapAccessibilityAnalysis::Pose> accessible_poses_on_perimeter;
+					map_accessibility_analysis.checkPerimeter(accessible_poses_on_perimeter, target_pose_px_copy,
+							factor*data.coverage_radius_*map_resolution_inverse, PI/32., inflated_map,
+							true, cv::Point(current_pose_px.x, current_pose_px.y));
+
+					// find the closest accessible point on this perimeter
+					double min_distance_sqr = std::numeric_limits<double>::max();
+					for(std::vector<MapAccessibilityAnalysis::Pose>::iterator new_pose=accessible_poses_on_perimeter.begin(); new_pose!=accessible_poses_on_perimeter.end(); ++new_pose)
+					{
+						const double dist_sqr = (new_pose->x-current_pose_px.x)*(new_pose->x-current_pose_px.x) + (new_pose->y-current_pose_px.y)*(new_pose->y-current_pose_px.y);
+						if (dist_sqr < min_distance_sqr)
+						{
+							target_pose_px.x = new_pose->x;
+							target_pose_px.y = new_pose->y;
+							//target_pose_px.theta = target_pose_px.theta;	// use the orientation of the original pose
+							min_distance_sqr = dist_sqr;
+							found_next = true;
+						}
+					}
+				}
+			}
+			else if (data.planning_mode_ == FIELD_OF_VIEW)
+			{
+				// todo: ATTENTION: this only applies to a centered field of view, i.e. with an fov to robot offset with only x component like [0.6, 0]
+				// get the desired FoV-center position
+				MapAccessibilityAnalysis::Pose fov_center_px;		// in [px,px,rad]
+				fov_center_px.x = (target_pose_px_copy.x + std::cos(target_pose_px_copy.orientation)*distance_robot_fov_middlepoint_in_meter*map_resolution_inverse);
+				//fov_center_px.x = (fov_center_px.x-data.map_origin_.position.x) / data.map_resolution_;
+				fov_center_px.y = (target_pose_px_copy.y + std::sin(target_pose_px_copy.orientation)*distance_robot_fov_middlepoint_in_meter*map_resolution_inverse);
+				//fov_center_px.y = (fov_center_px.y-data.map_origin_.position.y) / data.map_resolution_;
+				fov_center_px.orientation = target_pose_px_copy.orientation;
+
+				// check perimeter for accessible poses
+				std::vector<MapAccessibilityAnalysis::Pose> accessible_poses_on_perimeter;
+				map_accessibility_analysis.checkPerimeter(accessible_poses_on_perimeter, fov_center_px,
+						distance_robot_fov_middlepoint_in_meter*map_resolution_inverse, PI/32., inflated_map,
+						true, cv::Point(current_pose_px.x, current_pose_px.y));
+
+				// find the closest accessible point on this perimeter
+				double min_distance_sqr = std::numeric_limits<double>::max();
+				for(std::vector<MapAccessibilityAnalysis::Pose>::iterator new_pose=accessible_poses_on_perimeter.begin(); new_pose!=accessible_poses_on_perimeter.end(); ++new_pose)
+				{
+					const double dist_sqr = (new_pose->x-target_pose_px_copy.x)*(new_pose->x-target_pose_px_copy.x) + (new_pose->y-target_pose_px_copy.y)*(new_pose->y-target_pose_px_copy.y);
+					if (dist_sqr < min_distance_sqr)
+					{
+						target_pose_px.x = new_pose->x;
+						target_pose_px.y = new_pose->y;
+						target_pose_px.theta = new_pose->orientation;
+						min_distance_sqr = dist_sqr;
+						found_next = true;
+					}
+				}
+			}
+		}
+		return found_next;
 	}
 
 	// accumulate all statistics into one file
