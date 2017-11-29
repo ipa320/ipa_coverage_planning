@@ -466,7 +466,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			// get the exploration path
 			std::vector<geometry_msgs::Pose2D> exploration_path_uncleaned;
 			vm.setSingleRoom(true); //to force to consider all rooms
-			vm.generatePath(exploration_path_uncleaned, cv::Mat(), room_gridmap.info.width/2,room_gridmap.info.height/2 /*start position in mid*/);
+			vm.generatePath(exploration_path_uncleaned, cv::Mat(), starting_position.x, starting_position.y);	// start position in room center
 
 			// clean path from subsequent double occurrences of the same pose
 			downsampleTrajectory(exploration_path_uncleaned, exploration_path, 3.5*3.5); //3.5*3.5);
