@@ -662,13 +662,12 @@ public:
 		cv::Mat gradient_map = computeGradientMap(map);
 
 
-		// 3. overall, average path length and variance of it for the calculated paths and get the numbers of the turns
+		// 3. overall, average path length and variance of it for the calculated paths and get the numbers of turns
 		AStarPlanner path_planner;
 		MapAccessibilityAnalysis map_accessibility_analysis;
 		cv::Mat inflated_map;
 		const int robot_radius_in_pixel = cvRound(data.robot_radius_ * map_resolution_inverse);
 		map_accessibility_analysis.inflateMap(map, inflated_map, robot_radius_in_pixel);
-		//cv::erode(map, inflated_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
 		cv::Mat path_map = inflated_map.clone();
 		std::vector<double> pathlengths_for_map;
 		std::vector<std::vector<geometry_msgs::Pose2D> > interpolated_paths; // variable that stores the path points and the points between them
@@ -1612,7 +1611,7 @@ int main(int argc, char **argv)
 	int planning_mode = 1;	// footprint planning
 
 	const double robot_radius = 0.3;		// [m]
-	const double coverage_radius = 0.3;		// [m]
+	const double coverage_radius = 0.3;		// [m]	// todo: determine from fov_points footprint?
 	const double robot_speed = 0.3;			// [m/s]
 	const double robot_rotation_speed = 0.52;	// [rad/s]
 	const float map_resolution = 0.05;		// [m/cell]
