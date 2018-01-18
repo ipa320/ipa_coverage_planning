@@ -119,23 +119,23 @@ typedef opengm::MessagePassing<FactorGraph, opengm::Maximizer, UpdateRules, open
 template <typename T>
 std::vector<T> operator+(const std::vector<T>& a, const std::vector<T>& b)
 {
-//    assert(a.size() == b.size());
+//	assert(a.size() == b.size());
 
-    if(a.empty()) // if a doesn't store any element it is the zero-vector, so return b
-    	return b;
-    else if(b.empty()) // if b doesn't store any element it is the zero-vector, so return a
-    	return a;
-    else if(a.size() != b.size()) // if the vectors are not the same size return a vector with -1 as entries as failure
-    	return std::vector<T>(100, -1);
+	if(a.empty()) // if a doesn't store any element it is the zero-vector, so return b
+		return b;
+	else if(b.empty()) // if b doesn't store any element it is the zero-vector, so return a
+		return a;
+	else if(a.size() != b.size()) // if the vectors are not the same size return a vector with -1 as entries as failure
+		return std::vector<T>(100, -1);
 
-    std::vector<T> result; // create temporary new vector
-    result.reserve(a.size());
+	std::vector<T> result; // create temporary new vector
+	result.reserve(a.size());
 
-    // add each element of the vectors and store them at the corresponding temporary vector position
-    std::transform(a.begin(), a.end(), b.begin(),
-                   std::back_inserter(result), std::plus<T>());
+	// add each element of the vectors and store them at the corresponding temporary vector position
+	std::transform(a.begin(), a.end(), b.begin(),
+					std::back_inserter(result), std::plus<T>());
 
-    return result;
+	return result;
 }
 
 // Overload of the += operator for vectors:
@@ -143,8 +143,8 @@ std::vector<T> operator+(const std::vector<T>& a, const std::vector<T>& b)
 template <typename T>
 std::vector<T>& operator+=(std::vector<T>& a, const std::vector<T>& b)
 {
-    a.insert(a.end(), b.begin(), b.end());
-    return a;
+	a.insert(a.end(), b.begin(), b.end());
+	return a;
 }
 
 class VoronoiRandomFieldSegmentation : public AbstractVoronoiSegmentation
@@ -154,15 +154,18 @@ protected:
 	std::vector<double> angles_for_simulation_; // Vector that saves the angles, used to simulate the laser measurements
 												// for the AdaBoost classifier.
 
-	CvBoostParams params_; // Parameters for the classifiers
-
 	int number_of_classifiers_; // Number of weak classifiers used from the OpenCV AdaBoost function.
 
 	int number_of_classes_; // Number of classes this algorithm can detect.
 
 	bool trained_boost_, trained_conditional_field_; // Variable that shows if the classifiers has already been trained.
 
+#if CV_MAJOR_VERSION == 2
+	CvBoostParams params_; // Parameters for the classifiers
 	CvBoost room_boost_, hallway_boost_, doorway_boost_; // The AdaBoost-Classifier to induct the features needed in the conditional random field.
+#else
+	cv::Ptr<cv::ml::Boost> room_boost_, hallway_boost_, doorway_boost_; // The AdaBoost-Classifier to induct the features needed in the conditional random field.
+#endif
 
 	std::vector<double> trained_conditional_weights_; // The weights that are needed for the feature-induction in the conditional random field.
 

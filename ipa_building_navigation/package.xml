@@ -20,7 +20,6 @@
 	
 	<depend>actionlib</depend>
 	<depend>boost</depend>
-	<depend>cmake_modules</depend>
 	<depend>cv_bridge</depend>
 	<depend>dynamic_reconfigure</depend>
 	<depend>geometry_msgs</depend>

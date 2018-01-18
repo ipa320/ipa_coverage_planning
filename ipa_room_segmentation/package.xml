@@ -25,7 +25,6 @@
 	<buildtool_depend>catkin</buildtool_depend>
 	
 	<depend>actionlib</depend>
-	<depend>cmake_modules</depend>
 	<depend>cv_bridge</depend>
 	<depend>dynamic_reconfigure</depend>
 	<depend>ipa_building_msgs</depend>

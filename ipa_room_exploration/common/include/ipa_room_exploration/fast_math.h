@@ -106,7 +106,19 @@ typedef __m128i v4si;
 
 #define v4sfl(x) ((const v4sf) { (x), (x), (x), (x) })
 #define v2dil(x) ((const v4si) { (x), (x) })
-#define v4sil(x) v2dil((((unsigned long long) (x)) << 32) | (x))
+#define v4sil(x) v2dil((((long long) (x)) << 32) | (x))
+//#define v4sil(x) v2dil((((unsigned long long) (x)) << 32) | (x))	// error with Ubuntu 16.04
+//In file included from /home/rmb/git/care-o-bot/src/autopnp/ipa_room_exploration/common/src/meanshift2d.cpp:61:0:
+///../fast_math.h: In function ‘{anonymous}::v4sf vfasterfc({anonymous}::v4sf)’:
+///../fast_math.h:108:43: error: narrowing conversion of ‘9223372039002259456ull’ from ‘long long unsigned int’ to ‘long long int’ inside { } [-Wnarrowing]
+// #define v2dil(x) ((const v4si) { (x), (x) })
+//                                           ^
+///../fast_math.h:109:18: note: in expansion of macro ‘v2dil’
+// #define v4sil(x) v2dil((((unsigned long long) (x)) << 32) | (x))
+//                  ^
+///../fast_math.h:543:11: note: in expansion of macro ‘v4sil’
+//   vc.i |= v4sil (0x80000000);
+
 
 typedef union { v4sf f; float array[4]; } v4sfindexer;
 #define v4sf_index(_findx, _findi)      \

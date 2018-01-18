@@ -14,9 +14,11 @@ AdaboostClassifier::AdaboostClassifier()
 	{
 		angles_for_simulation_.push_back(angle);
 	}
+#if CV_MAJOR_VERSION == 2
 	// Set up boosting parameters
 	CvBoostParams params(CvBoost::DISCRETE, 350, 0, 2, false, 0);
 	params_ = params;
+#endif
 	trained_ = false;
 }
 
@@ -146,19 +148,45 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 	}
 
 	//*********hallway***************
+	std::string filename_hallway = classifier_storage_path + "semantic_hallway_boost.xml";
+#if CV_MAJOR_VERSION == 2
 	// Train a boost classifier
 	hallway_boost_.train(hallway_features_mat, CV_ROW_SAMPLE, hallway_labels_mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
 	//save the trained booster
-	std::string filename_hallway = classifier_storage_path + "semantic_hallway_boost.xml";
 	hallway_boost_.save(filename_hallway.c_str(), "boost");
+#else
+	// Train a boost classifier
+	hallway_boost_->create();
+	hallway_boost_->setBoostType(cv::ml::Boost::DISCRETE);
+	hallway_boost_->setWeakCount(350);
+	hallway_boost_->setWeightTrimRate(0);
+	hallway_boost_->setMaxDepth(2);
+	hallway_boost_->setUseSurrogates(false);
+	hallway_boost_->train(hallway_features_mat, cv::ml::ROW_SAMPLE, hallway_labels_mat);
+	//save the trained booster
+	hallway_boost_->save(filename_hallway.c_str());
+#endif
 	ROS_INFO("Done hallway classifiers.");
 
 	//*************room***************
+	std::string filename_room = classifier_storage_path + "semantic_room_boost.xml";
+#if CV_MAJOR_VERSION == 2
 	// Train a boost classifier
 	room_boost_.train(room_features_mat, CV_ROW_SAMPLE, room_labels_mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
 	//save the trained booster
-	std::string filename_room = classifier_storage_path + "semantic_room_boost.xml";
 	room_boost_.save(filename_room.c_str(), "boost");
+#else
+	// Train a boost classifier
+	room_boost_->create();
+	room_boost_->setBoostType(cv::ml::Boost::DISCRETE);
+	room_boost_->setWeakCount(350);
+	room_boost_->setWeightTrimRate(0);
+	room_boost_->setMaxDepth(2);
+	room_boost_->setUseSurrogates(false);
+	//save the trained booster
+	room_boost_->save(filename_room.c_str());
+#endif
+
 	//set the trained-variabel true, so the labeling-algorithm knows the classifiers have been trained already
 	trained_ = true;
 	ROS_INFO("Done room classifiers.");
@@ -204,13 +232,21 @@ void AdaboostClassifier::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat& s
 		std::string filename_room_default = classifier_default_path + "semantic_room_boost.xml";
 		if (boost::filesystem::exists(boost::filesystem::path(filename_room)) == false)
 			boost::filesystem::copy_file(filename_room_default, filename_room);
+#if CV_MAJOR_VERSION == 2
 		room_boost_.load(filename_room.c_str());
+#else
+		room_boost_->load<cv::ml::Boost>(filename_room.c_str());
+#endif
 
 		std::string filename_hallway = classifier_storage_path + "semantic_hallway_boost.xml";
 		std::string filename_hallway_default = classifier_default_path + "semantic_hallway_boost.xml";
 		if (boost::filesystem::exists(boost::filesystem::path(filename_hallway)) == false)
 			boost::filesystem::copy_file(filename_hallway_default, filename_hallway);
+#if CV_MAJOR_VERSION == 2
 		hallway_boost_.load(filename_hallway.c_str());
+#else
+		hallway_boost_->load<cv::ml::Boost>(filename_hallway);
+#endif
 
 		trained_ = true;
 		ROS_INFO("Loaded training results.");
@@ -231,8 +267,13 @@ void AdaboostClassifier::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat& s
 				cv::Mat features_mat; //OpenCV expects a 32-floating-point Matrix as feature input
 				lsf.get_features(temporary_beams, angles_for_simulation_, cv::Point(x, y), features_mat);
 				//classify each Point
+#if CV_MAJOR_VERSION == 2
 				float room_sum = room_boost_.predict(features_mat, cv::Mat(), cv::Range::all(), false, true);
 				float hallway_sum = hallway_boost_.predict(features_mat, cv::Mat(), cv::Range::all(), false, true);
+#else
+				float room_sum = room_boost_->predict(features_mat, cv::Mat(), cv::ml::Boost::RAW_OUTPUT);
+				float hallway_sum = hallway_boost_->predict(features_mat, cv::Mat(), cv::ml::Boost::RAW_OUTPUT);
+#endif
 				//get the certanity-values for each class (it shows the probability that it belongs to the given class)
 				double room_certanity = (std::exp((double) room_sum)) / (std::exp(-1 * (double) room_sum) + std::exp((double) room_sum));
 				double hallway_certanity = (std::exp((double) hallway_certanity))

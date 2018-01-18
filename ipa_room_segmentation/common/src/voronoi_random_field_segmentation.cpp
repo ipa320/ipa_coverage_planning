@@ -212,8 +212,10 @@ VoronoiRandomFieldSegmentation::VoronoiRandomFieldSegmentation()
 
 	// Set up boosting parameters
 	number_of_classifiers_ = 35;
+#if CV_MAJOR_VERSION == 2
 	CvBoostParams params(CvBoost::DISCRETE, number_of_classifiers_, 0, 2, false, 0);
 	params_ = params;
+#endif
 	trained_boost_ = false;
 	trained_conditional_field_ = false;
 }
@@ -545,11 +547,24 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 			features_Mat.at<float>(i, f) = (float) features_for_points[i][f];
 		}
 	}
+	std::string filename_room = classifier_storage_path + "vrf_room_boost.xml";
+#if CV_MAJOR_VERSION == 2
 	// Train a boost classifier
 	room_boost_.train(features_Mat, CV_ROW_SAMPLE, room_labels_Mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
 	//save the trained booster
-	std::string filename_room = classifier_storage_path + "vrf_room_boost.xml";
 	room_boost_.save(filename_room.c_str(), "boost");
+#else
+	// Train a boost classifier
+	room_boost_->create();
+	room_boost_->setBoostType(cv::ml::Boost::DISCRETE);
+	room_boost_->setWeakCount(number_of_classifiers_);
+	room_boost_->setWeightTrimRate(0);
+	room_boost_->setMaxDepth(2);
+	room_boost_->setUseSurrogates(false);
+	room_boost_->train(features_Mat, cv::ml::ROW_SAMPLE, room_labels_Mat);
+	//save the trained booster
+	room_boost_->save(filename_room.c_str());
+#endif
 	std::cout << "Trained room classifier" << std::endl;
 
 	//
@@ -558,11 +573,24 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 	cv::Mat hallway_labels_Mat(labels_for_classes[1].size(), 1, CV_32FC1);
 	for (int i = 0; i < labels_for_classes[1].size(); i++)
 		hallway_labels_Mat.at<float>(i, 0) = labels_for_classes[1][i];
+	std::string filename_hallway = classifier_storage_path + "vrf_hallway_boost.xml";
+#if CV_MAJOR_VERSION == 2
 	// Train a boost classifier
 	hallway_boost_.train(features_Mat, CV_ROW_SAMPLE, hallway_labels_Mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
 	//save the trained booster
-	std::string filename_hallway = classifier_storage_path + "vrf_hallway_boost.xml";
 	hallway_boost_.save(filename_hallway.c_str(), "boost");
+#else
+	// Train a boost classifier
+	hallway_boost_->create();
+	hallway_boost_->setBoostType(cv::ml::Boost::DISCRETE);
+	hallway_boost_->setWeakCount(number_of_classifiers_);
+	hallway_boost_->setWeightTrimRate(0);
+	hallway_boost_->setMaxDepth(2);
+	hallway_boost_->setUseSurrogates(false);
+	hallway_boost_->train(features_Mat, cv::ml::ROW_SAMPLE, hallway_labels_Mat);
+	//save the trained booster
+	hallway_boost_->save(filename_hallway.c_str());
+#endif
 	std::cout << "Trained hallway classifier" << std::endl;
 
 	//
@@ -571,11 +599,24 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 	cv::Mat doorway_labels_Mat(labels_for_classes[2].size(), 1, CV_32FC1);
 	for (int i = 0; i < labels_for_classes[2].size(); i++)
 		doorway_labels_Mat.at<float>(i, 0) = labels_for_classes[2][i];
+	std::string filename_doorway = classifier_storage_path + "vrf_doorway_boost.xml";
+#if CV_MAJOR_VERSION == 2
 	// Train a boost classifier
 	doorway_boost_.train(features_Mat, CV_ROW_SAMPLE, doorway_labels_Mat, cv::Mat(), cv::Mat(), cv::Mat(), cv::Mat(), params_);
 	//save the trained booster
-	std::string filename_doorway = classifier_storage_path + "vrf_doorway_boost.xml";
 	doorway_boost_.save(filename_doorway.c_str(), "boost");
+#else
+	// Train a boost classifier
+	doorway_boost_->create();
+	doorway_boost_->setBoostType(cv::ml::Boost::DISCRETE);
+	doorway_boost_->setWeakCount(number_of_classifiers_);
+	doorway_boost_->setWeightTrimRate(0);
+	doorway_boost_->setMaxDepth(2);
+	doorway_boost_->setUseSurrogates(false);
+	doorway_boost_->train(features_Mat, cv::ml::ROW_SAMPLE, doorway_labels_Mat);
+	//save the trained booster
+	doorway_boost_->save(filename_doorway.c_str());
+#endif
 	std::cout << "Trained doorway classifier" << std::endl;
 
 	// set the trained Boolean for the AdaBoost-classifiers to true
@@ -637,6 +678,7 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 		// used and so on.
 		switch(classifier)
 		{
+#if CV_MAJOR_VERSION == 2
 		case 0:
 			room_boost_.predict(&features, 0, &weak_hypothesis);
 			break;
@@ -646,6 +688,17 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 		case 2:
 			doorway_boost_.predict(&features, 0, &weak_hypothesis);
 			break;
+#else
+		case 0:
+			room_boost_->predict(featuresMat, weaker);
+			break;
+		case 1:
+			hallway_boost_->predict(featuresMat, weaker);
+			break;
+		case 2:
+			doorway_boost_->predict(featuresMat, weaker);
+			break;
+#endif
 		}
 
 
@@ -791,17 +844,29 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 									// separate weak classifiers.
 
 	// Get weights for room, hallway and doorway classifier.
+#if CV_MAJOR_VERSION == 2
 	room_boost_.predict(&features, 0, &weak_hypothesis);
+#else
+	room_boost_->predict(featuresMat, weaker);
+#endif
 
 	for(size_t f = 0; f < number_of_classifiers_; ++f)
 		mean_weights[f] += (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
 
+#if CV_MAJOR_VERSION == 2
 	hallway_boost_.predict(&features, 0, &weak_hypothesis);
+#else
+	hallway_boost_->predict(featuresMat, weaker);
+#endif
 
 	for(size_t f = 0; f < number_of_classifiers_; ++f)
 		mean_weights[f] *= (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
 
+#if CV_MAJOR_VERSION == 2
 	doorway_boost_.predict(&features, 0, &weak_hypothesis);
+#else
+	doorway_boost_->predict(featuresMat, weaker);
+#endif
 
 	for(size_t f = 0; f < number_of_classifiers_; ++f)
 		mean_weights[f] *= (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
@@ -1162,19 +1227,31 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 		std::string filename_room_default = classifier_default_path + "vrf_room_boost.xml";
 		if (boost::filesystem::exists(boost::filesystem::path(filename_room)) == false)
 			boost::filesystem::copy_file(filename_room_default, filename_room);
+#if CV_MAJOR_VERSION == 2
 		room_boost_.load(filename_room.c_str());
+#else
+		room_boost_->load<cv::ml::Boost>(filename_room.c_str());
+#endif
 
 		std::string filename_hallway = classifier_storage_path + "vrf_hallway_boost.xml";
 		std::string filename_hallway_default = classifier_default_path + "vrf_hallway_boost.xml";
 		if (boost::filesystem::exists(boost::filesystem::path(filename_hallway)) == false)
 			boost::filesystem::copy_file(filename_hallway_default, filename_hallway);
+#if CV_MAJOR_VERSION == 2
 		hallway_boost_.load(filename_hallway.c_str());
+#else
+		hallway_boost_->load<cv::ml::Boost>(filename_hallway.c_str());
+#endif
 
 		std::string filename_doorway = classifier_storage_path + "vrf_doorway_boost.xml";
 		std::string filename_doorway_default = classifier_default_path + "vrf_doorway_boost.xml";
 		if (boost::filesystem::exists(boost::filesystem::path(filename_doorway)) == false)
 			boost::filesystem::copy_file(filename_doorway_default, filename_doorway);
+#if CV_MAJOR_VERSION == 2
 		doorway_boost_.load(filename_doorway.c_str());
+#else
+		doorway_boost_->load<cv::ml::Boost>(filename_doorway.c_str());
+#endif
 
 		// set the trained-Boolean true to only load parameters once
 		trained_boost_ = true;

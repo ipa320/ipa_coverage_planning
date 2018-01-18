@@ -24,7 +24,6 @@ set(catkin_RUN_PACKAGES
 
 set(catkin_BUILD_PACKAGES
 	${catkin_RUN_PACKAGES}
-	cmake_modules
 	dynamic_reconfigure
 )
 
@@ -39,7 +38,18 @@ generate_dynamic_reconfigure_options(
 
 find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system chrono thread)
-find_package(Eigen REQUIRED)
+
+find_package(Eigen3)
+if(NOT EIGEN3_FOUND)
+  # Fallback to cmake_modules
+  find_package(cmake_modules REQUIRED)
+  find_package(Eigen REQUIRED)
+  set(EIGEN3_INCLUDE_DIRS ${EIGEN_INCLUDE_DIRS})
+  set(EIGEN3_LIBRARIES ${EIGEN_LIBRARIES})  # Not strictly necessary as Eigen is head only
+  # Possibly map additional variables to the EIGEN3_ prefix.
+else()
+  set(EIGEN3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
+endif()
 
 # include the FindGUROBI.cmake file to search for Gurobi on the system
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${PROJECT_SOURCE_DIR}/cmake/")  
@@ -109,7 +119,7 @@ include_directories(
 	${catkin_INCLUDE_DIRS}
 	${OpenCV_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIRS}
-	${Eigen_INCLUDE_DIRS}
+	${EIGEN3_INCLUDE_DIRS}
 	${GUROBI_INCLUDE_DIRS}
 	${CoinUtils_INCLUDE_DIRS}
 	${OsiClp_INCLUDE_DIRS}

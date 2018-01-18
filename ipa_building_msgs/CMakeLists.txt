@@ -7,7 +7,6 @@ project(ipa_building_msgs)
 find_package(catkin REQUIRED COMPONENTS
 	actionlib
 	actionlib_msgs
-	cmake_modules
 	genmsg
 	geometry_msgs
 	message_generation

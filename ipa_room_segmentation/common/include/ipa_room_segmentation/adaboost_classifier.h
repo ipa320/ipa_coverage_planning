@@ -23,9 +23,12 @@ protected:
 
 	std::vector<double> angles_for_simulation_; // angle-vector used to calculate the features for this algorithm
 
+#if CV_MAJOR_VERSION == 2
 	CvBoostParams params_; // Parameters for the classifiers
-
 	CvBoost hallway_boost_, room_boost_; // the AdaBoost-classifiers for rooms and hallways
+#else
+	cv::Ptr<cv::ml::Boost> hallway_boost_, room_boost_; // the AdaBoost-classifiers for rooms and hallways
+#endif
 
 	LaserScannerRaycasting raycasting_;
 
