@@ -3,8 +3,8 @@
 
   <arg name="env_pack" default="$(find cob_default_env_config)" />
   <arg name="robot_env" default="$(optenv ROBOT_ENV !!NO_ROBOT_ENV_SET!!)"/>
-  <arg name="robot_radius" default="0.1"/>
-  <arg name="coverage_radius" default="0.2"/>
+  <arg name="robot_radius" default="0.5"/>
+  <arg name="coverage_radius" default="0.5"/>
   <arg name="use_test_maps" default="true"/>
 
   <!--  -->

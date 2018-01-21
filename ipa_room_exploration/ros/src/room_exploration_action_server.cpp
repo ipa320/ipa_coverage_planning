@@ -324,6 +324,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	else if (planning_mode_==PLAN_FOR_FOV)
 		std::cout << "planning mode: planning coverage path with robot's field of view" <<std::endl;
 
+	// todo: receive map data in nav_msgs::OccupancyGrid format
 	// converting the map msg in cv format
 	cv_bridge::CvImagePtr cv_ptr_obj;
 	cv_ptr_obj = cv_bridge::toCvCopy(goal->input_map, sensor_msgs::image_encodings::MONO8);
@@ -545,11 +546,11 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		}
 		action_result.coverage_path_pose_stamped = exploration_path_pose_stamped;
 
-        nav_msgs::Path coverage_path;
-        coverage_path.header.frame_id = "map";
-        coverage_path.header.stamp = ros::Time::now();
-        coverage_path.poses = exploration_path_pose_stamped;
-        path_pub_.publish(coverage_path);
+		nav_msgs::Path coverage_path;
+		coverage_path.header.frame_id = "map";
+		coverage_path.header.stamp = ros::Time::now();
+		coverage_path.poses = exploration_path_pose_stamped;
+		path_pub_.publish(coverage_path);
 	}
 
 	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
@@ -653,22 +654,21 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 		// if no interrupt is wanted, publish the navigation goal
 		pose = exploration_path[map_oriented_pose];
 		// todo: convert map to image properly, then this coordinate correction here becomes obsolete
-		pose.y = map_height - (pose.y - map_origin.position.y) + map_origin.position.y;
+		//pose.y = map_height - (pose.y - map_origin.position.y) + map_origin.position.y;
 		double temp_goal_eps = 0;
 		if (use_dyn_goal_eps_)
 		{
-		  if (map_oriented_pose != 0)
-		  {
-		    double delta_theta = std::fabs(last_pose.theta - pose.theta);
-		    if (delta_theta > M_PI * 0.5)
-		      delta_theta = M_PI * 0.5;
-		    temp_goal_eps = (M_PI * 0.5 - delta_theta) / (M_PI * 0.5) * goal_eps_;
-		  }
-
+		if (map_oriented_pose != 0)
+		{
+			double delta_theta = std::fabs(last_pose.theta - pose.theta);
+			if (delta_theta > M_PI * 0.5)
+				delta_theta = M_PI * 0.5;
+			temp_goal_eps = (M_PI * 0.5 - delta_theta) / (M_PI * 0.5) * goal_eps_;
+			}
 		}
 		else
 		{
-		  temp_goal_eps = goal_eps_;
+			temp_goal_eps = goal_eps_;
 		}
 		publishNavigationGoal(pose, map_frame_, camera_frame_, robot_poses, distance_robot_fov_middlepoint, temp_goal_eps, true); // eps = 0.35
 		last_pose = pose;
