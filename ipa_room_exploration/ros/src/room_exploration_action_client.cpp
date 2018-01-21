@@ -34,6 +34,7 @@ int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "room_exploration_client");
 	ros::NodeHandle priv_nh("~");
+	ros::NodeHandle nh;
 
 	actionlib::SimpleActionClient<ipa_building_msgs::RoomExplorationAction> ac("room_exploration_server", true);
 
@@ -102,22 +103,13 @@ int main(int argc, char **argv)
 //	nav_msgs::OccupancyGrid grid;
 //	grid = *(ros::topic::waitForMessage<nav_msgs::OccupancyGrid>(topic, nh));
 //	ROS_INFO("got grid");
-//
 //	std::vector<signed char> dats;
 //	dats = grid.data;
-//
 //	std::cout << dats.size() << std::endl;
-//	int s = 200;
-//	cv::Mat test_map = cv::Mat(s, s, map.type());
-//
-//	for(size_t u = 0; u < test_map.cols; ++u)
-//	{
-//		for(size_t v = 0; v < test_map.rows; ++v)
-//		{
-//			test_map.at<uchar>(u,v) = (uchar) dats[v+u*s];
-//		}
-//	}
-//
+//	cv::Mat test_map = cv::Mat(grid.info.height, grid.info.width, map.type());
+//	for(size_t v = 0; v < test_map.rows; ++v)
+//		for(size_t u = 0; u < test_map.cols; ++u)
+//			test_map.at<uchar>(v,u) = (uchar) dats[v*grid.info.width+u];
 //	cv::imshow("testtt", test_map);
 //	cv::waitKey();
 
@@ -127,7 +119,6 @@ int main(int argc, char **argv)
 
 	ROS_INFO("Action server started, sending goal.");
 
-	ros::NodeHandle nh;
 	DynamicReconfigureClient drc_exp(nh, "room_exploration_server/set_parameters", "room_exploration_server/parameter_updates");
 	drc_exp.setConfig("room_exploration_algorithm", 2);
 	drc_exp.setConfig("execute_path", false);
