@@ -76,7 +76,9 @@ int main(int argc, char **argv)
 		image_path = env_pack_path + "/envs/" + map_name + "/" + file_name;
 	}
 
-	cv::Mat map = cv::imread(image_path, 0);
+	cv::Mat map_flipped = cv::imread(image_path, 0);
+	cv::Mat map;
+	cv::flip(map_flipped, map, 0);
 	//make non-white pixels black
 	for (int y = 0; y < map.rows; y++)
 	{
@@ -125,7 +127,8 @@ int main(int argc, char **argv)
 
 	ROS_INFO("Action server started, sending goal.");
 
-	DynamicReconfigureClient drc_exp(priv_nh, "room_exploration_server/set_parameters", "room_exploration_server/parameter_updates");
+	ros::NodeHandle nh;
+	DynamicReconfigureClient drc_exp(nh, "room_exploration_server/set_parameters", "room_exploration_server/parameter_updates");
 	drc_exp.setConfig("room_exploration_algorithm", 2);
 //	drc_exp.setConfig("path_eps", 3);
 //	drc_exp.setConfig("grid_line_length", 15);

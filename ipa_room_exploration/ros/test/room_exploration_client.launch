@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
 
-  <arg name="env_pack" default="$(find ipa_room_segmentation)" />
+  <arg name="env_pack" default="$(find cob_default_env_config)" />
   <arg name="robot_env" default="$(optenv ROBOT_ENV !!NO_ROBOT_ENV_SET!!)"/>
   <arg name="robot_radius" default="0.1"/>
   <arg name="coverage_radius" default="0.2"/>
