@@ -103,13 +103,12 @@ int main(int argc, char **argv)
 //	nav_msgs::OccupancyGrid grid;
 //	grid = *(ros::topic::waitForMessage<nav_msgs::OccupancyGrid>(topic, nh));
 //	ROS_INFO("got grid");
-//	std::vector<signed char> dats;
-//	dats = grid.data;
+//	std::vector<signed char>& dats = grid.data;
 //	std::cout << dats.size() << std::endl;
 //	cv::Mat test_map = cv::Mat(grid.info.height, grid.info.width, map.type());
 //	for(size_t v = 0; v < test_map.rows; ++v)
 //		for(size_t u = 0; u < test_map.cols; ++u)
-//			test_map.at<uchar>(v,u) = (uchar) dats[v*grid.info.width+u];
+//			test_map.at<uchar>(v,u) = (uchar)(2.55*(double)dats[v*grid.info.width+u]);
 //	cv::imshow("testtt", test_map);
 //	cv::waitKey();
 
