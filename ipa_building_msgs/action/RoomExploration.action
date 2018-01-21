@@ -4,7 +4,9 @@
 # goal definition
 sensor_msgs/Image input_map				# the action server needs a map as a input image to segment it,
 										# IMPORTANT: The algorithm needs a black and white 8bit single-channel image (format 8UC1), which is 0 (black) for obstacles and 255 (white) for free space
-										#            
+										#            todo: the image needs to be vertically mirrored compared to the map in RViz for using right coordinate systems
+										#                  OccupancyGrid map = origin lower left corner, image = origin upper left corner
+										#            todo: take the OccupanyGrid message here instead to avoid confusion and deal with map coordinates in server
 float32 map_resolution					# the resolution of the map in [meter/cell]
 geometry_msgs/Pose map_origin			# the origin of the map in [meter], NOTE: rotations are not supported for now
 float32 robot_radius					# effective robot radius, taking the enlargement of the costmap into account, in [meter]
