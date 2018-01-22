@@ -29,9 +29,6 @@ generate_dynamic_reconfigure_options(
 find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system thread filesystem)
 
-message("{OpenCV_INCLUDE_DIRS}=${OpenCV_INCLUDE_DIRS}")
-message("{OpenCV_LIBRARIES}=${OpenCV_LIBRARIES}")
-
 find_package(OpenMP)
 if(OPENMP_FOUND)
 	message(STATUS "OPENMP FOUND")
