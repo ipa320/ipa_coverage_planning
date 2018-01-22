@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+
+	<!-- send parameters to parameter server -->
+	<node ns="coverage_monitor_server" pkg="ipa_room_exploration" type="coverage_monitor_server" name="coverage_monitor_server" output="screen" respawn="true" respawn_delay="2">
+	</node>
+
+</launch>

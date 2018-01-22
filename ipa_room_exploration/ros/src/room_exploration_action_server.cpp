@@ -970,13 +970,13 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 	}
 
 
-        geometry_msgs::Pose2D map_oriented_pose;
+	geometry_msgs::Pose2D map_oriented_pose;
 
-        map_oriented_pose.x = nav_goal.x;
-        map_oriented_pose.y = nav_goal.y;
-        map_oriented_pose.theta = nav_goal.theta;
+	map_oriented_pose.x = nav_goal.x;
+	map_oriented_pose.y = nav_goal.y;
+	map_oriented_pose.theta = nav_goal.theta;
 
-        std::cout << "navigation goal: (" << map_oriented_pose.x << ", "  << map_oriented_pose.y << ", " << map_oriented_pose.theta << ")" << std::endl;
+	std::cout << "navigation goal: (" << map_oriented_pose.x << ", "  << map_oriented_pose.y << ", " << map_oriented_pose.theta << ")" << std::endl;
 
 	move_base_msgs::MoveBaseGoal move_base_goal;
 
@@ -985,10 +985,10 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 	move_base_goal.target_pose.header.stamp = ros::Time::now();
 
 
-        move_base_goal.target_pose.pose.position.x = map_oriented_pose.x;
-        move_base_goal.target_pose.pose.position.y = map_oriented_pose.y;
-        move_base_goal.target_pose.pose.orientation.z = std::sin(map_oriented_pose.theta/2);
-        move_base_goal.target_pose.pose.orientation.w = std::cos(map_oriented_pose.theta/2);
+	move_base_goal.target_pose.pose.position.x = map_oriented_pose.x;
+	move_base_goal.target_pose.pose.position.y = map_oriented_pose.y;
+	move_base_goal.target_pose.pose.orientation.z = std::sin(map_oriented_pose.theta/2);
+	move_base_goal.target_pose.pose.orientation.w = std::cos(map_oriented_pose.theta/2);
 
 	// send goal to the move_base sever, when one is found
 	ROS_INFO_STREAM("Sending goal with eps " << eps);

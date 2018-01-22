@@ -41,14 +41,14 @@ find_package(Boost REQUIRED COMPONENTS system chrono thread)
 
 find_package(Eigen3)
 if(NOT EIGEN3_FOUND)
-  # Fallback to cmake_modules
-  find_package(cmake_modules REQUIRED)
-  find_package(Eigen REQUIRED)
-  set(EIGEN3_INCLUDE_DIRS ${EIGEN_INCLUDE_DIRS})
-  set(EIGEN3_LIBRARIES ${EIGEN_LIBRARIES})  # Not strictly necessary as Eigen is head only
-  # Possibly map additional variables to the EIGEN3_ prefix.
+	# Fallback to cmake_modules
+	find_package(cmake_modules REQUIRED)
+	find_package(Eigen REQUIRED)
+	set(EIGEN3_INCLUDE_DIRS ${EIGEN_INCLUDE_DIRS})
+	set(EIGEN3_LIBRARIES ${EIGEN_LIBRARIES})  # Not strictly necessary as Eigen is head only
+	# Possibly map additional variables to the EIGEN3_ prefix.
 else()
-  set(EIGEN3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
+	set(EIGEN3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
 endif()
 
 # include the FindGUROBI.cmake file to search for Gurobi on the system
@@ -197,6 +197,18 @@ add_dependencies(room_exploration_evaluation
 	${catkin_EXPORTED_TARGETS}
 	${${PROJECT_NAME}_EXPORTED_TARGETS}
 )
+
+# server for coverage monitoring
+add_executable(coverage_monitor_server
+	ros/src/coverage_monitor_server.cpp
+)
+target_link_libraries(coverage_monitor_server
+	${catkin_LIBRARIES} 
+	${OpenCV_LIBS}
+	${Boost_LIBRARIES}
+)
+add_dependencies(coverage_monitor_server ${catkin_EXPORTED_TARGETS})
+
 
 #############
 ## Install ##
