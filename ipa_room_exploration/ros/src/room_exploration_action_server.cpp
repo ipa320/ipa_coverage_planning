@@ -304,6 +304,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 {
 	ROS_INFO("*****Room Exploration action server*****");
 
+	std::cout << "A" << std::endl;
+
 	// ***************** I. read the given parameters out of the goal *****************
 	// todo: this is only correct if the map is not rotated
 	const cv::Point2d map_origin(goal->map_origin.position.x, goal->map_origin.position.y);
@@ -324,19 +326,29 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	else if (planning_mode_==PLAN_FOR_FOV)
 		std::cout << "planning mode: planning coverage path with robot's field of view" <<std::endl;
 
+	std::cout << "B" << std::endl;
+
 	// todo: receive map data in nav_msgs::OccupancyGrid format
 	// converting the map msg in cv format
 	cv_bridge::CvImagePtr cv_ptr_obj;
 	cv_ptr_obj = cv_bridge::toCvCopy(goal->input_map, sensor_msgs::image_encodings::MONO8);
 	cv::Mat room_map = cv_ptr_obj->image;
 
+	cv::imshow("exploration map", room_map);
+	cv::waitKey(10000);
+
 	// closing operation to neglect inaccessible areas and map errors/artifacts
 	cv::Mat temp;
 	cv::erode(room_map, temp, cv::Mat(), cv::Point(-1, -1), map_correction_closing_neighborhood_size_);
 	cv::dilate(temp, room_map, cv::Mat(), cv::Point(-1, -1), map_correction_closing_neighborhood_size_);
 
+	std::cout << "C" << std::endl;
+
+	// todo: handle the complete removal of small rooms
 	// remove unconnected, i.e. inaccessible, parts of the room (i.e. obstructed by furniture), only keep the room with the largest area
 	removeUnconnectedRoomParts(room_map);
+
+	std::cout << "D" << std::endl;
 
 	// get the grid size, to check the areas that should be revisited later
 	double grid_spacing_in_meter = 0.0;		// is the square grid cell side length that fits into the circle with the robot's coverage radius or fov coverage radius
@@ -364,6 +376,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	if (cell_size_ <= 0)
 		cell_size_ = std::floor(grid_spacing_in_pixel);
 
+
+	std::cout << "E" << std::endl;
 
 	// ***************** II. plan the path using the wanted planner *****************
 	// todo: provide the inflated map or the robot radius to the functions
@@ -485,6 +499,8 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		}
 	}
 
+	std::cout << "F" << std::endl;
+
 	// display finally planned path
 	if (display_trajectory_ == true)
 	{
@@ -569,6 +585,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 void RoomExplorationServer::removeUnconnectedRoomParts(cv::Mat& room_map)
 {
+	std::cout << "1" << std::endl;
 	// remove unconnected, i.e. inaccessible, parts of the room (i.e. obstructed by furniture), only keep the room with the largest area
 	// create new map with segments labeled by increasing labels from 1,2,3,...
 	cv::Mat room_map_int(room_map.rows, room_map.cols, CV_32SC1);
@@ -582,6 +599,7 @@ void RoomExplorationServer::removeUnconnectedRoomParts(cv::Mat& room_map)
 				room_map_int.at<int32_t>(v,u) = 0;
 		}
 	}
+	std::cout << "2" << std::endl;
 	std::map<int, int> area_to_label_map;	// maps area=number of segment pixels (keys) to the respective label (value)
 	int label = 1;
 	for (int v=0; v<room_map_int.rows; ++v)
@@ -596,12 +614,17 @@ void RoomExplorationServer::removeUnconnectedRoomParts(cv::Mat& room_map)
 			}
 		}
 	}
+	std::cout << "3: label=" << label << std::endl;
+	std::cout << "area_to_label_map.size=" << area_to_label_map.size() << std::endl;
+	// todo: what if area_to_label_map.size() is empty?
 	// remove all room pixels from room_map which are not accessible
 	const int label_of_biggest_room = area_to_label_map.rbegin()->second;
+	std::cout << "label_of_biggest_room=" << label_of_biggest_room << std::endl;
 	for (int v=0; v<room_map.rows; ++v)
 		for (int u=0; u<room_map.cols; ++u)
 			if (room_map_int.at<int32_t>(v,u) != label_of_biggest_room)
 				room_map.at<uchar>(v,u) = 0;
+	std::cout << "4" << std::endl;
 }
 
 
