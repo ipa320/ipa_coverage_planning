@@ -72,6 +72,8 @@
 
 #include <boost/thread/mutex.hpp>
 
+#include <opencv2/opencv.hpp>
+
 
 class CoverageMonitor
 {
@@ -83,8 +85,8 @@ public:
 		robot_frame_ = "base_link";
 		robot_trajectory_recording_active_ = true;	// todo: make a service for activating/deactivating
 
-		coverage_marker_pub_ = nh.advertise<visualization_msgs::MarkerArray>("coverage_marker", 1);
-		target_trajectory_marker_pub_ = nh.advertise<visualization_msgs::MarkerArray>("target_trajectory_marker", 1);
+		coverage_marker_pub_ = nh.advertise<visualization_msgs::Marker>("coverage_marker", 1);
+		target_trajectory_marker_pub_ = nh.advertise<visualization_msgs::Marker>("target_trajectory_marker", 1);
 
 		target_trajectory_sub_ = nh.subscribe<geometry_msgs::TransformStamped>("target_trajectory_monitor", 1, &CoverageMonitor::targetTrajectoryCallback, this);
 
@@ -110,7 +112,7 @@ public:
 		coverage_marker_msg.pose.orientation.z = 0.0;
 		coverage_marker_msg.pose.orientation.w = 1.0;
 		// Set the scale of the marker -- 1x1x1 here means 1m on a side
-		coverage_marker_msg.scale.x = 0.3;		// this is the line width	// todo: take coverage_radius
+		coverage_marker_msg.scale.x = 0.5;		// this is the line width	// todo: take coverage_radius
 		coverage_marker_msg.scale.y = 1.0;
 		coverage_marker_msg.scale.z = 1.0;
 		// Set the color -- be sure to set alpha to something non-zero!
@@ -138,7 +140,7 @@ public:
 		// Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
 		target_trajectory_marker_msg.pose.position.x = 0;
 		target_trajectory_marker_msg.pose.position.y = 0;
-		target_trajectory_marker_msg.pose.position.z = 0;
+		target_trajectory_marker_msg.pose.position.z = 0.1;
 		target_trajectory_marker_msg.pose.orientation.x = 0.0;
 		target_trajectory_marker_msg.pose.orientation.y = 0.0;
 		target_trajectory_marker_msg.pose.orientation.z = 0.0;
@@ -156,7 +158,7 @@ public:
 		target_trajectory_marker_msg.points.push_back(p);
 
 		// cyclically publish marker messages
-		ros::Rate r(10);
+		ros::Rate r(5);
 		while (ros::ok())
 		{
 			// receive the current robot pose
@@ -174,7 +176,7 @@ public:
 
 			// update and publish coverage_marker_msg
 			coverage_marker_msg.header.stamp = ros::Time::now();
-			geometry_msgs::Point p; p.x=coverage_marker_msg.points.back().x+0.02; p.y=0; p.z=0;
+			geometry_msgs::Point p; p.x=coverage_marker_msg.points.back().x+0.1; p.y=0; p.z=0;
 			coverage_marker_msg.points.push_back(p);
 			coverage_marker_pub_.publish(coverage_marker_msg);
 
@@ -184,7 +186,7 @@ public:
 				boost::mutex::scoped_lock lock(robot_target_trajectory_vector_mutex_);
 
 				target_trajectory_marker_msg.header.stamp = ros::Time::now();
-				p.x=target_trajectory_marker_msg.points.back().x+0.02; p.y=0; p.z=0;
+				p.x=target_trajectory_marker_msg.points.back().x+0.1; p.y=0; p.z=0;
 				target_trajectory_marker_msg.points.push_back(p);
 				target_trajectory_marker_pub_.publish(target_trajectory_marker_msg);
 			}
