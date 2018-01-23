@@ -123,7 +123,7 @@ public:
 		coverage_marker_msg.color.r = 0.0f;
 		coverage_marker_msg.color.g = 1.0f;
 		coverage_marker_msg.color.b = 0.0f;
-		coverage_marker_msg.color.a = 1.0;
+		coverage_marker_msg.color.a = 0.33;
 		coverage_marker_msg.lifetime = ros::Duration();
 		geometry_msgs::Point p; p.x=0; p.y=0; p.z=0;
 		coverage_marker_msg.points.push_back(p);
@@ -157,7 +157,7 @@ public:
 		target_trajectory_marker_msg.color.r = 0.0f;
 		target_trajectory_marker_msg.color.g = 0.0f;
 		target_trajectory_marker_msg.color.b = 1.0f;
-		target_trajectory_marker_msg.color.a = 1.0;
+		target_trajectory_marker_msg.color.a = 0.8;
 		target_trajectory_marker_msg.lifetime = ros::Duration();
 		target_trajectory_marker_msg.points.push_back(p);
 
