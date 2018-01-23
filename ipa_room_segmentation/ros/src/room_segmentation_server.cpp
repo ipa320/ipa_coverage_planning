@@ -65,6 +65,7 @@
 
 #include <boost/algorithm/string.hpp>
 
+static bool DEBUG_DISPLAYS=false;
 
 RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string name_of_the_action) :
 	node_handle_(nh),
@@ -270,7 +271,11 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 	}
 	node_handle_.param("display_segmented_map", display_segmented_map_, false);
 	std::cout << "room_segmentation/display_segmented_map_ = " << display_segmented_map_ << std::endl;
+	node_handle_.param("publish_segmented_map", publish_segmented_map_, false);
+	std::cout << "room_segmentation/publish_segmented_map_ = " << publish_segmented_map_ << std::endl;
 
+	// publishers
+	map_pub_ = node_handle_.advertise<nav_msgs::OccupancyGrid>("segmented_map", 1, true);
 
 	// start action server
 	room_segmentation_server_.start();
@@ -351,6 +356,8 @@ void RoomSegmentationServer::dynamic_reconfigure_callback(ipa_room_segmentation:
 	}
 	display_segmented_map_ = config.display_segmented_map;
 	std::cout << "room_segmentation/display_segmented_map = " << display_segmented_map_ << std::endl;
+	publish_segmented_map_ = config.publish_segmented_map;
+	std::cout << "room_segmentation/publish_segmented_map = " << publish_segmented_map_ << std::endl;
 	std::cout << "######################################################################################" << std::endl;
 }
 
@@ -432,7 +439,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 	{
 		VoronoiSegmentation voronoi_segmentation; //voronoi segmentation method
 		voronoi_segmentation.segmentMap(original_img, segmented_map, map_resolution, room_lower_limit_voronoi_, room_upper_limit_voronoi_,
-			voronoi_neighborhood_index_, max_iterations_, min_critical_point_distance_factor_, max_area_for_merging_, display_segmented_map_);
+			voronoi_neighborhood_index_, max_iterations_, min_critical_point_distance_factor_, max_area_for_merging_, (display_segmented_map_&&DEBUG_DISPLAYS));
 	}
 	else if (room_segmentation_algorithm_ == 4)
 	{
@@ -441,7 +448,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 		const std::string classifier_default_path = package_path + "/common/files/classifier_models/";
 		const std::string classifier_path = "room_segmentation/classifier_models/";
 		semantic_segmentation.segmentMap(original_img, segmented_map, map_resolution, room_lower_limit_semantic_, room_upper_limit_semantic_,
-			classifier_path, classifier_default_path, display_segmented_map_);
+			classifier_path, classifier_default_path, (display_segmented_map_&&DEBUG_DISPLAYS));
 	}
 	else if (room_segmentation_algorithm_ == 5)
 	{
@@ -457,7 +464,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 		doorway_points_.clear();
 		vrf_segmentation.segmentMap(original_img, segmented_map, voronoi_random_field_epsilon_for_neighborhood_, max_iterations_,
 				min_neighborhood_size_, possible_labels, min_voronoi_random_field_node_distance_,
-				display_segmented_map_, classifier_storage_path, classifier_default_path, max_voronoi_random_field_inference_iterations_,
+				(display_segmented_map_&&DEBUG_DISPLAYS), classifier_storage_path, classifier_default_path, max_voronoi_random_field_inference_iterations_,
 				map_resolution, room_lower_limit_voronoi_random_, room_upper_limit_voronoi_random_, max_area_for_merging_, &doorway_points_);
 	}
 	else
@@ -652,9 +659,34 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 //		cv::Mat disp = segmented_map.clone();
 		for (size_t index = 0; index < room_centers_x_values.size(); ++index)
 			cv::circle(color_segmented_map, cv::Point(room_centers_x_values[index], room_centers_y_values[index]), 2, cv::Scalar(256), CV_FILLED);
+
 		cv::imshow("segmentation", color_segmented_map);
 		cv::waitKey();
 	}
+	if (publish_segmented_map_ == true)
+	{
+		// "colorize" the segmented map with gray scale values
+		nav_msgs::OccupancyGrid segmented_grid;
+		segmented_grid.header.stamp = ros::Time::now();
+		segmented_grid.header.frame_id = "map";
+		segmented_grid.info.resolution = map_resolution;
+		segmented_grid.info.width = indexed_map.cols;
+		segmented_grid.info.height = indexed_map.rows;
+		segmented_grid.info.origin.position.x = map_origin.x;
+		segmented_grid.info.origin.position.y = map_origin.y;
+		segmented_grid.data.resize(segmented_grid.info.width*segmented_grid.info.height);
+		std::map<int, int> colors;
+		//choose random color for each room
+		colors[0] = 0;
+		for(int i = 1; i <= room_centers_x_values.size(); ++i)
+			colors[i] = 20 + rand() % 81;
+		int i=0;
+		for(int v = 0; v < indexed_map.rows; ++v)
+			for(int u = 0; u < indexed_map.cols; ++u, ++i)
+				segmented_grid.data[i] = colors[indexed_map.at<int>(v,u)];
+		map_pub_.publish(segmented_grid);
+	}
+
 
 	//****************publish the results**********************
 	ipa_building_msgs::MapSegmentationResult action_result;

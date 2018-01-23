@@ -6,6 +6,7 @@ set(catkin_RUN_PACKAGES
 	cv_bridge
 	ipa_building_msgs
 	libdlib
+	nav_msgs
 	opengm
 	roscpp
 	roslib
