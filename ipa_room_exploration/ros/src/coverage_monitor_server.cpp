@@ -94,15 +94,6 @@ public:
 
 		target_trajectory_sub_ = nh.subscribe<geometry_msgs::TransformStamped>("target_trajectory_monitor", 1, &CoverageMonitor::targetTrajectoryCallback, this);
 
-		///////// to copy
-		ros::Publisher target_trajectory_pub_;		// publishes the commanded targets for the robot trajectory
-		target_trajectory_pub_ = nh.advertise<geometry_msgs::TransformStamped>("target_trajectory_info", 1);
-		tf::StampedTransform transform(tf::Transform(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0., 0., 0.)), ros::Time::now(), map_frame_, robot_frame_);
-		geometry_msgs::TransformStamped transform_msg;
-		tf::transformStampedTFToMsg(transform, transform_msg);
-		target_trajectory_pub_.publish(transform_msg);
-		/////////
-
 		// prepare coverage_marker_msg message
 		visualization_msgs::Marker coverage_marker_msg;
 		// Set the frame ID and timestamp.  See the TF tutorials for information on these.
@@ -238,8 +229,8 @@ protected:
 	tf::Transform coverage_circle_offset_transform_;		// the offset of the coverage circle from the robot center
 	double coverage_radius_;			// radius of the circular coverage device
 
-	std::string map_frame_;
-	std::string robot_frame_;
+	std::string map_frame_;			// name of the map coordinate system
+	std::string robot_frame_;		// name of the robot base frame
 
 	bool robot_trajectory_recording_active_;		// the robot trajectory is only recorded if this is true (can be set from outside)
 
