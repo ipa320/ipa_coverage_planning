@@ -83,12 +83,25 @@ public:
 		// todo: parameters
 		map_frame_ = "map";
 		robot_frame_ = "base_link";
+		coverage_radius_ = 0.25;
+		coverage_circle_offset_transform_.setIdentity();
+		coverage_circle_offset_transform_.setOrigin(tf::Vector3(0.29035, -0.114, 0.));
 		robot_trajectory_recording_active_ = true;	// todo: make a service for activating/deactivating
 
+		// setup publishers and subscribers
 		coverage_marker_pub_ = nh.advertise<visualization_msgs::Marker>("coverage_marker", 1);
 		target_trajectory_marker_pub_ = nh.advertise<visualization_msgs::Marker>("target_trajectory_marker", 1);
 
 		target_trajectory_sub_ = nh.subscribe<geometry_msgs::TransformStamped>("target_trajectory_monitor", 1, &CoverageMonitor::targetTrajectoryCallback, this);
+
+		///////// to copy
+		ros::Publisher target_trajectory_pub_;		// publishes the commanded targets for the robot trajectory
+		target_trajectory_pub_ = nh.advertise<geometry_msgs::TransformStamped>("target_trajectory_info", 1);
+		tf::StampedTransform transform(tf::Transform(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0., 0., 0.)), ros::Time::now(), map_frame_, robot_frame_);
+		geometry_msgs::TransformStamped transform_msg;
+		tf::transformStampedTFToMsg(transform, transform_msg);
+		target_trajectory_pub_.publish(transform_msg);
+		/////////
 
 		// prepare coverage_marker_msg message
 		visualization_msgs::Marker coverage_marker_msg;
@@ -112,7 +125,7 @@ public:
 		coverage_marker_msg.pose.orientation.z = 0.0;
 		coverage_marker_msg.pose.orientation.w = 1.0;
 		// Set the scale of the marker -- 1x1x1 here means 1m on a side
-		coverage_marker_msg.scale.x = 0.5;		// this is the line width	// todo: take coverage_radius
+		coverage_marker_msg.scale.x = 2*coverage_radius_;		// this is the line width
 		coverage_marker_msg.scale.y = 1.0;
 		coverage_marker_msg.scale.z = 1.0;
 		// Set the color -- be sure to set alpha to something non-zero!
@@ -146,7 +159,7 @@ public:
 		target_trajectory_marker_msg.pose.orientation.z = 0.0;
 		target_trajectory_marker_msg.pose.orientation.w = 1.0;
 		// Set the scale of the marker -- 1x1x1 here means 1m on a side
-		target_trajectory_marker_msg.scale.x = 0.1;		// this is the line width	// todo: take coverage_radius
+		target_trajectory_marker_msg.scale.x = 0.1;		// this is the line width
 		target_trajectory_marker_msg.scale.y = 1.0;
 		target_trajectory_marker_msg.scale.z = 1.0;
 		// Set the color -- be sure to set alpha to something non-zero!
@@ -159,6 +172,7 @@ public:
 
 		// cyclically publish marker messages
 		ros::Rate r(5);
+		int index = 0;	//todo: remove
 		while (ros::ok())
 		{
 			// receive the current robot pose
@@ -172,12 +186,18 @@ public:
 					transform_listener_.lookupTransform(map_frame_, robot_frame_, time, transform);
 					robot_trajectory_vector_.push_back(transform);
 				}
+				// todo: hack:
+				tf::StampedTransform transform(tf::Transform(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0.1*index, 0., 0.)), ros::Time::now(), map_frame_, robot_frame_);
+				robot_trajectory_vector_.push_back(transform);
+				robot_target_trajectory_vector_.push_back(transform);
+				++index;
 			}
 
 			// update and publish coverage_marker_msg
 			coverage_marker_msg.header.stamp = ros::Time::now();
-			geometry_msgs::Point p; p.x=coverage_marker_msg.points.back().x+0.1; p.y=0; p.z=0;
-			coverage_marker_msg.points.push_back(p);
+			coverage_marker_msg.points.resize(robot_trajectory_vector_.size());
+			for (size_t i=0; i<robot_trajectory_vector_.size(); ++i)
+				tf::pointTFToMsg((robot_trajectory_vector_[i]*coverage_circle_offset_transform_).getOrigin(), coverage_marker_msg.points[i]);
 			coverage_marker_pub_.publish(coverage_marker_msg);
 
 			// update and publish target_trajectory_marker_msg
@@ -186,8 +206,9 @@ public:
 				boost::mutex::scoped_lock lock(robot_target_trajectory_vector_mutex_);
 
 				target_trajectory_marker_msg.header.stamp = ros::Time::now();
-				p.x=target_trajectory_marker_msg.points.back().x+0.1; p.y=0; p.z=0;
-				target_trajectory_marker_msg.points.push_back(p);
+				target_trajectory_marker_msg.points.resize(robot_target_trajectory_vector_.size());
+				for (size_t i=0; i<robot_target_trajectory_vector_.size(); ++i)
+					tf::pointTFToMsg((robot_target_trajectory_vector_[i]*coverage_circle_offset_transform_).getOrigin(), target_trajectory_marker_msg.points[i]);
 				target_trajectory_marker_pub_.publish(target_trajectory_marker_msg);
 			}
 
@@ -196,7 +217,7 @@ public:
 		}
 	}
 
-	// receive another trajectory target
+	// receive trajectory targets
 	void targetTrajectoryCallback(const geometry_msgs::TransformStamped::ConstPtr& trajectory_msg)
 	{
 		// secure this access with a mutex
@@ -214,7 +235,8 @@ protected:
 	tf::TransformListener transform_listener_;
 	ros::Subscriber target_trajectory_sub_;			// receives messages with StampedTransforms of the target trajectory
 
-	cv::Point2d coverage_circle_offset_px_;			// the offset of the coverage circle from the robot center
+	tf::Transform coverage_circle_offset_transform_;		// the offset of the coverage circle from the robot center
+	double coverage_radius_;			// radius of the circular coverage device
 
 	std::string map_frame_;
 	std::string robot_frame_;
