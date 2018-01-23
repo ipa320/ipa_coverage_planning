@@ -150,7 +150,7 @@ public:
 		target_trajectory_marker_msg.pose.orientation.z = 0.0;
 		target_trajectory_marker_msg.pose.orientation.w = 1.0;
 		// Set the scale of the marker -- 1x1x1 here means 1m on a side
-		target_trajectory_marker_msg.scale.x = 0.1;		// this is the line width
+		target_trajectory_marker_msg.scale.x = 0.05;		// this is the line width
 		target_trajectory_marker_msg.scale.y = 1.0;
 		target_trajectory_marker_msg.scale.z = 1.0;
 		// Set the color -- be sure to set alpha to something non-zero!
