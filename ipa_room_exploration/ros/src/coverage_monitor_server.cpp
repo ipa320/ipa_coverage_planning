@@ -92,7 +92,7 @@ public:
 		coverage_marker_pub_ = nh.advertise<visualization_msgs::Marker>("coverage_marker", 1);
 		target_trajectory_marker_pub_ = nh.advertise<visualization_msgs::Marker>("target_trajectory_marker", 1);
 
-		target_trajectory_sub_ = nh.subscribe<geometry_msgs::TransformStamped>("target_trajectory_monitor", 1, &CoverageMonitor::targetTrajectoryCallback, this);
+		target_trajectory_sub_ = nh.subscribe<geometry_msgs::TransformStamped>("target_trajectory_monitor", 10, &CoverageMonitor::targetTrajectoryCallback, this);
 
 		// prepare coverage_marker_msg message
 		visualization_msgs::Marker coverage_marker_msg;
@@ -177,11 +177,11 @@ public:
 					transform_listener_.lookupTransform(map_frame_, robot_frame_, time, transform);
 					robot_trajectory_vector_.push_back(transform);
 				}
-				// todo: hack:
-				tf::StampedTransform transform(tf::Transform(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0.1*index, 0., 0.)), ros::Time::now(), map_frame_, robot_frame_);
-				robot_trajectory_vector_.push_back(transform);
-				robot_target_trajectory_vector_.push_back(transform);
-				++index;
+//				// todo: hack: for testing
+//				tf::StampedTransform transform(tf::Transform(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0.1*index, 0., 0.)), ros::Time::now(), map_frame_, robot_frame_);
+//				robot_trajectory_vector_.push_back(transform);
+//				robot_target_trajectory_vector_.push_back(transform);
+//				++index;
 			}
 
 			// update and publish coverage_marker_msg
@@ -200,8 +200,8 @@ public:
 				target_trajectory_marker_msg.points.resize(robot_target_trajectory_vector_.size());
 				for (size_t i=0; i<robot_target_trajectory_vector_.size(); ++i)
 					tf::pointTFToMsg((robot_target_trajectory_vector_[i]*coverage_circle_offset_transform_).getOrigin(), target_trajectory_marker_msg.points[i]);
-				target_trajectory_marker_pub_.publish(target_trajectory_marker_msg);
 			}
+			target_trajectory_marker_pub_.publish(target_trajectory_marker_msg);
 
 			r.sleep();
 			ros::spinOnce();
@@ -211,12 +211,14 @@ public:
 	// receive trajectory targets
 	void targetTrajectoryCallback(const geometry_msgs::TransformStamped::ConstPtr& trajectory_msg)
 	{
-		// secure this access with a mutex
-		boost::mutex::scoped_lock lock(robot_target_trajectory_vector_mutex_);
-
 		tf::StampedTransform transform;
 		tf::transformStampedMsgToTF(*trajectory_msg, transform);
-		robot_target_trajectory_vector_.push_back(transform);
+
+		{
+			// secure this access with a mutex
+			boost::mutex::scoped_lock lock(robot_target_trajectory_vector_mutex_);
+			robot_target_trajectory_vector_.push_back(transform);
+		}
 	}
 
 protected:
