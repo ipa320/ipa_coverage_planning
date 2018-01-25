@@ -63,6 +63,9 @@
 
 #include <ros/ros.h>
 
+#include <dynamic_reconfigure/server.h>
+#include <ipa_room_exploration/CoverageMonitorConfig.h>
+
 #include <visualization_msgs/Marker.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <geometry_msgs/Point.h>
@@ -80,6 +83,9 @@ class CoverageMonitor
 public:
 	CoverageMonitor(ros::NodeHandle nh)
 	{
+		// dynamic reconfigure
+		coverage_monitor_dynamic_reconfigure_server_.setCallback(boost::bind(&CoverageMonitor::dynamicReconfigureCallback, this, _1, _2));
+
 		// Parameters
 		std::cout << "\n--------------------------\nCoverage Monitor Parameters:\n--------------------------\n";
 		nh.param<std::string>("map_frame", map_frame_, "map");
@@ -310,6 +316,33 @@ public:
 		return true;
 	}
 
+	// callback function for dynamic reconfigure
+	void dynamicReconfigureCallback(ipa_room_exploration::CoverageMonitorConfig &config, uint32_t level)
+	{
+		std::cout << "######################################################################################" << std::endl;
+		std::cout << "Dynamic reconfigure request:" << std::endl;
+
+
+		map_frame_ = config.map_frame;
+		std::cout << "coverage_monitor/map_frame_ = " << map_frame_ << std::endl;
+		robot_frame_ = config.robot_frame;
+		std::cout << "coverage_monitor/robot_frame_ = " << robot_frame_ << std::endl;
+
+		coverage_radius_ = config.coverage_radius;
+		std::cout << "coverage_monitor/coverage_radius_ = " << coverage_radius_ << std::endl;
+		double temp[3];
+		temp[0] = config.coverage_circle_offset_transform_x;
+		temp[1] = config.coverage_circle_offset_transform_y;
+		temp[2] = config.coverage_circle_offset_transform_z;
+		coverage_circle_offset_transform_.setOrigin(tf::Vector3(temp[0], temp[1], temp[2]));
+		std::cout << "coverage_monitor/coverage_circle_offset_transform_ = (" << temp[0] << ", " << temp[1] << ", " << temp[2] << ")" << std::endl;
+
+		robot_trajectory_recording_active_ = config.robot_trajectory_recording_active;
+		std::cout << "coverage_monitor/robot_trajectory_recording_active_ = " << robot_trajectory_recording_active_ << std::endl;
+
+		std::cout << "######################################################################################" << std::endl;
+	}
+
 protected:
 	ros::Publisher coverage_marker_pub_;				// visualization of the coverage trajectory
 	ros::Publisher computed_trajectory_marker_pub_;		// visualization of the computed target trajectory
@@ -321,6 +354,8 @@ protected:
 
 	ros::ServiceServer start_coverage_monitoring_srv_;	// service for starting monitoring the robot trajectory
 	ros::ServiceServer stop_coverage_monitoring_srv_;	// service for stopping monitoring the robot trajectory
+
+	dynamic_reconfigure::Server<ipa_room_exploration::CoverageMonitorConfig> coverage_monitor_dynamic_reconfigure_server_;
 
 	tf::Transform coverage_circle_offset_transform_;		// the offset of the coverage circle from the robot center
 	double coverage_radius_;			// radius of the circular coverage device

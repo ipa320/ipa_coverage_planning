@@ -6,7 +6,7 @@ map_frame: "map"
 # string
 robot_frame: "base_link"
 
-# radius of the circular coverage device
+# radius of the circular coverage device, in [m]
 # double
 coverage_radius: 0.25
 
