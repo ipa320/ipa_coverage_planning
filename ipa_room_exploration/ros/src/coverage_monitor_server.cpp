@@ -64,7 +64,6 @@
 #include <ros/ros.h>
 
 #include <visualization_msgs/Marker.h>
-#include <visualization_msgs/MarkerArray.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <geometry_msgs/Point.h>
 #include <std_srvs/Trigger.h>

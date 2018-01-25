@@ -74,6 +74,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
+#include <visualization_msgs/MarkerArray.h>
 
 #include <fstream>
 
@@ -112,8 +113,10 @@ public:
 protected:
 	//!!Important!!
 	// define the Nodehandle before the action server, or else the server won't start
-	//
 	ros::NodeHandle node_handle_;
+
+	ros::Publisher room_sequence_visualization_pub_;	// visualization of the room sequence
+	visualization_msgs::MarkerArray room_sequence_visualization_msg_;
 
 	actionlib::SimpleActionServer<ipa_building_msgs::FindRoomSequenceWithCheckpointsAction> room_sequence_with_checkpoints_server_;
 
@@ -137,6 +140,9 @@ protected:
 
 	size_t getNearestLocation(const cv::Mat& floor_plan, const cv::Point start_coordinate, const std::vector<cv::Point>& positions,
 			const double map_downsampling_factor, const double robot_radius, const double map_resolution);
+
+	void publishSequenceVisualization(const std::vector<ipa_building_msgs::RoomSequence>& room_sequences, const std::vector<cv::Point>& room_centers,
+			const double map_resolution, const cv::Point2d& map_origin);
 
 	// callback function for dynamic reconfigure
 	void dynamic_reconfigure_callback(ipa_building_navigation::BuildingNavigationConfig &config, uint32_t level);
