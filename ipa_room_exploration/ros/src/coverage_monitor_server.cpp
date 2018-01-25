@@ -80,13 +80,23 @@ class CoverageMonitor
 public:
 	CoverageMonitor(ros::NodeHandle nh)
 	{
-		// todo: parameters, get from parameter server
-		map_frame_ = "map";
-		robot_frame_ = "base_link";
-		coverage_radius_ = 0.25;
+		// Parameters
+		std::cout << "\n--------------------------\nCoverage Monitor Parameters:\n--------------------------\n";
+		nh.param<std::string>("map_frame", map_frame_, "map");
+		std::cout << "coverage_monitor/map_frame = " << map_frame_ << std::endl;
+		nh.param<std::string>("robot_frame", robot_frame_, "base_link");
+		std::cout << "coverage_monitor/robot_frame = " << robot_frame_ << std::endl;
+		nh.param("coverage_radius", coverage_radius_, 0.25);
+		std::cout << "coverage_monitor/coverage_radius = " << coverage_radius_ << std::endl;
 		coverage_circle_offset_transform_.setIdentity();
-		coverage_circle_offset_transform_.setOrigin(tf::Vector3(0.29035, -0.114, 0.));
-		robot_trajectory_recording_active_ = true;	// todo: use the service for activating/deactivating --> set it false here
+		std::vector<double> temp;
+		nh.getParam("coverage_circle_offset_translation", temp);
+		if (temp.size() == 3)
+			coverage_circle_offset_transform_.setOrigin(tf::Vector3(temp[0], temp[1], temp[2]));
+		else
+			coverage_circle_offset_transform_.setOrigin(tf::Vector3(0.29035, -0.114, 0.));
+		nh.param("robot_trajectory_recording_active", robot_trajectory_recording_active_, false);
+		std::cout << "coverage_monitor/robot_trajectory_recording_active = " << robot_trajectory_recording_active_ << std::endl;
 
 		// setup publishers and subscribers
 		coverage_marker_pub_ = nh.advertise<visualization_msgs::Marker>("coverage_marker", 1);
@@ -331,7 +341,7 @@ protected:
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "coverage_monitor");
-	ros::NodeHandle nh;
+	ros::NodeHandle nh("~");
 
 	CoverageMonitor cm(nh);
 
