@@ -18,6 +18,7 @@ set(catkin_RUN_PACKAGES
 	roslib
 	sensor_msgs
 	std_msgs
+	std_srvs
 	tf
 	visualization_msgs
 )
