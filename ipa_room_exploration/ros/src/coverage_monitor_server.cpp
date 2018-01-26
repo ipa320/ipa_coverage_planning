@@ -170,7 +170,7 @@ public:
 		// Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
 		computed_trajectory_marker_msg.pose.position.x = 0;
 		computed_trajectory_marker_msg.pose.position.y = 0;
-		computed_trajectory_marker_msg.pose.position.z = 0.1;
+		computed_trajectory_marker_msg.pose.position.z = 0.2;
 		computed_trajectory_marker_msg.pose.orientation.x = 0.0;
 		computed_trajectory_marker_msg.pose.orientation.y = 0.0;
 		computed_trajectory_marker_msg.pose.orientation.z = 0.0;
@@ -203,7 +203,7 @@ public:
 		// Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
 		commanded_trajectory_marker_msg.pose.position.x = 0;
 		commanded_trajectory_marker_msg.pose.position.y = 0;
-		commanded_trajectory_marker_msg.pose.position.z = 0.2;
+		commanded_trajectory_marker_msg.pose.position.z = 0.4;
 		commanded_trajectory_marker_msg.pose.orientation.x = 0.0;
 		commanded_trajectory_marker_msg.pose.orientation.y = 0.0;
 		commanded_trajectory_marker_msg.pose.orientation.z = 0.0;
