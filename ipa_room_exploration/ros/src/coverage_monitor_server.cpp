@@ -64,6 +64,9 @@
 #include <ros/ros.h>
 
 #include <dynamic_reconfigure/server.h>
+#include <dynamic_reconfigure/BoolParameter.h>
+#include <dynamic_reconfigure/Reconfigure.h>
+#include <dynamic_reconfigure/Config.h>
 #include <ipa_room_exploration/CoverageMonitorConfig.h>
 
 #include <visualization_msgs/Marker.h>
@@ -217,6 +220,8 @@ public:
 		commanded_trajectory_marker_msg.points.push_back(p);
 
 		// cyclically publish marker messages
+		ros::AsyncSpinner spinner(2);	// asynch. spinner (2) is needed to call dynamic reconfigure from this node without blocking the node
+		spinner.start();
 		ros::Rate r(5);
 //		int index = 0;
 		while (ros::ok())
@@ -272,7 +277,6 @@ public:
 			commanded_trajectory_marker_pub_.publish(commanded_trajectory_marker_msg);
 
 			r.sleep();
-			ros::spinOnce();
 		}
 	}
 
@@ -304,6 +308,7 @@ public:
 	{
 		std::cout << "CoverageMonitor::startCoverageMonitoringCallback." << std::endl;
 		robot_trajectory_recording_active_ = true;
+		internalDynamicReconfigureUpdate();
 		res.success = true;
 		return true;
 	}
@@ -312,8 +317,24 @@ public:
 	{
 		std::cout << "CoverageMonitor::stopCoverageMonitoringCallback." << std::endl;
 		robot_trajectory_recording_active_ = false;
+		internalDynamicReconfigureUpdate();
 		res.success = true;
 		return true;
+	}
+
+	void internalDynamicReconfigureUpdate()
+	{
+		// update dynamic reconfigure
+		dynamic_reconfigure::ReconfigureRequest srv_req;
+		dynamic_reconfigure::ReconfigureResponse srv_resp;
+		dynamic_reconfigure::BoolParameter enable_param;
+		enable_param.name = "robot_trajectory_recording_active";
+		enable_param.value = robot_trajectory_recording_active_;
+		srv_req.config.bools.push_back(enable_param);
+		if (ros::service::call("~/set_parameters", srv_req, srv_resp))
+			ROS_INFO("Update of dynamic reconfigure parameters succeeded");
+		else
+			ROS_INFO("Update of dynamic reconfigure parameters failed");
 	}
 
 	// callback function for dynamic reconfigure
@@ -379,8 +400,6 @@ int main(int argc, char **argv)
 	ros::NodeHandle nh("~");
 
 	CoverageMonitor cm(nh);
-
-	ros::spin();
 
 	return 0;
 }
