@@ -84,40 +84,41 @@
 class CoverageMonitor
 {
 public:
-	CoverageMonitor(ros::NodeHandle nh)
+	CoverageMonitor(ros::NodeHandle nh) :
+		node_handle_(nh)
 	{
 		// dynamic reconfigure
 		coverage_monitor_dynamic_reconfigure_server_.setCallback(boost::bind(&CoverageMonitor::dynamicReconfigureCallback, this, _1, _2));
 
 		// Parameters
 		std::cout << "\n--------------------------\nCoverage Monitor Parameters:\n--------------------------\n";
-		nh.param<std::string>("map_frame", map_frame_, "map");
+		node_handle_.param<std::string>("map_frame", map_frame_, "map");
 		std::cout << "coverage_monitor/map_frame = " << map_frame_ << std::endl;
-		nh.param<std::string>("robot_frame", robot_frame_, "base_link");
+		node_handle_.param<std::string>("robot_frame", robot_frame_, "base_link");
 		std::cout << "coverage_monitor/robot_frame = " << robot_frame_ << std::endl;
-		nh.param("coverage_radius", coverage_radius_, 0.25);
+		node_handle_.param("coverage_radius", coverage_radius_, 0.25);
 		std::cout << "coverage_monitor/coverage_radius = " << coverage_radius_ << std::endl;
 		coverage_circle_offset_transform_.setIdentity();
 		std::vector<double> temp;
-		nh.getParam("coverage_circle_offset_translation", temp);
+		node_handle_.getParam("coverage_circle_offset_translation", temp);
 		if (temp.size() == 3)
 			coverage_circle_offset_transform_.setOrigin(tf::Vector3(temp[0], temp[1], temp[2]));
 		else
 			coverage_circle_offset_transform_.setOrigin(tf::Vector3(0.29035, -0.114, 0.));
-		nh.param("robot_trajectory_recording_active", robot_trajectory_recording_active_, false);
+		node_handle_.param("robot_trajectory_recording_active", robot_trajectory_recording_active_, false);
 		std::cout << "coverage_monitor/robot_trajectory_recording_active = " << robot_trajectory_recording_active_ << std::endl;
 
 		// setup publishers and subscribers
-		coverage_marker_pub_ = nh.advertise<visualization_msgs::Marker>("coverage_marker", 1);
-		computed_trajectory_marker_pub_ = nh.advertise<visualization_msgs::Marker>("computed_trajectory_marker", 1);
-		commanded_trajectory_marker_pub_ = nh.advertise<visualization_msgs::Marker>("commanded_trajectory_marker", 1);
+		coverage_marker_pub_ = node_handle_.advertise<visualization_msgs::Marker>("coverage_marker", 1);
+		computed_trajectory_marker_pub_ = node_handle_.advertise<visualization_msgs::Marker>("computed_trajectory_marker", 1);
+		commanded_trajectory_marker_pub_ = node_handle_.advertise<visualization_msgs::Marker>("commanded_trajectory_marker", 1);
 
-		computed_trajectory_sub_ = nh.subscribe<geometry_msgs::TransformStamped>("computed_target_trajectory_monitor", 10, &CoverageMonitor::computedTrajectoryCallback, this);
-		commanded_trajectory_sub_ = nh.subscribe<geometry_msgs::TransformStamped>("commanded_target_trajectory_monitor", 10, &CoverageMonitor::commandedTrajectoryCallback, this);
+		computed_trajectory_sub_ = node_handle_.subscribe<geometry_msgs::TransformStamped>("computed_target_trajectory_monitor", 10, &CoverageMonitor::computedTrajectoryCallback, this);
+		commanded_trajectory_sub_ = node_handle_.subscribe<geometry_msgs::TransformStamped>("commanded_target_trajectory_monitor", 10, &CoverageMonitor::commandedTrajectoryCallback, this);
 
 		// setup services
-		start_coverage_monitoring_srv_ = nh.advertiseService("start_coverage_monitoring", &CoverageMonitor::startCoverageMonitoringCallback, this);
-		stop_coverage_monitoring_srv_ = nh.advertiseService("stop_coverage_monitoring", &CoverageMonitor::stopCoverageMonitoringCallback, this);
+		start_coverage_monitoring_srv_ = node_handle_.advertiseService("start_coverage_monitoring", &CoverageMonitor::startCoverageMonitoringCallback, this);
+		stop_coverage_monitoring_srv_ = node_handle_.advertiseService("stop_coverage_monitoring", &CoverageMonitor::stopCoverageMonitoringCallback, this);
 
 		// prepare coverage_marker_msg message
 		visualization_msgs::Marker coverage_marker_msg;
@@ -308,7 +309,7 @@ public:
 	{
 		std::cout << "CoverageMonitor::startCoverageMonitoringCallback." << std::endl;
 		robot_trajectory_recording_active_ = true;
-		internalDynamicReconfigureUpdate();
+		internalDynamicReconfigureUpdate();		// update dynamic reconfigure
 		res.success = true;
 		return true;
 	}
@@ -317,7 +318,7 @@ public:
 	{
 		std::cout << "CoverageMonitor::stopCoverageMonitoringCallback." << std::endl;
 		robot_trajectory_recording_active_ = false;
-		internalDynamicReconfigureUpdate();
+		internalDynamicReconfigureUpdate();		// update dynamic reconfigure
 		res.success = true;
 		return true;
 	}
@@ -365,6 +366,8 @@ public:
 	}
 
 protected:
+	ros::NodeHandle node_handle_;
+
 	ros::Publisher coverage_marker_pub_;				// visualization of the coverage trajectory
 	ros::Publisher computed_trajectory_marker_pub_;		// visualization of the computed target trajectory
 	ros::Publisher commanded_trajectory_marker_pub_;	// visualization of the commanded target trajectory

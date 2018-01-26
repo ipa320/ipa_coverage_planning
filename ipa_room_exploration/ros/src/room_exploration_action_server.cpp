@@ -95,8 +95,7 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	global_costmap_topic_ = "/move_base/global_costmap/costmap";
 	node_handle_.param<std::string>("global_costmap_topic", global_costmap_topic_);
 	std::cout << "room_exploration/global_costmap_topic = " << global_costmap_topic_ << std::endl;
-	coverage_check_service_name_ = "/coverage_check_server/coverage_check";
-	node_handle_.param<std::string>("coverage_check_service_name", coverage_check_service_name_);
+	node_handle_.param<std::string>("coverage_check_service_name", coverage_check_service_name_, "/room_exploration/coverage_check_server/coverage_check");
 	std::cout << "room_exploration/coverage_check_service_name = " << coverage_check_service_name_ << std::endl;
 	map_frame_ = "map";
 	node_handle_.param<std::string>("map_frame", map_frame_);
@@ -896,7 +895,7 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 		// 5. go to each center and use the map_accessability_server to find a robot pose around it s.t. it can be covered
 		//	  by the fov
 		double pi_8 = PI/8;
-		std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";	// todo: replace with library interface
+		std::string perimeter_service_name = "/room_exploration/map_accessibility_analysis/map_perimeter_accessibility_check";	// todo: replace with library interface
 	//	robot_poses.clear();
 		for(size_t center = 0; center < revisiting_order.size(); ++center)
 		{
@@ -1049,7 +1048,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 		center.y = map_oriented_pose.y + relative_vector.y;
 
 		// check for another robot pose to reach the desired fov-position
-		std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";	// todo: replace with library interface
+		std::string perimeter_service_name = "/room_exploration/map_accessibility_analysis/map_perimeter_accessibility_check";	// todo: replace with library interface
 		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Response response;
 		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
 		check_request.center = center;

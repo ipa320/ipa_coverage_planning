@@ -875,7 +875,7 @@ public:
 		std::vector<double> room_areas;
 		std::vector<double> area_covered_percentages;
 		std::vector<double> numbers_of_coverages;
-		std::string coverage_service_name = "/coverage_check_server/coverage_check";
+		std::string coverage_service_name = "/room_exploration/coverage_check_server/coverage_check";
 
 		size_t path_index = 0;
 		cv::Mat map_coverage = map.clone();

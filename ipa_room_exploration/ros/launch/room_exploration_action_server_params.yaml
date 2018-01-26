@@ -65,7 +65,7 @@ global_costmap_topic: "/move_base/global_costmap/costmap"
 
 # name of the service to call for a coverage check of the driven trajectory
 # string
-coverage_check_service_name: "/coverage_check_server/coverage_check"
+coverage_check_service_name: "/room_exploration/coverage_check_server/coverage_check"
 
 # string that carries the name of the map frame, used for tracking of the robot
 # string

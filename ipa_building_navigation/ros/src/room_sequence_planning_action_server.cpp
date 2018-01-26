@@ -665,13 +665,13 @@ void RoomSequencePlanningServer::publishSequenceVisualization(const std::vector<
 		// Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
 		text.pose.position.x = room_sequences[i].checkpoint_position_in_meter.x;
 		text.pose.position.y = room_sequences[i].checkpoint_position_in_meter.y;
-		text.pose.position.z = room_sequences[i].checkpoint_position_in_meter.z;
+		text.pose.position.z = room_sequences[i].checkpoint_position_in_meter.z+0.4;
 		text.pose.orientation.x = 0.0;
 		text.pose.orientation.y = 0.0;
 		text.pose.orientation.z = 0.0;
 		text.pose.orientation.w = 1.0;
 		// Set the scale of the marker -- 1x1x1 here means 1m on a side
-		text.scale.x = 1.0;		// this is the line width
+		text.scale.x = 1.5;		// this is the line width
 		text.scale.y = 1.0;
 		text.scale.z = 0.5;
 		// Set the color -- be sure to set alpha to something non-zero!
@@ -716,8 +716,8 @@ void RoomSequencePlanningServer::publishSequenceVisualization(const std::vector<
 			arrow.points[1].y = room_sequences[i].checkpoint_position_in_meter.y;
 			arrow.points[1].z = room_sequences[i].checkpoint_position_in_meter.z;
 			// Set the scale of the marker -- 1x1x1 here means 1m on a side
-			arrow.scale.x = 0.02;		// this is the line width
-			arrow.scale.y = 0.05;
+			arrow.scale.x = 0.03;		// this is the line width
+			arrow.scale.y = 0.06;
 			arrow.scale.z = 0.1;
 			// Set the color -- be sure to set alpha to something non-zero!
 			arrow.color.r = 1.0f;
@@ -746,7 +746,7 @@ void RoomSequencePlanningServer::publishSequenceVisualization(const std::vector<
 			// Set the namespace and id for this marker.  This serves to create a unique ID
 			// Any marker sent with the same namespace and id will overwrite the old one
 			circle.ns = "room_sequence_rooms";
-			circle.id = i;
+			circle.id = room_index;
 			// Set the marker type.  Initially this is CUBE, and cycles between that and SPHERE, ARROW, and CYLINDER
 			circle.type = visualization_msgs::Marker::SPHERE;
 			// Set the marker action.  Options are ADD, DELETE, and new in ROS Indigo: 3 (DELETEALL)
@@ -779,7 +779,7 @@ void RoomSequencePlanningServer::publishSequenceVisualization(const std::vector<
 			// Set the namespace and id for this marker.  This serves to create a unique ID
 			// Any marker sent with the same namespace and id will overwrite the old one
 			text.ns = "room_sequence_rooms";
-			text.id = room_count+i;
+			text.id = room_count+room_index;
 			// Set the marker type.  Initially this is CUBE, and cycles between that and SPHERE, ARROW, and CYLINDER
 			text.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
 			// Set the marker action.  Options are ADD, DELETE, and new in ROS Indigo: 3 (DELETEALL)
@@ -787,13 +787,13 @@ void RoomSequencePlanningServer::publishSequenceVisualization(const std::vector<
 			// Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
 			text.pose.position.x = current_room_center.x;
 			text.pose.position.y = current_room_center.y;
-			text.pose.position.z = 0;
+			text.pose.position.z = 0.4;
 			text.pose.orientation.x = 0.0;
 			text.pose.orientation.y = 0.0;
 			text.pose.orientation.z = 0.0;
 			text.pose.orientation.w = 1.0;
 			// Set the scale of the marker -- 1x1x1 here means 1m on a side
-			text.scale.x = 1.0;		// this is the line width
+			text.scale.x = 1.5;		// this is the line width
 			text.scale.y = 1.0;
 			text.scale.z = 0.5;
 			// Set the color -- be sure to set alpha to something non-zero!
@@ -803,7 +803,7 @@ void RoomSequencePlanningServer::publishSequenceVisualization(const std::vector<
 			text.color.a = 0.8;
 			text.lifetime = ros::Duration();
 			std::stringstream ss;
-			ss << "R" << room_index;
+			ss << "R" << room_index+1;
 			text.text = ss.str();
 			room_sequence_visualization_msg_.markers.push_back(text);
 
@@ -815,7 +815,7 @@ void RoomSequencePlanningServer::publishSequenceVisualization(const std::vector<
 			// Set the namespace and id for this marker.  This serves to create a unique ID
 			// Any marker sent with the same namespace and id will overwrite the old one
 			arrow.ns = "room_sequence_rooms";
-			arrow.id = 2*room_count+i;
+			arrow.id = 2*room_count+room_index;
 			// Set the marker type.  Initially this is CUBE, and cycles between that and SPHERE, ARROW, and CYLINDER
 			arrow.type = visualization_msgs::Marker::ARROW;
 			// Set the marker action.  Options are ADD, DELETE, and new in ROS Indigo: 3 (DELETEALL)
@@ -836,8 +836,8 @@ void RoomSequencePlanningServer::publishSequenceVisualization(const std::vector<
 			arrow.points[1].y = room_sequences[i].checkpoint_position_in_meter.y;
 			arrow.points[1].z = room_sequences[i].checkpoint_position_in_meter.z;
 			// Set the scale of the marker -- 1x1x1 here means 1m on a side
-			arrow.scale.x = 0.02;		// this is the line width
-			arrow.scale.y = 0.02;
+			arrow.scale.x = 0.03;		// this is the line width
+			arrow.scale.y = 0.03;
 			arrow.scale.z = 0.1;
 			// Set the color -- be sure to set alpha to something non-zero!
 			arrow.color.r = 1.0f;
