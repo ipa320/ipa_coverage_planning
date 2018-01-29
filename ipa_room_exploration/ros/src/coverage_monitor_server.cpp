@@ -113,8 +113,8 @@ public:
 		computed_trajectory_marker_pub_ = node_handle_.advertise<visualization_msgs::Marker>("computed_trajectory_marker", 1);
 		commanded_trajectory_marker_pub_ = node_handle_.advertise<visualization_msgs::Marker>("commanded_trajectory_marker", 1);
 
-		computed_trajectory_sub_ = node_handle_.subscribe<geometry_msgs::TransformStamped>("computed_target_trajectory_monitor", 10, &CoverageMonitor::computedTrajectoryCallback, this);
-		commanded_trajectory_sub_ = node_handle_.subscribe<geometry_msgs::TransformStamped>("commanded_target_trajectory_monitor", 10, &CoverageMonitor::commandedTrajectoryCallback, this);
+		computed_trajectory_sub_ = node_handle_.subscribe<geometry_msgs::TransformStamped>("computed_target_trajectory_monitor", 500, &CoverageMonitor::computedTrajectoryCallback, this);
+		commanded_trajectory_sub_ = node_handle_.subscribe<geometry_msgs::TransformStamped>("commanded_target_trajectory_monitor", 500, &CoverageMonitor::commandedTrajectoryCallback, this);
 
 		// setup services
 		start_coverage_monitoring_srv_ = node_handle_.advertiseService("start_coverage_monitoring", &CoverageMonitor::startCoverageMonitoringCallback, this);
