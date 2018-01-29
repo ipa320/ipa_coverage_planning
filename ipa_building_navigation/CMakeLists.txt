@@ -10,6 +10,7 @@ set(catkin_RUN_PACKAGES
 	roscpp
 	roslib
 	sensor_msgs
+	visualization_msgs
 )
 
 set(catkin_BUILD_PACKAGES

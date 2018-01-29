@@ -310,7 +310,7 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "coverage_check_server");
-	ros::NodeHandle nh;
+	ros::NodeHandle nh("~");
 
 	coverageCheckServer coverage_checker(nh);
 

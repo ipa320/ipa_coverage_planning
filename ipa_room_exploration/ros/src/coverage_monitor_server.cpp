@@ -63,10 +63,16 @@
 
 #include <ros/ros.h>
 
+#include <dynamic_reconfigure/server.h>
+#include <dynamic_reconfigure/BoolParameter.h>
+#include <dynamic_reconfigure/Reconfigure.h>
+#include <dynamic_reconfigure/Config.h>
+#include <ipa_room_exploration/CoverageMonitorConfig.h>
+
 #include <visualization_msgs/Marker.h>
-#include <visualization_msgs/MarkerArray.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <geometry_msgs/Point.h>
+#include <std_srvs/Trigger.h>
 
 #include <tf/transform_listener.h>
 
@@ -78,21 +84,41 @@
 class CoverageMonitor
 {
 public:
-	CoverageMonitor(ros::NodeHandle nh)
+	CoverageMonitor(ros::NodeHandle nh) :
+		node_handle_(nh)
 	{
-		// todo: parameters
-		map_frame_ = "map";
-		robot_frame_ = "base_link";
-		coverage_radius_ = 0.25;
+		// dynamic reconfigure
+		coverage_monitor_dynamic_reconfigure_server_.setCallback(boost::bind(&CoverageMonitor::dynamicReconfigureCallback, this, _1, _2));
+
+		// Parameters
+		std::cout << "\n--------------------------\nCoverage Monitor Parameters:\n--------------------------\n";
+		node_handle_.param<std::string>("map_frame", map_frame_, "map");
+		std::cout << "coverage_monitor/map_frame = " << map_frame_ << std::endl;
+		node_handle_.param<std::string>("robot_frame", robot_frame_, "base_link");
+		std::cout << "coverage_monitor/robot_frame = " << robot_frame_ << std::endl;
+		node_handle_.param("coverage_radius", coverage_radius_, 0.25);
+		std::cout << "coverage_monitor/coverage_radius = " << coverage_radius_ << std::endl;
 		coverage_circle_offset_transform_.setIdentity();
-		coverage_circle_offset_transform_.setOrigin(tf::Vector3(0.29035, -0.114, 0.));
-		robot_trajectory_recording_active_ = true;	// todo: make a service for activating/deactivating
+		std::vector<double> temp;
+		node_handle_.getParam("coverage_circle_offset_translation", temp);
+		if (temp.size() == 3)
+			coverage_circle_offset_transform_.setOrigin(tf::Vector3(temp[0], temp[1], temp[2]));
+		else
+			coverage_circle_offset_transform_.setOrigin(tf::Vector3(0.29035, -0.114, 0.));
+		node_handle_.param("robot_trajectory_recording_active", robot_trajectory_recording_active_, false);
+		std::cout << "coverage_monitor/robot_trajectory_recording_active = " << robot_trajectory_recording_active_ << std::endl;
 
 		// setup publishers and subscribers
-		coverage_marker_pub_ = nh.advertise<visualization_msgs::Marker>("coverage_marker", 1);
-		target_trajectory_marker_pub_ = nh.advertise<visualization_msgs::Marker>("target_trajectory_marker", 1);
+		coverage_marker_pub_ = node_handle_.advertise<visualization_msgs::Marker>("coverage_marker", 1);
+		computed_trajectory_marker_pub_ = node_handle_.advertise<visualization_msgs::Marker>("computed_trajectory_marker", 1);
+		commanded_trajectory_marker_pub_ = node_handle_.advertise<visualization_msgs::Marker>("commanded_trajectory_marker", 1);
 
-		target_trajectory_sub_ = nh.subscribe<geometry_msgs::TransformStamped>("target_trajectory_monitor", 10, &CoverageMonitor::targetTrajectoryCallback, this);
+		computed_trajectory_sub_ = node_handle_.subscribe<geometry_msgs::TransformStamped>("computed_target_trajectory_monitor", 500, &CoverageMonitor::computedTrajectoryCallback, this);
+		commanded_trajectory_sub_ = node_handle_.subscribe<geometry_msgs::TransformStamped>("commanded_target_trajectory_monitor", 500, &CoverageMonitor::commandedTrajectoryCallback, this);
+
+		// setup services
+		start_coverage_monitoring_srv_ = node_handle_.advertiseService("start_coverage_monitoring", &CoverageMonitor::startCoverageMonitoringCallback, this);
+		stop_coverage_monitoring_srv_ = node_handle_.advertiseService("stop_coverage_monitoring", &CoverageMonitor::stopCoverageMonitoringCallback, this);
 
 		// prepare coverage_marker_msg message
 		visualization_msgs::Marker coverage_marker_msg;
@@ -128,42 +154,77 @@ public:
 		geometry_msgs::Point p; p.x=0; p.y=0; p.z=0;
 		coverage_marker_msg.points.push_back(p);
 
-		// prepare target_trajectory_marker_msg message
-		visualization_msgs::Marker target_trajectory_marker_msg;
+		// prepare computed_trajectory_marker_msg message
+		visualization_msgs::Marker computed_trajectory_marker_msg;
 		// Set the frame ID and timestamp.  See the TF tutorials for information on these.
-		target_trajectory_marker_msg.header.frame_id = "/map";
-		target_trajectory_marker_msg.header.stamp = ros::Time::now();
+		computed_trajectory_marker_msg.header.frame_id = "/map";
+		computed_trajectory_marker_msg.header.stamp = ros::Time::now();
 		// Set the namespace and id for this marker.  This serves to create a unique ID
 		// Any marker sent with the same namespace and id will overwrite the old one
-		target_trajectory_marker_msg.ns = "target_trajectory_marker";
-		target_trajectory_marker_msg.id = 0;
+		computed_trajectory_marker_msg.ns = "computed_trajectory_marker";
+		computed_trajectory_marker_msg.id = 0;
 		// Set the marker type.  Initially this is CUBE, and cycles between that and SPHERE, ARROW, and CYLINDER
-		target_trajectory_marker_msg.type = visualization_msgs::Marker::LINE_STRIP;
+		computed_trajectory_marker_msg.type = visualization_msgs::Marker::LINE_STRIP;
 		// Set the marker action.  Options are ADD, DELETE, and new in ROS Indigo: 3 (DELETEALL)
-		target_trajectory_marker_msg.action = visualization_msgs::Marker::ADD;
+		computed_trajectory_marker_msg.action = visualization_msgs::Marker::ADD;
 		// Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
-		target_trajectory_marker_msg.pose.position.x = 0;
-		target_trajectory_marker_msg.pose.position.y = 0;
-		target_trajectory_marker_msg.pose.position.z = 0.1;
-		target_trajectory_marker_msg.pose.orientation.x = 0.0;
-		target_trajectory_marker_msg.pose.orientation.y = 0.0;
-		target_trajectory_marker_msg.pose.orientation.z = 0.0;
-		target_trajectory_marker_msg.pose.orientation.w = 1.0;
+		computed_trajectory_marker_msg.pose.position.x = 0;
+		computed_trajectory_marker_msg.pose.position.y = 0;
+		computed_trajectory_marker_msg.pose.position.z = 0.2;
+		computed_trajectory_marker_msg.pose.orientation.x = 0.0;
+		computed_trajectory_marker_msg.pose.orientation.y = 0.0;
+		computed_trajectory_marker_msg.pose.orientation.z = 0.0;
+		computed_trajectory_marker_msg.pose.orientation.w = 1.0;
 		// Set the scale of the marker -- 1x1x1 here means 1m on a side
-		target_trajectory_marker_msg.scale.x = 0.05;		// this is the line width
-		target_trajectory_marker_msg.scale.y = 1.0;
-		target_trajectory_marker_msg.scale.z = 1.0;
+		computed_trajectory_marker_msg.scale.x = 0.06;		// this is the line width
+		computed_trajectory_marker_msg.scale.y = 1.0;
+		computed_trajectory_marker_msg.scale.z = 1.0;
 		// Set the color -- be sure to set alpha to something non-zero!
-		target_trajectory_marker_msg.color.r = 0.0f;
-		target_trajectory_marker_msg.color.g = 0.0f;
-		target_trajectory_marker_msg.color.b = 1.0f;
-		target_trajectory_marker_msg.color.a = 0.8;
-		target_trajectory_marker_msg.lifetime = ros::Duration();
-		target_trajectory_marker_msg.points.push_back(p);
+		computed_trajectory_marker_msg.color.r = 1.0f;
+		computed_trajectory_marker_msg.color.g = 0.0f;
+		computed_trajectory_marker_msg.color.b = 0.0f;
+		computed_trajectory_marker_msg.color.a = 0.8;
+		computed_trajectory_marker_msg.lifetime = ros::Duration();
+		computed_trajectory_marker_msg.points.push_back(p);
+
+		// prepare commanded_trajectory_marker_msg message
+		visualization_msgs::Marker commanded_trajectory_marker_msg;
+		// Set the frame ID and timestamp.  See the TF tutorials for information on these.
+		commanded_trajectory_marker_msg.header.frame_id = "/map";
+		commanded_trajectory_marker_msg.header.stamp = ros::Time::now();
+		// Set the namespace and id for this marker.  This serves to create a unique ID
+		// Any marker sent with the same namespace and id will overwrite the old one
+		commanded_trajectory_marker_msg.ns = "commanded_trajectory_marker";
+		commanded_trajectory_marker_msg.id = 0;
+		// Set the marker type.  Initially this is CUBE, and cycles between that and SPHERE, ARROW, and CYLINDER
+		commanded_trajectory_marker_msg.type = visualization_msgs::Marker::LINE_STRIP;
+		// Set the marker action.  Options are ADD, DELETE, and new in ROS Indigo: 3 (DELETEALL)
+		commanded_trajectory_marker_msg.action = visualization_msgs::Marker::ADD;
+		// Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
+		commanded_trajectory_marker_msg.pose.position.x = 0;
+		commanded_trajectory_marker_msg.pose.position.y = 0;
+		commanded_trajectory_marker_msg.pose.position.z = 0.4;
+		commanded_trajectory_marker_msg.pose.orientation.x = 0.0;
+		commanded_trajectory_marker_msg.pose.orientation.y = 0.0;
+		commanded_trajectory_marker_msg.pose.orientation.z = 0.0;
+		commanded_trajectory_marker_msg.pose.orientation.w = 1.0;
+		// Set the scale of the marker -- 1x1x1 here means 1m on a side
+		commanded_trajectory_marker_msg.scale.x = 0.03;		// this is the line width
+		commanded_trajectory_marker_msg.scale.y = 1.0;
+		commanded_trajectory_marker_msg.scale.z = 1.0;
+		// Set the color -- be sure to set alpha to something non-zero!
+		commanded_trajectory_marker_msg.color.r = 0.0f;
+		commanded_trajectory_marker_msg.color.g = 0.0f;
+		commanded_trajectory_marker_msg.color.b = 1.0f;
+		commanded_trajectory_marker_msg.color.a = 0.8;
+		commanded_trajectory_marker_msg.lifetime = ros::Duration();
+		commanded_trajectory_marker_msg.points.push_back(p);
 
 		// cyclically publish marker messages
+		ros::AsyncSpinner spinner(2);	// asynch. spinner (2) is needed to call dynamic reconfigure from this node without blocking the node
+		spinner.start();
 		ros::Rate r(5);
-		int index = 0;	//todo: remove
+//		int index = 0;
 		while (ros::ok())
 		{
 			// receive the current robot pose
@@ -177,10 +238,11 @@ public:
 					transform_listener_.lookupTransform(map_frame_, robot_frame_, time, transform);
 					robot_trajectory_vector_.push_back(transform);
 				}
-//				// todo: hack: for testing
+//				// this can be used for testing if no data is available
 //				tf::StampedTransform transform(tf::Transform(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0.1*index, 0., 0.)), ros::Time::now(), map_frame_, robot_frame_);
 //				robot_trajectory_vector_.push_back(transform);
-//				robot_target_trajectory_vector_.push_back(transform);
+//				robot_computed_trajectory_vector_.push_back(transform);
+//				robot_commanded_trajectory_vector_.push_back(transform);
 //				++index;
 			}
 
@@ -191,42 +253,133 @@ public:
 				tf::pointTFToMsg((robot_trajectory_vector_[i]*coverage_circle_offset_transform_).getOrigin(), coverage_marker_msg.points[i]);
 			coverage_marker_pub_.publish(coverage_marker_msg);
 
-			// update and publish target_trajectory_marker_msg
+			// update and publish computed_trajectory_marker_msg
 			{
 				// secure this access with a mutex
-				boost::mutex::scoped_lock lock(robot_target_trajectory_vector_mutex_);
+				boost::mutex::scoped_lock lock(robot_computed_trajectory_vector_mutex_);
 
-				target_trajectory_marker_msg.header.stamp = ros::Time::now();
-				target_trajectory_marker_msg.points.resize(robot_target_trajectory_vector_.size());
-				for (size_t i=0; i<robot_target_trajectory_vector_.size(); ++i)
-					tf::pointTFToMsg((robot_target_trajectory_vector_[i]*coverage_circle_offset_transform_).getOrigin(), target_trajectory_marker_msg.points[i]);
+				computed_trajectory_marker_msg.header.stamp = ros::Time::now();
+				computed_trajectory_marker_msg.points.resize(robot_computed_trajectory_vector_.size());
+				for (size_t i=0; i<robot_computed_trajectory_vector_.size(); ++i)
+					tf::pointTFToMsg((robot_computed_trajectory_vector_[i]*coverage_circle_offset_transform_).getOrigin(), computed_trajectory_marker_msg.points[i]);
 			}
-			target_trajectory_marker_pub_.publish(target_trajectory_marker_msg);
+			computed_trajectory_marker_pub_.publish(computed_trajectory_marker_msg);
+
+			// update and publish commanded_trajectory_marker_msg
+			{
+				// secure this access with a mutex
+				boost::mutex::scoped_lock lock(robot_commanded_trajectory_vector_mutex_);
+
+				commanded_trajectory_marker_msg.header.stamp = ros::Time::now();
+				commanded_trajectory_marker_msg.points.resize(robot_commanded_trajectory_vector_.size());
+				for (size_t i=0; i<robot_commanded_trajectory_vector_.size(); ++i)
+					tf::pointTFToMsg((robot_commanded_trajectory_vector_[i]*coverage_circle_offset_transform_).getOrigin(), commanded_trajectory_marker_msg.points[i]);
+			}
+			commanded_trajectory_marker_pub_.publish(commanded_trajectory_marker_msg);
 
 			r.sleep();
-			ros::spinOnce();
 		}
 	}
 
-	// receive trajectory targets
-	void targetTrajectoryCallback(const geometry_msgs::TransformStamped::ConstPtr& trajectory_msg)
+	// receive computed trajectory targets
+	void computedTrajectoryCallback(const geometry_msgs::TransformStamped::ConstPtr& trajectory_msg)
 	{
 		tf::StampedTransform transform;
 		tf::transformStampedMsgToTF(*trajectory_msg, transform);
-
 		{
 			// secure this access with a mutex
-			boost::mutex::scoped_lock lock(robot_target_trajectory_vector_mutex_);
-			robot_target_trajectory_vector_.push_back(transform);
+			boost::mutex::scoped_lock lock(robot_computed_trajectory_vector_mutex_);
+			robot_computed_trajectory_vector_.push_back(transform);
 		}
 	}
 
+	// receive commanded trajectory targets
+	void commandedTrajectoryCallback(const geometry_msgs::TransformStamped::ConstPtr& trajectory_msg)
+	{
+		tf::StampedTransform transform;
+		tf::transformStampedMsgToTF(*trajectory_msg, transform);
+		{
+			// secure this access with a mutex
+			boost::mutex::scoped_lock lock(robot_commanded_trajectory_vector_mutex_);
+			robot_commanded_trajectory_vector_.push_back(transform);
+		}
+	}
+
+	bool startCoverageMonitoringCallback(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res)
+	{
+		std::cout << "CoverageMonitor::startCoverageMonitoringCallback." << std::endl;
+		robot_trajectory_recording_active_ = true;
+		internalDynamicReconfigureUpdate();		// update dynamic reconfigure
+		res.success = true;
+		return true;
+	}
+
+	bool stopCoverageMonitoringCallback(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res)
+	{
+		std::cout << "CoverageMonitor::stopCoverageMonitoringCallback." << std::endl;
+		robot_trajectory_recording_active_ = false;
+		internalDynamicReconfigureUpdate();		// update dynamic reconfigure
+		res.success = true;
+		return true;
+	}
+
+	void internalDynamicReconfigureUpdate()
+	{
+		// update dynamic reconfigure
+		dynamic_reconfigure::ReconfigureRequest srv_req;
+		dynamic_reconfigure::ReconfigureResponse srv_resp;
+		dynamic_reconfigure::BoolParameter enable_param;
+		enable_param.name = "robot_trajectory_recording_active";
+		enable_param.value = robot_trajectory_recording_active_;
+		srv_req.config.bools.push_back(enable_param);
+		if (ros::service::call("~/set_parameters", srv_req, srv_resp))
+			ROS_INFO("Update of dynamic reconfigure parameters succeeded");
+		else
+			ROS_INFO("Update of dynamic reconfigure parameters failed");
+	}
+
+	// callback function for dynamic reconfigure
+	void dynamicReconfigureCallback(ipa_room_exploration::CoverageMonitorConfig &config, uint32_t level)
+	{
+		std::cout << "######################################################################################" << std::endl;
+		std::cout << "Dynamic reconfigure request:" << std::endl;
+
+
+		map_frame_ = config.map_frame;
+		std::cout << "coverage_monitor/map_frame_ = " << map_frame_ << std::endl;
+		robot_frame_ = config.robot_frame;
+		std::cout << "coverage_monitor/robot_frame_ = " << robot_frame_ << std::endl;
+
+		coverage_radius_ = config.coverage_radius;
+		std::cout << "coverage_monitor/coverage_radius_ = " << coverage_radius_ << std::endl;
+		double temp[3];
+		temp[0] = config.coverage_circle_offset_transform_x;
+		temp[1] = config.coverage_circle_offset_transform_y;
+		temp[2] = config.coverage_circle_offset_transform_z;
+		coverage_circle_offset_transform_.setOrigin(tf::Vector3(temp[0], temp[1], temp[2]));
+		std::cout << "coverage_monitor/coverage_circle_offset_transform_ = (" << temp[0] << ", " << temp[1] << ", " << temp[2] << ")" << std::endl;
+
+		robot_trajectory_recording_active_ = config.robot_trajectory_recording_active;
+		std::cout << "coverage_monitor/robot_trajectory_recording_active_ = " << robot_trajectory_recording_active_ << std::endl;
+
+		std::cout << "######################################################################################" << std::endl;
+	}
+
 protected:
+	ros::NodeHandle node_handle_;
+
 	ros::Publisher coverage_marker_pub_;				// visualization of the coverage trajectory
-	ros::Publisher target_trajectory_marker_pub_;		// visualization of the target trajectory
+	ros::Publisher computed_trajectory_marker_pub_;		// visualization of the computed target trajectory
+	ros::Publisher commanded_trajectory_marker_pub_;	// visualization of the commanded target trajectory
 
 	tf::TransformListener transform_listener_;
-	ros::Subscriber target_trajectory_sub_;			// receives messages with StampedTransforms of the target trajectory
+	ros::Subscriber computed_trajectory_sub_;			// receives messages with StampedTransforms of the computed target trajectory
+	ros::Subscriber commanded_trajectory_sub_;			// receives messages with StampedTransforms of the commanded target trajectory
+
+	ros::ServiceServer start_coverage_monitoring_srv_;	// service for starting monitoring the robot trajectory
+	ros::ServiceServer stop_coverage_monitoring_srv_;	// service for stopping monitoring the robot trajectory
+
+	dynamic_reconfigure::Server<ipa_room_exploration::CoverageMonitorConfig> coverage_monitor_dynamic_reconfigure_server_;
 
 	tf::Transform coverage_circle_offset_transform_;		// the offset of the coverage circle from the robot center
 	double coverage_radius_;			// radius of the circular coverage device
@@ -237,19 +390,19 @@ protected:
 	bool robot_trajectory_recording_active_;		// the robot trajectory is only recorded if this is true (can be set from outside)
 
 	std::vector<tf::StampedTransform> robot_trajectory_vector_;				// vector of actual robot trajectory
-	std::vector<tf::StampedTransform> robot_target_trajectory_vector_;		// vector of target robot trajectory
-	boost::mutex robot_target_trajectory_vector_mutex_; // secures read and write operations on robot_target_trajectory_vector_
+	std::vector<tf::StampedTransform> robot_computed_trajectory_vector_;	// vector of computed target robot trajectory
+	boost::mutex robot_computed_trajectory_vector_mutex_;		// secures read and write operations on robot_computed_trajectory_vector_
+	std::vector<tf::StampedTransform> robot_commanded_trajectory_vector_;	// vector of commanded target robot trajectory
+	boost::mutex robot_commanded_trajectory_vector_mutex_;		// secures read and write operations on robot_commanded_trajectory_vector_
 };
 
 
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "coverage_monitor");
-	ros::NodeHandle nh;
+	ros::NodeHandle nh("~");
 
 	CoverageMonitor cm(nh);
-
-	ros::spin();
 
 	return 0;
 }

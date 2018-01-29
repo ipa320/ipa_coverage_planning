@@ -95,8 +95,7 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	global_costmap_topic_ = "/move_base/global_costmap/costmap";
 	node_handle_.param<std::string>("global_costmap_topic", global_costmap_topic_);
 	std::cout << "room_exploration/global_costmap_topic = " << global_costmap_topic_ << std::endl;
-	coverage_check_service_name_ = "/coverage_check_server/coverage_check";
-	node_handle_.param<std::string>("coverage_check_service_name", coverage_check_service_name_);
+	node_handle_.param<std::string>("coverage_check_service_name", coverage_check_service_name_, "/room_exploration/coverage_check_server/coverage_check");
 	std::cout << "room_exploration/coverage_check_service_name = " << coverage_check_service_name_ << std::endl;
 	map_frame_ = "map";
 	node_handle_.param<std::string>("map_frame", map_frame_);
@@ -304,8 +303,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 {
 	ROS_INFO("*****Room Exploration action server*****");
 
-	std::cout << "A" << std::endl;
-
 	// ***************** I. read the given parameters out of the goal *****************
 	// todo: this is only correct if the map is not rotated
 	const cv::Point2d map_origin(goal->map_origin.position.x, goal->map_origin.position.y);
@@ -334,21 +331,21 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv_ptr_obj = cv_bridge::toCvCopy(goal->input_map, sensor_msgs::image_encodings::MONO8);
 	cv::Mat room_map = cv_ptr_obj->image;
 
-	cv::imshow("exploration map", room_map);
-	cv::waitKey(10000);
-
 	// closing operation to neglect inaccessible areas and map errors/artifacts
 	cv::Mat temp;
 	cv::erode(room_map, temp, cv::Mat(), cv::Point(-1, -1), map_correction_closing_neighborhood_size_);
 	cv::dilate(temp, room_map, cv::Mat(), cv::Point(-1, -1), map_correction_closing_neighborhood_size_);
 
-	std::cout << "C" << std::endl;
-
 	// todo: handle the complete removal of small rooms
 	// remove unconnected, i.e. inaccessible, parts of the room (i.e. obstructed by furniture), only keep the room with the largest area
-	removeUnconnectedRoomParts(room_map);
-
-	std::cout << "D" << std::endl;
+	const bool room_not_empty = removeUnconnectedRoomParts(room_map);
+	if (room_not_empty == false)
+	{
+		std::cout << "RoomExplorationServer::exploreRoom: Warning: the requested room is too small for generating exploration trajectories." << std::endl;
+		ipa_building_msgs::RoomExplorationResult action_result;
+		room_exploration_server_.setAborted(action_result);
+		return;
+	}
 
 	// get the grid size, to check the areas that should be revisited later
 	double grid_spacing_in_meter = 0.0;		// is the square grid cell side length that fits into the circle with the robot's coverage radius or fov coverage radius
@@ -376,8 +373,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	if (cell_size_ <= 0)
 		cell_size_ = std::floor(grid_spacing_in_pixel);
 
-
-	std::cout << "E" << std::endl;
 
 	// ***************** II. plan the path using the wanted planner *****************
 	// todo: provide the inflated map or the robot radius to the functions
@@ -499,8 +494,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		}
 	}
 
-	std::cout << "F" << std::endl;
-
 	// display finally planned path
 	if (display_trajectory_ == true)
 	{
@@ -583,10 +576,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	return;
 }
 
-void RoomExplorationServer::removeUnconnectedRoomParts(cv::Mat& room_map)
-{
-	std::cout << "1" << std::endl;
 	// remove unconnected, i.e. inaccessible, parts of the room (i.e. obstructed by furniture), only keep the room with the largest area
+bool RoomExplorationServer::removeUnconnectedRoomParts(cv::Mat& room_map)
+{
 	// create new map with segments labeled by increasing labels from 1,2,3,...
 	cv::Mat room_map_int(room_map.rows, room_map.cols, CV_32SC1);
 	for (int v=0; v<room_map.rows; ++v)
@@ -599,7 +591,7 @@ void RoomExplorationServer::removeUnconnectedRoomParts(cv::Mat& room_map)
 				room_map_int.at<int32_t>(v,u) = 0;
 		}
 	}
-	std::cout << "2" << std::endl;
+
 	std::map<int, int> area_to_label_map;	// maps area=number of segment pixels (keys) to the respective label (value)
 	int label = 1;
 	for (int v=0; v<room_map_int.rows; ++v)
@@ -614,9 +606,10 @@ void RoomExplorationServer::removeUnconnectedRoomParts(cv::Mat& room_map)
 			}
 		}
 	}
-	std::cout << "3: label=" << label << std::endl;
-	std::cout << "area_to_label_map.size=" << area_to_label_map.size() << std::endl;
-	// todo: what if area_to_label_map.size() is empty?
+	// abort if area_to_label_map.size() is empty
+	if (area_to_label_map.size() == 0)
+		return false;
+
 	// remove all room pixels from room_map which are not accessible
 	const int label_of_biggest_room = area_to_label_map.rbegin()->second;
 	std::cout << "label_of_biggest_room=" << label_of_biggest_room << std::endl;
@@ -624,7 +617,8 @@ void RoomExplorationServer::removeUnconnectedRoomParts(cv::Mat& room_map)
 		for (int u=0; u<room_map.cols; ++u)
 			if (room_map_int.at<int32_t>(v,u) != label_of_biggest_room)
 				room_map.at<uchar>(v,u) = 0;
-	std::cout << "4" << std::endl;
+
+	return true;
 }
 
 
@@ -901,7 +895,7 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 		// 5. go to each center and use the map_accessability_server to find a robot pose around it s.t. it can be covered
 		//	  by the fov
 		double pi_8 = PI/8;
-		std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";	// todo: replace with library interface
+		std::string perimeter_service_name = "/room_exploration/map_accessibility_analysis/map_perimeter_accessibility_check";	// todo: replace with library interface
 	//	robot_poses.clear();
 		for(size_t center = 0; center < revisiting_order.size(); ++center)
 		{
@@ -1054,7 +1048,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 		center.y = map_oriented_pose.y + relative_vector.y;
 
 		// check for another robot pose to reach the desired fov-position
-		std::string perimeter_service_name = "/map_accessibility_analysis/map_perimeter_accessibility_check";	// todo: replace with library interface
+		std::string perimeter_service_name = "/room_exploration/map_accessibility_analysis/map_perimeter_accessibility_check";	// todo: replace with library interface
 		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Response response;
 		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
 		check_request.center = center;

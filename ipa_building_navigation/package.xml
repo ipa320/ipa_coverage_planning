@@ -30,5 +30,6 @@
 	<depend>roscpp</depend>
 	<depend>roslib</depend>
 	<depend>sensor_msgs</depend>
+	<depend>visualization_msgs</depend>
 
 </package>

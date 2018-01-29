@@ -196,7 +196,7 @@ protected:
 	void exploreRoom(const ipa_building_msgs::RoomExplorationGoalConstPtr &goal);
 
 	// remove unconnected, i.e. inaccessible, parts of the room (i.e. obstructed by furniture), only keep the room with the largest area
-	void removeUnconnectedRoomParts(cv::Mat& room_map);
+	bool removeUnconnectedRoomParts(cv::Mat& room_map);
 
 	// clean path from subsequent double occurrences of the same pose
 	// min_dist_squared is the squared minimum distance between two points on the trajectory, in [pixel] (i.e. grid cells)

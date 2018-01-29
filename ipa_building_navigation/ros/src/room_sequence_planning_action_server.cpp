@@ -64,6 +64,9 @@ RoomSequencePlanningServer::RoomSequencePlanningServer(ros::NodeHandle nh, std::
 	room_sequence_with_checkpoints_server_(node_handle_, name_of_the_action, boost::bind(&RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer, this, _1), false),
 	action_name_(name_of_the_action)
 {
+	// setup publishers
+	room_sequence_visualization_pub_ = nh.advertise<visualization_msgs::MarkerArray>("room_sequence_marker", 1);
+
 	// start action server
 	room_sequence_with_checkpoints_server_.start();
 
@@ -267,7 +270,6 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 
 	//image container to draw the sequence in if needed
 	cv::Mat display;
-
 
 	if(planning_method_ == 1) //Drag Trolley if the next room is too far away
 	{
@@ -542,7 +544,6 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		ROS_ERROR("Undefined planning method.");
 		return;
 	}
-
 	std::cout << "done sequence planning" << std::endl << std::endl;
 
 	// return results
@@ -554,8 +555,10 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		room_sequences[i].room_indices = std::vector<unsigned int>(cliques[i].begin(), cliques[i].end());
 		room_sequences[i].checkpoint_position_in_pixel.x = trolley_positions[i].x;
 		room_sequences[i].checkpoint_position_in_pixel.y = trolley_positions[i].y;
+		room_sequences[i].checkpoint_position_in_pixel.z = 0.;
 		room_sequences[i].checkpoint_position_in_meter.x = convert_pixel_to_meter_for_x_coordinate(trolley_positions[i].x, goal->map_resolution, map_origin);
 		room_sequences[i].checkpoint_position_in_meter.y = convert_pixel_to_meter_for_y_coordinate(trolley_positions[i].y, goal->map_resolution, map_origin);
+		room_sequences[i].checkpoint_position_in_meter.z = 0.;
 	}
 	action_result.checkpoints = room_sequences;
 	if(return_sequence_map_ == true)
@@ -567,6 +570,9 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 		cv_image.image = display;
 		cv_image.toImageMsg(action_result.sequence_map);
 	}
+
+	// publish visualization msg for RViz
+	publishSequenceVisualization(room_sequences, room_centers, goal->map_resolution, cv::Point2d(goal->map_origin.position.x, goal->map_origin.position.y));
 
 	room_sequence_with_checkpoints_server_.setSucceeded(action_result);
 
@@ -599,6 +605,250 @@ size_t RoomSequencePlanningServer::getNearestLocation(const cv::Mat& floor_plan,
 	}
 
 	return nearest_position;
+}
+
+void RoomSequencePlanningServer::publishSequenceVisualization(const std::vector<ipa_building_msgs::RoomSequence>& room_sequences, const std::vector<cv::Point>& room_centers,
+		const double map_resolution, const cv::Point2d& map_origin)
+{
+	room_sequence_visualization_msg_.markers.clear();
+
+	// publish clique centers
+	int room_count = 0;
+	for (size_t i=0; i<room_sequences.size(); ++i)
+	{
+		// prepare clique center circle message
+		visualization_msgs::Marker circle;
+		// Set the frame ID and timestamp.  See the TF tutorials for information on these.
+		circle.header.frame_id = "/map";
+		circle.header.stamp = ros::Time::now();
+		// Set the namespace and id for this marker.  This serves to create a unique ID
+		// Any marker sent with the same namespace and id will overwrite the old one
+		circle.ns = "room_sequence_checkpoints";
+		circle.id = i;
+		// Set the marker type.  Initially this is CUBE, and cycles between that and SPHERE, ARROW, and CYLINDER
+		circle.type = visualization_msgs::Marker::SPHERE;
+		// Set the marker action.  Options are ADD, DELETE, and new in ROS Indigo: 3 (DELETEALL)
+		circle.action = visualization_msgs::Marker::ADD;
+		// Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
+		circle.pose.position.x = room_sequences[i].checkpoint_position_in_meter.x;
+		circle.pose.position.y = room_sequences[i].checkpoint_position_in_meter.y;
+		circle.pose.position.z = room_sequences[i].checkpoint_position_in_meter.z;
+		circle.pose.orientation.x = 0.0;
+		circle.pose.orientation.y = 0.0;
+		circle.pose.orientation.z = 0.0;
+		circle.pose.orientation.w = 1.0;
+		// Set the scale of the marker -- 1x1x1 here means 1m on a side
+		circle.scale.x = 0.20;		// this is the line width
+		circle.scale.y = 0.20;
+		circle.scale.z = 0.02;
+		// Set the color -- be sure to set alpha to something non-zero!
+		circle.color.r = 1.0f;
+		circle.color.g = 1.0f;
+		circle.color.b = 0.0f;
+		circle.color.a = 0.8;
+		circle.lifetime = ros::Duration();
+		room_sequence_visualization_msg_.markers.push_back(circle);
+
+		// prepare clique center text message
+		visualization_msgs::Marker text;
+		// Set the frame ID and timestamp.  See the TF tutorials for information on these.
+		text.header.frame_id = "/map";
+		text.header.stamp = ros::Time::now();
+		// Set the namespace and id for this marker.  This serves to create a unique ID
+		// Any marker sent with the same namespace and id will overwrite the old one
+		text.ns = "room_sequence_checkpoints";
+		text.id = room_sequences.size()+i;
+		// Set the marker type.  Initially this is CUBE, and cycles between that and SPHERE, ARROW, and CYLINDER
+		text.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+		// Set the marker action.  Options are ADD, DELETE, and new in ROS Indigo: 3 (DELETEALL)
+		text.action = visualization_msgs::Marker::ADD;
+		// Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
+		text.pose.position.x = room_sequences[i].checkpoint_position_in_meter.x;
+		text.pose.position.y = room_sequences[i].checkpoint_position_in_meter.y;
+		text.pose.position.z = room_sequences[i].checkpoint_position_in_meter.z+0.4;
+		text.pose.orientation.x = 0.0;
+		text.pose.orientation.y = 0.0;
+		text.pose.orientation.z = 0.0;
+		text.pose.orientation.w = 1.0;
+		// Set the scale of the marker -- 1x1x1 here means 1m on a side
+		text.scale.x = 1.5;		// this is the line width
+		text.scale.y = 1.0;
+		text.scale.z = 0.5;
+		// Set the color -- be sure to set alpha to something non-zero!
+		text.color.r = 1.0f;
+		text.color.g = 1.0f;
+		text.color.b = 0.0f;
+		text.color.a = 0.8;
+		text.lifetime = ros::Duration();
+		std::stringstream ss;
+		ss << "C" << i+1;
+		text.text = ss.str();
+		room_sequence_visualization_msg_.markers.push_back(text);
+
+		// prepare clique center to center arrow message
+		if (i>0)
+		{
+			visualization_msgs::Marker arrow;
+			// Set the frame ID and timestamp.  See the TF tutorials for information on these.
+			arrow.header.frame_id = "/map";
+			arrow.header.stamp = ros::Time::now();
+			// Set the namespace and id for this marker.  This serves to create a unique ID
+			// Any marker sent with the same namespace and id will overwrite the old one
+			arrow.ns = "room_sequence_checkpoints";
+			arrow.id = 2*room_sequences.size()+i;
+			// Set the marker type.  Initially this is CUBE, and cycles between that and SPHERE, ARROW, and CYLINDER
+			arrow.type = visualization_msgs::Marker::ARROW;
+			// Set the marker action.  Options are ADD, DELETE, and new in ROS Indigo: 3 (DELETEALL)
+			arrow.action = visualization_msgs::Marker::ADD;
+			// Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
+			arrow.pose.position.x = 0;
+			arrow.pose.position.y = 0;
+			arrow.pose.position.z = 0;
+			arrow.pose.orientation.x = 0.0;
+			arrow.pose.orientation.y = 0.0;
+			arrow.pose.orientation.z = 0.0;
+			arrow.pose.orientation.w = 1.0;
+			arrow.points.resize(2);
+			arrow.points[0].x = room_sequences[i-1].checkpoint_position_in_meter.x;
+			arrow.points[0].y = room_sequences[i-1].checkpoint_position_in_meter.y;
+			arrow.points[0].z = room_sequences[i-1].checkpoint_position_in_meter.z;
+			arrow.points[1].x = room_sequences[i].checkpoint_position_in_meter.x;
+			arrow.points[1].y = room_sequences[i].checkpoint_position_in_meter.y;
+			arrow.points[1].z = room_sequences[i].checkpoint_position_in_meter.z;
+			// Set the scale of the marker -- 1x1x1 here means 1m on a side
+			arrow.scale.x = 0.03;		// this is the line width
+			arrow.scale.y = 0.06;
+			arrow.scale.z = 0.1;
+			// Set the color -- be sure to set alpha to something non-zero!
+			arrow.color.r = 1.0f;
+			arrow.color.g = 1.0f;
+			arrow.color.b = 0.0f;
+			arrow.color.a = 0.8;
+			arrow.lifetime = ros::Duration();
+			room_sequence_visualization_msg_.markers.push_back(arrow);
+		}
+		room_count += room_sequences[i].room_indices.size();
+	}
+
+	// publish room centers
+	int room_index = 0;
+	for (size_t i=0; i<room_sequences.size(); ++i)
+	{
+		for (size_t j=0; j<room_sequences[i].room_indices.size(); ++j, ++room_index)
+		{
+			cv::Point2d current_room_center(room_centers[room_sequences[i].room_indices[j]].x * map_resolution + map_origin.x, room_centers[room_sequences[i].room_indices[j]].y * map_resolution + map_origin.y);
+
+			// prepare room center circle message
+			visualization_msgs::Marker circle;
+			// Set the frame ID and timestamp.  See the TF tutorials for information on these.
+			circle.header.frame_id = "/map";
+			circle.header.stamp = ros::Time::now();
+			// Set the namespace and id for this marker.  This serves to create a unique ID
+			// Any marker sent with the same namespace and id will overwrite the old one
+			circle.ns = "room_sequence_rooms";
+			circle.id = room_index;
+			// Set the marker type.  Initially this is CUBE, and cycles between that and SPHERE, ARROW, and CYLINDER
+			circle.type = visualization_msgs::Marker::SPHERE;
+			// Set the marker action.  Options are ADD, DELETE, and new in ROS Indigo: 3 (DELETEALL)
+			circle.action = visualization_msgs::Marker::ADD;
+			// Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
+			circle.pose.position.x = current_room_center.x;
+			circle.pose.position.y = current_room_center.y;
+			circle.pose.position.z = 0;
+			circle.pose.orientation.x = 0.0;
+			circle.pose.orientation.y = 0.0;
+			circle.pose.orientation.z = 0.0;
+			circle.pose.orientation.w = 1.0;
+			// Set the scale of the marker -- 1x1x1 here means 1m on a side
+			circle.scale.x = 0.20;		// this is the line width
+			circle.scale.y = 0.20;
+			circle.scale.z = 0.02;
+			// Set the color -- be sure to set alpha to something non-zero!
+			circle.color.r = 1.0f;
+			circle.color.g = 0.5f;
+			circle.color.b = 0.0f;
+			circle.color.a = 0.8;
+			circle.lifetime = ros::Duration();
+			room_sequence_visualization_msg_.markers.push_back(circle);
+
+			// prepare room center text message
+			visualization_msgs::Marker text;
+			// Set the frame ID and timestamp.  See the TF tutorials for information on these.
+			text.header.frame_id = "/map";
+			text.header.stamp = ros::Time::now();
+			// Set the namespace and id for this marker.  This serves to create a unique ID
+			// Any marker sent with the same namespace and id will overwrite the old one
+			text.ns = "room_sequence_rooms";
+			text.id = room_count+room_index;
+			// Set the marker type.  Initially this is CUBE, and cycles between that and SPHERE, ARROW, and CYLINDER
+			text.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+			// Set the marker action.  Options are ADD, DELETE, and new in ROS Indigo: 3 (DELETEALL)
+			text.action = visualization_msgs::Marker::ADD;
+			// Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
+			text.pose.position.x = current_room_center.x;
+			text.pose.position.y = current_room_center.y;
+			text.pose.position.z = 0.4;
+			text.pose.orientation.x = 0.0;
+			text.pose.orientation.y = 0.0;
+			text.pose.orientation.z = 0.0;
+			text.pose.orientation.w = 1.0;
+			// Set the scale of the marker -- 1x1x1 here means 1m on a side
+			text.scale.x = 1.5;		// this is the line width
+			text.scale.y = 1.0;
+			text.scale.z = 0.5;
+			// Set the color -- be sure to set alpha to something non-zero!
+			text.color.r = 1.0f;
+			text.color.g = 0.5f;
+			text.color.b = 0.0f;
+			text.color.a = 0.8;
+			text.lifetime = ros::Duration();
+			std::stringstream ss;
+			ss << "R" << room_index+1;
+			text.text = ss.str();
+			room_sequence_visualization_msg_.markers.push_back(text);
+
+			// prepare room center to clique center line message
+			visualization_msgs::Marker arrow;
+			// Set the frame ID and timestamp.  See the TF tutorials for information on these.
+			arrow.header.frame_id = "/map";
+			arrow.header.stamp = ros::Time::now();
+			// Set the namespace and id for this marker.  This serves to create a unique ID
+			// Any marker sent with the same namespace and id will overwrite the old one
+			arrow.ns = "room_sequence_rooms";
+			arrow.id = 2*room_count+room_index;
+			// Set the marker type.  Initially this is CUBE, and cycles between that and SPHERE, ARROW, and CYLINDER
+			arrow.type = visualization_msgs::Marker::ARROW;
+			// Set the marker action.  Options are ADD, DELETE, and new in ROS Indigo: 3 (DELETEALL)
+			arrow.action = visualization_msgs::Marker::ADD;
+			// Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
+			arrow.pose.position.x = 0;
+			arrow.pose.position.y = 0;
+			arrow.pose.position.z = 0;
+			arrow.pose.orientation.x = 0.0;
+			arrow.pose.orientation.y = 0.0;
+			arrow.pose.orientation.z = 0.0;
+			arrow.pose.orientation.w = 1.0;
+			arrow.points.resize(2);
+			arrow.points[0].x = current_room_center.x;
+			arrow.points[0].y = current_room_center.y;
+			arrow.points[0].z = 0;
+			arrow.points[1].x = room_sequences[i].checkpoint_position_in_meter.x;
+			arrow.points[1].y = room_sequences[i].checkpoint_position_in_meter.y;
+			arrow.points[1].z = room_sequences[i].checkpoint_position_in_meter.z;
+			// Set the scale of the marker -- 1x1x1 here means 1m on a side
+			arrow.scale.x = 0.03;		// this is the line width
+			arrow.scale.y = 0.03;
+			arrow.scale.z = 0.1;
+			// Set the color -- be sure to set alpha to something non-zero!
+			arrow.color.r = 1.0f;
+			arrow.color.g = 0.5f;
+			arrow.color.b = 0.0f;
+			arrow.color.a = 0.8;
+			arrow.lifetime = ros::Duration();
+			room_sequence_visualization_msg_.markers.push_back(arrow);
+		}
+	}
+	room_sequence_visualization_pub_.publish(room_sequence_visualization_msg_);
 }
 
 int main(int argc, char **argv)

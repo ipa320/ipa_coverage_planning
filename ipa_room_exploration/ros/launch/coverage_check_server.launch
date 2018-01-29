@@ -2,7 +2,7 @@
 <launch>
 
 	<!-- send parameters to parameter server -->
-	<node ns="coverage_check_server" pkg="ipa_room_exploration" type="coverage_check_server" name="coverage_check_server" output="screen" respawn="true" respawn_delay="2">
+	<node ns="room_exploration" pkg="ipa_room_exploration" type="coverage_check_server" name="coverage_check_server" output="screen" respawn="true" respawn_delay="2">
 	</node>
 
 </launch>
