@@ -199,6 +199,8 @@ void RoomSequencePlanningServer::dynamic_reconfigure_callback(ipa_building_navig
 
 void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa_building_msgs::FindRoomSequenceWithCheckpointsGoalConstPtr &goal)
 {
+	ROS_INFO("********Sequence planning started************");
+
 	// converting the map msg in cv format
 	cv_bridge::CvImagePtr cv_ptr_obj;
 	cv_ptr_obj = cv_bridge::toCvCopy(goal->input_map, sensor_msgs::image_encodings::MONO8);
@@ -218,7 +220,8 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 	{
 		a_star_path_planner.downsampleMap(floor_plan, downsampled_map_for_accessibility_checking, map_downsampling_factor_, goal->robot_radius, goal->map_resolution);
 	}
-	std::vector<cv::Point> room_centers;
+	std::vector<cv::Point> room_centers;	// collect the valid, accessible room_centers
+	std::map<size_t, size_t> mapping_room_centers_index_to_original_room_index;		// maps the index of each entry in room_centers to the original index in goal->room_information_in_pixel
 	for (size_t i=0; i<goal->room_information_in_pixel.size(); ++i)
 	{
 		cv::Point current_center(goal->room_information_in_pixel[i].room_center.x, goal->room_information_in_pixel[i].room_center.y);
@@ -227,7 +230,11 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 			std::cout << "checking for accessibility of rooms" << std::endl;
 			double length = a_star_path_planner.planPath(floor_plan, downsampled_map_for_accessibility_checking, robot_start_coordinate, current_center, map_downsampling_factor_, 0., goal->map_resolution);
 			if(length < 1e9)
+			{
 				room_centers.push_back(current_center);
+				mapping_room_centers_index_to_original_room_index[room_centers.size()-1] = i;
+				std::cout << "room " << i << " added, center: " << current_center << std::endl;
+			}
 			else
 				std::cout << "room " << i << " not accessible, center: " << current_center << std::endl;
 		}
@@ -243,6 +250,8 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 	if(room_centers.size() == 0)
 	{
 		ROS_ERROR("No given roomcenter reachable from starting position.");
+		ipa_building_msgs::FindRoomSequenceWithCheckpointsResult action_result;
+		room_sequence_with_checkpoints_server_.setAborted(action_result);
 		return;
 	}
 
@@ -542,6 +551,8 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 	else
 	{
 		ROS_ERROR("Undefined planning method.");
+		ipa_building_msgs::FindRoomSequenceWithCheckpointsResult action_result;
+		room_sequence_with_checkpoints_server_.setAborted(action_result);
 		return;
 	}
 	std::cout << "done sequence planning" << std::endl << std::endl;
@@ -552,7 +563,9 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 	for(size_t i=0; i<cliques.size(); ++i)
 	{
 		//convert signed int to unsigned int (necessary for this msg type)
-		room_sequences[i].room_indices = std::vector<unsigned int>(cliques[i].begin(), cliques[i].end());
+		room_sequences[i].room_indices.resize(cliques[i].size());
+		for (size_t j=0; j<cliques[i].size(); ++j)
+			room_sequences[i].room_indices[j] = mapping_room_centers_index_to_original_room_index[cliques[i][j]];
 		room_sequences[i].checkpoint_position_in_pixel.x = trolley_positions[i].x;
 		room_sequences[i].checkpoint_position_in_pixel.y = trolley_positions[i].y;
 		room_sequences[i].checkpoint_position_in_pixel.z = 0.;
@@ -579,7 +592,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 	//garbage collection
 	action_result.checkpoints.clear();
 
-	return;
+	ROS_INFO("********Sequence planning finished************");
 }
 
 size_t RoomSequencePlanningServer::getNearestLocation(const cv::Mat& floor_plan, const cv::Point start_coordinate, const std::vector<cv::Point>& positions,
