@@ -334,9 +334,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv::erode(room_map, temp, cv::Mat(), cv::Point(-1, -1), map_correction_closing_neighborhood_size_);
 	cv::dilate(temp, room_map, cv::Mat(), cv::Point(-1, -1), map_correction_closing_neighborhood_size_);
 
-	cv::imshow("room_map", room_map);
-	cv::waitKey();
-
 	// remove unconnected, i.e. inaccessible, parts of the room (i.e. obstructed by furniture), only keep the room with the largest area
 	const bool room_not_empty = removeUnconnectedRoomParts(room_map);
 	if (room_not_empty == false)
