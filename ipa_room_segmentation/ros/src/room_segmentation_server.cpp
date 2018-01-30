@@ -429,7 +429,6 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 //	}
 
 
-
 	//segment the given map
 	cv::Mat segmented_map;
 	if (room_segmentation_algorithm_ == 1)
@@ -506,13 +505,8 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 	ROS_INFO("********Segmented the map************");
 	//	looping_rate.sleep();
 
-	std::cout << segmented_map.rows << ", " << segmented_map.cols << std::endl;
-	cv::imshow("seg", segmented_map);
-	cv::waitKey();
-
 	// get the min/max-values and the room-centers
 	// compute room label codebook
-	std::cout << "A" << std::endl;
 	std::map<int, size_t> label_vector_index_codebook; // maps each room label to a position in the rooms vector
 	size_t vector_index = 0;
 	for (int v = 0; v < segmented_map.rows; ++v)
@@ -530,7 +524,6 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 			}
 		}
 	}
-	std::cout << "B" << std::endl;
 	//min/max y/x-values vector for each room. Initialized with extreme values
 	std::vector<int> min_x_value_of_the_room(label_vector_index_codebook.size(), 100000000);
 	std::vector<int> max_x_value_of_the_room(label_vector_index_codebook.size(), 0);
@@ -556,7 +549,6 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 			}
 		}
 	}
-	std::cout << "C" << std::endl;
 	//get centers for each room
 //	for (size_t idx = 0; idx < room_centers_x_values.size(); ++idx)
 //	{
@@ -567,7 +559,6 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 //			cv::circle(segmented_map, cv::Point(room_centers_x_values[idx], room_centers_y_values[idx]), 2, cv::Scalar(200*256), CV_FILLED);
 //		}
 //	}
-	std::cout << "D" << std::endl;
 	// use distance transform and mean shift to find good room centers that are reachable by the robot
 	// first check whether a robot radius shall be applied to obstacles in order to exclude room center points that are not reachable by the robot
 	cv::Mat segmented_map_copy = segmented_map;
@@ -622,7 +613,6 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 			}
 		}
 	}
-	std::cout << "E" << std::endl;
 	// compute the room centers
 	MeanShift2D ms;
 	for (std::map<int, size_t>::iterator it = label_vector_index_codebook.begin(); it != label_vector_index_codebook.end(); ++it)
@@ -669,8 +659,6 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 		}
 	}
 
-	std::cout << "F" << std::endl;
-
 	// convert the segmented map into an indexed map which labels the segments with consecutive numbers (instead of arbitrary unordered labels in segmented map)
 	cv::Mat indexed_map = segmented_map.clone();
 	for (int y = 0; y < segmented_map.rows; ++y)
@@ -682,8 +670,6 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 				indexed_map.at<int>(y,x) = label_vector_index_codebook[label]+1;//start value from 1 --> 0 is reserved for obstacles
 		}
 	}
-
-	std::cout << "G" << std::endl;
 
 	if (display_segmented_map_ == true)
 	{
@@ -707,7 +693,6 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 		cv::imshow("segmentation", color_segmented_map);
 		cv::waitKey();
 	}
-	std::cout << "H" << std::endl;
 
 	if (publish_segmented_map_ == true)
 	{
@@ -732,8 +717,6 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 				segmented_grid.data[i] = colors[indexed_map.at<int>(v,u)];
 		map_pub_.publish(segmented_grid);
 	}
-
-	std::cout << "I" << std::endl;
 
 	//****************publish the results**********************
 	ipa_building_msgs::MapSegmentationResult action_result;
@@ -810,7 +793,6 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 			action_result.doorway_points = found_doorway_points;
 		}
 	}
-	std::cout << "J" << std::endl;
 
 	// reset to parameterized segmentation algorithm
 	room_segmentation_algorithm_ = stored_room_segmentation_algorithm;
