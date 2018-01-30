@@ -323,8 +323,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	else if (planning_mode_==PLAN_FOR_FOV)
 		std::cout << "planning mode: planning coverage path with robot's field of view" <<std::endl;
 
-	std::cout << "B" << std::endl;
-
 	// todo: receive map data in nav_msgs::OccupancyGrid format
 	// converting the map msg in cv format
 	cv_bridge::CvImagePtr cv_ptr_obj;
@@ -336,7 +334,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv::erode(room_map, temp, cv::Mat(), cv::Point(-1, -1), map_correction_closing_neighborhood_size_);
 	cv::dilate(temp, room_map, cv::Mat(), cv::Point(-1, -1), map_correction_closing_neighborhood_size_);
 
-	// todo: handle the complete removal of small rooms
 	// remove unconnected, i.e. inaccessible, parts of the room (i.e. obstructed by furniture), only keep the room with the largest area
 	const bool room_not_empty = removeUnconnectedRoomParts(room_map);
 	if (room_not_empty == false)
