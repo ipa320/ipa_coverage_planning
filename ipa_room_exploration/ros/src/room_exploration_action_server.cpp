@@ -334,6 +334,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	cv::erode(room_map, temp, cv::Mat(), cv::Point(-1, -1), map_correction_closing_neighborhood_size_);
 	cv::dilate(temp, room_map, cv::Mat(), cv::Point(-1, -1), map_correction_closing_neighborhood_size_);
 
+	cv::imshow("room_map", room_map);
+	cv::waitKey();
+
 	// remove unconnected, i.e. inaccessible, parts of the room (i.e. obstructed by furniture), only keep the room with the largest area
 	const bool room_not_empty = removeUnconnectedRoomParts(room_map);
 	if (room_not_empty == false)
@@ -495,9 +498,10 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	if (display_trajectory_ == true)
 	{
 		std::cout << "printing path" << std::endl;
+		cv::Mat fov_path_map;
 		for(size_t step=1; step<exploration_path.size(); ++step)
 		{
-			cv::Mat fov_path_map = room_map.clone();
+			fov_path_map = room_map.clone();
 			cv::resize(fov_path_map, fov_path_map, cv::Size(), 2, 2, cv::INTER_LINEAR);
 			if (exploration_path.size() > 0)
 				cv::circle(fov_path_map, 2*cv::Point((exploration_path[0].x-map_origin.x)/map_resolution, (exploration_path[0].y-map_origin.y)/map_resolution), 2, cv::Scalar(150), CV_FILLED);
@@ -515,9 +519,11 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 					cv::line(fov_path_map, 2*p2, 2*p3, cv::Scalar(50), 1);
 				}
 			}
-			cv::imshow("cell path", fov_path_map);
-			cv::waitKey();
+//			cv::imshow("cell path", fov_path_map);
+//			cv::waitKey();
 		}
+		cv::imshow("cell path", fov_path_map);
+		cv::waitKey();
 	}
 
 	ROS_INFO("Room exploration planning finished.");
