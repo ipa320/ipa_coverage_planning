@@ -9,7 +9,7 @@ geometry_msgs/Pose robot_start_coordinate	# current robot location (used to dete
 ---
 
 # result definition
-ipa_building_msgs/RoomSequence[] checkpoints		# sequence of checkpoints, should be ordered in optimized traveling salesman sequence
+ipa_building_msgs/RoomSequence[] checkpoints			# sequence of checkpoints, should be ordered in optimized traveling salesman sequence
 														# (checkpoint = a clique of rooms close [in terms of robot driving distance] to each other,
 														#               and a central [in terms of rooms in the group] checkpoint location)
 sensor_msgs/Image sequence_map							# map that has the calculated sequence drawn in
