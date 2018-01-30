@@ -477,7 +477,6 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 	else if (room_segmentation_algorithm_ == 99)
 	{
 		// pass through segmentation: takes a map which is already separated into unconnected areas and returns these as the resulting segmentation in the format of this program
-		cv::Mat segmented_map;
 		original_img.convertTo(segmented_map, CV_32SC1, 256, 0);		// occupied space = 0, free space = 65280
 		int label_index = 1;
 
