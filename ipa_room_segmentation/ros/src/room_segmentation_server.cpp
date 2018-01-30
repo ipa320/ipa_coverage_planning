@@ -363,6 +363,11 @@ void RoomSegmentationServer::dynamic_reconfigure_callback(ipa_room_segmentation:
 
 void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs::MapSegmentationGoalConstPtr &goal)
 {
+	// override pre-set segmentation algorithm on request
+	const int stored_room_segmentation_algorithm = room_segmentation_algorithm_;
+	if (goal->room_segmentation_algorithm > 0)
+		room_segmentation_algorithm_ = goal->room_segmentation_algorithm;
+
 	ros::Rate looping_rate(1);
 	ROS_INFO("*****Segmentation action server*****");
 	ROS_INFO("map resolution is : %f", goal->map_resolution);
@@ -423,6 +428,8 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 //		}
 //	}
 
+
+
 	//segment the given map
 	cv::Mat segmented_map;
 	if (room_segmentation_algorithm_ == 1)
@@ -467,9 +474,32 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 				(display_segmented_map_&&DEBUG_DISPLAYS), classifier_storage_path, classifier_default_path, max_voronoi_random_field_inference_iterations_,
 				map_resolution, room_lower_limit_voronoi_random_, room_upper_limit_voronoi_random_, max_area_for_merging_, &doorway_points_);
 	}
+	else if (room_segmentation_algorithm_ == 99)
+	{
+		// pass through segmentation: takes a map which is already separated into unconnected areas and returns these as the resulting segmentation in the format of this program
+		cv::Mat segmented_map;
+		original_img.convertTo(segmented_map, CV_32SC1, 256, 0);		// occupied space = 0, free space = 65280
+		int label_index = 1;
+
+		for (int y = 0; y < segmented_map.rows; y++)
+		{
+			for (int x = 0; x < segmented_map.cols; x++)
+			{
+				// if original map is occupied space here or if the segmented map has already received a label for that cell --> skip
+				if (original_img.at<uchar>(y,x) != 255 || segmented_map.at<int>(y,x)!=65280)
+					continue;
+
+				// fill each room area with a unique id
+				cv::Rect rect;
+				cv::floodFill(segmented_map, cv::Point(x,y), label_index, &rect, 0, 0, 8);
+				label_index++;
+			}
+		}
+	}
 	else
 	{
 		ROS_ERROR("Undefined algorithm selected.");
+		room_segmentation_algorithm_ = stored_room_segmentation_algorithm;
 		return;
 	}
 
@@ -548,7 +578,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 				if (eroded_map.at<uchar>(v,u) == 0)
 					segmented_map_copy.at<int>(v,u) = 0;
 
-		// compute connectivity to other rooms
+		// compute connectivity of remaining accessible room cells to other rooms
 		bool stop = false;
 		while (stop == false)
 		{
@@ -585,6 +615,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 			}
 		}
 	}
+	// compute the room centers
 	MeanShift2D ms;
 	for (std::map<int, size_t>::iterator it = label_vector_index_codebook.begin(); it != label_vector_index_codebook.end(); ++it)
 	{
@@ -594,7 +625,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 
 		for (; trial <= 2; ++trial)
 		{
-			// compute distance transform for each room
+			// compute distance transform for each room on the room cells that have some connection to another room (trial 1) or just on all cells of that room (trial 2)
 			const int label = it->first;
 			int number_room_pixels = 0;
 			cv::Mat room = cv::Mat::zeros(segmented_map_copy.rows, segmented_map_copy.cols, CV_8UC1);
@@ -630,6 +661,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 		}
 	}
 
+	// convert the segmented map into an indexed map which labels the segments with consecutive numbers (instead of arbitrary unordered labels in segmented map)
 	cv::Mat indexed_map = segmented_map.clone();
 	for (int y = 0; y < segmented_map.rows; ++y)
 	{
@@ -763,6 +795,9 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 			action_result.doorway_points = found_doorway_points;
 		}
 	}
+
+	// reset to parameterized segmentation algorithm
+	room_segmentation_algorithm_ = stored_room_segmentation_algorithm;
 
 	//publish result
 	room_segmentation_server_.setSucceeded(action_result);

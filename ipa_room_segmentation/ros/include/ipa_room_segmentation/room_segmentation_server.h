@@ -100,6 +100,7 @@ protected:
 										// 3 = Voronoi segmentation
 										// 4 = semantic segmentation
 										// 5 = voronoi-random-field segmentation
+										// 99 = pass through segmentation
 
 	bool train_semantic_, train_vrf_; //Boolean to say if the algorithm needs to be trained
 
