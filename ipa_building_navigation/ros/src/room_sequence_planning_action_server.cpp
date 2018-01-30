@@ -585,7 +585,7 @@ void RoomSequencePlanningServer::findRoomSequenceWithCheckpointsServer(const ipa
 	}
 
 	// publish visualization msg for RViz
-	publishSequenceVisualization(room_sequences, room_centers, goal->map_resolution, cv::Point2d(goal->map_origin.position.x, goal->map_origin.position.y));
+	publishSequenceVisualization(room_sequences, room_centers, cliques, goal->map_resolution, cv::Point2d(goal->map_origin.position.x, goal->map_origin.position.y));
 
 	room_sequence_with_checkpoints_server_.setSucceeded(action_result);
 
@@ -621,7 +621,7 @@ size_t RoomSequencePlanningServer::getNearestLocation(const cv::Mat& floor_plan,
 }
 
 void RoomSequencePlanningServer::publishSequenceVisualization(const std::vector<ipa_building_msgs::RoomSequence>& room_sequences, const std::vector<cv::Point>& room_centers,
-		const double map_resolution, const cv::Point2d& map_origin)
+		std::vector< std::vector<int> >& cliques, const double map_resolution, const cv::Point2d& map_origin)
 {
 	room_sequence_visualization_msg_.markers.clear();
 
@@ -749,7 +749,7 @@ void RoomSequencePlanningServer::publishSequenceVisualization(const std::vector<
 	{
 		for (size_t j=0; j<room_sequences[i].room_indices.size(); ++j, ++room_index)
 		{
-			cv::Point2d current_room_center(room_centers[room_sequences[i].room_indices[j]].x * map_resolution + map_origin.x, room_centers[room_sequences[i].room_indices[j]].y * map_resolution + map_origin.y);
+			cv::Point2d current_room_center(room_centers[cliques[i][j]].x * map_resolution + map_origin.x, room_centers[cliques[i][j]].y * map_resolution + map_origin.y);
 
 			// prepare room center circle message
 			visualization_msgs::Marker circle;

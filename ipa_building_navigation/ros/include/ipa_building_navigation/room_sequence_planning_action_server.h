@@ -142,7 +142,7 @@ protected:
 			const double map_downsampling_factor, const double robot_radius, const double map_resolution);
 
 	void publishSequenceVisualization(const std::vector<ipa_building_msgs::RoomSequence>& room_sequences, const std::vector<cv::Point>& room_centers,
-			const double map_resolution, const cv::Point2d& map_origin);
+			std::vector< std::vector<int> >& cliques, const double map_resolution, const cv::Point2d& map_origin);
 
 	// callback function for dynamic reconfigure
 	void dynamic_reconfigure_callback(ipa_building_navigation::BuildingNavigationConfig &config, uint32_t level);
