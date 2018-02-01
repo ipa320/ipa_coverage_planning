@@ -332,13 +332,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// determine room size
 	int area_px = 0;		// room area in pixels
 	for (int v=0; v<room_map.rows; ++v)
-	{
 		for (int u=0; u<room_map.cols; ++u)
-		{
 			if (room_map.at<uchar>(v,u) >= 250)
 				area_px++;
-		}
-	}
 	std::cout << "### room area = " << area_px*map_resolution*map_resolution << " m^2" << std::endl;
 
 	// closing operation to neglect inaccessible areas and map errors/artifacts
@@ -451,19 +447,22 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 //			cv::distanceTransform(room_map, distance_transform, CV_DIST_L2, CV_DIST_MASK_PRECISE);
 //			cv::Mat display = room_map.clone();
 //			// todo: get max dist from map and parametrize loop
-//			for (int s=5; s<100; ++s)
+//			for (int s=5; s<100; s+=10)
 //			{
 //				for (int v=0; v<distance_transform.rows; ++v)
 //				{
 //					for (int u=0; u<distance_transform.cols; ++u)
 //					{
-//						if (distance_transform.at<float>(v,u))
+//						if (int(distance_transform.at<float>(v,u)) == s)
 //						{
 //							display.at<uchar>(v,u) = 0;
 //						}
 //					}
 //				}
 //			}
+//			cv::imshow("distance_transform", distance_transform);
+//			cv::imshow("trajectories", display);
+//			cv::waitKey();
 
 			// convert fov-radius to pixel integer
 			const int grid_spacing_as_int = (int)std::floor(grid_spacing_in_pixel);
