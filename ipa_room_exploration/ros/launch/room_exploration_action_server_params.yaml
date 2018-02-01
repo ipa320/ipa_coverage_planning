@@ -7,7 +7,7 @@
 # 6 = energyFunctional explorator
 # 7 = voronoi explorator
 # int
-room_exploration_algorithm: 2
+room_exploration_algorithm: 7
 
 # display final trajectory plan step by step
 # bool

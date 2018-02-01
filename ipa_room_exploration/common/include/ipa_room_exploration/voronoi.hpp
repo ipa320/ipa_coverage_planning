@@ -1072,7 +1072,7 @@ public:
 		
 		for(int x=0; x<map_.w_; x++) {
 			for(int y=0; y<map_.h_; y++) {
-				float v = std::abs(fmod(std::sqrt(map_(x,y).dist2())-wall_offset_, max_track_width_)-max_track_width_/2.);
+				//float v = std::abs(fmod(std::sqrt(map_(x,y).dist2())-wall_offset_, max_track_width_)-max_track_width_/2.);
 				
 				if( map_(x,y).dist2()>std::pow(wall_offset_,2) && (*this)(x,y) == 2222 && (single_room_||map_(x,y).id_==cid) ) {
 					pts.push_back(Pos(x,y));

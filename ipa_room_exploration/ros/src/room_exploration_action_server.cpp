@@ -440,7 +440,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			std::cout << "grid spacing in pixel: " << grid_spacing_as_int << std::endl;
 
 			// create the object that plans the path, based on the room-map
-			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, grid_spacing_as_int); // a perfect alignment of the paths cannot be assumed here (in contrast to footprint planning) because the well-aligned fov trajectory is mapped to robot locations that may not be on parallel tracks
+			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, grid_spacing_as_int, 2, true); // a perfect alignment of the paths cannot be assumed here (in contrast to footprint planning) because the well-aligned fov trajectory is mapped to robot locations that may not be on parallel tracks
 			// get the exploration path
 			std::vector<geometry_msgs::Pose2D> fov_path_uncleaned;
 			vm.setSingleRoom(true); //to force to consider all rooms
@@ -448,7 +448,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 
 			// clean path from subsequent double occurrences of the same pose
 			std::vector<geometry_msgs::Pose2D> fov_path;
-			downsampleTrajectory(fov_path_uncleaned, fov_path, 5.*5.); //5*5);
+			downsampleTrajectory(fov_path_uncleaned, fov_path, 2.*2.); //5*5);
 
 			// convert to poses with angles
 			RoomRotator room_rotation;
@@ -472,7 +472,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			std::cout << "grid spacing in pixel: " << grid_spacing_as_int << std::endl;
 
 			// create the object that plans the path, based on the room-map
-			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, grid_spacing_as_int);	//coverage_diameter-1); // diameter in pixel (full working width can be used here because tracks are planned in parallel motion)
+			VoronoiMap vm(room_gridmap.data.data(), room_gridmap.info.width, room_gridmap.info.height, grid_spacing_as_int, 2, true);	//coverage_diameter-1); // diameter in pixel (full working width can be used here because tracks are planned in parallel motion)
 			// get the exploration path
 			std::vector<geometry_msgs::Pose2D> exploration_path_uncleaned;
 			vm.setSingleRoom(true); //to force to consider all rooms
