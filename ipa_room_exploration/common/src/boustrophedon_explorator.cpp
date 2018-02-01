@@ -95,6 +95,14 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		optimal_order = tsp_solver.solveGeneticTSP(rotated_room_map, polygon_centers, 1.0, 0.0, map_resolution, start_cell_index, 0);
 	}
 
+	// alternative ordering
+	optimal_order.clear();
+	std::multimap<int, int> y_coordinate_ordering;		// <y-coordinate of room centers, index>
+	for (size_t i=0; i<polygon_centers.size(); ++i)
+		y_coordinate_ordering.insert(std::pair<int, int>(polygon_centers[i].y, (int)i));
+	for (std::multimap<int,int>::iterator it=y_coordinate_ordering.begin(); it!=y_coordinate_ordering.end(); ++it)
+		optimal_order.push_back(it->second);
+
 	// go trough the cells [in optimal visiting order] and determine the boustrophedon paths
 	ROS_INFO("Starting to get the paths for each cell, number of cells: %d", (int)cell_polygons.size());
 	const int grid_spacing_as_int = (int)std::floor(grid_spacing_in_pixel); // convert fov-radius to int
