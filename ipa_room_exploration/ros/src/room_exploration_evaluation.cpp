@@ -250,6 +250,15 @@ protected:
 		}
 	}
 
+	// normalizes an angle into the range [-PI, PI)
+	void normalizeAngle(double& angle)
+	{
+		while (angle < -PI)
+			angle += 2*PI;
+		while (angle >= PI)
+			angle -= 2*PI;
+	}
+
 	ros::NodeHandle node_handle_;
 
 public:
@@ -628,24 +637,23 @@ public:
 		float fitting_circle_radius_in_meter=0;
 		Eigen::Matrix<float, 2, 1> fitting_circle_center_point_in_meter;
 		computeFOVCenterAndRadius(fov_corners_meter, fitting_circle_radius_in_meter, fitting_circle_center_point_in_meter, 1000);
-		// get the distance to the middle-point
-		const double distance_robot_fov_middlepoint_in_meter = fitting_circle_center_point_in_meter.norm();
+		// convert the middle-point to pixel measures
+		const cv::Point2d fov_circle_center_point_in_px(fitting_circle_center_point_in_meter(0,0)/data.map_resolution_, fitting_circle_center_point_in_meter(1,0)/data.map_resolution_);
 
 		// evaluate the individual configurations
 		for(std::vector<ExplorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
 		{
-			evaluateCoveragePaths(data, *config, data_storage_path, distance_robot_fov_middlepoint_in_meter);
+			evaluateCoveragePaths(data, *config, data_storage_path, fov_circle_center_point_in_px);
 		}
 	}
 
 	// function that reads out the calculated paths and does the evaluation for one configuration
 	void evaluateCoveragePaths(const ExplorationData& data, const ExplorationConfig& config, const std::string data_storage_path,
-			const double distance_robot_fov_middlepoint_in_meter)
+			const cv::Point2d fov_circle_center_point_in_px)
 	{
 		const double map_resolution_inverse = 1.0/data.map_resolution_;	// in [pixel/m]
 
-		// todo: split into smaller functions?
-
+		// todo: split into smaller functions
 		// todo: make sure that all paths are generated with sufficient sampling steps (e.g. of 25 cm or more)
 
 		const std::string configuration_folder_name = config.generateConfigurationFolderString() + "/";
@@ -666,9 +674,8 @@ public:
 		AStarPlanner path_planner;
 		MapAccessibilityAnalysis map_accessibility_analysis;
 		cv::Mat inflated_map;
-		const int robot_radius_in_pixel = cvRound(data.robot_radius_ * map_resolution_inverse);
+		const int robot_radius_in_pixel = ceil(data.robot_radius_ * map_resolution_inverse);
 		map_accessibility_analysis.inflateMap(map, inflated_map, robot_radius_in_pixel);
-		cv::Mat path_map = inflated_map.clone();
 		std::vector<double> pathlengths_for_map;
 		std::vector<std::vector<geometry_msgs::Pose2D> > interpolated_paths; // variable that stores the path points and the points between them
 		int nonzero_paths = 0;
@@ -676,14 +683,17 @@ public:
 		std::vector<int> number_of_rotations, numbers_of_crossings;
 
 		// draw paths
-		cv::Mat map_copy = map.clone();
+		cv::Mat path_map = map.clone();
 		for(size_t room=0; room<paths.size(); ++room)
 		{
 			//std::cout << "room " << room << ", size of path: " << paths[room].size() << std::endl;
 
 			// check for false pose
 			if(paths[room].size()==0 || (paths[room][0].x==-1 && paths[room][0].y==-1))
+			{
+				std::cout << "room " << room << " has invalid trajectory." << std::endl;
 				continue;
+			}
 			else
 				++nonzero_paths;
 
@@ -707,76 +717,55 @@ public:
 				// if a false pose has been saved, skip it
 				if(current_pose_px.x==-1 && current_pose_px.y==-1)
 				{
-					ROS_WARN("ExplorationEvaluation:evaluateCoveragePaths: robot_position.x==-1 && robot_position.y==-1 --> this should never happen.");
+					ROS_WARN("ExplorationEvaluation:evaluateCoveragePaths: current_pose_px.x==-1 && current_pose_px.y==-1 --> this should never happen.");
 					continue;
 				}
 
 				// find an accessible next pose
 				geometry_msgs::Pose2D next_pose_px = *pose_px;
-				bool found_next = findAccessiblePose(inflated_map, current_pose_px, next_pose_px, data, distance_robot_fov_middlepoint_in_meter);
+				bool found_next = findAccessiblePose(inflated_map, current_pose_px, next_pose_px, data, fov_circle_center_point_in_px);
 				if(found_next==false)
 					continue;	// if no accessible position could be found, go to next possible path point
 
 				// get the angle and check if it is the same as before, if not add the rotation
 				double angle_difference = next_pose_px.theta - previous_angle;
-				while (angle_difference < -PI)
-					angle_difference += 2*PI;
-				while (angle_difference > PI)
-					angle_difference -= 2*PI;
+				normalizeAngle(angle_difference);  // todo: use angles/angles.h
 				angle_difference = std::abs(angle_difference);
 				if(angle_difference!=0.0)
 				{
 					current_rotation_abs += angle_difference;
-					if (angle_difference > 0.52)		//0.1	// only count substantial rotations
+					if (angle_difference > 0.52)		//0.1	// only count substantial rotations > 30deg // todo: use pixelwise path to be independent of sampling, larger angles to avoid counting 45deg angles
 						++current_number_of_rotations;
 				}
 				// save current angle of pose
 				previous_angle = next_pose_px.theta;
 
-//				// create output map to show path --> also check if one point has already been visited
-//				cv::circle(map_copy, cv::Point(next_pose.x, next_pose.y), 2, cv::Scalar(96), CV_FILLED);
-//				cv::LineIterator line(map_copy, cv::Point(next_pose.x, next_pose.y), cv::Point(robot_position.x, robot_position.y), 8);
-//				bool has_crossing = false;
-//				for(int pos=1; pos<line.count-1; pos++, ++line)
-//				{
-//					cv::Point current_point = line.pos();
-//					if(map_copy.at<uchar>(current_point)==127)
-//						has_crossing = true;
-//					else
-//						map_copy.at<uchar>(current_point)=127;
-////						cv::imshow("er", inflated_map);
-////						cv::waitKey();
-//				}
-//				if (has_crossing == true)				// why is the A* path not checked for crossings?
-//					++current_number_of_crossings;
-////					cv::line(inflated_map, cv::Point(next_pose.x, next_pose.y), cv::Point(robot_position.x, robot_position.y), cv::Scalar(100));
-////					cv::imshow("er", inflated_map);
-////					cv::waitKey();
-
 				// find pathlength and path between two consecutive poses
 				std::vector<cv::Point> current_interpolated_path;	// vector that stores the current path from one pose to another
 				double length_planner = path_planner.planPath(inflated_map, cv::Point(current_pose_px.x, current_pose_px.y), cv::Point(next_pose_px.x, next_pose_px.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
-				// todo: go back to inflated_map
-				//double length_planner = path_planner.planPath(map, cv::Point(robot_position.x, robot_position.y), cv::Point(next_pose.x, next_pose.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
+				// kind of a hack: if there is no accessible connection between two points, try to find a path on the original (not inflated) map, this path could possibly not be driven by the robot in reality
+				if(current_interpolated_path.size()==0)
+					length_planner = path_planner.planPath(map, cv::Point(current_pose_px.x, current_pose_px.y), cv::Point(next_pose_px.x, next_pose_px.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
 				current_pathlength += (length_planner > 1e5 ? 0. : length_planner);
 
-				if(current_interpolated_path.size()==0)
-					continue;
+				// if there is any proper connection between the two points, just use the goal point as "path"
+				if(current_interpolated_path.size()<2)
+				{
+					current_interpolated_path.push_back(cv::Point(current_pose_px.x, current_pose_px.y));
+					current_interpolated_path.push_back(cv::Point(next_pose_px.x, next_pose_px.y));
+				}
 
 				// transform the cv::Point path to geometry_msgs::Pose2D --> last point has, first point was already gone a defined angle
 				// also create output map to show path --> and check if one point has already been visited
 				bool has_crossing = false;
-				cv::circle(map_copy, cv::Point(next_pose_px.x, next_pose_px.y), 1, cv::Scalar(196), CV_FILLED);
+				cv::circle(path_map, cv::Point(next_pose_px.x, next_pose_px.y), 1, cv::Scalar(196), CV_FILLED);
 				for(std::vector<cv::Point>::iterator point=current_interpolated_path.begin()+1; point!=current_interpolated_path.end(); ++point)
 				{
 					// check if point has been visited before and draw point into map
-					if(map_copy.at<uchar>(*point)==127)
+					if(path_map.at<uchar>(*point)==127)
 						has_crossing = true;
 					else
-						map_copy.at<uchar>(*point)=127;
-
-					// mark in path map
-					path_map.at<uchar>(*point)=127;
+						path_map.at<uchar>(*point)=127;
 
 					// transform to world coordinates
 					geometry_msgs::Pose2D current_pose;
@@ -785,7 +774,7 @@ public:
 
 					// if the current point is the last, use the provided angle
 					if(point-current_interpolated_path.begin()==current_interpolated_path.size()-1)
-						current_pose.theta = (pose_px+1)->theta;
+						current_pose.theta = (pose_px+1)->theta;	//next_pose_px?
 					else // calculate angle s.t. it points to the next point
 						current_pose.theta = std::atan2((point+1)->y-point->y, (point+1)->x-point->x);			// todo: check if this makes sense (orientation computation at pixel level)
 
@@ -821,13 +810,16 @@ public:
 		// save the map with the drawn in coverage paths
 		const std::string image_path = data_storage_path + configuration_folder_name + data.map_name_ + "_paths_eval.png";
 //			std::cout << image_path << std::endl;
-		cv::imwrite(image_path.c_str(), map_copy);
+		cv::imwrite(image_path.c_str(), path_map);
 //			cv::imshow("room paths", room_map);
 //			cv::waitKey();
 
 		// calculate the overall pathlength, the average and the variance
 		double overall_pathlength = std::accumulate(pathlengths_for_map.begin(), pathlengths_for_map.end(), 0.0);
 		double average_pathlength = overall_pathlength/nonzero_paths;
+
+
+		// 4. calculate the execution time by using the robot speed and the rotation speed
 		//double pathlength_variance_squared = 0;
 		std::vector<double> travel_times_in_rooms;
 		for(std::vector<double>::iterator length=pathlengths_for_map.begin(); length!=pathlengths_for_map.end(); ++length)
@@ -837,7 +829,6 @@ public:
 		}
 		//pathlength_variance_squared /= nonzero_paths;
 
-		// 4. calculate the execution time by using the robot speed and the rotation speed
 		double average_execution_time = 0.0;
 		double execution_time_squared_variance = 0.0;
 		double overall_execution_time = overall_pathlength/data.robot_speed_; // travel time
@@ -965,14 +956,14 @@ public:
 		// save the map with the drawn in path and coverage areas
 		cv::Mat map_path_coverage = map.clone();
 		const std::string path_coverage_image_path = data_storage_path + configuration_folder_name + data.map_name_ + "_paths_coverage_eval.png";
-		for (int v=0; v<map_copy.rows; ++v)
+		for (int v=0; v<path_map.rows; ++v)
 		{
-			for (int u=0; u<map_copy.cols; ++u)
+			for (int u=0; u<path_map.cols; ++u)
 			{
 				if (map_coverage.at<uchar>(v,u)==255)
 					map_path_coverage.at<uchar>(v,u) = 176;		// left over uncovered areas
-				if (map_copy.at<uchar>(v,u)==127 || map_copy.at<uchar>(v,u)==196)
-					map_path_coverage.at<uchar>(v,u) = map_copy.at<uchar>(v,u);
+				if (path_map.at<uchar>(v,u)==127 || path_map.at<uchar>(v,u)==196)
+					map_path_coverage.at<uchar>(v,u) = path_map.at<uchar>(v,u);
 			}
 		}
 		cv::imwrite(path_coverage_image_path.c_str(), map_path_coverage);
@@ -1409,10 +1400,8 @@ public:
 	}
 
 	bool findAccessiblePose(const cv::Mat& inflated_map, const geometry_msgs::Pose2D& current_pose_px, geometry_msgs::Pose2D& target_pose_px, const ExplorationData& data,
-			const double distance_robot_fov_middlepoint_in_meter)
+			const cv::Point2d fov_circle_center_point_in_px)
 	{
-		const double map_resolution_inverse = 1.0/data.map_resolution_;	// in [pixel/m]
-
 		MapAccessibilityAnalysis map_accessibility_analysis;
 		bool found_next = false;
 		if(inflated_map.at<uchar>(target_pose_px.y, target_pose_px.x)!=0) // if calculated target pose is accessible, use it as next pose
@@ -1424,6 +1413,7 @@ public:
 			const MapAccessibilityAnalysis::Pose target_pose_px_copy(target_pose_px.x, target_pose_px.y, target_pose_px.theta);
 			if (data.planning_mode_ == FOOTPRINT)
 			{
+				const double map_resolution_inverse = 1.0/data.map_resolution_;	// in [pixel/m]
 				// check circles with growing radius around the desired point until a dislocation of data.coverage_radius_ would be exceeded
 				for (double factor=0.33; factor<=1.0 && found_next==false; factor+=0.33)
 				{
@@ -1451,20 +1441,19 @@ public:
 			}
 			else if (data.planning_mode_ == FIELD_OF_VIEW)
 			{
-				// todo: ATTENTION: this only applies to a centered field of view, i.e. with an fov to robot offset with only x component like [0.6, 0]
+				// todo: check if this now works correctly for arbitrary center offsets
 				// get the desired FoV-center position
 				MapAccessibilityAnalysis::Pose fov_center_px;		// in [px,px,rad]
-				fov_center_px.x = (target_pose_px_copy.x + std::cos(target_pose_px_copy.orientation)*distance_robot_fov_middlepoint_in_meter*map_resolution_inverse);
+				fov_center_px.x = (target_pose_px_copy.x + std::cos(target_pose_px_copy.orientation)*fov_circle_center_point_in_px.x - std::sin(target_pose_px_copy.orientation)*fov_circle_center_point_in_px.y);
 				//fov_center_px.x = (fov_center_px.x-data.map_origin_.position.x) / data.map_resolution_;
-				fov_center_px.y = (target_pose_px_copy.y + std::sin(target_pose_px_copy.orientation)*distance_robot_fov_middlepoint_in_meter*map_resolution_inverse);
+				fov_center_px.y = (target_pose_px_copy.y + std::sin(target_pose_px_copy.orientation)*fov_circle_center_point_in_px.x + std::cos(target_pose_px_copy.orientation)*fov_circle_center_point_in_px.y);
 				//fov_center_px.y = (fov_center_px.y-data.map_origin_.position.y) / data.map_resolution_;
 				fov_center_px.orientation = target_pose_px_copy.orientation;
 
 				// check perimeter for accessible poses
 				std::vector<MapAccessibilityAnalysis::Pose> accessible_poses_on_perimeter;
-				map_accessibility_analysis.checkPerimeter(accessible_poses_on_perimeter, fov_center_px,
-						distance_robot_fov_middlepoint_in_meter*map_resolution_inverse, PI/32., inflated_map,
-						true, cv::Point(current_pose_px.x, current_pose_px.y));
+				map_accessibility_analysis.checkPerimeter(accessible_poses_on_perimeter, fov_center_px, cv::norm(fov_circle_center_point_in_px),
+						PI/32., inflated_map, true, cv::Point(current_pose_px.x, current_pose_px.y));
 
 				// find the closest accessible point on this perimeter
 				double min_distance_sqr = std::numeric_limits<double>::max();
