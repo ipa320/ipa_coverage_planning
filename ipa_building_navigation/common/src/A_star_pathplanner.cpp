@@ -303,7 +303,7 @@ double AStarPlanner::planPath(const cv::Mat& map, const cv::Point& start_point, 
 		if (route_ == "")
 		{
 //			std::cout << "No path from " << start_point << " to " << end_point << " found for map of size " << map.rows << "x" << map.cols << " and downsampling factor " << downsampling_factor << std::endl;
-			return 1e10; //return extremely large distance as path length if the rout could not be generated
+			return 1e100; //return extremely large distance as path length if the rout could not be generated
 		}
 	}
 //	clock_t end = clock();
@@ -357,12 +357,12 @@ double AStarPlanner::planPath(const cv::Mat& map, const cv::Mat& downsampled_map
 //	cv::imshow("debug", debug);
 //	cv::waitKey();
 	double pathlength = step_length * planPath(downsampled_map, downsampling_factor*start_point, downsampling_factor*end_point, 1., 0., map_resolution, end_point_valid_neighborhood_radius, route);
-	if(pathlength > 1e9) //if no path can be found try with the original map
+	if(pathlength > 1e90) //if no path can be found try with the original map
 	{
 		pathlength = planPath(map, start_point, end_point, 1., 0., map_resolution, 1./downsampling_factor * end_point_valid_neighborhood_radius, route);
 		step_length = 1.;
 	}
-	if(pathlength > 1e9)
+	if(pathlength > 1e90)
 		std::cout << "######################### No path found on the originally sized map #######################" << std::endl;
 	else
 	{
