@@ -633,26 +633,15 @@ public:
 	// function that reads out the calculated paths and does the evaluation
 	void evaluateCoveragePaths(const ExplorationData& data, const std::vector<ExplorationConfig>& configs, const std::string data_storage_path)
 	{
-		// find the middle-point distance of the given field of view
-		std::vector<Eigen::Matrix<float, 2, 1> > fov_corners_meter(4);
-		for(int i = 0; i < 4; ++i)
-			fov_corners_meter[i] << data.fov_points_[i].x, data.fov_points_[i].y;
-		float fitting_circle_radius_in_meter=0;
-		Eigen::Matrix<float, 2, 1> fitting_circle_center_point_in_meter;
-		computeFOVCenterAndRadius(fov_corners_meter, fitting_circle_radius_in_meter, fitting_circle_center_point_in_meter, 1000);
-		// convert the middle-point to pixel measures
-		const cv::Point2d fov_circle_center_point_in_px(fitting_circle_center_point_in_meter(0,0)/data.map_resolution_, fitting_circle_center_point_in_meter(1,0)/data.map_resolution_);
-
 		// evaluate the individual configurations
 		for(std::vector<ExplorationConfig>::const_iterator config=configs.begin(); config!=configs.end(); ++config)
 		{
-			evaluateCoveragePaths(data, *config, data_storage_path, fov_circle_center_point_in_px);
+			evaluateCoveragePaths(data, *config, data_storage_path);
 		}
 	}
 
 	// function that reads out the calculated paths and does the evaluation for one configuration
-	void evaluateCoveragePaths(const ExplorationData& data, const ExplorationConfig& config, const std::string data_storage_path,
-			const cv::Point2d fov_circle_center_point_in_px)
+	void evaluateCoveragePaths(const ExplorationData& data, const ExplorationConfig& config, const std::string data_storage_path)
 	{
 		const std::string configuration_folder_name = config.generateConfigurationFolderString() + "/";
 		std::cout << configuration_folder_name << data.map_name_ << std::endl;
@@ -666,7 +655,9 @@ public:
 
 		// 2. prepare the data
 		cv::Mat map = data.floor_plan_.clone();
-
+		cv::Point2d fov_circle_center_point_in_px;
+		double grid_spacing_in_pixel = 0;
+		computeFOVCenterAndGridSpacing(data, fov_circle_center_point_in_px, grid_spacing_in_pixel);
 
 		// 3. path map, path length, turns, crossings statistics
 		//    overall, average path length and variance of it for the calculated paths and get the numbers of turns
@@ -737,7 +728,7 @@ public:
 		// 8. parallelism: for each part of the path calculate the parallelism with respect to the nearest wall and the nearest trajectory part
 		std::vector<double> wall_angle_score_means, trajectory_angle_score_means;	// score for parallelism of trajectory to walls and previous parts of the trajectory itself, in range [0,1], the higher the better
 		std::vector<double> revisit_time_means; // vector that stores the index-differences of the current pose and the point of its nearest neighboring trajectory
-		statisticsParallelism(data, map, path_map, paths, interpolated_paths, wall_angle_score_means, trajectory_angle_score_means, revisit_time_means);
+		statisticsParallelism(data, map, path_map, paths, interpolated_paths, grid_spacing_in_pixel, wall_angle_score_means, trajectory_angle_score_means, revisit_time_means);
 		// calculate mean and stddev of the wall angle scores
 		const double wall_angle_score_mean = std::accumulate(wall_angle_score_means.begin(), wall_angle_score_means.end(), 0.0) / std::max(1.0, (double)wall_angle_score_means.size());
 		const double wall_angle_score_stddev = stddev(wall_angle_score_means, wall_angle_score_mean);
@@ -935,6 +926,32 @@ public:
 		std::cout << "Finished reading file " << log_filename << std::endl;
 
 		return true;
+	}
+
+	void computeFOVCenterAndGridSpacing(const ExplorationData& data, cv::Point2d& fov_circle_center_point_in_px, double& grid_spacing_in_pixel)
+	{
+		// find the middle-point distance of the given field of view
+		std::vector<Eigen::Matrix<float, 2, 1> > fov_corners_meter(4);
+		for(int i = 0; i < 4; ++i)
+			fov_corners_meter[i] << data.fov_points_[i].x, data.fov_points_[i].y;
+		float fitting_circle_radius_in_meter=0;
+		Eigen::Matrix<float, 2, 1> fitting_circle_center_point_in_meter;
+		computeFOVCenterAndRadius(fov_corners_meter, fitting_circle_radius_in_meter, fitting_circle_center_point_in_meter, 1000);
+		// convert the middle-point to pixel measures
+		fov_circle_center_point_in_px = cv::Point2d(fitting_circle_center_point_in_meter(0,0)/data.map_resolution_, fitting_circle_center_point_in_meter(1,0)/data.map_resolution_);
+		// determine the grid spacing
+		double grid_spacing_in_meter = 0.0;		// is the square grid cell side length that fits into the circle with the robot's coverage radius or fov coverage radius
+		if(data.planning_mode_ == FIELD_OF_VIEW)	// derive grid spacing from FOV
+		{
+			// get the edge length of the grid square that fits into the fitting_circle_radius
+			grid_spacing_in_meter = fitting_circle_radius_in_meter*std::sqrt(2);
+		}
+		else	// if planning should be done for the footprint, read out the given coverage radius
+		{
+			grid_spacing_in_meter = data.coverage_radius_*std::sqrt(2);
+		}
+		grid_spacing_in_pixel = grid_spacing_in_meter/data.map_resolution_;		// is the square grid cell side length that fits into the circle with the robot's coverage radius or fov coverage radius, multiply with sqrt(2) to receive the whole working width
+		std::cout << "grid size: " << grid_spacing_in_meter << " m   (" << grid_spacing_in_pixel << " px)" << std::endl;
 	}
 
 	// compute the direction of the gradient for each pixel and save the occurring gradients
@@ -1236,12 +1253,13 @@ public:
 
 	void statisticsParallelism(const ExplorationData& data, const cv::Mat& map, const cv::Mat& path_map,
 			const std::vector<std::vector<geometry_msgs::Pose2D> >& paths, const std::vector<std::vector<geometry_msgs::Pose2D> >& interpolated_paths,
+			const double grid_spacing_in_pixel,
 			std::vector<double>& wall_angle_score_means, std::vector<double>& trajectory_angle_score_means, std::vector<double>& revisit_time_means)
 	{
 		// compute the direction of the gradient for each pixel and save the occurring gradients
 		cv::Mat gradient_map = computeGradientMap(map);
 
-		const double trajectory_parallelism_check_range = 1.0/data.map_resolution_; // valid check-radius when checking for the parallelism to another part of the trajectory, [pixels], TODO: use 1.5*grid_spacing_in_pixel
+		const double trajectory_parallelism_check_range = 2.0*grid_spacing_in_pixel;	//1.0/data.map_resolution_; // valid check-radius when checking for the parallelism to another part of the trajectory, [pixels]
 		int valid_room_index = 0; // used to find the interpolated paths, that are only computed for rooms with a valid path
 		for (size_t room=0; room<paths.size(); ++room)
 		{

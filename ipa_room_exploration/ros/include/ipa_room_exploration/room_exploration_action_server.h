@@ -116,7 +116,6 @@ class RoomExplorationServer
 {
 protected:
 
-	enum PlanningMode {PLAN_FOR_FOOTPRINT=1, PLAN_FOR_FOV=2};
 	int planning_mode_; // 1 = plans a path for coverage with the robot footprint, 2 = plans a path for coverage with the robot's field of view
 
 	ros::Publisher path_pub_; // a publisher sending the path as a nav_msgs::Path before executing
@@ -271,6 +270,8 @@ protected:
 	dynamic_reconfigure::Server<ipa_room_exploration::RoomExplorationConfig> room_exploration_dynamic_reconfigure_server_;
 
 public:
+	enum PlanningMode {PLAN_FOR_FOOTPRINT=1, PLAN_FOR_FOV=2};
+
 	// initialize the action-server
 	RoomExplorationServer(ros::NodeHandle nh, std::string name_of_the_action);
 
