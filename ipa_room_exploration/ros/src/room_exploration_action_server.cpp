@@ -366,9 +366,6 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		computeFOVCenterAndRadius(fov_corners_meter, fitting_circle_radius_in_meter, fitting_circle_center_point_in_meter, fov_resolution);
 		// get the edge length of the grid square that fits into the fitting_circle_radius
 		grid_spacing_in_meter = fitting_circle_radius_in_meter*std::sqrt(2);
-//		// todo: hack:
-//		if (goal->coverage_radius > 0)
-//			grid_spacing_in_meter = 2.*goal->coverage_radius;
 	}
 	else // if planning should be done for the footprint, read out the given coverage radius
 	{
