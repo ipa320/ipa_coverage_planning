@@ -54,29 +54,56 @@ public:
 						if (abort_computation_==true)
 							return;
 
-						if(paths!=NULL)
+						// try first with direct connecting line (often sufficient)
+						cv::LineIterator it(original_map, points[i], points[j]);
+						bool direct_connection = true;
+						for (int k=0; k<it.count && direct_connection==true; k++, ++it)
+							if (**it < 250)
+								direct_connection = false;		// if a pixel in between is not accessible, direct connection is not possible
+						if (direct_connection == true)
 						{
-							std::vector<cv::Point> current_path;
-							double length = path_planner.planPath(original_map, downsampled_map, points[i], points[j], downsampling_factor, 0., map_resolution, 0, NULL, &current_path);
+							// compute distance
+							const double length = cv::norm(points[i]-points[j]);
 							distance_matrix.at<double>(i, j) = length;
 							distance_matrix.at<double>(j, i) = length; //symmetrical-Matrix --> saves half the computation time
-
-							// remap path points to original map size
-							for(std::vector<cv::Point>::iterator point=current_path.begin(); point!=current_path.end(); ++point)
+							if (paths!=NULL)
 							{
-								point->x = point->x/downsampling_factor;
-								point->y = point->y/downsampling_factor;
+								// store path
+								cv::LineIterator it2(original_map, points[i], points[j]);
+								std::vector<cv::Point> current_path(it2.count);
+								for (int k=0; k<it2.count; k++, ++it2)
+									current_path[k] = it2.pos();
+								paths->at(i).at(j) = current_path;
+								paths->at(j).at(i) = current_path;
 							}
-
-							paths->at(i).at(j) = current_path;
-							paths->at(j).at(i) = current_path;
 						}
 						else
 						{
-							double length = path_planner.planPath(original_map, downsampled_map, points[i], points[j], downsampling_factor, 0., map_resolution);
-							distance_matrix.at<double>(i, j) = length;
-							distance_matrix.at<double>(j, i) = length; //symmetrical-Matrix --> saves half the computation time
+							// A* path planner
+							if(paths!=NULL)
+							{
+								std::vector<cv::Point> current_path;
+								double length = path_planner.planPath(original_map, downsampled_map, points[i], points[j], downsampling_factor, 0., map_resolution, 0, NULL, &current_path);
+								distance_matrix.at<double>(i, j) = length;
+								distance_matrix.at<double>(j, i) = length; //symmetrical-Matrix --> saves half the computation time
 
+								// remap path points to original map size
+								for(std::vector<cv::Point>::iterator point=current_path.begin(); point!=current_path.end(); ++point)
+								{
+									point->x = point->x/downsampling_factor;
+									point->y = point->y/downsampling_factor;
+								}
+
+								paths->at(i).at(j) = current_path;
+								paths->at(j).at(i) = current_path;
+							}
+							else
+							{
+								double length = path_planner.planPath(original_map, downsampled_map, points[i], points[j], downsampling_factor, 0., map_resolution);
+								distance_matrix.at<double>(i, j) = length;
+								distance_matrix.at<double>(j, i) = length; //symmetrical-Matrix --> saves half the computation time
+
+							}
 						}
 					}
 				}

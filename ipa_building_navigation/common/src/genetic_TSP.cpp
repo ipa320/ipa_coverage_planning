@@ -259,6 +259,7 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& original_map, 
 		double robot_radius, double map_resolution, const int start_Node, cv::Mat* distance_matrix)
 {
 	//calculate the distance matrix
+	std::cout << "GeneticTSPSolver::solveGeneticTSP: Constructing distance matrix..." << std::endl;
 	cv::Mat distance_matrix_ref;
 	if (distance_matrix != 0)
 		distance_matrix_ref = *distance_matrix;

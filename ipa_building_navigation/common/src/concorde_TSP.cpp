@@ -241,6 +241,7 @@ std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& original_map
 		double downsampling_factor, double robot_radius, double map_resolution, const int start_Node, cv::Mat* distance_matrix)
 {
 	//calculate the distance matrix
+	std::cout << "ConcordeTSPSolver::solveConcordeTSP: Constructing distance matrix..." << std::endl;
 	cv::Mat distance_matrix_ref;
 	if (distance_matrix != 0)
 		distance_matrix_ref = *distance_matrix;
