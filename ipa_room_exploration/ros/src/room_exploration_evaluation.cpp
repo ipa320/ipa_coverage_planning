@@ -747,7 +747,7 @@ public:
 		const double crossings_stddev = stddev(number_of_crossings, crossings_mean);
 
 		// 10. calculate the subjective measure for the paths
-		const double subjective_measure_mean = 0.5*(wall_angle_score_mean + trajectory_angle_score_mean)
+		const double subjective_measure_mean = wall_angle_score_mean + trajectory_angle_score_mean
 				-0.25*(crossings_mean/room_area_mean + pathlength_mean/room_area_mean + rotation_values_mean/(PI*room_area_mean) + revisit_time_mean);
 
 
