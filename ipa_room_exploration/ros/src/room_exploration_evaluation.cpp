@@ -664,11 +664,10 @@ public:
 	void evaluateCoveragePaths(const ExplorationData& data, const ExplorationConfig& config, const std::string data_storage_path,
 			const cv::Point2d fov_circle_center_point_in_px)
 	{
-		// todo: split into smaller functions
-
 		const std::string configuration_folder_name = config.generateConfigurationFolderString() + "/";
 		std::cout << configuration_folder_name << data.map_name_ << std::endl;
-		
+
+
 		// 1. get the location of the results and open this file, read out the given paths and computation times for all rooms
 		std::vector<std::vector<geometry_msgs::Pose2D> > paths;		// in [pixels]
 		std::vector<double> calculation_times;
@@ -677,8 +676,6 @@ public:
 
 		// 2. prepare the data
 		cv::Mat map = data.floor_plan_.clone();
-		// compute the direction of the gradient for each pixel and save the occurring gradients
-		cv::Mat gradient_map = computeGradientMap(map);
 
 
 		// 3. path map, path length, turns, crossings statistics
@@ -735,7 +732,7 @@ public:
 		const std::string path_coverage_image_path = data_storage_path + configuration_folder_name + data.map_name_ + "_coverage_paths_eval.png";
 		cv::imwrite(path_coverage_image_path.c_str(), map_path_coverage);
 		// calculate average coverage and deviation
-		const double coverage_percentage_mean = std::accumulate(area_covered_percentages.begin(), area_covered_percentages.end(), 0.0) / std::max(1.0, (double)interpolated_paths.size());
+		const double coverage_percentage_mean = std::accumulate(area_covered_percentages.begin(), area_covered_percentages.end(), 0.0) / std::max(1.0, (double)area_covered_percentages.size());
 		const double coverage_percentage_stddev = stddev(area_covered_percentages, coverage_percentage_mean);
 		const double coverage_number_mean = std::accumulate(numbers_of_coverages.begin(), numbers_of_coverages.end(), 0.0) / std::max(1.0, (double)numbers_of_coverages.size());
 		const double coverage_number_stddev = stddev(numbers_of_coverages, coverage_number_mean);
@@ -748,208 +745,19 @@ public:
 
 
 		// 8. parallelism: for each part of the path calculate the parallelism with respect to the nearest wall and the nearest trajectory part
-		std::vector<std::vector<double> > wall_angle_differences, trajectory_angle_differences;
-		std::vector<std::vector<double> > revisit_times; // vector that stores the index-differences of the current pose and the point of its nearest neighboring trajectory
-		const double trajectory_parallelism_check_range = 1.0/data.map_resolution_; // valid check-radius when checking for the parallelism to another part of the trajectory, [pixels], TODO: use 1.5*grid_spacing_in_pixel
-		int valid_room_index = 0; // used to find the interpolated paths, that are only computed for rooms with a valid path
-		for(size_t room=0; room<paths.size(); ++room)
-		{
-			if(paths[room].size()==0 || (paths[room][0].x==-1 && paths[room][0].y==-1))
-				continue;
-
-			std::vector<double> current_wall_angle_differences, current_trajectory_angle_differences;
-			std::vector<double> current_revisit_times;
-			for(std::vector<geometry_msgs::Pose2D>::iterator pose=paths[room].begin(); pose!=paths[room].end()-1; ++pose)
-			{
-				double dx = (pose+1)->x - pose->x;
-				double dy = (pose+1)->y - pose->y;
-				double norm = std::sqrt(dy*dy + dx*dx);
-				if(norm==0)
-					continue;
-				dx = dx/norm;
-				dy = dy/norm;
-
-				// go in the directions of both normals and find the nearest wall
-				int iteration_index = 0;
-				bool hit_wall = false, hit_trajectory = false, exceeded_trajectory_parallelism_check_range = false;
-				cv::Point2f n1(pose->x, pose->y), n2(pose->x, pose->y);
-				cv::Point wall_pixel, trajectory_pixel;
-				do
-				{
-					++iteration_index;
-
-					// update normals
-					n1.x -= dy;
-					n1.y += dx;
-					n2.x += dy;
-					n2.y -= dx;
-
-					// test if a wall/obstacle has been hit
-					if(map.at<uchar>(n1)==0 && hit_wall==false)
-					{
-						hit_wall = true;
-						wall_pixel = n1;
-					}
-					else if(map.at<uchar>(n2)==0 && hit_wall==false)
-					{
-						hit_wall = true;
-						wall_pixel = n2;
-					}
-
-					// only check the parallelism to another trajectory, if the range hasn't been exceeded yet
-					if(exceeded_trajectory_parallelism_check_range==false)
-					{
-						// test if another trajectory part has been hit, if the check-radius is still satisfied
-						const double dist1 = cv::norm(n1-cv::Point2f(pose->x, pose->y));
-						const double dist2 = cv::norm(n2-cv::Point2f(pose->x, pose->y));
-
-						if(path_map.at<uchar>(n1)==127 && dist1<=trajectory_parallelism_check_range && hit_trajectory==false)
-						{
-							hit_trajectory = true;
-							trajectory_pixel = n1;
-						}
-						else if(path_map.at<uchar>(n2)==127 && dist2<=trajectory_parallelism_check_range && hit_trajectory==false)
-						{
-							hit_trajectory = true;
-							trajectory_pixel = n2;
-						}
-
-						// if both distances exceed the valid check range, mark as finished
-						if(dist1>trajectory_parallelism_check_range && dist2>trajectory_parallelism_check_range)
-							exceeded_trajectory_parallelism_check_range = true;
-					}
-
-//						cv::Mat test_map = map.clone();
-//						cv::circle(test_map, cv::Point(pose->x, pose->y), 2, cv::Scalar(127), CV_FILLED);
-//						cv::circle(test_map, cv::Point((pose+1)->x, (pose+1)->y), 2, cv::Scalar(127), CV_FILLED);
-//						cv::circle(test_map, n1, 2, cv::Scalar(127), CV_FILLED);
-//						cv::circle(test_map, n2, 2, cv::Scalar(127), CV_FILLED);
-//						cv::imshow("normals", test_map);
-//						cv::waitKey();
-					// todo: check max. iterations
-				} while ((hit_wall==false && iteration_index<=1000) || (hit_trajectory==false && exceeded_trajectory_parallelism_check_range==false));
-
-				// if a wall/obstacle was found, determine the gradient at this position and compare it to the direction of the path
-//					double gradient;
-				if(hit_wall==true)
-				{
-					double gradient = gradient_map.at<double>(wall_pixel);
-					//cv::Point2f grad_vector(std::cos(gradient), std::sin(gradient));
-					cv::Point2f normal_vector(-std::sin(gradient), std::cos(gradient));
-					const double delta_theta = std::acos(normal_vector.x*dx + normal_vector.y*dy);
-					const double delta_theta_score = std::abs(0.5*PI-delta_theta)*(1./(0.5*PI));// parallel if delta_theta close to 0 or PI
-					current_wall_angle_differences.push_back(delta_theta_score);
-				}
-
-				// if another trajectory part could be found, determine the parallelism to it
-				if(hit_trajectory==true)
-				{
-					// find the trajectory point in the interpolated path
-					cv::Point2f world_neighbor((trajectory_pixel.x*data.map_resolution_)+data.map_origin_.position.x, (trajectory_pixel.y*data.map_resolution_)+data.map_origin_.position.y); // transform in world coordinates
-					int pose_index = pose-paths[room].begin();
-					int neighbor_index = -1;
-					for(std::vector<geometry_msgs::Pose2D>::const_iterator neighbor=interpolated_paths[valid_room_index].begin(); neighbor!=interpolated_paths[valid_room_index].end(); ++neighbor)
-					{
-//							std::cout << *neighbor << ", " << world_neighbor << std::endl;
-						if(world_neighbor.x==neighbor->x && world_neighbor.y==neighbor->y)
-						{
-//								std::cout << "gotz" << std::endl;
-							neighbor_index = neighbor-interpolated_paths[valid_room_index].begin();
-						}
-					}
-					if (neighbor_index == -1)
-						ROS_WARN("ExplorationEvaluation:evaluateCoveragePaths: parallelism check to trajectory, neighbor_index==-1 --> did not find the neighbor.");
-//						std::cout << "index: " << pose_index << ", n: " << neighbor_index << std::endl;
-
-					// save the found index difference, i.e. the difference in percentage of path completion between current node and neighboring path point
-					current_revisit_times.push_back(std::abs((double)pose_index/(double)paths[room].size() - (double)neighbor_index/(double)interpolated_paths[valid_room_index].size()));
-
-					// calculate the gradient-angle at the neighbor to get the difference
-					// -->	check gradient to previous and next pose to get the minimal one
-					double n_dx, n_dy;
-					double delta_theta1 = 1e3, delta_theta2 = 1e3;
-					if(neighbor_index<interpolated_paths[valid_room_index].size()-1) // neighbor not last node
-					{
-						n_dx = interpolated_paths[valid_room_index][neighbor_index+1].x-world_neighbor.x;		// todo: interpolate angle with broader horizon (this only yields 45deg steps)
-						n_dy = interpolated_paths[valid_room_index][neighbor_index+1].y-world_neighbor.y;
-						norm = std::sqrt(n_dx*n_dx + n_dy*n_dy);
-						n_dx = n_dx/norm;
-						n_dy = n_dy/norm;
-						delta_theta1 = std::acos(n_dx*dx + n_dy*dy);
-					}
-					if(neighbor_index>0) // neighbor not first node
-					{
-						n_dx = interpolated_paths[valid_room_index][neighbor_index-1].x-world_neighbor.x;
-						n_dy = interpolated_paths[valid_room_index][neighbor_index-1].y-world_neighbor.y;
-						norm = std::sqrt(n_dx*n_dx + n_dy*n_dy);
-						n_dx = n_dx/norm;
-						n_dy = n_dy/norm;
-						delta_theta2 = std::acos(n_dx*dx + n_dy*dy);
-					}
-					if(delta_theta1<delta_theta2 && delta_theta1!=1e3)
-					{
-						const double delta_theta_score = std::abs(0.5*PI-delta_theta1)*(1./(0.5*PI));// parallel if delta_theta close to 0 or PI
-						current_trajectory_angle_differences.push_back(delta_theta_score);
-//							std::cout << delta_theta1 << std::endl;
-					}
-					else if(delta_theta2<=delta_theta1 && delta_theta2!=1e3)
-					{
-						const double delta_theta_score = std::abs(0.5*PI-delta_theta2)*(1./(0.5*PI));// parallel if delta_theta close to 0 or PI
-						current_trajectory_angle_differences.push_back(delta_theta_score);
-//							std::cout << delta_theta2 << std::endl;
-					}
-				}
-			}
-//				std::cout << "got all gradients" << std::endl;
-
-			// save found values
-			wall_angle_differences.push_back(current_wall_angle_differences);
-			trajectory_angle_differences.push_back(current_trajectory_angle_differences);
-			revisit_times.push_back(current_revisit_times);
-
-			// increase path index
-			++valid_room_index;
-		}
-
-		// calculate the mean and deviation of the angle differences and revisit times for each room and overall
-		double average_wall_angle_difference = 0.0, average_trajectory_angle_difference = 0.0, average_revisit_times = 0.0;
-		std::vector<double> room_wall_averages, room_trajectory_averages, room_revisit_averages;
-		for(size_t room=0; room<wall_angle_differences.size(); ++room)
-		{
-			double current_room_average = std::accumulate(wall_angle_differences[room].begin(), wall_angle_differences[room].end(), 0.0);
-			current_room_average /= (double)wall_angle_differences[room].size();
-			average_wall_angle_difference += current_room_average;
-			room_wall_averages.push_back(current_room_average);
-		}
-		for(size_t room=0; room<trajectory_angle_differences.size(); ++room)
-		{
-			double current_room_average = std::accumulate(trajectory_angle_differences[room].begin(), trajectory_angle_differences[room].end(), 0.0);
-			current_room_average /= (double)trajectory_angle_differences[room].size();
-			average_trajectory_angle_difference += current_room_average;
-			room_trajectory_averages.push_back(current_room_average);
-		}
-		for(size_t room=0; room<revisit_times.size(); ++room)
-		{
-			double current_room_average = std::accumulate(revisit_times[room].begin(), revisit_times[room].end(), 0.0);
-			current_room_average /= (double)revisit_times[room].size();
-			average_revisit_times += current_room_average;
-			room_revisit_averages.push_back(current_room_average);
-		}
-		average_wall_angle_difference /= wall_angle_differences.size();
-		average_trajectory_angle_difference /= trajectory_angle_differences.size();
-		average_revisit_times /= revisit_times.size();
-		double wall_deviation = 0.0, trajectory_deviation = 0.0, revisit_deviation = 0.0;
-		for(size_t room=0; room<room_wall_averages.size(); ++room)
-			wall_deviation += std::pow(room_wall_averages[room]-average_wall_angle_difference, 2);
-		for(size_t room=0; room<room_trajectory_averages.size(); ++room)
-			trajectory_deviation += std::pow(room_trajectory_averages[room]-average_trajectory_angle_difference, 2);
-		for(size_t room=0; room<room_revisit_averages.size(); ++room)
-			revisit_deviation += std::pow(room_revisit_averages[room]-average_revisit_times, 2);
-		wall_deviation /= room_wall_averages.size();
-		trajectory_deviation /= room_trajectory_averages.size();
-		revisit_deviation /= room_revisit_averages.size();
+		std::vector<double> wall_angle_score_means, trajectory_angle_score_means;	// score for parallelism of trajectory to walls and previous parts of the trajectory itself, in range [0,1], the higher the better
+		std::vector<double> revisit_time_means; // vector that stores the index-differences of the current pose and the point of its nearest neighboring trajectory
+		statisticsParallelism(data, map, path_map, paths, interpolated_paths, wall_angle_score_means, trajectory_angle_score_means, revisit_time_means);
+		// calculate mean and stddev of the wall angle scores
+		const double wall_angle_score_mean = std::accumulate(wall_angle_score_means.begin(), wall_angle_score_means.end(), 0.0) / std::max(1.0, (double)wall_angle_score_means.size());
+		const double wall_angle_score_stddev = stddev(wall_angle_score_means, wall_angle_score_mean);
+		// calculate mean and stddev of the trajectory angle scores
+		const double trajectory_angle_score_mean = std::accumulate(trajectory_angle_score_means.begin(), trajectory_angle_score_means.end(), 0.0) / std::max(1.0, (double)trajectory_angle_score_means.size());
+		const double trajectory_angle_score_stddev = stddev(trajectory_angle_score_means, trajectory_angle_score_mean);
+		// calculate mean and stddev of the trajectory revisit times
+		const double revisit_time_mean = std::accumulate(revisit_time_means.begin(), revisit_time_means.end(), 0.0) / std::max(1.0, (double)revisit_time_means.size());;
+		const double revisit_time_stddev = stddev(revisit_time_means, revisit_time_mean);
 		std::cout << "Checked parallelism for all rooms." << std::endl;
-//--------------------------------------
 
 
 		// 9. calculate the number of crossings related values
@@ -958,8 +766,8 @@ public:
 
 		// 10. calculate the subjective measure for the paths
 		// TODO: set up the correct computation --> external computation so far
-		double subjective_measure = average_wall_angle_difference + average_trajectory_angle_difference
-				- 1.0*pathlength_mean - 1.0*computation_time_mean - 1.0*average_revisit_times - 1.0/3.0*crossings_mean - 1.0*number_of_rotations_mean;
+		double subjective_measure = wall_angle_score_mean + trajectory_angle_score_mean
+				- 1.0*pathlength_mean - 1.0*computation_time_mean - 1.0*revisit_time_mean - 1.0/3.0*crossings_mean - 1.0*number_of_rotations_mean;
 		subjective_measure /= 7.0;
 
 
@@ -975,8 +783,9 @@ public:
 				<< "execution time total [s]\t" << "execution time average [s]\t" << "execution time stddev\t"
 				<< "covered area average [m^2]\t" << "covered area stddev [m^2]\t" << "coverage per map cell average\t" << "coverage per map cell deviation\t"
 				<< "number of crossings average\t" << "number of crossings stddev\t"
-				<< "average wall angle difference\t" << "wall angle difference deviation\t" << "average trajectory angle difference\t"
-				<< "trajectory angle difference deviation\t" << "average time until traj. is near previous traj.\t" << "deviation of previous\t"
+				<< "wall angle score average\t" << "wall angle score stddev\t"
+				<< "trajectory angle score average\t" << "trajectory angle score stddev\t"
+				<< "average time until traj. is near previous traj.\t" << "stddev of revisit time\t"
 				<< "subjective measure\t"<< std::endl;
 		output << computation_time_mean << "\t" << computation_time_stddev << "\t"
 				<< pathlength_total << "\t" << pathlength_mean << "\t" << pathlength_stddev << "\t"
@@ -985,8 +794,9 @@ public:
 				<< execution_time_total << "\t" << execution_time_mean << "\t" << execution_time_stddev << "\t"
 				<< coverage_percentage_mean << "\t" << coverage_percentage_stddev << "\t" << coverage_number_mean << "\t" << coverage_number_stddev << "\t"
 				<< crossings_mean << "\t" << crossings_stddev << "\t"
-				<< average_wall_angle_difference << "\t" << wall_deviation << "\t" << average_trajectory_angle_difference << "\t"
-				<< trajectory_deviation << "\t" << average_revisit_times << "\t" << revisit_deviation << "\t"
+				<< wall_angle_score_mean << "\t" << wall_angle_score_stddev << "\t"
+				<< trajectory_angle_score_mean << "\t" << trajectory_angle_score_stddev << "\t"
+				<< revisit_time_mean << "\t" << revisit_time_stddev << "\t"
 				<< subjective_measure;
 		std::string filename = data_storage_path + configuration_folder_name + data.map_name_ + "_results_eval.txt";
 		std::ofstream file(filename.c_str(), std::ofstream::out);
@@ -999,21 +809,21 @@ public:
 		// print detailed information for each room to a separate file
 		if (calculation_times.size()!=pathlengths_for_map.size() || calculation_times.size()!=rotation_values.size() ||
 			calculation_times.size()!= area_covered_percentages.size() || calculation_times.size()!= room_areas.size() ||
-			calculation_times.size()!= room_trajectory_averages.size() || calculation_times.size()!= room_wall_averages.size() || calculation_times.size()!= room_revisit_averages.size() ||
+			calculation_times.size()!= trajectory_angle_score_means.size() || calculation_times.size()!= wall_angle_score_means.size() || calculation_times.size()!= revisit_time_means.size() ||
 			calculation_times.size()!=number_of_crossings.size() || calculation_times.size()!=number_of_rotations.size())
 		{
 			std::cout << "Error in evaluation: array sizes do not match:\n calculation_times.size()=" << calculation_times.size()
 					<< "\n pathlengths_for_map.size()=" << pathlengths_for_map.size() << "\n rotation_values.size()=" << rotation_values.size()
 					<< "\n area_covered_percentages.size()=" << area_covered_percentages.size() << "\n room_areas.size()=" << room_areas.size()
-					<< "\n room_trajectory_averages.size()=" << room_trajectory_averages.size() << "\n room_wall_averages.size()=" << room_wall_averages.size()
-					<< "\n room_revisit_averages.size()=" << room_revisit_averages.size() << "\n numbers_of_crossings.size()=" << number_of_crossings.size()
+					<< "\n trajectory_angle_score_means.size()=" << trajectory_angle_score_means.size() << "\n room_wall_averages.size()=" << wall_angle_score_means.size()
+					<< "\n room_revisit_averages.size()=" << revisit_time_means.size() << "\n numbers_of_crossings.size()=" << number_of_crossings.size()
 					<< "\n number_of_rotations.size()=" << number_of_rotations.size() << std::endl;
 		}
 		std::stringstream output2;
 		for (size_t i=0; i<pathlengths_for_map.size(); ++i)
 		{
 			output2 << calculation_times[i] << "\t" << pathlengths_for_map[i] << "\t" << rotation_values[i] << "\t" << area_covered_percentages[i]
-					<< "\t" << room_areas[i] << "\t" << room_trajectory_averages[i] << "\t" << room_wall_averages[i] << "\t" << room_revisit_averages[i]
+					<< "\t" << room_areas[i] << "\t" << trajectory_angle_score_means[i] << "\t" << wall_angle_score_means[i] << "\t" << revisit_time_means[i]
 					<< "\t" << number_of_crossings[i] << "\t" << number_of_rotations[i] << std::endl;
 		}
 		filename = data_storage_path + configuration_folder_name + data.map_name_ + "_results_eval_per_room.txt";
@@ -1138,27 +948,38 @@ public:
 	}
 
 	// compute the direction of the gradient for each pixel and save the occurring gradients
-	cv::Mat computeGradientMap(const cv::Mat& map)
+	cv::Mat computeGradientMap(const cv::Mat& map, bool return_angles=false)
 	{
 		// calculate the gradient x/y directions for each pixel in the map
 		cv::Mat gradient_x, gradient_y;
-		cv::Mat gradient_map = cv::Mat(map.rows, map.cols, CV_64F, cv::Scalar(0));
+		cv::Mat gradient_map;
 		cv::Sobel(map, gradient_x, CV_64F, 1, 0, 3, 1.0, 0.0, cv::BORDER_DEFAULT);
 		cv::Sobel(map, gradient_y, CV_64F, 0, 1, 3, 1.0, 0.0, cv::BORDER_DEFAULT);
 
-		// compute the direction of the gradient for each pixel and save the occurring gradients
-		for(size_t y=0; y<map.rows; ++y)
+		if (return_angles==true)
 		{
-			for(size_t x=0; x<map.cols; ++x)
+			gradient_map = cv::Mat(map.rows, map.cols, CV_64F, cv::Scalar(0));
+			// compute the direction of the gradient for each pixel and save the occurring gradients
+			for(size_t y=0; y<map.rows; ++y)
 			{
-				int dx = gradient_x.at<double>(y,x);
-				int dy = gradient_y.at<double>(y,x);
-				if(dy*dy+dx*dx!=0)
+				for(size_t x=0; x<map.cols; ++x)
 				{
-					double current_gradient = std::atan2(dy, dx);
-					gradient_map.at<double>(y,x) = current_gradient;
+					int dx = gradient_x.at<double>(y,x);
+					int dy = gradient_y.at<double>(y,x);
+					if(dy*dy+dx*dx!=0)
+					{
+						double current_gradient = std::atan2(dy, dx);
+						gradient_map.at<double>(y,x) = current_gradient;
+					}
 				}
 			}
+		}
+		else
+		{
+			std::vector<cv::Mat> channels;
+			channels.push_back(gradient_x);
+			channels.push_back(gradient_y);
+			cv::merge(channels, gradient_map);
 		}
 		return gradient_map;
 	}
@@ -1442,6 +1263,178 @@ public:
 				if (path_map.at<uchar>(v,u)==127 || path_map.at<uchar>(v,u)==196)
 					map_path_coverage.at<uchar>(v,u) = path_map.at<uchar>(v,u);
 			}
+		}
+	}
+
+	void statisticsParallelism(const ExplorationData& data, const cv::Mat& map, const cv::Mat& path_map,
+			const std::vector<std::vector<geometry_msgs::Pose2D> >& paths, const std::vector<std::vector<geometry_msgs::Pose2D> >& interpolated_paths,
+			std::vector<double>& wall_angle_score_means, std::vector<double>& trajectory_angle_score_means, std::vector<double>& revisit_time_means)
+	{
+		// compute the direction of the gradient for each pixel and save the occurring gradients
+		cv::Mat gradient_map = computeGradientMap(map);
+
+		const double trajectory_parallelism_check_range = 1.0/data.map_resolution_; // valid check-radius when checking for the parallelism to another part of the trajectory, [pixels], TODO: use 1.5*grid_spacing_in_pixel
+		int valid_room_index = 0; // used to find the interpolated paths, that are only computed for rooms with a valid path
+		for (size_t room=0; room<paths.size(); ++room)
+		{
+			if (paths[room].size()==0 || (paths[room][0].x==-1 && paths[room][0].y==-1))
+				continue;
+
+			std::vector<double> current_wall_angle_scores, current_trajectory_angle_scores;		// values in [0,1], high values are good
+			std::vector<double> current_revisit_times;
+			for (std::vector<geometry_msgs::Pose2D>::const_iterator pose=paths[room].begin(); pose!=paths[room].end()-1; ++pose)
+			{
+				double dx = (pose+1)->x - pose->x;
+				double dy = (pose+1)->y - pose->y;
+				double norm = std::sqrt(dy*dy + dx*dx);
+				if(norm==0)
+					continue;	// skip if the point and its successor are the same
+				dx = dx/norm;
+				dy = dy/norm;
+
+				// go in the directions of both normals and find the nearest wall
+				bool hit_wall = false, hit_trajectory = false, exceeded_trajectory_parallelism_check_range = false;
+				bool n1_ok = true, n2_ok = true;
+				cv::Point2f n1(pose->x, pose->y), n2(pose->x, pose->y);
+				cv::Point wall_pixel, trajectory_pixel;
+				do
+				{
+					// update normals
+					n1.x -= dy;
+					n1.y += dx;
+					n2.x += dy;
+					n2.y -= dx;
+
+					// test for coordinates inside image
+					if (n1.x<0.f || n1.y<0.f || (int)n1.x >= map.cols || (int)n1.y >= map.rows)
+						n1_ok = false;
+					if (n2.x<0.f || n2.y<0.f || (int)n2.x >= map.cols || (int)n2.y >= map.rows)
+						n2_ok = false;
+
+					// test if a wall/obstacle has been hit
+					if (hit_wall==false && n1_ok==true && map.at<uchar>(n1)==0)
+					{
+						hit_wall = true;
+						n1_ok = false;		// do not further search with direction that has found a wall
+						wall_pixel = n1;
+					}
+					else if (hit_wall==false && n2_ok==true && map.at<uchar>(n2)==0)
+					{
+						hit_wall = true;
+						n2_ok = false;		// do not further search with direction that has found a wall
+						wall_pixel = n2;
+					}
+
+					// only search for the parallelism to another trajectory if the range hasn't been exceeded yet
+					if (exceeded_trajectory_parallelism_check_range==false && hit_trajectory==false)
+					{
+						// test if another trajectory part has been hit, if the check-radius is still satisfied
+						const double dist1 = cv::norm(n1-cv::Point2f(pose->x, pose->y));
+						const double dist2 = cv::norm(n2-cv::Point2f(pose->x, pose->y));
+
+						if (n1_ok==true && dist1<=trajectory_parallelism_check_range && path_map.at<uchar>(n1)==127)
+						{
+							hit_trajectory = true;
+							trajectory_pixel = n1;
+						}
+						else if (n2_ok==true && dist2<=trajectory_parallelism_check_range && path_map.at<uchar>(n2)==127)
+						{
+							hit_trajectory = true;
+							trajectory_pixel = n2;
+						}
+
+						// if both distances exceed the valid check range, mark as finished
+						if (dist1>trajectory_parallelism_check_range && dist2>trajectory_parallelism_check_range)
+							exceeded_trajectory_parallelism_check_range = true;
+					}
+
+//					cv::Mat test_map = map.clone();
+//					cv::circle(test_map, cv::Point(pose->x, pose->y), 2, cv::Scalar(127), CV_FILLED);
+//					cv::circle(test_map, cv::Point((pose+1)->x, (pose+1)->y), 2, cv::Scalar(127), CV_FILLED);
+//					cv::circle(test_map, n1, 2, cv::Scalar(127), CV_FILLED);
+//					cv::circle(test_map, n2, 2, cv::Scalar(127), CV_FILLED);
+//					cv::imshow("normals", test_map);
+//					cv::waitKey();
+				} while ((n1_ok || n2_ok) && ((hit_wall==false) || (hit_trajectory==false && exceeded_trajectory_parallelism_check_range==false)));
+
+				// if a wall/obstacle was found, determine the gradient at this position and compare it to the direction of the path
+				if (hit_wall==true)
+				{
+					cv::Vec2d gradient = gradient_map.at<cv::Vec2d>(wall_pixel);
+					cv::Point2f normal_vector(-gradient.val[1], gradient.val[0]);
+					const double normal_norm = cv::norm(normal_vector);
+					normal_vector *= (float)(normal_norm!=0. ? 1./normal_norm : 1.);
+					const double delta_theta = std::acos(normal_vector.x*dx + normal_vector.y*dy);
+					const double delta_theta_score = std::abs(0.5*PI-delta_theta)*(1./(0.5*PI));// parallel if delta_theta close to 0 or PI
+					current_wall_angle_scores.push_back(delta_theta_score);
+				}
+
+				// if another trajectory part could be found, determine the parallelism to it
+				if (hit_trajectory==true)
+				{
+					// find the trajectory point in the interpolated path
+					cv::Point2f trajectory_point_m((trajectory_pixel.x*data.map_resolution_)+data.map_origin_.position.x, (trajectory_pixel.y*data.map_resolution_)+data.map_origin_.position.y); // transform in world coordinates
+					int pose_index = pose-paths[room].begin();
+					int neighbor_index = -1;
+					for (std::vector<geometry_msgs::Pose2D>::const_iterator neighbor=interpolated_paths[valid_room_index].begin(); neighbor!=interpolated_paths[valid_room_index].end(); ++neighbor)
+						if (cv::norm(trajectory_point_m-cv::Point2f(neighbor->x,neighbor->y)) < 0.5*data.map_resolution_)
+							neighbor_index = neighbor-interpolated_paths[valid_room_index].begin();
+					if (neighbor_index == -1)
+						ROS_WARN("ExplorationEvaluation:evaluateCoveragePaths: parallelism check to trajectory, neighbor_index==-1 --> did not find the neighbor for trajectory point (%f,%f)m.", trajectory_point_m.x, trajectory_point_m.y);
+//						std::cout << "index: " << pose_index << ", n: " << neighbor_index << std::endl;
+
+					// save the found index difference, i.e. the difference in percentage of path completion between current node and neighboring path point
+					current_revisit_times.push_back(std::abs((double)pose_index/(double)paths[room].size() - (double)neighbor_index/(double)interpolated_paths[valid_room_index].size()));
+
+					// calculate the trajectory direction at the neighbor to get the difference
+					const double n_dx = cos(interpolated_paths[valid_room_index][neighbor_index].theta);
+					const double n_dy = sin(interpolated_paths[valid_room_index][neighbor_index].theta);
+					const double delta_theta = std::acos(n_dx*dx + n_dy*dy);	// acos delivers in range [0,Pi]
+					const double delta_theta_score = std::abs(0.5*PI-delta_theta)*(1./(0.5*PI));// parallel if delta_theta close to 0 or PI
+					current_trajectory_angle_scores.push_back(delta_theta_score);
+
+					// todo: delete
+//					double delta_theta1 = 1e3, delta_theta2 = 1e3;
+//					if(neighbor_index<interpolated_paths[valid_room_index].size()-1) // neighbor not last node
+//					{
+//						n_dx = interpolated_paths[valid_room_index][neighbor_index+1].x-trajectory_point_m.x;		// todo: interpolate angle with broader horizon (this only yields 45deg steps)
+//						n_dy = interpolated_paths[valid_room_index][neighbor_index+1].y-trajectory_point_m.y;
+//						norm = std::sqrt(n_dx*n_dx + n_dy*n_dy);
+//						// todo: div 0
+//						n_dx = n_dx/norm;
+//						n_dy = n_dy/norm;
+//						delta_theta1 = std::acos(n_dx*dx + n_dy*dy);	// acos delivers in range [0,Pi]
+//					}
+//					if(neighbor_index>0) // neighbor not first node
+//					{
+//						n_dx = interpolated_paths[valid_room_index][neighbor_index-1].x-trajectory_point_m.x;
+//						n_dy = interpolated_paths[valid_room_index][neighbor_index-1].y-trajectory_point_m.y;
+//						norm = std::sqrt(n_dx*n_dx + n_dy*n_dy);
+//						n_dx = n_dx/norm;
+//						n_dy = n_dy/norm;
+//						delta_theta2 = std::acos(n_dx*dx + n_dy*dy);	// acos delivers in range [0,Pi]
+//					}
+//					if(delta_theta1<delta_theta2 && delta_theta1!=1e3)
+//					{
+//						const double delta_theta_score = std::abs(0.5*PI-delta_theta1)*(1./(0.5*PI));// parallel if delta_theta close to 0 or PI
+//						current_trajectory_angle_scores.push_back(delta_theta_score);
+////							std::cout << delta_theta1 << std::endl;
+//					}
+//					else if(delta_theta2<=delta_theta1 && delta_theta2!=1e3)
+//					{
+//						const double delta_theta_score = std::abs(0.5*PI-delta_theta2)*(1./(0.5*PI));// parallel if delta_theta close to 0 or PI
+//						current_trajectory_angle_scores.push_back(delta_theta_score);
+////							std::cout << delta_theta2 << std::endl;
+//					}
+				}
+			}
+			// save found values
+			wall_angle_score_means.push_back(std::accumulate(current_wall_angle_scores.begin(), current_wall_angle_scores.end(), 0.0) / std::max(1.0, (double)current_wall_angle_scores.size()));
+			trajectory_angle_score_means.push_back(std::accumulate(current_trajectory_angle_scores.begin(), current_trajectory_angle_scores.end(), 0.0) / std::max(1.0, (double)current_trajectory_angle_scores.size()));
+			revisit_time_means.push_back(std::accumulate(current_revisit_times.begin(), current_revisit_times.end(), 0.0) / std::max(1.0, (double)current_revisit_times.size()));
+
+			// increase path index
+			++valid_room_index;
 		}
 	}
 
