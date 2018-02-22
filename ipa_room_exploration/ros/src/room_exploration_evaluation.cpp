@@ -1596,7 +1596,7 @@ int main(int argc, char **argv)
 	const float map_resolution = 0.05;		// [m/cell]
 
 	ExplorationEvaluation ev(nh, test_map_path, map_names, map_resolution, data_storage_path, robot_radius, coverage_radius, fov_points, planning_mode,
-			exploration_algorithms, robot_speed, robot_rotation_speed, true, true);
+			exploration_algorithms, robot_speed, robot_rotation_speed, true, false);
 	ros::shutdown();
 
 	//exit
