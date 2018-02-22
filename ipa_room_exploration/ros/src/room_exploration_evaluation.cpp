@@ -262,16 +262,6 @@ protected:
 		return sqrt(stddev)/(values.size()-1);
 	}
 
-//	// todo: obsolete
-//	// normalizes an angle into the range [-PI, PI)
-//	void normalizeAngle(double& angle)
-//	{
-//		while (angle < -PI)
-//			angle += 2*PI;
-//		while (angle >= PI)
-//			angle -= 2*PI;
-//	}
-
 	ros::NodeHandle node_handle_;
 
 public:
@@ -1047,7 +1037,6 @@ public:
 			current_pose_path_meter.push_back(initial_pose_m);
 
 			// loop through trajectory points
-			double previous_angle = paths[room].begin()->theta;
 			for(std::vector<geometry_msgs::Pose2D>::const_iterator pose_px=paths[room].begin()+initial_pose_index+1; pose_px!=paths[room].end(); ++pose_px)
 			{
 				// if a false pose has been saved, skip it
@@ -1065,20 +1054,6 @@ public:
 					std::cout << "   skipping next_pose_px=(" << next_pose_px.x << "," << next_pose_px.y << ") inaccessible from current_pose_px=(" << current_pose_px.x << "," << current_pose_px.y << ")" << std::endl;
 					continue;	// if no accessible position could be found, go to next possible path point
 				}
-
-				// todo: delete
-//				// get the angle and check if it is the same as before, if not add the rotation
-//				double angle_difference = next_pose_px.theta - previous_angle;
-//				normalizeAngle(angle_difference);
-//				angle_difference = std::abs(angle_difference);
-//				if(angle_difference!=0.0)
-//				{
-//					current_rotation_abs += angle_difference;
-//					if (angle_difference > 0.52)		//0.1	// only count substantial rotations > 30deg
-//						++current_number_of_rotations;
-//				}
-//				// save current angle of pose
-//				previous_angle = next_pose_px.theta;
 
 				// find pathlength and path between two consecutive poses
 				std::vector<cv::Point> current_interpolated_path;	// vector that stores the current path from one pose to another
@@ -1112,13 +1087,6 @@ public:
 					current_pose.x = (point->x*data.map_resolution_)+data.map_origin_.position.x;
 					current_pose.y = (point->y*data.map_resolution_)+data.map_origin_.position.y;
 					current_pose.theta = 0;		// the angles are computed afterwards with some smoothing interpolation
-
-					// todo: delete
-//					// if the current point is the last, use the provided angle
-//					if(point-current_interpolated_path.begin()==current_interpolated_path.size()-1)
-//						current_pose.theta = next_pose_px.theta;	//(pose_px+1)->theta;	//next_pose_px?
-//					else // calculate angle s.t. it points to the next point
-//						current_pose.theta = std::atan2((point+1)->y-point->y, (point+1)->x-point->x);			// check if this makes sense (orientation computation at pixel level): it is not always perfect (straight lines with a pixel jump), but a sufficient approximation
 
 					// add the pose to the path
 					current_pose_path_meter.push_back(current_pose);
@@ -1392,40 +1360,6 @@ public:
 					const double delta_theta = std::acos(n_dx*dx + n_dy*dy);	// acos delivers in range [0,Pi]
 					const double delta_theta_score = std::abs(0.5*PI-delta_theta)*(1./(0.5*PI));// parallel if delta_theta close to 0 or PI
 					current_trajectory_angle_scores.push_back(delta_theta_score);
-
-					// todo: delete
-//					double delta_theta1 = 1e3, delta_theta2 = 1e3;
-//					if(neighbor_index<interpolated_paths[valid_room_index].size()-1) // neighbor not last node
-//					{
-//						n_dx = interpolated_paths[valid_room_index][neighbor_index+1].x-trajectory_point_m.x;		// todo: interpolate angle with broader horizon (this only yields 45deg steps)
-//						n_dy = interpolated_paths[valid_room_index][neighbor_index+1].y-trajectory_point_m.y;
-//						norm = std::sqrt(n_dx*n_dx + n_dy*n_dy);
-//						// todo: div 0
-//						n_dx = n_dx/norm;
-//						n_dy = n_dy/norm;
-//						delta_theta1 = std::acos(n_dx*dx + n_dy*dy);	// acos delivers in range [0,Pi]
-//					}
-//					if(neighbor_index>0) // neighbor not first node
-//					{
-//						n_dx = interpolated_paths[valid_room_index][neighbor_index-1].x-trajectory_point_m.x;
-//						n_dy = interpolated_paths[valid_room_index][neighbor_index-1].y-trajectory_point_m.y;
-//						norm = std::sqrt(n_dx*n_dx + n_dy*n_dy);
-//						n_dx = n_dx/norm;
-//						n_dy = n_dy/norm;
-//						delta_theta2 = std::acos(n_dx*dx + n_dy*dy);	// acos delivers in range [0,Pi]
-//					}
-//					if(delta_theta1<delta_theta2 && delta_theta1!=1e3)
-//					{
-//						const double delta_theta_score = std::abs(0.5*PI-delta_theta1)*(1./(0.5*PI));// parallel if delta_theta close to 0 or PI
-//						current_trajectory_angle_scores.push_back(delta_theta_score);
-////							std::cout << delta_theta1 << std::endl;
-//					}
-//					else if(delta_theta2<=delta_theta1 && delta_theta2!=1e3)
-//					{
-//						const double delta_theta_score = std::abs(0.5*PI-delta_theta2)*(1./(0.5*PI));// parallel if delta_theta close to 0 or PI
-//						current_trajectory_angle_scores.push_back(delta_theta_score);
-////							std::cout << delta_theta2 << std::endl;
-//					}
 				}
 			}
 			// save found values
