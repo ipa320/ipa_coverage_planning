@@ -1508,13 +1508,13 @@ int main(int argc, char **argv)
 
 	// prepare relevant floor map data
 	std::vector< std::string > map_names;
-	map_names.push_back("lab_ipa");
+//	map_names.push_back("lab_ipa");
 //	map_names.push_back("lab_c_scan");
 //	map_names.push_back("Freiburg52_scan");
 //	map_names.push_back("Freiburg79_scan");
-//	map_names.push_back("lab_b_scan");
-//	map_names.push_back("lab_intel");
-//	map_names.push_back("Freiburg101_scan");
+	map_names.push_back("lab_b_scan");
+	map_names.push_back("lab_intel");
+	map_names.push_back("Freiburg101_scan");
 //	map_names.push_back("lab_d_scan");
 //	map_names.push_back("lab_f_scan");
 //	map_names.push_back("lab_a_scan");
@@ -1550,8 +1550,8 @@ int main(int argc, char **argv)
 //	map_names.push_back("office_i_furnitures");
 
 	std::vector<int> exploration_algorithms;
-//	exploration_algorithms.push_back(1);	// grid point exploration
-	exploration_algorithms.push_back(2);	// boustrophedon exploration
+	exploration_algorithms.push_back(1);	// grid point exploration
+//	exploration_algorithms.push_back(2);	// boustrophedon exploration
 //	exploration_algorithms.push_back(3);	// neural network exploration
 //	exploration_algorithms.push_back(4);	// convex SPP exploration
 //	exploration_algorithms.push_back(5);	// flow network exploration

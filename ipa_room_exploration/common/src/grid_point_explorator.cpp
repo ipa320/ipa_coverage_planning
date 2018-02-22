@@ -154,6 +154,8 @@ void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	// solve the Traveling Salesman Problem
 	std::cout << "Finding optimal order of the " << grid_points.size() << " found points. Start-index: " << min_index << std::endl;
 	const double map_downsampling_factor = 0.25;
+	// todo: compute distance matrix for TSP (outside of time limits for solving TSP)
+
 	// solve TSP
 	bool finished = false;
 	std::vector<int> optimal_order;

@@ -91,7 +91,7 @@ std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& path_l
 	return calculated_order;
 }
 
-//compute distancematrix without returning it
+// compute distance matrix without returning it
 std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& original_map, const std::vector<cv::Point>& points,
 		double downsampling_factor, double robot_radius, double map_resolution, const int start_node, cv::Mat* distance_matrix)
 {
@@ -103,10 +103,24 @@ std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& origin
 	DistanceMatrix distance_matrix_computation;
 	distance_matrix_computation.constructDistanceMatrix(distance_matrix_ref, original_map, points, downsampling_factor, robot_radius, map_resolution, pathplanner_);
 
-	// todo: check whether distance matrix contains infinite path lengths and if this is true, create a new distance matrix with maximum size clique of reachable points
-	// then solve TSP and re-index points to original indices
-	// and do not forget to copy fix to ipa_building_navigation
+	// check whether distance matrix contains infinite path lengths and if this is true, create a new distance matrix with maximum size clique of reachable points
+	cv::Mat distance_matrix_cleaned;
+	std::map<int,int> cleaned_index_to_original_index_mapping;	//maps the indices of the cleaned distance_matrix to the original indices of the original distance_matrix
+	distance_matrix_computation.cleanDistanceMatrix(distance_matrix_ref, distance_matrix_cleaned, cleaned_index_to_original_index_mapping);
 
-	return (solveNearestTSP(distance_matrix_ref, start_node));
+	// re-assign the start node to cleaned indices (use 0 if the original start node was removed from distance_matrix_cleaned)
+	int new_start_node = 0;
+	for (std::map<int,int>::iterator it=cleaned_index_to_original_index_mapping.begin(); it!=cleaned_index_to_original_index_mapping.end(); ++it)
+		if (it->second == start_node)
+			new_start_node = it->first;
+
+	// solve TSP and re-index points to original indices
+	std::vector<int> optimal_order = solveNearestTSP(distance_matrix_cleaned, new_start_node);
+	for (size_t i=0; i<optimal_order.size(); ++i)
+		optimal_order[i] = cleaned_index_to_original_index_mapping[optimal_order[i]];
+
+	// todo: and do not forget to copy fix to ipa_building_navigation
+
+	return optimal_order;
 }
 
