@@ -95,7 +95,7 @@ std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& path_l
 std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& original_map, const std::vector<cv::Point>& points,
 		double downsampling_factor, double robot_radius, double map_resolution, const int start_node, cv::Mat* distance_matrix)
 {
-	//TODO: überarbeiten, funktioniert noch nicht mit Pointer dass distanzmatrix dann außen verfügbar
+	std::cout << "NearestNeighborTSPSolver::solveNearestTSP: Contructing distance matrix..." << std::endl;
 	//calculate the distance matrix
 	cv::Mat distance_matrix_ref;
 	if (distance_matrix != 0)
@@ -103,7 +103,7 @@ std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& origin
 	DistanceMatrix distance_matrix_computation;
 	distance_matrix_computation.constructDistanceMatrix(distance_matrix_ref, original_map, points, downsampling_factor, robot_radius, map_resolution, pathplanner_);
 
-	// todo: check whether distance matrix contains infinite path lenghts and if this is true, create a new distance matrix with maximum size clique of reachable points
+	// todo: check whether distance matrix contains infinite path lengths and if this is true, create a new distance matrix with maximum size clique of reachable points
 	// then solve TSP and re-index points to original indices
 	// and do not forget to copy fix to ipa_building_navigation
 

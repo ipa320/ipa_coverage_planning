@@ -1509,49 +1509,49 @@ int main(int argc, char **argv)
 	// prepare relevant floor map data
 	std::vector< std::string > map_names;
 	map_names.push_back("lab_ipa");
-//	map_names.push_back("lab_c_scan");
-//	map_names.push_back("Freiburg52_scan");
-//	map_names.push_back("Freiburg79_scan");
-//	map_names.push_back("lab_b_scan");
-//	map_names.push_back("lab_intel");
-//	map_names.push_back("Freiburg101_scan");
-//	map_names.push_back("lab_d_scan");
-//	map_names.push_back("lab_f_scan");
-//	map_names.push_back("lab_a_scan");
-//	map_names.push_back("NLB");
-//	map_names.push_back("office_a");
-//	map_names.push_back("office_b");
-//	map_names.push_back("office_c");
-//	map_names.push_back("office_d");
-//	map_names.push_back("office_e");
-//	map_names.push_back("office_f");
-//	map_names.push_back("office_g");
-//	map_names.push_back("office_h");
-//	map_names.push_back("office_i");
-//	map_names.push_back("lab_ipa_furnitures");
-//	map_names.push_back("lab_c_scan_furnitures");
-//	map_names.push_back("Freiburg52_scan_furnitures");
-//	map_names.push_back("Freiburg79_scan_furnitures");
-//	map_names.push_back("lab_b_scan_furnitures");
-//	map_names.push_back("lab_intel_furnitures");
-//	map_names.push_back("Freiburg101_scan_furnitures");
-//	map_names.push_back("lab_d_scan_furnitures");
-//	map_names.push_back("lab_f_scan_furnitures");
-//	map_names.push_back("lab_a_scan_furnitures");
-//	map_names.push_back("NLB_furnitures");
-//	map_names.push_back("office_a_furnitures");
-//	map_names.push_back("office_b_furnitures");
-//	map_names.push_back("office_c_furnitures");
-//	map_names.push_back("office_d_furnitures");
-//	map_names.push_back("office_e_furnitures");
-//	map_names.push_back("office_f_furnitures");
-//	map_names.push_back("office_g_furnitures");
-//	map_names.push_back("office_h_furnitures");
-//	map_names.push_back("office_i_furnitures");
+	map_names.push_back("lab_c_scan");
+	map_names.push_back("Freiburg52_scan");
+	map_names.push_back("Freiburg79_scan");
+	map_names.push_back("lab_b_scan");
+	map_names.push_back("lab_intel");
+	map_names.push_back("Freiburg101_scan");
+	map_names.push_back("lab_d_scan");
+	map_names.push_back("lab_f_scan");
+	map_names.push_back("lab_a_scan");
+	map_names.push_back("NLB");
+	map_names.push_back("office_a");
+	map_names.push_back("office_b");
+	map_names.push_back("office_c");
+	map_names.push_back("office_d");
+	map_names.push_back("office_e");
+	map_names.push_back("office_f");
+	map_names.push_back("office_g");
+	map_names.push_back("office_h");
+	map_names.push_back("office_i");
+	map_names.push_back("lab_ipa_furnitures");
+	map_names.push_back("lab_c_scan_furnitures");
+	map_names.push_back("Freiburg52_scan_furnitures");
+	map_names.push_back("Freiburg79_scan_furnitures");
+	map_names.push_back("lab_b_scan_furnitures");
+	map_names.push_back("lab_intel_furnitures");
+	map_names.push_back("Freiburg101_scan_furnitures");
+	map_names.push_back("lab_d_scan_furnitures");
+	map_names.push_back("lab_f_scan_furnitures");
+	map_names.push_back("lab_a_scan_furnitures");
+	map_names.push_back("NLB_furnitures");
+	map_names.push_back("office_a_furnitures");
+	map_names.push_back("office_b_furnitures");
+	map_names.push_back("office_c_furnitures");
+	map_names.push_back("office_d_furnitures");
+	map_names.push_back("office_e_furnitures");
+	map_names.push_back("office_f_furnitures");
+	map_names.push_back("office_g_furnitures");
+	map_names.push_back("office_h_furnitures");
+	map_names.push_back("office_i_furnitures");
 
 	std::vector<int> exploration_algorithms;
-//	exploration_algorithms.push_back(1);	// grid point exploration
-	exploration_algorithms.push_back(2);	// boustrophedon exploration
+	exploration_algorithms.push_back(1);	// grid point exploration
+//	exploration_algorithms.push_back(2);	// boustrophedon exploration
 //	exploration_algorithms.push_back(3);	// neural network exploration
 //	exploration_algorithms.push_back(4);	// convex SPP exploration
 //	exploration_algorithms.push_back(5);	// flow network exploration
@@ -1596,7 +1596,7 @@ int main(int argc, char **argv)
 	const float map_resolution = 0.05;		// [m/cell]
 
 	ExplorationEvaluation ev(nh, test_map_path, map_names, map_resolution, data_storage_path, robot_radius, coverage_radius, fov_points, planning_mode,
-			exploration_algorithms, robot_speed, robot_rotation_speed, false, true);
+			exploration_algorithms, robot_speed, robot_rotation_speed, true, false);
 	ros::shutdown();
 
 	//exit

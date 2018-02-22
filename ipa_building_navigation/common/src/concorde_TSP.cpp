@@ -48,7 +48,7 @@ void ConcordeTSPSolver::abortComputation()
 	}
 }
 
-//This function generates a file with the current TSP in TSPlib format. This is neccessary because concorde needs this file
+//This function generates a file with the current TSP in TSPlib format. This is necessary because concorde needs this file
 //as input to solve the TSP. See http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/ for documentation.
 void ConcordeTSPSolver::writeToFile(const cv::Mat& pathlength_matrix)
 {
@@ -265,7 +265,7 @@ std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& original_map
 		return sorted_order;
 	}
 
-	// todo: check whether distance matrix contains infinite path lenghts and if this is true, create a new distance matrix with maximum size clique of reachable points
+	// todo: check whether distance matrix contains infinite path lengths and if this is true, create a new distance matrix with maximum size clique of reachable points
 	// then solve TSP and re-index points to original indices
 	// and do not forget to copy fix to ipa_building_navigation
 

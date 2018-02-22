@@ -282,7 +282,7 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& original_map, 
 		return return_vector;
 	}
 
-	// todo: check whether distance matrix contains infinite path lenghts and if this is true, create a new distance matrix with maximum size clique of reachable points
+	// todo: check whether distance matrix contains infinite path lengths and if this is true, create a new distance matrix with maximum size clique of reachable points
 	// then solve TSP and re-index points to original indices
 	// and do not forget to copy fix to ipa_building_navigation
 
