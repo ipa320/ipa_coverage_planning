@@ -713,6 +713,7 @@ public:
 		const std::string path_coverage_image_path = data_storage_path + configuration_folder_name + data.map_name_ + "_coverage_paths_eval.png";
 		cv::imwrite(path_coverage_image_path.c_str(), map_path_coverage);
 		// calculate average coverage and deviation
+		const double room_area_mean = std::accumulate(room_areas.begin(), room_areas.end(), 0.0) / std::max(1.0, (double)room_areas.size());
 		const double coverage_percentage_mean = std::accumulate(area_covered_percentages.begin(), area_covered_percentages.end(), 0.0) / std::max(1.0, (double)area_covered_percentages.size());
 		const double coverage_percentage_stddev = stddev(area_covered_percentages, coverage_percentage_mean);
 		const double coverage_number_mean = std::accumulate(numbers_of_coverages.begin(), numbers_of_coverages.end(), 0.0) / std::max(1.0, (double)numbers_of_coverages.size());
@@ -726,8 +727,8 @@ public:
 
 
 		// 8. parallelism: for each part of the path calculate the parallelism with respect to the nearest wall and the nearest trajectory part
-		std::vector<double> wall_angle_score_means, trajectory_angle_score_means;	// score for parallelism of trajectory to walls and previous parts of the trajectory itself, in range [0,1], the higher the better
-		std::vector<double> revisit_time_means; // vector that stores the index-differences of the current pose and the point of its nearest neighboring trajectory
+		std::vector<double> wall_angle_score_means, trajectory_angle_score_means;	// score for parallelism of trajectory to walls and previous parts of the trajectory itself, in range [0,1], high values are good
+		std::vector<double> revisit_time_means; // vector that stores the index-differences of the current pose and the point of its nearest neighboring trajectory, values in [0,1], low values are good
 		statisticsParallelism(data, map, path_map, paths, interpolated_paths, grid_spacing_in_pixel, wall_angle_score_means, trajectory_angle_score_means, revisit_time_means);
 		// calculate mean and stddev of the wall angle scores
 		const double wall_angle_score_mean = std::accumulate(wall_angle_score_means.begin(), wall_angle_score_means.end(), 0.0) / std::max(1.0, (double)wall_angle_score_means.size());
@@ -746,10 +747,8 @@ public:
 		const double crossings_stddev = stddev(number_of_crossings, crossings_mean);
 
 		// 10. calculate the subjective measure for the paths
-		// TODO: set up the correct computation --> external computation so far
-		double subjective_measure = wall_angle_score_mean + trajectory_angle_score_mean
-				- 1.0*pathlength_mean - 1.0*computation_time_mean - 1.0*revisit_time_mean - 1.0/3.0*crossings_mean - 1.0*number_of_rotations_mean;
-		subjective_measure /= 7.0;
+		const double subjective_measure_mean = 0.5*(wall_angle_score_mean + trajectory_angle_score_mean)
+				-0.25*(crossings_mean/room_area_mean + pathlength_mean/room_area_mean + rotation_values_mean/(PI*room_area_mean) + revisit_time_mean);
 
 
 		// ---------- 11. store all results to a file ----------
@@ -762,7 +761,7 @@ public:
 				<< "rotation values total [rad]\t" << "rotation values average [rad]\t" << "rotation values stddev [rad]\t"
 				<< "number of rotations total\t" << "number of rotations average\t" << "number of rotations stddev\t"
 				<< "execution time total [s]\t" << "execution time average [s]\t" << "execution time stddev\t"
-				<< "covered area average [m^2]\t" << "covered area stddev [m^2]\t" << "coverage per map cell average\t" << "coverage per map cell deviation\t"
+				<< "covered area average [0,1]\t" << "covered area stddev\t" << "coverage per map cell average\t" << "coverage per map cell deviation\t"
 				<< "number of crossings average\t" << "number of crossings stddev\t"
 				<< "wall angle score average\t" << "wall angle score stddev\t"
 				<< "trajectory angle score average\t" << "trajectory angle score stddev\t"
@@ -778,7 +777,7 @@ public:
 				<< wall_angle_score_mean << "\t" << wall_angle_score_stddev << "\t"
 				<< trajectory_angle_score_mean << "\t" << trajectory_angle_score_stddev << "\t"
 				<< revisit_time_mean << "\t" << revisit_time_stddev << "\t"
-				<< subjective_measure;
+				<< subjective_measure_mean;
 		std::string filename = data_storage_path + configuration_folder_name + data.map_name_ + "_results_eval.txt";
 		std::ofstream file(filename.c_str(), std::ofstream::out);
 		if (file.is_open())
@@ -789,8 +788,8 @@ public:
 
 		// print detailed information for each room to a separate file
 		if (calculation_times.size()!=pathlengths_for_map.size() || calculation_times.size()!=rotation_values.size() ||
-			calculation_times.size()!= area_covered_percentages.size() || calculation_times.size()!= room_areas.size() ||
-			calculation_times.size()!= trajectory_angle_score_means.size() || calculation_times.size()!= wall_angle_score_means.size() || calculation_times.size()!= revisit_time_means.size() ||
+			calculation_times.size()!=area_covered_percentages.size() || calculation_times.size()!= room_areas.size() ||
+			calculation_times.size()!=trajectory_angle_score_means.size() || calculation_times.size()!= wall_angle_score_means.size() || calculation_times.size()!= revisit_time_means.size() ||
 			calculation_times.size()!=number_of_crossings.size() || calculation_times.size()!=number_of_rotations.size())
 		{
 			std::cout << "Error in evaluation: array sizes do not match:\n calculation_times.size()=" << calculation_times.size()
@@ -1267,7 +1266,7 @@ public:
 				continue;
 
 			std::vector<double> current_wall_angle_scores, current_trajectory_angle_scores;		// values in [0,1], high values are good
-			std::vector<double> current_revisit_times;
+			std::vector<double> current_revisit_times;		// values in [0,1], low values are good
 			for (std::vector<geometry_msgs::Pose2D>::const_iterator pose=paths[room].begin(); pose!=paths[room].end()-1; ++pose)
 			{
 				double dx = (pose+1)->x - pose->x;
@@ -1591,7 +1590,7 @@ int main(int argc, char **argv)
 	int planning_mode = 1;	// footprint planning
 
 	const double robot_radius = 0.3;		// [m]
-	const double coverage_radius = 0.3;		// [m]	// todo: determine from fov_points footprint?
+	const double coverage_radius = 0.3;		// [m]
 	const double robot_speed = 0.3;			// [m/s]
 	const double robot_rotation_speed = 0.52;	// [rad/s]
 	const float map_resolution = 0.05;		// [m/cell]
