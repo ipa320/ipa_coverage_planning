@@ -1508,13 +1508,13 @@ int main(int argc, char **argv)
 
 	// prepare relevant floor map data
 	std::vector< std::string > map_names;
-//	map_names.push_back("lab_ipa");
-//	map_names.push_back("lab_c_scan");
-//	map_names.push_back("Freiburg52_scan");
-//	map_names.push_back("Freiburg79_scan");
-//	map_names.push_back("lab_b_scan");
-//	map_names.push_back("lab_intel");
-//	map_names.push_back("Freiburg101_scan");
+	map_names.push_back("lab_ipa");
+	map_names.push_back("lab_c_scan");
+	map_names.push_back("Freiburg52_scan");
+	map_names.push_back("Freiburg79_scan");
+	map_names.push_back("lab_b_scan");
+	map_names.push_back("lab_intel");
+	map_names.push_back("Freiburg101_scan");
 //	map_names.push_back("lab_d_scan");
 //	map_names.push_back("lab_f_scan");
 //	map_names.push_back("lab_a_scan");
@@ -1525,7 +1525,7 @@ int main(int argc, char **argv)
 //	map_names.push_back("office_d");
 //	map_names.push_back("office_e");
 //	map_names.push_back("office_f");
-	map_names.push_back("office_g");
+//	map_names.push_back("office_g");
 //	map_names.push_back("office_h");
 //	map_names.push_back("office_i");
 //	map_names.push_back("lab_ipa_furnitures");
@@ -1553,9 +1553,9 @@ int main(int argc, char **argv)
 //	exploration_algorithms.push_back(1);	// grid point exploration
 //	exploration_algorithms.push_back(2);	// boustrophedon exploration
 //	exploration_algorithms.push_back(3);	// neural network exploration
-//	exploration_algorithms.push_back(4);	// convex SPP exploration
+	exploration_algorithms.push_back(4);	// convex SPP exploration
 //	exploration_algorithms.push_back(5);	// flow network exploration
-	exploration_algorithms.push_back(6);	// energy functional exploration
+//	exploration_algorithms.push_back(6);	// energy functional exploration
 //	exploration_algorithms.push_back(7);	// voronoi exploration
 
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.

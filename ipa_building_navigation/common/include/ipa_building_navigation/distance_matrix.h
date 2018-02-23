@@ -50,10 +50,10 @@ public:
 		cv::Mat downsampled_map;
 		path_planner.downsampleMap(original_map, downsampled_map, downsampling_factor, robot_radius, map_resolution);
 
-		int a=0, b=0;
+//		int a=0, b=0;
 		for (int i = 0; i < points.size(); i++)
 		{
-			std::cout << "  a=" << a << "   b=" << b << std::endl;
+			//std::cout << "  a=" << a << "   b=" << b << std::endl;
 			if (points.size()>500 && i%(std::max(1,(int)points.size()/100))==0)
 				std::cout << "." << std::flush;
 			//cv::Point current_center = downsampling_factor * points[i];
@@ -88,7 +88,7 @@ public:
 								paths->at(i).at(j) = current_path;
 								paths->at(j).at(i) = current_path;
 							}
-							++a;
+//							++a;
 						}
 						else
 						{
@@ -117,7 +117,7 @@ public:
 								distance_matrix.at<double>(j, i) = length; //symmetrical-Matrix --> saves half the computation time
 
 							}
-							++b;
+//							++b;
 						}
 					}
 				}

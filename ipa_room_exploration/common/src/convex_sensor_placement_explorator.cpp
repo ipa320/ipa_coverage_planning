@@ -15,10 +15,10 @@ void convexSPPExplorator::solveGurobiOptimizationProblem(std::vector<T>& C, cons
 	std::cout << "Creating and solving linear program with Gurobi." << std::endl;
 	// initialize the problem
 	GRBEnv *env = new GRBEnv();
-    GRBModel model = GRBModel(*env);
+	GRBModel model = GRBModel(*env);
 
-    // vector that stores the variables of the problem
-    std::vector<GRBVar> optimization_variables;
+	// vector that stores the variables of the problem
+	std::vector<GRBVar> optimization_variables;
 
 	// add the optimization variables to the problem
 	int number_of_variables = 0;
