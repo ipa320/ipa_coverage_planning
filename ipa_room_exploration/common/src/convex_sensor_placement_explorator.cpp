@@ -513,9 +513,9 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	ROS_INFO("Solving TSP with repetitive nearest neighbor");
 	std::vector<int> best_order;
 	double min_distance = 1e9;
+	std::cout << "0         10        20        30        40        50        60        70        80        90        100" << std::endl;
 	for(int start=0; start<chosen_positions.size(); ++start)
 	{
-		std::cout << "  start=" << start << std::endl;
 		if (chosen_positions.size()>100 && start%(std::max(1,(int)chosen_positions.size()/100))==0)
 			std::cout << "." << std::flush;
 

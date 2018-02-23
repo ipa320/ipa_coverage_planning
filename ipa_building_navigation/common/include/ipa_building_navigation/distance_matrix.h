@@ -50,6 +50,7 @@ public:
 		cv::Mat downsampled_map;
 		path_planner.downsampleMap(original_map, downsampled_map, downsampling_factor, robot_radius, map_resolution);
 
+		std::cout << "0         10        20        30        40        50        60        70        80        90        100" << std::endl;
 //		int a=0, b=0;
 		for (int i = 0; i < points.size(); i++)
 		{

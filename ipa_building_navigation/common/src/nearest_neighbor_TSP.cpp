@@ -18,12 +18,13 @@ std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& path_l
 	if(path_length_matrix.rows > 1) //check if clique has more than one member or else this algorithm produces a order of size=3
 	{
 		int last_node; //index of the last spectated node
+		std::vector<bool> visited(path_length_matrix.rows, false);
 
 		int current_node = start_node; //index of the current spectated node
 		calculated_order.push_back(current_node);
+		visited[current_node] = true;
 
 		//check every Point for the next nearest neighbor and add it to the order
-		std::vector<bool> visited(path_length_matrix.rows, false);
 		do
 		{
 			int next_node; //saver for next node
