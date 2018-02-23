@@ -443,7 +443,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 //			cv::Mat distance_transform;
 //			cv::distanceTransform(room_map, distance_transform, CV_DIST_L2, CV_DIST_MASK_PRECISE);
 //			cv::Mat display = room_map.clone();
-//			// todo: get max dist from map and parametrize loop
+//			// todoo: get max dist from map and parametrize loop
 //			for (int s=5; s<100; s+=10)
 //			{
 //				for (int v=0; v<distance_transform.rows; ++v)

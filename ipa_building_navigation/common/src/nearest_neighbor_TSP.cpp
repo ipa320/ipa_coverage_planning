@@ -23,23 +23,25 @@ std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& path_l
 		calculated_order.push_back(current_node);
 
 		//check every Point for the next nearest neighbor and add it to the order
+		std::vector<bool> visited(path_length_matrix.rows, false);
 		do
 		{
 			int next_node; //saver for next node
-			double saved_distance = 100000000000000; //saver for distance to current next node
+			double min_distance = 1e100; //saver for distance to current next node
 			for (int current_neighbor = 0; current_neighbor < path_length_matrix.cols; current_neighbor++)
 			{
-				if (!contains<int>(calculated_order, current_neighbor)) //check if current neighbor hasn't been visited yet
+				if (visited[current_neighbor]==false) //check if current neighbor hasn't been visited yet
 				{
-					if (path_length_matrix.at<double>(current_node, current_neighbor) < saved_distance
-							&& path_length_matrix.at<double>(current_node, current_neighbor) > 0)
+					const double length = path_length_matrix.at<double>(current_node, current_neighbor);
+					if (length < min_distance && length > 0)
 					{
 						next_node = current_neighbor;
-						saved_distance = path_length_matrix.at<double>(current_node, current_neighbor);
+						min_distance = length;
 					}
 				}
 			}
 			calculated_order.push_back(next_node); //add the found nearest neighbor to the order-vector
+			visited[next_node] = true;
 			current_node = next_node;
 		} while (calculated_order.size() < path_length_matrix.rows); //when the order has as many elements as the pathlength Matrix has the solver is ready
 

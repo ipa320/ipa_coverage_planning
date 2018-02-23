@@ -85,14 +85,14 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 			start_cell_index = cell - cell_polygons.begin();
 
 	// determine the optimal visiting order of the cells
-//	ConcordeTSPSolver tsp_solver;
-//	std::vector<int> optimal_order = tsp_solver.solveConcordeTSP(rotated_room_map, polygon_centers, 0.25, 0.0, map_resolution, start_cell_index, 0);
-	GeneticTSPSolver tsp_solver;
-	std::vector<int> optimal_order = tsp_solver.solveGeneticTSP(rotated_room_map, polygon_centers, 0.25, 0.0, map_resolution, start_cell_index, 0);
+	ConcordeTSPSolver tsp_solver;
+	std::vector<int> optimal_order = tsp_solver.solveConcordeTSP(rotated_room_map, polygon_centers, 0.25, 0.0, map_resolution, start_cell_index, 0);
+//	GeneticTSPSolver tsp_solver;
+//	std::vector<int> optimal_order = tsp_solver.solveGeneticTSP(rotated_room_map, polygon_centers, 0.25, 0.0, map_resolution, start_cell_index, 0);
 	if (optimal_order.size()!=polygon_centers.size())
 	{
 		std::cout << "=====================> Genetic TSP failed with 25% resolution, falling back to 100%. <=======================" << std::endl;
-		optimal_order = tsp_solver.solveGeneticTSP(rotated_room_map, polygon_centers, 1.0, 0.0, map_resolution, start_cell_index, 0);
+		optimal_order = tsp_solver.solveConcordeTSP(rotated_room_map, polygon_centers, 1.0, 0.0, map_resolution, start_cell_index, 0);
 	}
 
 	// alternative ordering
@@ -509,7 +509,7 @@ void BoustrophedonExplorer::computeBoustrophedonPath(const cv::Mat& room_map, co
 	// compute the basic Boustrophedon grid lines
 	BoustrophedonGrid grid_lines;
 	GridGenerator::generateBoustrophedonGrid(rotated_cell_map, rotated_inflated_cell_map, -1, grid_lines, cv::Vec4i(0, 0, 0, 0), //cv::Vec4i(min_x, max_x, min_y, max_y),
-			grid_spacing_as_int, half_grid_spacing_as_int, 1);
+			grid_spacing_as_int, half_grid_spacing_as_int, grid_spacing_as_int);		//1);
 
 #ifdef DEBUG_VISUALIZATION
 	cv::Mat rotated_cell_map_disp = rotated_cell_map.clone();

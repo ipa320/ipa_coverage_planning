@@ -336,7 +336,6 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 					V.at<uchar>(neighbor-cell_centers.begin(), pose-candidate_sensing_poses.begin()) = 0;
 			}
 			// check if neighbor is covered by footprint when planning for it
-			// todo: check: by adding cell_outcircle_radius_pixel to the distance, we ensure that the entire cell lies within the footprint
 			else if(plan_for_footprint==true && (distance+cell_outcircle_radius_pixel)<=largest_robot_to_footprint_distance_pixel)
 			{
 				// check if the line from the robot pose to the neighbor crosses an obstacle, if so it is not observable from the pose
@@ -516,6 +515,10 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	double min_distance = 1e9;
 	for(int start=0; start<chosen_positions.size(); ++start)
 	{
+		std::cout << "  start=" << start << std::endl;
+		if (chosen_positions.size()>100 && start%(std::max(1,(int)chosen_positions.size()/100))==0)
+			std::cout << "." << std::flush;
+
 		// obtain nearest neighbor solution for this start
 		std::vector<int> current_order = tsp_solver_.solveNearestTSP(distance_matrix, start);
 

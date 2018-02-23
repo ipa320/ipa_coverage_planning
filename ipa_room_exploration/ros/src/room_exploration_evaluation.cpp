@@ -1508,11 +1508,11 @@ int main(int argc, char **argv)
 
 	// prepare relevant floor map data
 	std::vector< std::string > map_names;
-	map_names.push_back("lab_ipa");
-	map_names.push_back("lab_c_scan");
-	map_names.push_back("Freiburg52_scan");
-	map_names.push_back("Freiburg79_scan");
-	map_names.push_back("lab_b_scan");
+//	map_names.push_back("lab_ipa");
+//	map_names.push_back("lab_c_scan");
+//	map_names.push_back("Freiburg52_scan");
+//	map_names.push_back("Freiburg79_scan");
+//	map_names.push_back("lab_b_scan");
 	map_names.push_back("lab_intel");
 	map_names.push_back("Freiburg101_scan");
 //	map_names.push_back("lab_d_scan");
