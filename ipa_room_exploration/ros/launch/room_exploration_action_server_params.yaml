@@ -79,11 +79,11 @@ camera_frame: "base_link"
 # parameters specific to the grid point explorator
 # =================================================
 # indicates which TSP solver should be used
-#   1 = Nearest Neighbor
-#   2 = Genetic solver
-#   3 = Concorde solver
+#   1 = Nearest Neighbor (often 10-15% longer paths than Concorde but computes by orders faster and considering traveling time (path length and rotations) it is often the fastest of all)
+#   2 = Genetic solver (slightly shorter than Nearest Neighbor)
+#   3 = Concorde solver (usually gives the shortest path while computing the longest)
 # int
-tsp_solver: 3
+tsp_solver: 1
 
 # a sophisticated solver like Concorde or Genetic can be interrupted if it does not find a solution within this time, in [s],
 # and then falls back to the nearest neighbor solver

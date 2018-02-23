@@ -88,13 +88,10 @@ double RoomRotator::computeRoomRotationMatrix(const cv::Mat& room_map, cv::Mat& 
 	cv::Point center_of_rotation;
 	if (center == 0)
 	{
-		std::vector < std::vector<cv::Point> > contour;
-		cv::Mat contour_map = room_map.clone();
-		cv::findContours(contour_map, contour, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
-		// get the moment--> for a given map, there should only be one contour
-		cv::Moments moment = cv::moments(contour[0], false);
-		// calculate rotation center
-		center_of_rotation = cv::Point(moment.m10/moment.m00 , moment.m01/moment.m00 );
+		cv::Point min_room, max_room;
+		getMinMaxCoordinates(room_map, min_room, max_room);
+		center_of_rotation.x = 0.5*(min_room.x+max_room.x);
+		center_of_rotation.y = 0.5*(min_room.y+max_room.y);
 	}
 	else
 		center_of_rotation = *center;
@@ -104,10 +101,9 @@ double RoomRotator::computeRoomRotationMatrix(const cv::Mat& room_map, cv::Mat& 
 
 	// determine bounding rectangle to find the size of the new image
 	bounding_rect = cv::RotatedRect(center_of_rotation, room_map.size(), (rotation_angle*180)/CV_PI).boundingRect();
-
 	// adjust transformation matrix
-	R.at<double>(0,2) += bounding_rect.width/2.0 - center_of_rotation.x;
-	R.at<double>(1,2) += bounding_rect.height/2.0 - center_of_rotation.y;
+	R.at<double>(0,2) += 0.5*bounding_rect.width - center_of_rotation.x;
+	R.at<double>(1,2) += 0.5*bounding_rect.height - center_of_rotation.y;
 
 	return rotation_angle;
 }
@@ -213,4 +209,25 @@ void RoomRotator::transformPointPathToPosePath(std::vector<geometry_msgs::Pose2D
 	// create poses with an angle
 	pose_path.clear();
 	transformPointPathToPosePath(point_path, pose_path);
+}
+
+void RoomRotator::getMinMaxCoordinates(const cv::Mat& map, cv::Point& min_room, cv::Point& max_room)
+{
+	min_room.x = std::numeric_limits<int>::max();
+	min_room.y = std::numeric_limits<int>::max();
+	max_room.x = 0;
+	max_room.y = 0;
+	for (int v=0; v<map.rows; ++v)
+	{
+		for (int u=0; u<map.cols; ++u)
+		{
+			if (map.at<uchar>(v,u)==255)
+			{
+				min_room.x = std::min(min_room.x, u);
+				min_room.y = std::min(min_room.y, v);
+				max_room.x = std::max(max_room.x, u);
+				max_room.y = std::max(max_room.y, v);
+			}
+		}
+	}
 }

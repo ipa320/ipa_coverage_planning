@@ -98,4 +98,7 @@ public:
 
 	// converts a point path to a pose path with angles, the points are already stored in pose_path
 	void transformPointPathToPosePath(std::vector<geometry_msgs::Pose2D>& pose_path);
+
+	// get min/max coordinates of free pixels (255)
+	void getMinMaxCoordinates(const cv::Mat& map, cv::Point& min_room, cv::Point& max_room);
 };
