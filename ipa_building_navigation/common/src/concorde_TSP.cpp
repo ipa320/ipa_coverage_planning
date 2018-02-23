@@ -236,7 +236,8 @@ std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& path_length_
 	return sorted_order;
 }
 
-//compute the distance matrix and maybe return it
+// compute the distance matrix and maybe return it
+// this version does not exclude infinite paths from the TSP ordering
 std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& original_map, const std::vector<cv::Point>& points,
 		double downsampling_factor, double robot_radius, double map_resolution, const int start_Node, cv::Mat* distance_matrix)
 {
@@ -266,9 +267,34 @@ std::vector<int> ConcordeTSPSolver::solveConcordeTSP(const cv::Mat& original_map
 		return sorted_order;
 	}
 
-	// todo: check whether distance matrix contains infinite path lengths and if this is true, create a new distance matrix with maximum size clique of reachable points
-	// then solve TSP and re-index points to original indices
-	// and do not forget to copy fix to ipa_building_navigation
-
 	return (solveConcordeTSP(distance_matrix_ref, start_Node));
+}
+
+// compute TSP from a cleaned distance matrix (does not contain any infinity paths) that has to be computed
+std::vector<int> ConcordeTSPSolver::solveConcordeTSPClean(const cv::Mat& original_map, const std::vector<cv::Point>& points,
+		double downsampling_factor, double robot_radius, double map_resolution, const int start_node)
+{
+	// compute a cleaned distance matrix
+	cv::Mat distance_matrix_cleaned;
+	std::map<int,int> cleaned_index_to_original_index_mapping;	// maps the indices of the cleaned distance_matrix to the original indices of the original distance_matrix
+	int new_start_node = start_node;
+	DistanceMatrix distance_matrix_computation;
+	distance_matrix_computation.computeCleanedDistanceMatrix(original_map, points, downsampling_factor, robot_radius, map_resolution, pathplanner_,
+			distance_matrix_cleaned, cleaned_index_to_original_index_mapping, new_start_node);
+
+	// solve TSP and re-index points to original indices
+	return solveConcordeTSPWithCleanedDistanceMatrix(distance_matrix_cleaned, cleaned_index_to_original_index_mapping, new_start_node);
+}
+
+
+// compute TSP with pre-computed cleaned distance matrix (does not contain any infinity paths)
+std::vector<int> ConcordeTSPSolver::solveConcordeTSPWithCleanedDistanceMatrix(const cv::Mat& distance_matrix,
+		const std::map<int,int>& cleaned_index_to_original_index_mapping, const int start_node)
+{
+	// solve TSP and re-index points to original indices
+	std::vector<int> optimal_order = solveConcordeTSP(distance_matrix, start_node);
+	for (size_t i=0; i<optimal_order.size(); ++i)
+		optimal_order[i] = cleaned_index_to_original_index_mapping.at(optimal_order[i]);
+
+	return optimal_order;
 }

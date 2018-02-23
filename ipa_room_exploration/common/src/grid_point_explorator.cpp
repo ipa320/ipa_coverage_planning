@@ -10,13 +10,12 @@ GridPointExplorator::GridPointExplorator()
 {
 }
 
-void GridPointExplorator::tsp_solver_thread_concorde(ConcordeTSPSolver& tsp_solver, std::vector<int>& optimal_order, const cv::Mat& original_map,
-		const std::vector<cv::Point>& points, const double downsampling_factor, const double robot_radius, const double map_resolution,
-		const int start_node)
+void GridPointExplorator::tsp_solver_thread_concorde(ConcordeTSPSolver& tsp_solver, std::vector<int>& optimal_order,
+		const cv::Mat& distance_matrix, const std::map<int,int>& cleaned_index_to_original_index_mapping, const int start_node)
 {
 	try
 	{
-		optimal_order = tsp_solver.solveConcordeTSP(original_map, points, downsampling_factor, robot_radius, map_resolution, start_node, 0);
+		optimal_order = tsp_solver.solveConcordeTSPWithCleanedDistanceMatrix(distance_matrix, cleaned_index_to_original_index_mapping, start_node);
 	}
 	catch (boost::thread_interrupted&)
 	{
@@ -26,13 +25,12 @@ void GridPointExplorator::tsp_solver_thread_concorde(ConcordeTSPSolver& tsp_solv
 	std::cout << "GridPointExplorator::tsp_solver_thread_concorde: finished TSP with solver 3=Concorde and optimal_order.size=" << optimal_order.size() << std::endl;
 }
 
-void GridPointExplorator::tsp_solver_thread_genetic(GeneticTSPSolver& tsp_solver, std::vector<int>& optimal_order, const cv::Mat& original_map,
-		const std::vector<cv::Point>& points, const double downsampling_factor, const double robot_radius, const double map_resolution,
-		const int start_node)
+void GridPointExplorator::tsp_solver_thread_genetic(GeneticTSPSolver& tsp_solver, std::vector<int>& optimal_order,
+		const cv::Mat& distance_matrix, const std::map<int,int>& cleaned_index_to_original_index_mapping, const int start_node)
 {
 	try
 	{
-		optimal_order = tsp_solver.solveGeneticTSP(original_map, points, downsampling_factor, robot_radius, map_resolution, start_node, 0);
+		optimal_order = tsp_solver.solveGeneticTSPWithCleanedDistanceMatrix(distance_matrix, cleaned_index_to_original_index_mapping, start_node);
 	}
 	catch (boost::thread_interrupted&)
 	{
@@ -154,7 +152,13 @@ void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	// solve the Traveling Salesman Problem
 	std::cout << "Finding optimal order of the " << grid_points.size() << " found points. Start-index: " << min_index << std::endl;
 	const double map_downsampling_factor = 0.25;
-	// todo: compute distance matrix for TSP (outside of time limits for solving TSP)
+	// compute distance matrix for TSP (outside of time limits for solving TSP)
+	cv::Mat distance_matrix_cleaned;
+	std::map<int,int> cleaned_index_to_original_index_mapping;	// maps the indices of the cleaned distance_matrix to the original indices of the original distance_matrix
+	AStarPlanner path_planner;
+	DistanceMatrix distance_matrix_computation;
+	distance_matrix_computation.computeCleanedDistanceMatrix(rotated_room_map, grid_points, map_downsampling_factor, 0.0, map_resolution, path_planner,
+			distance_matrix_cleaned, cleaned_index_to_original_index_mapping, min_index);
 
 	// solve TSP
 	bool finished = false;
@@ -163,7 +167,8 @@ void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	{
 		// start TSP solver in extra thread
 		ConcordeTSPSolver tsp_solve;
-		boost::thread t(boost::bind(&GridPointExplorator::tsp_solver_thread_concorde, this, boost::ref(tsp_solve), boost::ref(optimal_order), boost::cref(rotated_room_map), boost::cref(grid_points), map_downsampling_factor, 0.0, map_resolution, min_index));
+		boost::thread t(boost::bind(&GridPointExplorator::tsp_solver_thread_concorde, this, boost::ref(tsp_solve), boost::ref(optimal_order),
+				boost::cref(distance_matrix_cleaned), boost::cref(cleaned_index_to_original_index_mapping), min_index));
 		if (tsp_solver_timeout > 0)
 		{
 			finished = t.try_join_for(boost::chrono::seconds(tsp_solver_timeout));
@@ -181,7 +186,8 @@ void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	{
 		// start TSP solver in extra thread
 		GeneticTSPSolver tsp_solve;
-		boost::thread t(boost::bind(&GridPointExplorator::tsp_solver_thread_genetic, this, boost::ref(tsp_solve), boost::ref(optimal_order), boost::cref(rotated_room_map), boost::cref(grid_points), map_downsampling_factor, 0.0, map_resolution, min_index));
+		boost::thread t(boost::bind(&GridPointExplorator::tsp_solver_thread_genetic, this, boost::ref(tsp_solve), boost::ref(optimal_order),
+				boost::cref(distance_matrix_cleaned), boost::cref(cleaned_index_to_original_index_mapping), min_index));
 		if (tsp_solver_timeout > 0)
 		{
 			finished = t.try_join_for(boost::chrono::seconds(tsp_solver_timeout));
@@ -199,7 +205,7 @@ void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	if (tsp_solver==TSP_NEAREST_NEIGHBOR || finished==false)
 	{
 		NearestNeighborTSPSolver tsp_solve;
-		optimal_order = tsp_solve.solveNearestTSP(rotated_room_map, grid_points, map_downsampling_factor, 0.0, map_resolution, min_index, 0);
+		optimal_order = tsp_solve.solveNearestTSPWithCleanedDistanceMatrix(distance_matrix_cleaned, cleaned_index_to_original_index_mapping, min_index);
 		std::cout << "GridPointExplorator::getExplorationPath: finished TSP with solver 1 and optimal_order.size=" << optimal_order.size() << std::endl;
 	}
 

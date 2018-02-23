@@ -67,6 +67,7 @@
 #include <Eigen/Dense>
 
 #include <ipa_building_navigation/tsp_solvers.h>
+#include <ipa_building_navigation/distance_matrix.h>
 #include <ipa_room_exploration/room_rotator.h>
 #include <ipa_room_exploration/fov_to_robot_mapper.h>
 #include <ipa_room_exploration/grid.h>
@@ -88,13 +89,11 @@ public:
 	GridPointExplorator();
 
 	// separate, interruptible thread for the external solvers
-	void tsp_solver_thread_concorde(ConcordeTSPSolver& tsp_solver, std::vector<int>& optimal_order, const cv::Mat& original_map,
-			const std::vector<cv::Point>& points, const double downsampling_factor, const double robot_radius, const double map_resolution,
-			const int start_node);
+	void tsp_solver_thread_concorde(ConcordeTSPSolver& tsp_solver, std::vector<int>& optimal_order,
+			const cv::Mat& distance_matrix, const std::map<int,int>& cleaned_index_to_original_index_mapping, const int start_node);
 
-	void tsp_solver_thread_genetic(GeneticTSPSolver& tsp_solver, std::vector<int>& optimal_order, const cv::Mat& original_map,
-			const std::vector<cv::Point>& points, const double downsampling_factor, const double robot_radius, const double map_resolution,
-			const int start_node);
+	void tsp_solver_thread_genetic(GeneticTSPSolver& tsp_solver, std::vector<int>& optimal_order,
+			const cv::Mat& distance_matrix, const std::map<int,int>& cleaned_index_to_original_index_mapping, const int start_node);
 
 	void tsp_solver_thread(const int tsp_solver, std::vector<int>& optimal_order, const cv::Mat& original_map,
 		const std::vector<cv::Point>& points, const double downsampling_factor, const double robot_radius, const double map_resolution,

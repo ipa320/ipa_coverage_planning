@@ -26,12 +26,16 @@ public:
 		abort_computation_ = true;
 	}
 
+	//Function to construct the symmetrical distance matrix from the given points. The rows show from which node to start and
+	//the columns to which node to go. If the path between nodes doesn't exist or the node to go to is the same as the one to
+	//start from, the entry of the matrix is 0.
 	// REMARK:	paths is a pointer that points to a 3D vector that has dimensionality NxN in the outer vectors to store
 	//			the paths in a matrix manner
 	void constructDistanceMatrix(cv::Mat& distance_matrix, const cv::Mat& original_map, const std::vector<cv::Point>& points,
 			double downsampling_factor, double robot_radius, double map_resolution, AStarPlanner& path_planner,
 			std::vector<std::vector<std::vector<cv::Point> > >* paths=NULL)
 	{
+		std::cout << "DistanceMatrix::constructDistanceMatrix: Constructing distance matrix..." << std::endl;
 		Timer tim;
 
 		//create the distance matrix with the right size
@@ -227,5 +231,29 @@ public:
 			if (new_index != new_size)
 				std::cout << "##################################################\nDistanceMatrix::cleanDistanceMatrix: Warning: new_index != new_size.\n##################################################" << std::endl;
 		}
+	}
+
+	// calculate the distance matrix and check whether distance matrix contains infinite path lengths and if this is true,
+	// create a new distance matrix with maximum size clique of reachable points
+	// start_node --> provide the original start node to the function, it writes the new start node mapped to the new coordinates into it
+	// cleaned_index_to_original_index_mapping --> maps the indices of the cleaned distance_matrix to the original indices of the original distance_matrix
+	void computeCleanedDistanceMatrix(const cv::Mat& original_map, const std::vector<cv::Point>& points,
+			double downsampling_factor, double robot_radius, double map_resolution, AStarPlanner& path_planner,
+			cv::Mat& distance_matrix, std::map<int,int>& cleaned_index_to_original_index_mapping, int& start_node)
+	{
+		std::cout << "DistanceMatrix::computeCleanedDistanceMatrix: Constructing distance matrix..." << std::endl;
+		// calculate the distance matrix
+		cv::Mat distance_matrix_raw;
+		constructDistanceMatrix(distance_matrix_raw, original_map, points, downsampling_factor, robot_radius, map_resolution, path_planner);
+
+		// check whether distance matrix contains infinite path lengths and if this is true, create a new distance matrix with maximum size clique of reachable points
+		cleanDistanceMatrix(distance_matrix_raw, distance_matrix, cleaned_index_to_original_index_mapping);
+
+		// re-assign the start node to cleaned indices (use 0 if the original start node was removed from distance_matrix_cleaned)
+		int new_start_node = 0;
+		for (std::map<int,int>::iterator it=cleaned_index_to_original_index_mapping.begin(); it!=cleaned_index_to_original_index_mapping.end(); ++it)
+			if (it->second == start_node)
+				new_start_node = it->first;
+		start_node = new_start_node;
 	}
 };

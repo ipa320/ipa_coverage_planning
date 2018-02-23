@@ -54,7 +54,16 @@ public:
 	//with given distance matrix
 	std::vector<int> solveNearestTSP(const cv::Mat& path_length_matrix, const int start_node); //with given distance matrix
 
-	//compute distancematrix and maybe returning it
+	// compute TSP and distance matrix without cleaning it
+	// this version does not exclude infinite paths from the TSP ordering
 	std::vector<int> solveNearestTSP(const cv::Mat& original_map, const std::vector<cv::Point>& points, double downsampling_factor,
 			double robot_radius, double map_resolution, const int start_node, cv::Mat* distance_matrix=0);
+
+	// compute TSP from a cleaned distance matrix (does not contain any infinity paths) that has to be computed
+	std::vector<int> solveNearestTSPClean(const cv::Mat& original_map, const std::vector<cv::Point>& points,
+			double downsampling_factor, double robot_radius, double map_resolution, const int start_node);
+
+	// compute TSP with pre-computed cleaned distance matrix (does not contain any infinity paths)
+	std::vector<int> solveNearestTSPWithCleanedDistanceMatrix(const cv::Mat& distance_matrix,
+			const std::map<int,int>& cleaned_index_to_original_index_mapping, const int start_node);
 };
