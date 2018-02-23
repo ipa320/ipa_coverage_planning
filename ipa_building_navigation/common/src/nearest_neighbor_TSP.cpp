@@ -65,8 +65,6 @@ std::vector<int> NearestNeighborTSPSolver::solveNearestTSP(const cv::Mat& origin
 	DistanceMatrix distance_matrix_computation;
 	distance_matrix_computation.constructDistanceMatrix(distance_matrix_ref, original_map, points, downsampling_factor, robot_radius, map_resolution, pathplanner_);
 
-	// todo: and do not forget to copy fix to ipa_building_navigation
-
 	return solveNearestTSP(distance_matrix_ref, start_node);
 }
 

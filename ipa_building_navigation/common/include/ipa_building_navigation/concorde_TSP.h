@@ -50,16 +50,17 @@ protected:
 	AStarPlanner pathplanner_;
 
 	//Function to create neccessary TSPlib file to tell concorde what the problem is.
-	void writeToFile(const cv::Mat& pathlength_matrix);
+	void writeToFile(const cv::Mat& pathlength_matrix, const std::string& tsp_lib_filename, const std::string& tsp_order_filename);
 
 	//Function to read the saved TSP order.
-	std::vector<int> readFromFile();
+	std::vector<int> readFromFile(const std::string& tsp_order_filename);
 
 	void distance_matrix_thread(DistanceMatrix& distance_matrix_computation, cv::Mat& distance_matrix,
 			const cv::Mat& original_map, const std::vector<cv::Point>& points, double downsampling_factor,
 			double robot_radius, double map_resolution, AStarPlanner& path_planner);
 
 	bool abort_computation_;
+	std::string unique_file_identifier_;
 
 public:
 	//Constructor
