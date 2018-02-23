@@ -50,7 +50,8 @@ public:
 		cv::Mat downsampled_map;
 		path_planner.downsampleMap(original_map, downsampled_map, downsampling_factor, robot_radius, map_resolution);
 
-		std::cout << "0         10        20        30        40        50        60        70        80        90        100" << std::endl;
+		if (points.size()>500)
+			std::cout << "0         10        20        30        40        50        60        70        80        90        100" << std::endl;
 //		int a=0, b=0;
 		for (int i = 0; i < points.size(); i++)
 		{
@@ -129,7 +130,7 @@ public:
 			}
 		}
 
-		std::cout << "Distance matrix created in " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;// "\nDistance matrix:\n" << distance_matrix << std::endl;
+		std::cout << "\nDistance matrix created in " << tim.getElapsedTimeInMilliSec() << " ms" << std::endl;// "\nDistance matrix:\n" << distance_matrix << std::endl;
 	}
 
 	// check whether distance matrix contains infinite path lengths and if this is true, create a new distance matrix with maximum size clique of reachable points
