@@ -517,7 +517,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		std::cout << "0         10        20        30        40        50        60        70        80        90        100" << std::endl;
 	for(int start=0; start<chosen_positions.size(); ++start)
 	{
-		if (chosen_positions.size()>100 && start%(std::max(1,(int)chosen_positions.size()/100))==0)
+		if (chosen_positions.size()>500 && start%(std::max(1,(int)chosen_positions.size()/100))==0)
 			std::cout << "." << std::flush;
 
 		// obtain nearest neighbor solution for this start
@@ -554,7 +554,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	}
 
 	// create the path starting from the found start
-	std::vector<cv::Point> fov_poses;
+	std::vector<cv::Point2f> fov_poses;
 	std::vector<int>::iterator start = std::find(best_order.begin(), best_order.end(), starting_index); // obtain iterator to index in best order to start path creation from there
 	for(size_t pose=start-best_order.begin(); path.size()!=chosen_poses.size() && fov_poses.size()!=chosen_poses.size(); ++pose)
 	{
@@ -576,7 +576,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 		else
 		{
 			// for footprint planning the viewing direction has to be computed from the trajectory
-			fov_poses.push_back(cv::Point(chosen_poses[best_order[pose]].x, chosen_poses[best_order[pose]].y));
+			fov_poses.push_back(cv::Point2f(chosen_poses[best_order[pose]].x, chosen_poses[best_order[pose]].y));
 		}
 	}
 

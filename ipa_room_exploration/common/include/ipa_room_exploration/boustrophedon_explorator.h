@@ -219,7 +219,7 @@ protected:
 
 	// computes the Boustrophedon path pattern for a single cell
 	void computeBoustrophedonPath(const cv::Mat& room_map, const float map_resolution, const GeneralizedPolygon& cell,
-			std::vector<cv::Point>& fov_middlepoint_path, cv::Point& robot_pos,
+			std::vector<cv::Point2f>& fov_middlepoint_path, cv::Point& robot_pos,
 			const int grid_spacing_as_int, const int half_grid_spacing_as_int, const double path_eps);
 
 	// downsamples a given path original_path to waypoint distances of path_eps and appends the resulting path to downsampled_path

@@ -321,7 +321,10 @@ void NeuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 
 	// transform the calculated path back to the originally rotated map
 	std::vector<geometry_msgs::Pose2D> fov_poses;
-	room_rotation.transformPathBackToOriginalRotation(fov_coverage_path, fov_poses, R);
+	std::vector<cv::Point2f> fov_coverage_path_2f(fov_coverage_path.size());
+	for (size_t i=0; i<fov_coverage_path.size(); ++i)
+		fov_coverage_path_2f[i] = cv::Point2f(fov_coverage_path[i].x, fov_coverage_path[i].y);
+	room_rotation.transformPathBackToOriginalRotation(fov_coverage_path_2f, fov_poses, R);
 
 //	// go trough the found fov-path and compute the angles of the poses s.t. it points to the next pose that should be visited
 //	for(unsigned int point_index=0; point_index<fov_path.size(); ++point_index)

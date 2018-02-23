@@ -1590,7 +1590,10 @@ void FlowNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::vec
 
 	// transform the calculated path back to the originally rotated map and create poses with an angle
 	std::vector<geometry_msgs::Pose2D> fov_poses;
-	room_rotation.transformPathBackToOriginalRotation(path_positions, fov_poses, R);
+	std::vector<cv::Point2f> path_positions_2f(path_positions.size());
+	for (size_t i=0; i<path_positions.size(); ++i)
+		path_positions_2f[i] = cv::Point2f(path_positions[i].x, path_positions[i].y);
+	room_rotation.transformPathBackToOriginalRotation(path_positions_2f, fov_poses, R);
 
 //	// 4. calculate a pose path out of the point path
 //	std::vector<geometry_msgs::Pose2D> fov_poses;

@@ -241,8 +241,8 @@ void EnergyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 	std::cout << "start node: " << start_node->center_ << std::endl;
 
 	// insert start node into coverage path
-	std::vector<cv::Point> fov_coverage_path;
-	fov_coverage_path.push_back(cv::Point(start_node->center_.x, start_node->center_.y));
+	std::vector<cv::Point2f> fov_coverage_path;
+	fov_coverage_path.push_back(cv::Point2f(start_node->center_.x, start_node->center_.y));
 	start_node->visited_ = true;	// mark visited nodes as obstacles
 
 	// ii. starting at the start node, find the coverage path, by choosing the node that min. the energy functional
@@ -323,7 +323,7 @@ void EnergyFunctionalExplorator::getExplorationPath(const cv::Mat& room_map, std
 		}
 		// add next node to path and set robot location
 		previous_travel_angle = std::atan2(next_node->center_.y-last_node->center_.y, next_node->center_.x-last_node->center_.x);
-		fov_coverage_path.push_back(next_node->center_);
+		fov_coverage_path.push_back(cv::Point2f(next_node->center_.x, next_node->center_.y));
 		next_node->visited_ = true;	// mark visited nodes as obstacles
 
 //		cv::circle(path_map, next_node->center_, 2, cv::Scalar(100), CV_FILLED);

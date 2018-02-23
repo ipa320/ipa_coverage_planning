@@ -109,41 +109,33 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	const int half_grid_spacing_as_int = (int)std::floor(0.5*grid_spacing_in_pixel); // convert fov-radius to int
 	std::cout << "Boustrophedon grid_spacing_as_int=" << grid_spacing_as_int << std::endl;
 	cv::Point robot_pos = rotated_starting_point;	// point that keeps track of the last point after the boustrophedon path in each cell
-	std::vector<cv::Point> fov_middlepoint_path;	// this is the trajectory of centers of the robot footprint or the field of view
+	std::vector<cv::Point2f> fov_middlepoint_path;	// this is the trajectory of centers of the robot footprint or the field of view
 	for(size_t cell=0; cell<cell_polygons.size(); ++cell)
 	{
 		computeBoustrophedonPath(rotated_room_map, map_resolution, cell_polygons[optimal_order[cell]],
 				fov_middlepoint_path, robot_pos, grid_spacing_as_int, half_grid_spacing_as_int, path_eps);
 	}
 
+	// transform the calculated path back to the originally rotated map and create poses with an angle
+	RoomRotator room_rotation;
+	std::vector<geometry_msgs::Pose2D> fov_poses;	// this is the trajectory of poses of the robot footprint or the field of view, in [pixels]
+	room_rotation.transformPathBackToOriginalRotation(fov_middlepoint_path, fov_poses, R);
 #ifdef DEBUG_VISUALIZATION
-	// testing
-	// transform the calculated path back to the originally rotated map
-	cv::Mat R_inv;
-	cv::invertAffineTransform(R, R_inv);
-	std::vector<cv::Point> rotated_fov_middlepoint_path;
-	cv::transform(fov_middlepoint_path, rotated_fov_middlepoint_path, R_inv);
-
 	std::cout << "printing path" << std::endl;
 	cv::Mat room_map_path = room_map.clone();
 	cv::circle(room_map_path, starting_position, 3, cv::Scalar(160), CV_FILLED);
-	for(size_t i=0; i<rotated_fov_middlepoint_path.size()-1; ++i)
+	for(size_t i=0; i<fov_poses.size()-1; ++i)
 	{
-		cv::circle(room_map_path, rotated_fov_middlepoint_path[i], 1, cv::Scalar(200), CV_FILLED);
-		cv::line(room_map_path, rotated_fov_middlepoint_path[i], rotated_fov_middlepoint_path[i+1], cv::Scalar(100), 1);
+		cv::circle(room_map_path, cv::Point(cvRound(fov_poses[i].x), cvRound(fov_poses[i].y)), 1, cv::Scalar(200), CV_FILLED);
+		cv::line(room_map_path, cv::Point(cvRound(fov_poses[i].x), cvRound(fov_poses[i].y)), cv::Point(cvRound(fov_poses[i+1].x), cvRound(fov_poses[i+1].y)), cv::Scalar(100), 1);
 	}
-	cv::circle(room_map_path, rotated_fov_middlepoint_path.back(), 1, cv::Scalar(200), CV_FILLED);
+	cv::circle(room_map_path, cv::Point(cvRound(fov_poses.back().x), cvRound(fov_poses.back().y)), 1, cv::Scalar(200), CV_FILLED);
 	//	for(size_t i=0; i<optimal_order.size()-1; ++i)
 	//		cv::line(room_map_path, polygon_centers[optimal_order[i]], polygon_centers[optimal_order[i+1]], cv::Scalar(100), 1);
 	cv::imshow("room_map_path_intermediate", room_map_path);
 	if (plan_for_footprint == true)
 		cv::waitKey();
 #endif
-
-	// transform the calculated path back to the originally rotated map and create poses with an angle
-	RoomRotator room_rotation;
-	std::vector<geometry_msgs::Pose2D> fov_poses;	// this is the trajectory of poses of the robot footprint or the field of view, in [pixels]
-	room_rotation.transformPathBackToOriginalRotation(fov_middlepoint_path, fov_poses, R);
 	ROS_INFO("Found the cell paths.");
 
 	// if the path should be planned for the robot footprint create the path and return here
@@ -456,7 +448,7 @@ void BoustrophedonExplorer::correctThinWalls(cv::Mat& room_map)
 }
 
 void BoustrophedonExplorer::computeBoustrophedonPath(const cv::Mat& room_map, const float map_resolution, const GeneralizedPolygon& cell,
-		std::vector<cv::Point>& fov_middlepoint_path, cv::Point& robot_pos,
+		std::vector<cv::Point2f>& fov_middlepoint_path, cv::Point& robot_pos,
 		const int grid_spacing_as_int, const int half_grid_spacing_as_int, const double path_eps)
 {
 	// get a map that has only the current cell drawn in
@@ -521,14 +513,13 @@ void BoustrophedonExplorer::computeBoustrophedonPath(const cv::Mat& room_map, co
 			cv::line(rotated_cell_map_disp, grid_lines[i].lower_line[j], grid_lines[i].lower_line[j+1], cv::Scalar(196), 1);
 	}
 	cv::imshow("rotated_cell_map", rotated_cell_map_disp);
-	cv::waitKey();
 #endif
 
 	// if no edge could be found in the cell (e.g. if it is too small), ignore it
 	if(grid_lines.size()==0)
 		return;
 
-	// get the edge nearest to the current robot position to start the boustrophedon path at by looking at the
+	// get the edge nearest to the current robot position to start the boustrophedon path at, by looking at the
 	// upper and lower horizontal path (possible nearest locations) for the edges transformed to the original coordinates (easier)
 	std::vector<cv::Point> outer_corners(4);
 	outer_corners[0] = grid_lines[0].upper_line[0];		// upper left corner
@@ -672,11 +663,33 @@ void BoustrophedonExplorer::computeBoustrophedonPath(const cv::Mat& room_map, co
 			}
 		}
 	}
+#ifdef DEBUG_VISUALIZATION
+	cv::Mat rotated_cell_fov_path_disp = rotated_cell_map.clone();
+	for (size_t i=1; i<current_fov_path.size(); ++i)
+	{
+		cv::circle(rotated_cell_fov_path_disp, current_fov_path[i], 1, cv::Scalar(196), 1);
+		cv::line(rotated_cell_fov_path_disp, current_fov_path[i-1], current_fov_path[i], cv::Scalar(128), 1);
+	}
+	cv::imshow("rotated_cell_fov_path", rotated_cell_fov_path_disp);
+#endif
 
 	// remap the fov path to the originally rotated cell and add the found points to the global path
-	cv::transform(current_fov_path, current_fov_path, R_cell_inv);
+	std::vector<cv::Point2f> fov_middlepoint_path_part;
 	for(std::vector<cv::Point>::iterator point=current_fov_path.begin(); point!=current_fov_path.end(); ++point)
-		fov_middlepoint_path.push_back(*point);
+		fov_middlepoint_path_part.push_back(cv::Point2f(point->x, point->y));
+	cv::transform(fov_middlepoint_path_part, fov_middlepoint_path_part, R_cell_inv);
+	fov_middlepoint_path.insert(fov_middlepoint_path.end(), fov_middlepoint_path_part.begin(), fov_middlepoint_path_part.end());
+
+#ifdef DEBUG_VISUALIZATION
+	cv::Mat cell_fov_path_disp = cell_map.clone();
+	for (size_t i=1; i<fov_middlepoint_path.size(); ++i)
+	{
+		cv::circle(cell_fov_path_disp, fov_middlepoint_path[i], 1, cv::Scalar(196), 1);
+		cv::line(cell_fov_path_disp, fov_middlepoint_path[i-1], fov_middlepoint_path[i], cv::Scalar(128), 1);
+	}
+	cv::imshow("cell_fov_path", cell_fov_path_disp);
+	cv::waitKey();
+#endif
 
 	// also update the current robot position
 	std::vector<cv::Point> current_pos_vector(1, cell_robot_pos);

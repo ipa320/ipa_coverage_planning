@@ -211,9 +211,9 @@ void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	}
 
 	// rearrange the found points in the optimal order and convert them to the right format
-	std::vector<cv::Point> fov_middlepoint_path(optimal_order.size());
+	std::vector<cv::Point2f> fov_middlepoint_path(optimal_order.size());
 	for(unsigned int point_index = 0; point_index < optimal_order.size(); ++point_index)
-		fov_middlepoint_path[point_index] = grid_points[optimal_order[point_index]];
+		fov_middlepoint_path[point_index] = cv::Point2f(grid_points[optimal_order[point_index]].x, grid_points[optimal_order[point_index]].y);
 
 	// transform the calculated path back to the originally rotated map and create poses with an angle
 	std::vector<geometry_msgs::Pose2D> path_fov_poses;
