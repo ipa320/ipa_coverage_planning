@@ -1073,14 +1073,22 @@ public:
 
 				// find pathlength and path between two consecutive poses
 				std::vector<cv::Point> current_interpolated_path;	// vector that stores the current path from one pose to another
-				double length_planner = path_planner.planPath(inflated_map, cv::Point(current_pose_px.x, current_pose_px.y), cv::Point(next_pose_px.x, next_pose_px.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
+				const cv::Point current_pose_px_pt(current_pose_px.x, current_pose_px.y);
+				const cv::Point next_pose_px_pt(next_pose_px.x, next_pose_px.y);
+				// first query for direct current_pose_px_pt to next_pose_px_pt connection
+				double length_planner = generateDirectConnection(inflated_map, current_pose_px_pt, next_pose_px_pt, current_interpolated_path);
+				if (length_planner < 0.)  // kind of a hack: if there is no accessible connection between two points, try to find a path on the original (not inflated) map, this path could possibly not be driven by the robot in reality
+					length_planner = generateDirectConnection(map, current_pose_px_pt, next_pose_px_pt, current_interpolated_path);
+				// use A* if there is no direct connection
+				if (length_planner < 0.)
+					length_planner = path_planner.planPath(inflated_map, current_pose_px_pt, next_pose_px_pt, 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
 				// kind of a hack: if there is no accessible connection between two points, try to find a path on the original (not inflated) map, this path could possibly not be driven by the robot in reality
-				if(current_interpolated_path.size()==0)
-					length_planner = path_planner.planPath(map, cv::Point(current_pose_px.x, current_pose_px.y), cv::Point(next_pose_px.x, next_pose_px.y), 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
-				current_pathlength += (length_planner > 1e90 ? cv::norm(cv::Point(next_pose_px.x-current_pose_px.x, next_pose_px.y-current_pose_px.y)) : length_planner);
+				if (current_interpolated_path.size()==0)
+					length_planner = path_planner.planPath(map, current_pose_px_pt, next_pose_px_pt, 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
+				current_pathlength += (length_planner>1e90 || length_planner<0 ? cv::norm(cv::Point(next_pose_px.x-current_pose_px.x, next_pose_px.y-current_pose_px.y)) : length_planner);
 
 				// if there is any proper connection between the two points, just use the goal point as "path"
-				if(current_interpolated_path.size()<2)
+				if (current_interpolated_path.size()<2)
 				{
 					current_interpolated_path.push_back(cv::Point(current_pose_px.x, current_pose_px.y));
 					current_interpolated_path.push_back(cv::Point(next_pose_px.x, next_pose_px.y));
@@ -1464,6 +1472,39 @@ public:
 		return found_next;
 	}
 
+	// return path length if a direct connection is possible, otherwise -1
+	double generateDirectConnection(const cv::Mat& map, const cv::Point& start, const cv::Point& goal, std::vector<cv::Point>& current_interpolated_path)
+	{
+		if (start==goal)
+			return 0.;
+
+		// try with direct connecting line
+		cv::LineIterator it(map, start, goal);
+		bool direct_connection = true;
+		for (int k=0; k<it.count && direct_connection==true; k++, ++it)
+			if (**it < 250)
+				direct_connection = false;		// if a pixel in between is not accessible, direct connection is not possible
+		if (direct_connection == true)
+		{
+			// compute distance and path
+			current_interpolated_path.clear();
+			double length = 0.;
+			cv::LineIterator it2(map, start, goal);
+			current_interpolated_path.resize(it2.count);
+			current_interpolated_path[0] = it2.pos();
+			it2++;
+			for (int k=1; k<it2.count; ++k, ++it2)
+			{
+				cv::Point diff = it2.pos()-current_interpolated_path[k-1];
+				length += ((abs(diff.x)+abs(diff.y))>1 ? std::sqrt(2.) : 1);
+				current_interpolated_path[k] = it2.pos();
+			}
+			return length;
+		}
+
+		return -1.;
+	}
+
 	// accumulate all statistics into one file
 	void writeCumulativeStatistics(const std::vector<ExplorationData>& evaluation_data, const std::vector<ExplorationConfig>& configs,
 			const std::string& data_storage_path)
@@ -1515,48 +1556,48 @@ int main(int argc, char **argv)
 	map_names.push_back("lab_b_scan");
 	map_names.push_back("lab_intel");
 	map_names.push_back("Freiburg101_scan");
-//	map_names.push_back("lab_d_scan");
-//	map_names.push_back("lab_f_scan");
-//	map_names.push_back("lab_a_scan");
-//	map_names.push_back("NLB");
-//	map_names.push_back("office_a");
-//	map_names.push_back("office_b");
-//	map_names.push_back("office_c");
-//	map_names.push_back("office_d");
-//	map_names.push_back("office_e");
-//	map_names.push_back("office_f");
-//	map_names.push_back("office_g");
-//	map_names.push_back("office_h");
-//	map_names.push_back("office_i");
-//	map_names.push_back("lab_ipa_furnitures");
-//	map_names.push_back("lab_c_scan_furnitures");
-//	map_names.push_back("Freiburg52_scan_furnitures");
-//	map_names.push_back("Freiburg79_scan_furnitures");
-//	map_names.push_back("lab_b_scan_furnitures");
-//	map_names.push_back("lab_intel_furnitures");
-//	map_names.push_back("Freiburg101_scan_furnitures");
-//	map_names.push_back("lab_d_scan_furnitures");
-//	map_names.push_back("lab_f_scan_furnitures");
-//	map_names.push_back("lab_a_scan_furnitures");
-//	map_names.push_back("NLB_furnitures");
-//	map_names.push_back("office_a_furnitures");
-//	map_names.push_back("office_b_furnitures");
-//	map_names.push_back("office_c_furnitures");
-//	map_names.push_back("office_d_furnitures");
-//	map_names.push_back("office_e_furnitures");
-//	map_names.push_back("office_f_furnitures");
-//	map_names.push_back("office_g_furnitures");
-//	map_names.push_back("office_h_furnitures");
-//	map_names.push_back("office_i_furnitures");
+	map_names.push_back("lab_d_scan");
+	map_names.push_back("lab_f_scan");
+	map_names.push_back("lab_a_scan");
+	map_names.push_back("NLB");
+	map_names.push_back("office_a");
+	map_names.push_back("office_b");
+	map_names.push_back("office_c");
+	map_names.push_back("office_d");
+	map_names.push_back("office_e");
+	map_names.push_back("office_f");
+	map_names.push_back("office_g");
+	map_names.push_back("office_h");
+	map_names.push_back("office_i");
+	map_names.push_back("lab_ipa_furnitures");
+	map_names.push_back("lab_c_scan_furnitures");
+	map_names.push_back("Freiburg52_scan_furnitures");
+	map_names.push_back("Freiburg79_scan_furnitures");
+	map_names.push_back("lab_b_scan_furnitures");
+	map_names.push_back("lab_intel_furnitures");
+	map_names.push_back("Freiburg101_scan_furnitures");
+	map_names.push_back("lab_d_scan_furnitures");
+	map_names.push_back("lab_f_scan_furnitures");
+	map_names.push_back("lab_a_scan_furnitures");
+	map_names.push_back("NLB_furnitures");
+	map_names.push_back("office_a_furnitures");
+	map_names.push_back("office_b_furnitures");
+	map_names.push_back("office_c_furnitures");
+	map_names.push_back("office_d_furnitures");
+	map_names.push_back("office_e_furnitures");
+	map_names.push_back("office_f_furnitures");
+	map_names.push_back("office_g_furnitures");
+	map_names.push_back("office_h_furnitures");
+	map_names.push_back("office_i_furnitures");
 
 	std::vector<int> exploration_algorithms;
 //	exploration_algorithms.push_back(1);	// grid point exploration
-	exploration_algorithms.push_back(2);	// boustrophedon exploration
+//	exploration_algorithms.push_back(2);	// boustrophedon exploration
 //	exploration_algorithms.push_back(3);	// neural network exploration
 //	exploration_algorithms.push_back(4);	// convex SPP exploration
 //	exploration_algorithms.push_back(5);	// flow network exploration
 //	exploration_algorithms.push_back(6);	// energy functional exploration
-//	exploration_algorithms.push_back(7);	// voronoi exploration
+	exploration_algorithms.push_back(7);	// voronoi exploration
 
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
 	// measures in [m]
@@ -1570,24 +1611,24 @@ int main(int argc, char **argv)
 //	fov_points[3].x = 0.54035;
 //	fov_points[3].y = -0.136;
 //	int planning_mode = 2;	// viewpoint planning
-	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
-	fov_points[0].y = 0.35;
-	fov_points[1].x = 0.15;
-	fov_points[1].y = -0.35;
-	fov_points[2].x = 1.15;
-	fov_points[2].y = -0.65;
-	fov_points[3].x = 1.15;
-	fov_points[3].y = 0.65;
-	int planning_mode = 2;	// viewpoint planning
-//	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
-//	fov_points[0].y = 0.3;
-//	fov_points[1].x = -0.3;
-//	fov_points[1].y = -0.3;
-//	fov_points[2].x = 0.3;
-//	fov_points[2].y = -0.3;
-//	fov_points[3].x = 0.3;
-//	fov_points[3].y = 0.3;
-//	int planning_mode = 1;	// footprint planning
+//	fov_points[0].x = 0.15;		// this field of view fits a Asus Xtion sensor mounted at 0.63m height (camera center) pointing downwards to the ground in a respective angle
+//	fov_points[0].y = 0.35;
+//	fov_points[1].x = 0.15;
+//	fov_points[1].y = -0.35;
+//	fov_points[2].x = 1.15;
+//	fov_points[2].y = -0.65;
+//	fov_points[3].x = 1.15;
+//	fov_points[3].y = 0.65;
+//	int planning_mode = 2;	// viewpoint planning
+	fov_points[0].x = -0.3;		// this is the working area of a vacuum cleaner with 60 cm width
+	fov_points[0].y = 0.3;
+	fov_points[1].x = -0.3;
+	fov_points[1].y = -0.3;
+	fov_points[2].x = 0.3;
+	fov_points[2].y = -0.3;
+	fov_points[3].x = 0.3;
+	fov_points[3].y = 0.3;
+	int planning_mode = 1;	// footprint planning
 
 	const double robot_radius = 0.3;		// [m]
 	const double coverage_radius = 0.3;		// [m]
@@ -1596,7 +1637,7 @@ int main(int argc, char **argv)
 	const float map_resolution = 0.05;		// [m/cell]
 
 	ExplorationEvaluation ev(nh, test_map_path, map_names, map_resolution, data_storage_path, robot_radius, coverage_radius, fov_points, planning_mode,
-			exploration_algorithms, robot_speed, robot_rotation_speed, true, true);
+			exploration_algorithms, robot_speed, robot_rotation_speed, false, true);
 	ros::shutdown();
 
 	//exit
