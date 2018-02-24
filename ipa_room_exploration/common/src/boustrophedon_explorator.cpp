@@ -85,17 +85,17 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 			start_cell_index = cell - cell_polygons.begin();
 
 	// determine the optimal visiting order of the cells
-	ConcordeTSPSolver tsp_solver;
-	std::vector<int> optimal_order = tsp_solver.solveConcordeTSP(rotated_room_map, polygon_centers, 0.25, 0.0, map_resolution, start_cell_index, 0);
-//	GeneticTSPSolver tsp_solver;
-//	std::vector<int> optimal_order = tsp_solver.solveGeneticTSP(rotated_room_map, polygon_centers, 0.25, 0.0, map_resolution, start_cell_index, 0);
+//	ConcordeTSPSolver tsp_solver;
+//	std::vector<int> optimal_order = tsp_solver.solveConcordeTSP(rotated_room_map, polygon_centers, 0.25, 0.0, map_resolution, start_cell_index, 0);
+	GeneticTSPSolver tsp_solver;
+	std::vector<int> optimal_order = tsp_solver.solveGeneticTSP(rotated_room_map, polygon_centers, 0.25, 0.0, map_resolution, start_cell_index, 0);
 	if (optimal_order.size()!=polygon_centers.size())
 	{
 		std::cout << "=====================> Genetic TSP failed with 25% resolution, falling back to 100%. <=======================" << std::endl;
-		optimal_order = tsp_solver.solveConcordeTSP(rotated_room_map, polygon_centers, 1.0, 0.0, map_resolution, start_cell_index, 0);
+		optimal_order = tsp_solver.solveGeneticTSP(rotated_room_map, polygon_centers, 1.0, 0.0, map_resolution, start_cell_index, 0);
 	}
 
-	// alternative ordering
+	// todo: we are using an alternative ordering here
 	optimal_order.clear();
 	std::multimap<int, int> y_coordinate_ordering;		// <y-coordinate of room centers, index>
 	for (size_t i=0; i<polygon_centers.size(); ++i)

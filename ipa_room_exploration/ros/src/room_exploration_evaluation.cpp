@@ -1411,14 +1411,13 @@ public:
 			const MapAccessibilityAnalysis::Pose target_pose_px_copy(target_pose_px.x, target_pose_px.y, target_pose_px.theta);
 			if (data.planning_mode_ == FOOTPRINT)
 			{
-				const double map_resolution_inverse = 1.0/data.map_resolution_;	// in [pixel/m]
+				const int max_radius = cvRound(1.55*data.coverage_radius_/data.map_resolution_);	// in [pixel]
 				// check circles with growing radius around the desired point until a dislocation of data.coverage_radius_ would be exceeded
-				for (double factor=0.33; factor<=1.05 && found_next==false; factor+=0.334)
+				for (double radius=1; radius<=max_radius && found_next==false; ++radius)
 				{
 					// check perimeter for accessible poses
 					std::vector<MapAccessibilityAnalysis::Pose> accessible_poses_on_perimeter;
-					map_accessibility_analysis.checkPerimeter(accessible_poses_on_perimeter, target_pose_px_copy,
-							cvRound(factor*data.coverage_radius_*map_resolution_inverse), PI/32., inflated_map,
+					map_accessibility_analysis.checkPerimeter(accessible_poses_on_perimeter, target_pose_px_copy, radius, PI/32., inflated_map,
 							approach_path_accessibility_check, cv::Point(current_pose_px.x, current_pose_px.y));
 
 					// find the closest accessible point on this perimeter
@@ -1448,23 +1447,31 @@ public:
 				//fov_center_px.y = (fov_center_px.y-data.map_origin_.position.y) / data.map_resolution_;
 				fov_center_px.orientation = target_pose_px_copy.orientation;
 
-				// check perimeter for accessible poses
-				std::vector<MapAccessibilityAnalysis::Pose> accessible_poses_on_perimeter;
-				map_accessibility_analysis.checkPerimeter(accessible_poses_on_perimeter, fov_center_px, cv::norm(fov_circle_center_point_in_px),
-						PI/32., inflated_map, approach_path_accessibility_check, cv::Point(current_pose_px.x, current_pose_px.y));
-
-				// find the closest accessible point on this perimeter
-				double min_distance_sqr = std::numeric_limits<double>::max();
-				for(std::vector<MapAccessibilityAnalysis::Pose>::iterator new_pose=accessible_poses_on_perimeter.begin(); new_pose!=accessible_poses_on_perimeter.end(); ++new_pose)
+				const double optimal_distance_to_fov_center = cv::norm(fov_circle_center_point_in_px);
+				for (double factor_add=0.; factor_add<0.45 && found_next==false; factor_add*=-1.)
 				{
-					const double dist_sqr = (new_pose->x-target_pose_px_copy.x)*(new_pose->x-target_pose_px_copy.x) + (new_pose->y-target_pose_px_copy.y)*(new_pose->y-target_pose_px_copy.y);
-					if (dist_sqr < min_distance_sqr)
+					const double factor = 1.0 + factor_add;
+					if (factor_add<=0.)
+						factor_add -= 0.1;
+
+					// check perimeter for accessible poses
+					std::vector<MapAccessibilityAnalysis::Pose> accessible_poses_on_perimeter;
+					map_accessibility_analysis.checkPerimeter(accessible_poses_on_perimeter, fov_center_px, factor*optimal_distance_to_fov_center,
+							PI/32., inflated_map, approach_path_accessibility_check, cv::Point(current_pose_px.x, current_pose_px.y));
+
+					// find the closest accessible point on this perimeter
+					double min_distance_sqr = std::numeric_limits<double>::max();
+					for(std::vector<MapAccessibilityAnalysis::Pose>::iterator new_pose=accessible_poses_on_perimeter.begin(); new_pose!=accessible_poses_on_perimeter.end(); ++new_pose)
 					{
-						target_pose_px.x = cvRound(new_pose->x);	// the approach_path_accessibility_check uses (u,v) coordinates obtained with cvRound, so this has to be used
-						target_pose_px.y = cvRound(new_pose->y);	// here for rounding as well, otherwise the robot can slip into the inaccessible space through rounding
-						target_pose_px.theta = new_pose->orientation;
-						min_distance_sqr = dist_sqr;
-						found_next = true;
+						const double dist_sqr = (new_pose->x-target_pose_px_copy.x)*(new_pose->x-target_pose_px_copy.x) + (new_pose->y-target_pose_px_copy.y)*(new_pose->y-target_pose_px_copy.y);
+						if (dist_sqr < min_distance_sqr)
+						{
+							target_pose_px.x = cvRound(new_pose->x);	// the approach_path_accessibility_check uses (u,v) coordinates obtained with cvRound, so this has to be used
+							target_pose_px.y = cvRound(new_pose->y);	// here for rounding as well, otherwise the robot can slip into the inaccessible space through rounding
+							target_pose_px.theta = new_pose->orientation;
+							min_distance_sqr = dist_sqr;
+							found_next = true;
+						}
 					}
 				}
 			}
