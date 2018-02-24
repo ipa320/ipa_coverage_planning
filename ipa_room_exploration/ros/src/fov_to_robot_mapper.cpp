@@ -74,8 +74,10 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 	AStarPlanner path_planner;
 	const double map_resolution_inv = 1.0/map_resolution;
 
-	// initialize the robot position to enable the Astar planner to find a path from the beginning
-	cv::Point2d robot_pos(starting_point.x, starting_point.y);
+	// initialize the robot position in accessible space to enable the Astar planner to find a path from the beginning
+	cv::Point robot_pos(starting_point.x, starting_point.y);
+//	std::vector<MapAccessibilityAnalysis::Pose> accessible_start_poses_on_perimeter;
+//	map_accessibility.checkPerimeter(accessible_start_poses_on_perimeter, fov_center, fov_radius_pixel, PI/64., room_map, false, robot_pos);
 
 	// map the given robot to fov vector into pixel coordinates
 	Eigen::Matrix<float, 2, 1> robot_to_fov_vector_pixel;
@@ -83,6 +85,7 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 	const double fov_radius_pixel = robot_to_fov_vector_pixel.norm();
 	const double fov_to_front_offset_angle = atan2((double)robot_to_fov_vector(1,0), (double)robot_to_fov_vector(0,0));
 	std::cout << "mapPath: fov_to_front_offset_angle: " << fov_to_front_offset_angle << "rad (" << fov_to_front_offset_angle*180./PI << "deg)" << std::endl;
+	std::cout << "fov_radius_pixel: " << fov_radius_pixel << "      robot_to_fov_vector: " << robot_to_fov_vector(0,0) << ", " << robot_to_fov_vector(1,0) << std::endl;
 
 	// go trough the given poses and calculate accessible robot poses
 	// first try with A*, if this fails, call map_accessibility_analysis and finally try a directly computed pose shift
@@ -95,7 +98,9 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 		// compute accessible locations on perimeter around target fov center
 		MapAccessibilityAnalysis::Pose fov_center(pose->x, pose->y, pose->theta);
 		std::vector<MapAccessibilityAnalysis::Pose> accessible_poses_on_perimeter;
-		map_accessibility.checkPerimeter(accessible_poses_on_perimeter, fov_center, fov_radius_pixel, PI/64., room_map, true, robot_pos);
+		map_accessibility.checkPerimeter(accessible_poses_on_perimeter, fov_center, fov_radius_pixel, PI/64., room_map, false, robot_pos);
+
+		//std::cout << "  fov_center: " << fov_center.x << ", " << fov_center.y << ", " << fov_center.orientation << "           accessible_poses_on_perimeter.size: " << accessible_poses_on_perimeter.size() << std::endl;
 
 		if(accessible_poses_on_perimeter.size()!=0)
 		{
@@ -103,7 +108,8 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 			// todo: extend with a complete consideration of the exact robot footprint
 			// go trough the found accessible positions and take the one that minimizes the angle between approach vector and robot heading direction at the target position
 			// and which lies in the half circle around fov_center which is "behind" the fov_center pose's orientation
-			double max_cos_alpha = -10;
+//			double max_cos_alpha = -10;
+			std::map<double, MapAccessibilityAnalysis::Pose, std::greater<double> > cos_alpha_to_perimeter_pose_mapping;		// maps (positive) cos_alpha to their perimeter poses
 			MapAccessibilityAnalysis::Pose best_pose;
 			//std::cout << "Perimeter: \n robot_pos = " << robot_pos.x << ", " << robot_pos.y << "     fov_center = " << fov_center.x << ", " << fov_center.y << "\n";
 			for(std::vector<MapAccessibilityAnalysis::Pose>::iterator perimeter_pose = accessible_poses_on_perimeter.begin(); perimeter_pose != accessible_poses_on_perimeter.end(); ++perimeter_pose)
@@ -112,26 +118,53 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 				//cv::Point2d heading = cv::Point2d(fov_center.x, fov_center.y) - cv::Point2d(perimeter_pose->x, perimeter_pose->y);
 				//const double heading_norm = sqrt((double)heading.x*heading.x+heading.y*heading.y);
 				perimeter_pose->orientation -= fov_to_front_offset_angle; // robot heading correction of off-center fov
-				cv::Point2d heading = cv::Point2d(cos(perimeter_pose->orientation), sin(perimeter_pose->orientation));
-				const double heading_norm = 1.;
-				if ((cos(fov_center.orientation)*heading.x+sin(fov_center.orientation)*heading.y)/heading_norm < 0)
-					continue;
+				const cv::Point2d perimeter_heading = cv::Point2d(cos(perimeter_pose->orientation), sin(perimeter_pose->orientation));
+				const double perimeter_heading_norm = 1.;
+				const cv::Point2d fov_center_heading = cv::Point2d(cos(fov_center.orientation), sin(fov_center.orientation));
+				const double fov_center_heading_norm = 1.;
+				const double cos_alpha = (fov_center_heading.x*perimeter_heading.x+fov_center_heading.y*perimeter_heading.y)/(fov_center_heading_norm*perimeter_heading_norm);
+				//std::cout << "  cos_alpha: " << cos_alpha << std::endl;
+//				if (cos_alpha < 0)
+//					continue;
+				if (cos_alpha >= 0.)
+					cos_alpha_to_perimeter_pose_mapping[cos_alpha] = *perimeter_pose;		// rank by cos(angle) between approach direction and viewing direction
 
 				// rank by cos(angle) between approach direction and viewing direction
 				//cv::Point2d approach = cv::Point2d(perimeter_pose->x, perimeter_pose->y) - cv::Point2d(robot_pos.x, robot_pos.y);
 				//const double approach_norm = sqrt(approach.x*approach.x+approach.y*approach.y);
-				cv::Point2d approach = cv::Point2d(cos(fov_center.orientation), sin(fov_center.orientation));
-				const double approach_norm = 1.;
-				double cos_alpha = 1.;		// only remains 1.0 if robot_pose and perimeter_pose are identical
-				if (approach.x!=0 || approach.y!=0)	// compute the cos(angle) between approach direction and viewing direction
-					cos_alpha = (approach.x*heading.x + approach.y*heading.y)/(approach_norm*heading_norm);
+//				double cos_alpha = 1.;		// only remains 1.0 if robot_pose and perimeter_pose are identical
+//				if (fov_center_heading.x!=0 || fov_center_heading.y!=0)	// compute the cos(angle) between approach direction and viewing direction
+//					cos_alpha = (fov_center_heading.x*perimeter_heading.x + fov_center_heading.y*perimeter_heading.y)/(fov_center_heading_norm*perimeter_heading_norm);
 				//std::cout << " - perimeter_pose = " << perimeter_pose->x << ", " << perimeter_pose->y << "     cos_alpha = " << cos_alpha << "   max_cos_alpha = " << max_cos_alpha << std::endl;
-				if(cos_alpha>max_cos_alpha)
+//				if(cos_alpha>max_cos_alpha)
+//				{
+//					max_cos_alpha = cos_alpha;
+//					best_pose = *perimeter_pose;
+//					found_pose = true;
+//				}
+			}
+//			std::cout << "  cos_alpha_to_perimeter_pose_mapping.size: " << cos_alpha_to_perimeter_pose_mapping.size() << std::endl;
+			if (cos_alpha_to_perimeter_pose_mapping.size() > 0)
+			{
+				// rank by cos(angle) between approach direction and viewing direction
+				double max_cos_alpha = cos_alpha_to_perimeter_pose_mapping.begin()->first;
+				double closest_dist = std::numeric_limits<double>::max();
+				for (std::map<double, MapAccessibilityAnalysis::Pose, std::greater<double> >::iterator it=cos_alpha_to_perimeter_pose_mapping.begin(); it!=cos_alpha_to_perimeter_pose_mapping.end(); ++it)
 				{
-					max_cos_alpha = cos_alpha;
-					best_pose = *perimeter_pose;
-					found_pose = true;
+//					std::cout << "    cos_alpha: " << it->first << std::endl;
+					// only consider the best fitting angles
+					if (it->first < 0.95*max_cos_alpha)
+						break;
+					// from those select the position with shortest approach path from current position
+					const double dist = cv::norm(robot_pos-cv::Point(it->second.x, it->second.y));
+					if (dist < closest_dist)
+					{
+						closest_dist = dist;
+						best_pose = it->second;
+						found_pose = true;
+					}
 				}
+//				std::cout << "    closest_dist: " << closest_dist << "    best_pose: " << best_pose.x << ", " << best_pose.y << ", " << best_pose.orientation << std::endl;
 			}
 
 			// add pose to path and set robot position to it
@@ -142,7 +175,7 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 				best_pose_msg.y = best_pose.y*map_resolution + map_origin.y;
 				best_pose_msg.theta = best_pose.orientation;
 				robot_path.push_back(best_pose_msg);
-				robot_pos = cv::Point2d(best_pose.x, best_pose.y);
+				robot_pos = cv::Point(cvRound(best_pose.x), cvRound(best_pose.y));
 				//std::cout << " best_pose = " << best_pose.x << ", " << best_pose.y << "      max_cos_alpha = " << max_cos_alpha << std::endl;
 				++found_with_map_acc;
 			}
@@ -174,7 +207,7 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 				robot_path.push_back(current_pose);
 
 				// set robot position to computed pose s.t. further planning is possible
-				robot_pos = cv::Point(robot_position(0,0), robot_position(1,0));
+				robot_pos = cv::Point((int)robot_position(0,0), (int)robot_position(1,0));
 
 				++found_with_shift;
 			}
@@ -207,7 +240,7 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 				geometry_msgs::Pose2D current_pose;
 				current_pose.x = (accessible_position.x * map_resolution) + map_origin.x;
 				current_pose.y = (accessible_position.y * map_resolution) + map_origin.y;
-				current_pose.theta = std::atan2(pose->y-accessible_position.y, pose->x-accessible_position.x);
+				current_pose.theta = std::atan2(pose->y-accessible_position.y, pose->x-accessible_position.x) - fov_to_front_offset_angle; // todo: check -fov_to_front_offset_angle
 				robot_path.push_back(current_pose);
 				// set robot position to computed pose s.t. further planning is possible
 				robot_pos = accessible_position;
@@ -218,6 +251,7 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 		if (found_pose==false)
 		{
 			++not_found;
+			std::cout << "  not found." << std::endl;
 		}
 
 //		testing
@@ -227,6 +261,9 @@ void mapPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& robot_
 //		cv::circle(room_copy, robot_pos, 2, cv::Scalar(100), CV_FILLED);
 //		cv::imshow("pose", room_copy);
 //		cv::waitKey();
+
+//		if (robot_path.size()>0)
+//			std::cout << "  robot_pos: " << robot_path.back().x << ", " << robot_path.back().y << ", " << robot_path.back().theta << std::endl;
 	}
 	std::cout << "Found with map_accessibility: " << found_with_map_acc << ",   with shift: " << found_with_shift
 			<< ",   with A*: " << found_with_astar << ",   not found: " << not_found << std::endl;

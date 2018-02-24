@@ -155,10 +155,11 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	// *********************** V. Get the robot path out of the fov path. ***********************
 	// go trough all computed fov poses and compute the corresponding robot pose
 	ROS_INFO("Starting to map from field of view pose to robot pose");
-	cv::Point robot_starting_position = (fov_poses.size()>0 ? cv::Point(fov_poses[0].x, fov_poses[0].y) : starting_position);
+	cv::Point robot_starting_position = (fov_poses.size()>0 ? cv::Point(cvRound(fov_poses[0].x), cvRound(fov_poses[0].y)) : starting_position);
 	cv::Mat inflated_room_map;
 	cv::erode(room_map, inflated_room_map, cv::Mat(), cv::Point(-1, -1), half_grid_spacing_as_int);
 	mapPath(inflated_room_map, path, fov_poses, robot_to_fov_vector, map_resolution, map_origin, robot_starting_position);
+
 
 #ifdef DEBUG_VISUALIZATION
 	// testing
