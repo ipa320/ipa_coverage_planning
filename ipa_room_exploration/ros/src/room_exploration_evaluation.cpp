@@ -353,15 +353,16 @@ public:
 			cv::Mat gt_map = cv::imread(gt_image_filename.c_str(), CV_8U);
 			cv::threshold(gt_map, gt_map, 250, 255, CV_THRESH_BINARY);
 
-			// combine real floor plan (maybe with furniture) and gt_map
+			// load the original map (without furniture if applicable)
+			std::string original_image_filename = ros::package::getPath("ipa_room_segmentation") + "/common/files/test_maps/" + map_name_basic + ".png";
+			std::cout << "Loading original image from: " << original_image_filename << std::endl;
+			cv::Mat original_map = cv::imread(original_image_filename.c_str(), CV_8U);
+
+			// combine real floor plan (but not its furniture) and gt_map
 			for (int y = 0; y < gt_map.rows; y++)
-			{
 				for (int x = 0; x < gt_map.cols; x++)
-				{
-					if (data->floor_plan_.at<uchar>(y,x) != 255)
+					if (original_map.at<uchar>(y,x) <= 250)
 						gt_map.at<uchar>(y,x) = 0;
-				}
-			}
 
 			// 2. retrieve the rooms for each ground truth map and get the maps that show only one room each
 			int label = 1;
@@ -390,10 +391,10 @@ public:
 			for(int room=1; room<label; ++room)
 			{
 				cv::Mat room_map = cv::Mat(labeled_map.rows, labeled_map.cols, CV_8U, cv::Scalar(0));
-				// go trough pixels and make pixels belonging to room white and not belonging pixels black
+				// go trough pixels and make pixels belonging to room white and not belonging pixels black (and consider furniture this time)
 				for(size_t y=0; y<room_map.rows; ++y)
 					for(size_t x=0; x<room_map.cols; ++x)
-						if(labeled_map.at<int>(y,x)==room)
+						if(labeled_map.at<int>(y,x)==room && data->floor_plan_.at<uchar>(y,x)==255)
 							room_map.at<uchar>(y,x) = 255;
 
 				// check for the eroded map (the map that shows the in reality reachable areas) to have enough free pixels
@@ -416,6 +417,12 @@ public:
 //					cv::waitKey();
 				}
 			}
+
+			// combine real floor plan (now including its furniture) and gt_map
+			for (int y = 0; y < gt_map.rows; y++)
+				for (int x = 0; x < gt_map.cols; x++)
+					if (data->floor_plan_.at<uchar>(y,x) != 255)
+						gt_map.at<uchar>(y,x) = 0;
 
 			// save the found room maps and bounding boxes
 			data->floor_plan_ = gt_map;
@@ -1001,6 +1008,7 @@ public:
 		cv::Mat inflated_map;
 		const int robot_radius_in_pixel = floor(data.robot_radius_ / data.map_resolution_);
 		map_accessibility_analysis.inflateMap(map, inflated_map, robot_radius_in_pixel);
+		interpolated_paths.resize(paths.size());
 
 		// draw paths
 		for(size_t room=0; room<paths.size(); ++room)
@@ -1150,7 +1158,7 @@ public:
 			number_of_rotations.push_back(current_number_of_rotations);
 
 			// save the interpolated path between
-			interpolated_paths.push_back(current_pose_path_meter);
+			interpolated_paths[room]=current_pose_path_meter;
 
 			// transform the pixel length to meter
 			current_pathlength *= data.map_resolution_;
@@ -1163,7 +1171,6 @@ public:
 			std::vector<double>& room_areas, std::vector<double>& area_covered_percentages, std::vector<double>& numbers_of_coverages)
 	{
 		map_coverage = map.clone();
-		size_t path_index = 0;
 		for(size_t room=0; room<paths.size(); ++room)
 		{
 			// ignore paths with size 0 or wrong data
@@ -1187,7 +1194,7 @@ public:
 			cv_image.image = data.room_maps_[room];	//eroded_room_map;
 			service_image = cv_image.toImageMsg();
 			coverage_request.input_map = *service_image;
-			coverage_request.path = interpolated_paths[path_index];
+			coverage_request.path = interpolated_paths[room];
 			coverage_request.field_of_view = data.fov_points_;
 			coverage_request.coverage_radius = data.coverage_radius_;
 			coverage_request.map_origin = data.map_origin_;
@@ -1240,9 +1247,6 @@ public:
 				for(size_t v=0; v<number_of_coverages_map.cols; ++v)
 					if(number_of_coverages_map.at<int>(u,v)!=0)
 						numbers_of_coverages.push_back(number_of_coverages_map.at<int>(u,v));
-
-			// increase index of interpolated path
-			++path_index;
 		}
 		// create the map with the drawn in path and coverage areas
 		map_path_coverage = map.clone();
@@ -1267,7 +1271,6 @@ public:
 		cv::Mat gradient_map = computeGradientMap(map);
 
 		const double trajectory_parallelism_check_range = 2.0*grid_spacing_in_pixel;	//1.0/data.map_resolution_; // valid check-radius when checking for the parallelism to another part of the trajectory, [pixels]
-		int valid_room_index = 0; // used to find the interpolated paths, that are only computed for rooms with a valid path
 		for (size_t room=0; room<paths.size(); ++room)
 		{
 			if (paths[room].size()==0 || (paths[room][0].x==-1 && paths[room][0].y==-1))
@@ -1369,19 +1372,19 @@ public:
 					cv::Point2f trajectory_point_m((trajectory_pixel.x*data.map_resolution_)+data.map_origin_.position.x, (trajectory_pixel.y*data.map_resolution_)+data.map_origin_.position.y); // transform in world coordinates
 					int pose_index = pose-paths[room].begin();
 					int neighbor_index = -1;
-					for (std::vector<geometry_msgs::Pose2D>::const_iterator neighbor=interpolated_paths[valid_room_index].begin(); neighbor!=interpolated_paths[valid_room_index].end(); ++neighbor)
+					for (std::vector<geometry_msgs::Pose2D>::const_iterator neighbor=interpolated_paths[room].begin(); neighbor!=interpolated_paths[room].end(); ++neighbor)
 						if (cv::norm(trajectory_point_m-cv::Point2f(neighbor->x,neighbor->y)) < 0.5*data.map_resolution_)
-							neighbor_index = neighbor-interpolated_paths[valid_room_index].begin();
+							neighbor_index = neighbor-interpolated_paths[room].begin();
 					if (neighbor_index == -1)
 						ROS_WARN("ExplorationEvaluation:evaluateCoveragePaths: parallelism check to trajectory, neighbor_index==-1 --> did not find the neighbor for trajectory point (%f,%f)m.", trajectory_point_m.x, trajectory_point_m.y);
 //						std::cout << "index: " << pose_index << ", n: " << neighbor_index << std::endl;
 
 					// save the found index difference, i.e. the difference in percentage of path completion between current node and neighboring path point
-					current_revisit_times.push_back(std::abs((double)pose_index/(double)paths[room].size() - (double)neighbor_index/(double)interpolated_paths[valid_room_index].size()));
+					current_revisit_times.push_back(std::abs((double)pose_index/(double)paths[room].size() - (double)neighbor_index/(double)interpolated_paths[room].size()));
 
 					// calculate the trajectory direction at the neighbor to get the difference
-					const double n_dx = cos(interpolated_paths[valid_room_index][neighbor_index].theta);
-					const double n_dy = sin(interpolated_paths[valid_room_index][neighbor_index].theta);
+					const double n_dx = cos(interpolated_paths[room][neighbor_index].theta);
+					const double n_dy = sin(interpolated_paths[room][neighbor_index].theta);
 					const double delta_theta = std::acos(n_dx*dx + n_dy*dy);	// acos delivers in range [0,Pi]
 					const double delta_theta_score = std::abs(0.5*PI-delta_theta)*(1./(0.5*PI));// parallel if delta_theta close to 0 or PI
 					current_trajectory_angle_scores.push_back(delta_theta_score);
@@ -1391,9 +1394,6 @@ public:
 			wall_angle_score_means.push_back(std::accumulate(current_wall_angle_scores.begin(), current_wall_angle_scores.end(), 0.0) / std::max(1.0, (double)current_wall_angle_scores.size()));
 			trajectory_angle_score_means.push_back(std::accumulate(current_trajectory_angle_scores.begin(), current_trajectory_angle_scores.end(), 0.0) / std::max(1.0, (double)current_trajectory_angle_scores.size()));
 			revisit_time_means.push_back(std::accumulate(current_revisit_times.begin(), current_revisit_times.end(), 0.0) / std::max(1.0, (double)current_revisit_times.size()));
-
-			// increase path index
-			++valid_room_index;
 		}
 	}
 
@@ -1556,26 +1556,26 @@ int main(int argc, char **argv)
 
 	// prepare relevant floor map data
 	std::vector< std::string > map_names;
-	map_names.push_back("lab_ipa");
-	map_names.push_back("lab_c_scan");
-	map_names.push_back("Freiburg52_scan");
-	map_names.push_back("Freiburg79_scan");
-	map_names.push_back("lab_b_scan");
-	map_names.push_back("lab_intel");
-	map_names.push_back("Freiburg101_scan");
-	map_names.push_back("lab_d_scan");
-	map_names.push_back("lab_f_scan");
-	map_names.push_back("lab_a_scan");
-	map_names.push_back("NLB");
-	map_names.push_back("office_a");
-	map_names.push_back("office_b");
-	map_names.push_back("office_c");
-	map_names.push_back("office_d");
-	map_names.push_back("office_e");
-	map_names.push_back("office_f");
-	map_names.push_back("office_g");
-	map_names.push_back("office_h");
-	map_names.push_back("office_i");
+//	map_names.push_back("lab_ipa");
+//	map_names.push_back("lab_c_scan");
+//	map_names.push_back("Freiburg52_scan");
+//	map_names.push_back("Freiburg79_scan");
+//	map_names.push_back("lab_b_scan");
+//	map_names.push_back("lab_intel");
+//	map_names.push_back("Freiburg101_scan");
+//	map_names.push_back("lab_d_scan");
+//	map_names.push_back("lab_f_scan");
+//	map_names.push_back("lab_a_scan");
+//	map_names.push_back("NLB");
+//	map_names.push_back("office_a");
+//	map_names.push_back("office_b");
+//	map_names.push_back("office_c");
+//	map_names.push_back("office_d");
+//	map_names.push_back("office_e");
+//	map_names.push_back("office_f");
+//	map_names.push_back("office_g");
+//	map_names.push_back("office_h");
+//	map_names.push_back("office_i");
 	map_names.push_back("lab_ipa_furnitures");
 	map_names.push_back("lab_c_scan_furnitures");
 	map_names.push_back("Freiburg52_scan_furnitures");
@@ -1598,13 +1598,13 @@ int main(int argc, char **argv)
 	map_names.push_back("office_i_furnitures");
 
 	std::vector<int> exploration_algorithms;
-//	exploration_algorithms.push_back(1);	// grid point exploration
+	exploration_algorithms.push_back(1);	// grid point exploration
 //	exploration_algorithms.push_back(2);	// boustrophedon exploration
 //	exploration_algorithms.push_back(3);	// neural network exploration
 //	exploration_algorithms.push_back(4);	// convex SPP exploration
 //	exploration_algorithms.push_back(5);	// flow network exploration
 //	exploration_algorithms.push_back(6);	// energy functional exploration
-	exploration_algorithms.push_back(7);	// voronoi exploration
+//	exploration_algorithms.push_back(7);	// voronoi exploration
 
 	// coordinate system definition: x points in forward direction of robot and camera, y points to the left side  of the robot and z points upwards. x and y span the ground plane.
 	// measures in [m]
