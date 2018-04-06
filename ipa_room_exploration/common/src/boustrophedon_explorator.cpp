@@ -1,6 +1,6 @@
 #include <ipa_room_exploration/boustrophedon_explorator.h>
 
-#define DEBUG_VISUALIZATION
+//#define DEBUG_VISUALIZATION
 
 // Constructor
 BoustrophedonExplorer::BoustrophedonExplorer()
