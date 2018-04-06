@@ -211,7 +211,7 @@ protected:
 			std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
 
 	// divides the provided map into Morse cells
-	void computeCellDecomposition(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
+	virtual void computeCellDecomposition(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
 			std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
 
 	// this function corrects obstacles that are one pixel width at 45deg angle, i.e. a 2x2 pixel neighborhood with [0, 255, 255, 0] or [255, 0, 0, 255]
@@ -220,7 +220,7 @@ protected:
 	// computes the Boustrophedon path pattern for a single cell
 	void computeBoustrophedonPath(const cv::Mat& room_map, const float map_resolution, const GeneralizedPolygon& cell,
 			std::vector<cv::Point2f>& fov_middlepoint_path, cv::Point& robot_pos,
-			const int grid_spacing_as_int, const int half_grid_spacing_as_int, const double path_eps);
+			const int grid_spacing_as_int, const int half_grid_spacing_as_int, const double path_eps, const int grid_obstacle_offset=0);
 
 	// downsamples a given path original_path to waypoint distances of path_eps and appends the resulting path to downsampled_path
 	void downsamplePath(const std::vector<cv::Point>& original_path, std::vector<cv::Point>& downsampled_path,
@@ -240,6 +240,22 @@ public:
 	// the robot should drive at.
 	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
 				const cv::Point starting_position, const cv::Point2d map_origin,
-				const double grid_spacing_in_pixel, const double path_eps, const bool plan_for_footprint,
+				const double grid_spacing_in_pixel, const double grid_obstacle_offset, const double path_eps, const bool plan_for_footprint,
 				const Eigen::Matrix<float, 2, 1> robot_to_fov_vector, const double min_cell_area);
+};
+
+
+class BoustrophedonVariantExplorer : public BoustrophedonExplorer
+{
+protected:
+
+	// computes a suitable cell decomposition for the given room_map
+	void computeCellDecomposition(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
+			std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
+
+public:
+	BoustrophedonVariantExplorer() {};
+	~BoustrophedonVariantExplorer() {};
+
+
 };

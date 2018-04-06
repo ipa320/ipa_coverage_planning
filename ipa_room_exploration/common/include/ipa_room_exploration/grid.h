@@ -249,11 +249,12 @@ public:
 	// grid_points = a vector of BoustrophedonLine objects, each of them containing line information in upper_line and optionally another line in lower_line if two_valid_lines is true, in [pixels]
 	// min_max_map_coordinates = optionally precomputed min/max coordinates (min_x, max_x, min_y, max_y) of the room in room_map, if cv::Vec4i(0,0,0,0) is provided, min/max map coordinates are computed by this function, in [pixels]
 	// grid_spacing = the basic distance between two grid cell centers, is used for vertical grid spacing, in [pixels]
-	// half_grid_spacing = the rounded half distance between two grid cell centers (the user shall defined how it is rounded), in [pixels]
+	// half_grid_spacing = the rounded half distance between two grid cell centers (the user shall define how it is rounded), in [pixels]
 	// grid_spacing_horizontal = this value allows to optionally specify the horizontal basic distance between two grid cell centers, it can be set to grid_spacing if the basic horzintal spacing shall be identical to the vertical spacing, in [pixels]
+	// grid_obstacle_offset = an optional offset of the grid lines to obstacles, i.e. if this value is larger than 0, the grid is shifted away from walls and obstacles by more than half_grid_spacing
 	static void generateBoustrophedonGrid(const cv::Mat& room_map, cv::Mat& inflated_room_map, const int map_inflation_radius,
 			BoustrophedonGrid& grid_points, const cv::Vec4i& min_max_map_coordinates, const int grid_spacing, const int half_grid_spacing,
-			const int grid_spacing_horizontal)
+			const int grid_spacing_horizontal, const int grid_obstacle_offset=0)
 	{
 		// compute inflated_room_map if not provided
 		if (inflated_room_map.rows!=room_map.rows || inflated_room_map.cols!=room_map.cols)
@@ -293,22 +294,22 @@ public:
 		const int squared_grid_spacing_horizontal = grid_spacing_horizontal*grid_spacing_horizontal;
 		//std::cout << "((max_y - min_y) <= grid_spacing): min_y=" << min_y << "   max_y=" << max_y << "   grid_spacing=" << grid_spacing << std::endl;
 		int y=0;
-		if ((max_y - min_y) < grid_spacing)
+		if ((max_y - min_y - 2*grid_obstacle_offset) < grid_spacing)
 			y = min_y + 0.5 * (max_y - min_y);
 		else
-			y = min_y + half_grid_spacing;
+			y = min_y + half_grid_spacing + grid_obstacle_offset;
 		// loop through the vertical grid lines with regular grid spacing
-		for (; y<max_y+half_grid_spacing; y += grid_spacing)		// we use max_y+half_grid_spacing as upper bound to cover the bottom-most line as well
+		for (; y<max_y+half_grid_spacing-grid_obstacle_offset; y += grid_spacing)		// we use max_y+half_grid_spacing as upper bound to cover the bottom-most line as well
 		{
 			if (y > max_y)	// this should happen at most once for the bottom line
-				y = max_y-half_grid_spacing;
+				y = max_y-half_grid_spacing-grid_obstacle_offset;
 
 			BoustrophedonLine line;
 			const cv::Point invalid_point(-1,-1);
 			cv::Point last_added_grid_point_above(-10000,-10000), last_added_grid_point_below(-10000,-10000);	// for keeping the horizontal grid distance
 			cv::Point last_valid_grid_point_above(-1,-1), last_valid_grid_point_below(-1,-1);	// for adding the rightmost possible point
 			// loop through the horizontal grid points with horizontal grid spacing length
-			for (int x=min_x; x<=max_x; x+=1)
+			for (int x=min_x+grid_obstacle_offset; x<=max_x-grid_obstacle_offset; x+=1)
 			{
 				// points are added to the grid line as follows:
 				//   1. if the original point is accessible --> point is added to upper_line, invalid point (-1,-1) is added to lower_line

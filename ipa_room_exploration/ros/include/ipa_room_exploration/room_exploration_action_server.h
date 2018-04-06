@@ -126,6 +126,7 @@ protected:
 	convexSPPExplorator convex_SPP_explorator_; // object that uses the convex spp exploration methd to create an exploration path
 	FlowNetworkExplorator flow_network_explorator_; // object that uses the flow network exploration method to create an exploration path
 	EnergyFunctionalExplorator energy_functional_explorator_; // object that uses the energy functional exploration method to create an exploration path
+	BoustrophedonVariantExplorer boustrophedon_variant_explorer_; // object that uses the boustrophedon variant exploration method to plan a path trough the room
 
 	// parameters
 	int room_exploration_algorithm_;	// variable to specify which algorithm is going to be used to plan a path
@@ -135,6 +136,8 @@ protected:
 										// 4: convexSPP explorator
 										// 5: flowNetwork explorator
 										// 6: energyFunctional explorator
+										// 7: Voronoi explorator
+										// 8: boustrophedon variant explorator
 	bool display_trajectory_;		// display final trajectory plan step by step
 
 	// parameters on map correction
@@ -169,6 +172,7 @@ protected:
 	// parameters specific for the boustrophedon explorator
 	double min_cell_area_;			// minimal area a cell can have, when using the boustrophedon explorator
 	double path_eps_;		// the distance between points when generating a path
+	double grid_obstacle_offset_;	// in [m], the additional offset of the grid to obstacles, i.e. allows to displace the grid by more than the standard half_grid_size from obstacles
 
 	// parameters specific for the neural network explorator, see "A Neural Network Approach to Complete Coverage Path Planning" from Simon X. Yang and Chaomin Luo
 	double step_size_; // step size for integrating the state dynamics

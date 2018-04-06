@@ -1,6 +1,6 @@
 #include <ipa_room_exploration/boustrophedon_explorator.h>
 
-//#define DEBUG_VISUALIZATION
+#define DEBUG_VISUALIZATION
 
 // Constructor
 BoustrophedonExplorer::BoustrophedonExplorer()
@@ -46,7 +46,7 @@ BoustrophedonExplorer::BoustrophedonExplorer()
 // room_map = expects to receive the original, not inflated room map
 void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
 		const float map_resolution, const cv::Point starting_position, const cv::Point2d map_origin,
-		const double grid_spacing_in_pixel, const double path_eps, const bool plan_for_footprint,
+		const double grid_spacing_in_pixel, const double grid_obstacle_offset, const double path_eps, const bool plan_for_footprint,
 		const Eigen::Matrix<float, 2, 1> robot_to_fov_vector, const double min_cell_area)
 {
 	ROS_INFO("Planning the boustrophedon path trough the room.");
@@ -165,7 +165,7 @@ process[room_exploration/room_exploration_server-2]: started with pid [7061]
 	for(size_t cell=0; cell<cell_polygons.size(); ++cell)
 	{
 		computeBoustrophedonPath(rotated_room_map, map_resolution, cell_polygons[optimal_order[cell]],
-				fov_middlepoint_path, robot_pos, grid_spacing_as_int, half_grid_spacing_as_int, path_eps);
+				fov_middlepoint_path, robot_pos, grid_spacing_as_int, half_grid_spacing_as_int, path_eps, grid_obstacle_offset/map_resolution);
 	}
 
 	// transform the calculated path back to the originally rotated map and create poses with an angle
@@ -502,7 +502,7 @@ void BoustrophedonExplorer::correctThinWalls(cv::Mat& room_map)
 
 void BoustrophedonExplorer::computeBoustrophedonPath(const cv::Mat& room_map, const float map_resolution, const GeneralizedPolygon& cell,
 		std::vector<cv::Point2f>& fov_middlepoint_path, cv::Point& robot_pos,
-		const int grid_spacing_as_int, const int half_grid_spacing_as_int, const double path_eps)
+		const int grid_spacing_as_int, const int half_grid_spacing_as_int, const double path_eps, const int grid_obstacle_offset)
 {
 	// get a map that has only the current cell drawn in
 	//	Remark:	single cells are obstacle free so it is sufficient to use the cell to check if a position can be reached during the
@@ -522,7 +522,7 @@ void BoustrophedonExplorer::computeBoustrophedonPath(const cv::Mat& room_map, co
 	// create inflated obstacles room map and rotate according to cell
 	//  --> used later for checking accessibility of Boustrophedon path inside the cell
 	cv::Mat inflated_room_map, rotated_inflated_room_map;
-	cv::erode(room_map, inflated_room_map, cv::Mat(), cv::Point(-1, -1), half_grid_spacing_as_int);
+	cv::erode(room_map, inflated_room_map, cv::Mat(), cv::Point(-1, -1), half_grid_spacing_as_int+grid_obstacle_offset);
 	cell_rotation.rotateRoom(inflated_room_map, rotated_inflated_room_map, R_cell, cell_bbox);
 	cv::Mat rotated_inflated_cell_map = rotated_cell_map.clone();
 	for (int v=0; v<rotated_inflated_cell_map.rows; ++v)
@@ -554,7 +554,7 @@ void BoustrophedonExplorer::computeBoustrophedonPath(const cv::Mat& room_map, co
 	// compute the basic Boustrophedon grid lines
 	BoustrophedonGrid grid_lines;
 	GridGenerator::generateBoustrophedonGrid(rotated_cell_map, rotated_inflated_cell_map, -1, grid_lines, cv::Vec4i(0, 0, 0, 0), //cv::Vec4i(min_x, max_x, min_y, max_y),
-			grid_spacing_as_int, half_grid_spacing_as_int, grid_spacing_as_int);		//1);
+			grid_spacing_as_int, half_grid_spacing_as_int, grid_spacing_as_int, grid_obstacle_offset);		//1);
 
 #ifdef DEBUG_VISUALIZATION
 	cv::Mat rotated_cell_map_disp = rotated_cell_map.clone();
@@ -789,5 +789,52 @@ void BoustrophedonExplorer::downsamplePathReverse(const std::vector<cv::Point>& 
 	{
 		downsampled_path.push_back(original_path[0]);
 		robot_pos = original_path[0];
+	}
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// BoustrophedonVariantExplorer
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+void BoustrophedonVariantExplorer::computeCellDecomposition(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
+		std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers)
+{
+	std::cout << "Calling BoustrophedonVariantExplorer::computeCellDecomposition..." << std::endl;
+
+	// *********************** II. Sweep a slice trough the map and mark the found cell boundaries. ***********************
+	// create a map copy to mark the cell boundaries
+	cv::Mat cell_map = room_map.clone();
+#ifdef DEBUG_VISUALIZATION
+	cv::imshow("cell_map", cell_map);
+#endif
+
+
+	// *********************** III. Find the separated cells. ***********************
+	std::vector<std::vector<cv::Point> > cells;
+	cv::Mat cell_copy = cell_map.clone();
+	correctThinWalls(cell_copy);	// just adds a few obstacle pixels to avoid merging independent segments
+	cv::findContours(cell_copy, cells, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+#ifdef DEBUG_VISUALIZATION
+//	 testing
+//	cv::Mat black_map = cv::Mat(cell_map.rows, cell_map.cols, cell_map.type(), cv::Scalar(0));
+//	for(size_t i=0; i<cells.size(); ++i)
+//	{
+//		cv::drawContours(black_map, cells, i, cv::Scalar(127), CV_FILLED);
+//		cv::imshow("contours", black_map);
+//		cv::waitKey();
+//	}
+#endif
+
+	// create generalized Polygons out of the contours to handle the cells
+	for(size_t cell=0; cell<cells.size(); ++cell)
+	{
+		if(cv::contourArea(cells[cell])>=min_cell_area)
+		{
+			GeneralizedPolygon current_cell(cells[cell], map_resolution);
+			cell_polygons.push_back(current_cell);
+			polygon_centers.push_back(current_cell.getCenter());
+		}
 	}
 }
