@@ -102,7 +102,7 @@ min_cell_area: 10.0
 # distance between two points when generating the (line) path
 # [pixel], where one pixel is the size of one cell in the navigation grid map
 # double
-path_eps: 2.0
+path_eps: 6.0
 
 # the additional offset of the grid to obstacles, i.e. allows to displace the grid by more than the standard half_grid_size from obstacles
 # [m]
