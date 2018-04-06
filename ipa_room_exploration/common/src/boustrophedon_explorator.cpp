@@ -554,16 +554,22 @@ void BoustrophedonExplorer::computeBoustrophedonPath(const cv::Mat& room_map, co
 	// compute the basic Boustrophedon grid lines
 	BoustrophedonGrid grid_lines;
 	GridGenerator::generateBoustrophedonGrid(rotated_cell_map, rotated_inflated_cell_map, -1, grid_lines, cv::Vec4i(0, 0, 0, 0), //cv::Vec4i(min_x, max_x, min_y, max_y),
-			grid_spacing_as_int, half_grid_spacing_as_int, grid_spacing_as_int, grid_obstacle_offset);		//1);
+			grid_spacing_as_int, half_grid_spacing_as_int, path_eps/*grid_spacing_as_int*/, grid_obstacle_offset);		//1);
 
 #ifdef DEBUG_VISUALIZATION
 	cv::Mat rotated_cell_map_disp = rotated_cell_map.clone();
 	for (size_t i=0; i<grid_lines.size(); ++i)
 	{
 		for (size_t j=0; j+1<grid_lines[i].upper_line.size(); ++j)
+		{
+			cv::circle(rotated_cell_map_disp, grid_lines[i].upper_line[j], 1, cv::Scalar(64), CV_FILLED);
 			cv::line(rotated_cell_map_disp, grid_lines[i].upper_line[j], grid_lines[i].upper_line[j+1], cv::Scalar(128), 1);
+		}
 		for (size_t j=0; j+1<grid_lines[i].lower_line.size(); ++j)
+		{
+			cv::circle(rotated_cell_map_disp, grid_lines[i].lower_line[j], 1, cv::Scalar(64), CV_FILLED);
 			cv::line(rotated_cell_map_disp, grid_lines[i].lower_line[j], grid_lines[i].lower_line[j+1], cv::Scalar(196), 1);
+		}
 	}
 	cv::imshow("rotated_cell_map", rotated_cell_map_disp);
 #endif
