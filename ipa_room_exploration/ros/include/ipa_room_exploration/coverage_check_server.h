@@ -21,7 +21,7 @@
 //	REMARK: The given map has to be a 8Bit single channel image, with 0 as obstacle and 255 as free sapce drawn in.
 // If wanted, the server can check how often a pixel has been covered during the execution. When this is wished, an image is returned, in
 // which the number of coverages is assigned to each pixel (32bit image in this case).
-class coverageCheckServer
+class CoverageCheckServer
 {
 protected:
 	// node handle
@@ -44,7 +44,8 @@ protected:
 	ros::ServiceServer coverage_check_server_;
 public:
 	// constructor
-	coverageCheckServer(ros::NodeHandle nh);
+	CoverageCheckServer();
+	CoverageCheckServer(ros::NodeHandle nh);
 
 	// callback function for the server
 	bool checkCoverage(ipa_building_msgs::CheckCoverageRequest& request, ipa_building_msgs::CheckCoverageResponse& response);

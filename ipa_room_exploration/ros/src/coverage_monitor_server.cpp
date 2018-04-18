@@ -68,6 +68,7 @@
 #include <dynamic_reconfigure/Reconfigure.h>
 #include <dynamic_reconfigure/Config.h>
 #include <ipa_room_exploration/CoverageMonitorConfig.h>
+#include <ipa_room_exploration/coverage_check_server.h>
 #include <ipa_building_msgs/CheckCoverage.h>
 
 #include <visualization_msgs/Marker.h>
@@ -238,7 +239,10 @@ public:
 				{
 					tf::StampedTransform transform;
 					transform_listener_.lookupTransform(map_frame_, robot_frame_, time, transform);
-					robot_trajectory_vector_.push_back(transform);
+					{
+						boost::mutex::scoped_lock lock(robot_trajectory_vector_mutex_);
+						robot_trajectory_vector_.push_back(transform);
+					}
 				}
 //				// this can be used for testing if no data is available
 //				tf::StampedTransform transform(tf::Transform(tf::Quaternion(0, 0, 0, 1), tf::Vector3(0.1*index, 0., 0.)), ros::Time::now(), map_frame_, robot_frame_);
@@ -371,7 +375,42 @@ public:
 	{
 		std::cout << "CoverageMonitor::getCoverageImageCallback." << std::endl;
 
-		//
+		// insert path to request message
+		{
+			boost::mutex::scoped_lock lock(robot_trajectory_vector_mutex_);
+			req.path.resize(robot_trajectory_vector_.size());
+			for (size_t i=0; i<robot_trajectory_vector_.size(); ++i)
+			{
+				req.path[i].x = robot_trajectory_vector_[i].getOrigin().getX();
+				req.path[i].y = robot_trajectory_vector_[i].getOrigin().getY();
+				req.path[i].theta = tf::getYaw(robot_trajectory_vector_[i].getRotation());
+			}
+		}
+
+		// call coverage check server
+		CoverageCheckServer coverage_checker;
+		coverage_checker.checkCoverage(req, res);
+
+		// simplify returned coverage_map (remove room pixels [255] and remap the covered pixels from 127 to 255)
+		cv_bridge::CvImagePtr cv_ptr_obj;
+		cv_ptr_obj = cv_bridge::toCvCopy(res.coverage_map, sensor_msgs::image_encodings::MONO8);
+		cv::Mat coverage_map = cv_ptr_obj->image;
+
+		for (int v=0; v<coverage_map.rows; ++v)
+		{
+			for (int u=0; u<coverage_map.cols; ++u)
+			{
+				if (coverage_map.at<uchar>(v,u) == 255)
+					coverage_map.at<uchar>(v,u) = 0;
+				else if (coverage_map.at<uchar>(v,u) == 127)
+					coverage_map.at<uchar>(v,u) = 255;
+			}
+		}
+		cv_bridge::CvImage cv_image;
+		cv_image.header.stamp = res.coverage_map.header.stamp;
+		cv_image.encoding = res.coverage_map.encoding;
+		cv_image.image = coverage_map;
+		cv_image.toImageMsg(res.coverage_map);
 
 		return true;
 	}
@@ -401,6 +440,7 @@ protected:
 
 	bool robot_trajectory_recording_active_;		// the robot trajectory is only recorded if this is true (can be set from outside)
 
+	boost::mutex robot_trajectory_vector_mutex_;				// secures read and write operations on robot_trajectory_vector_
 	std::vector<tf::StampedTransform> robot_trajectory_vector_;				// vector of actual robot trajectory
 	std::vector<tf::StampedTransform> robot_computed_trajectory_vector_;	// vector of computed target robot trajectory
 	boost::mutex robot_computed_trajectory_vector_mutex_;		// secures read and write operations on robot_computed_trajectory_vector_

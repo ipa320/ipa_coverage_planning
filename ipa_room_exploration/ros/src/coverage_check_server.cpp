@@ -1,15 +1,19 @@
 #include <ipa_room_exploration/coverage_check_server.h>
 
-// The default constructor.
-coverageCheckServer::coverageCheckServer(ros::NodeHandle nh)
+// The default constructors
+CoverageCheckServer::CoverageCheckServer()
+{
+}
+
+CoverageCheckServer::CoverageCheckServer(ros::NodeHandle nh)
 :node_handle_(nh)
 {
-	coverage_check_server_ = node_handle_.advertiseService("coverage_check", &coverageCheckServer::checkCoverage, this);
+	coverage_check_server_ = node_handle_.advertiseService("coverage_check", &CoverageCheckServer::checkCoverage, this);
 	ROS_INFO("Server for coverage checking initialized.....");
 }
 
 // Callback function for the server.
-bool coverageCheckServer::checkCoverage(ipa_building_msgs::CheckCoverageRequest& request, ipa_building_msgs::CheckCoverageResponse& response)
+bool CoverageCheckServer::checkCoverage(ipa_building_msgs::CheckCoverageRequest& request, ipa_building_msgs::CheckCoverageResponse& response)
 {
 	// convert the map msg to cv format
 	cv_bridge::CvImagePtr cv_ptr_obj;
@@ -55,7 +59,7 @@ bool coverageCheckServer::checkCoverage(ipa_building_msgs::CheckCoverageRequest&
 
 	return return_value;
 }
-bool coverageCheckServer::checkCoverage(const cv::Mat& map, const float map_resolution, const cv::Point2d& map_origin, const std::vector<cv::Point3d>& path,
+bool CoverageCheckServer::checkCoverage(const cv::Mat& map, const float map_resolution, const cv::Point2d& map_origin, const std::vector<cv::Point3d>& path,
 		const std::vector<Eigen::Matrix<float, 2, 1> >& field_of_view, const float coverage_radius, const bool check_for_footprint, const bool check_number_of_coverages,
 		cv::Mat& coverage_map, cv::Mat& number_of_coverage_image)
 {
@@ -131,16 +135,16 @@ bool coverageCheckServer::checkCoverage(const cv::Mat& map, const float map_reso
 	}
 
 	// check if the coverage check should be done for the footprint or the field of view
-	cv::Mat covered_areas = map.clone();
+	coverage_map = map.clone();
 	if(check_for_footprint==false)
 	{
 		ROS_INFO("Checking coverage for fov.");
-		drawSeenPoints(covered_areas, path, field_of_view, corner_point_1, corner_point_2, map_resolution, map_origin, image_pointer);
+		drawSeenPoints(coverage_map, path, field_of_view, corner_point_1, corner_point_2, map_resolution, map_origin, image_pointer);
 	}
 	else
 	{
 		ROS_INFO("Checking coverage for footprint.");
-		drawSeenPoints(covered_areas, path, coverage_radius, map_resolution, map_origin, image_pointer);
+		drawSeenPoints(coverage_map, path, coverage_radius, map_resolution, map_origin, image_pointer);
 	}
 	ROS_INFO("Finished coverage check.");
 
@@ -154,7 +158,7 @@ bool coverageCheckServer::checkCoverage(const cv::Mat& map, const float map_reso
 // along its left side. The function then calculates the field_of_view_points in the global frame by using the given robot pose.
 // After this the function does a raycasting to check if the field of view has been blocked by an obstacle and couldn't see
 // what's behind it. This ensures that no Point is wrongly classified as seen.
-void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std::vector<cv::Point3d>& robot_poses,
+void CoverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std::vector<cv::Point3d>& robot_poses,
 			const std::vector<Eigen::Matrix<float, 2, 1> >& field_of_view_points, const Eigen::Matrix<float, 2, 1> raycasting_corner_1,
 			const Eigen::Matrix<float, 2, 1> raycasting_corner_2, const float map_resolution, const cv::Point2d map_origin,
 			cv::Mat* number_of_coverages_image)
@@ -256,7 +260,7 @@ void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 
 // Function that takes the given robot poses and draws the footprint at these positions into the given map. Used when
 // the server should plan a coverage path for the robot coverage area (a circle).
-void coverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std::vector<cv::Point3d>& robot_poses,
+void CoverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std::vector<cv::Point3d>& robot_poses,
 			const double coverage_radius, const float map_resolution,
 			const cv::Point2d map_origin, cv::Mat* number_of_coverages_image)
 {

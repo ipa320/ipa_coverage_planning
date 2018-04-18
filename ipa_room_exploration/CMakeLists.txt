@@ -193,6 +193,7 @@ target_link_libraries(coverage_monitor_server
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBS}
 	${Boost_LIBRARIES}
+	libcoverage_check_server
 )
 add_dependencies(coverage_monitor_server ${catkin_EXPORTED_TARGETS})
 
