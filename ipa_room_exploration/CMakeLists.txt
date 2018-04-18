@@ -132,7 +132,7 @@ include_directories(
 	${Cbc-lib_INCLUDE_DIRS}
 )
 
-# room exploration action server, note: order of linking the Coin-Or packages important
+### room exploration action server, note: order of linking the Coin-Or packages important
 add_executable(room_exploration_server
 	ros/src/room_exploration_action_server.cpp
 	common/src/grid_point_explorator.cpp
@@ -162,18 +162,41 @@ add_dependencies(room_exploration_server
 	${${PROJECT_NAME}_EXPORTED_TARGETS}
 )
 
-# server for coverage checking
-add_executable(coverage_check_server
+### library for coverage checking
+add_library(libcoverage_check_server
 	ros/src/coverage_check_server.cpp
+)
+target_link_libraries(libcoverage_check_server
+	${catkin_LIBRARIES} 
+	${OpenCV_LIBS}
+	${Boost_LIBRARIES}
+)
+add_dependencies(libcoverage_check_server ${catkin_EXPORTED_TARGETS})
+
+### server for coverage checking
+add_executable(coverage_check_server
+	ros/src/coverage_check_server_main.cpp
 )
 target_link_libraries(coverage_check_server
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBS}
 	${Boost_LIBRARIES}
+	libcoverage_check_server
 )
 add_dependencies(coverage_check_server ${catkin_EXPORTED_TARGETS})
 
-# room exploration client
+### server for coverage monitoring
+add_executable(coverage_monitor_server
+	ros/src/coverage_monitor_server.cpp
+)
+target_link_libraries(coverage_monitor_server
+	${catkin_LIBRARIES} 
+	${OpenCV_LIBS}
+	${Boost_LIBRARIES}
+)
+add_dependencies(coverage_monitor_server ${catkin_EXPORTED_TARGETS})
+
+### room exploration client
 add_executable(room_exploration_client
 	ros/src/room_exploration_action_client.cpp
 )
@@ -187,7 +210,7 @@ add_dependencies(room_exploration_client
 	${${PROJECT_NAME}_EXPORTED_TARGETS}
 )
 
-# evaluation of room exploration algorithms
+### evaluation of room exploration algorithms
 add_executable(room_exploration_evaluation
 	ros/src/room_exploration_evaluation.cpp
 	ros/src/fov_to_robot_mapper.cpp
@@ -200,17 +223,6 @@ add_dependencies(room_exploration_evaluation
 	${catkin_EXPORTED_TARGETS}
 	${${PROJECT_NAME}_EXPORTED_TARGETS}
 )
-
-# server for coverage monitoring
-add_executable(coverage_monitor_server
-	ros/src/coverage_monitor_server.cpp
-)
-target_link_libraries(coverage_monitor_server
-	${catkin_LIBRARIES} 
-	${OpenCV_LIBS}
-	${Boost_LIBRARIES}
-)
-add_dependencies(coverage_monitor_server ${catkin_EXPORTED_TARGETS})
 
 
 #############

@@ -68,6 +68,7 @@
 #include <dynamic_reconfigure/Reconfigure.h>
 #include <dynamic_reconfigure/Config.h>
 #include <ipa_room_exploration/CoverageMonitorConfig.h>
+#include <ipa_building_msgs/CheckCoverage.h>
 
 #include <visualization_msgs/Marker.h>
 #include <geometry_msgs/TransformStamped.h>
@@ -119,6 +120,7 @@ public:
 		// setup services
 		start_coverage_monitoring_srv_ = node_handle_.advertiseService("start_coverage_monitoring", &CoverageMonitor::startCoverageMonitoringCallback, this);
 		stop_coverage_monitoring_srv_ = node_handle_.advertiseService("stop_coverage_monitoring", &CoverageMonitor::stopCoverageMonitoringCallback, this);
+		get_coverage_image_srv_ = node_handle_.advertiseService("get_coverage_image", &CoverageMonitor::getCoverageImageCallback, this);
 
 		// prepare coverage_marker_msg message
 		visualization_msgs::Marker coverage_marker_msg;
@@ -365,6 +367,15 @@ public:
 		std::cout << "######################################################################################" << std::endl;
 	}
 
+	bool getCoverageImageCallback(ipa_building_msgs::CheckCoverage::Request &req, ipa_building_msgs::CheckCoverage::Response &res)
+	{
+		std::cout << "CoverageMonitor::getCoverageImageCallback." << std::endl;
+
+		//
+
+		return true;
+	}
+
 protected:
 	ros::NodeHandle node_handle_;
 
@@ -378,6 +389,7 @@ protected:
 
 	ros::ServiceServer start_coverage_monitoring_srv_;	// service for starting monitoring the robot trajectory
 	ros::ServiceServer stop_coverage_monitoring_srv_;	// service for stopping monitoring the robot trajectory
+	ros::ServiceServer get_coverage_image_srv_;			// service for returning an image of the covered area
 
 	dynamic_reconfigure::Server<ipa_room_exploration::CoverageMonitorConfig> coverage_monitor_dynamic_reconfigure_server_;
 
