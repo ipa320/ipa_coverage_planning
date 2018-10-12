@@ -7,5 +7,5 @@ float32 coverage_radius					# radius that is used to plan the coverage planning 
 bool check_for_footprint				# determine, if the coverage check should be done for the footprint or the field of view
 bool check_number_of_coverages			# if set, the server returns a map that shows how often one pixel has been covered during the path, return format: 32bit single-channel image
 ---
-sensor_msgs/Image coverage_map			# the map that has the covered areas drawn in, with a value of 127, also a 8bit single-channel image
+sensor_msgs/Image coverage_map			# the map that has the covered areas drawn in, with a value of 255, an 8bit single-channel image
 sensor_msgs/Image number_of_coverage_image	# the image that carries for each pixel the number of coverages when executing the path, 32bit single-channel image
