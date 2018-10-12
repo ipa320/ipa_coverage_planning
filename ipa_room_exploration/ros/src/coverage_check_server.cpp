@@ -17,6 +17,7 @@ bool CoverageCheckServer::checkCoverage(ipa_building_msgs::CheckCoverageRequest&
 {
 	// convert the map msg to cv format
 	cv_bridge::CvImagePtr cv_ptr_obj;
+	std::cout << "request.input_map.encoding:" << request.input_map.encoding << std::endl;
 	cv_ptr_obj = cv_bridge::toCvCopy(request.input_map, sensor_msgs::image_encodings::MONO8);
 	cv::Mat map = cv_ptr_obj->image;
 
@@ -39,11 +40,12 @@ bool CoverageCheckServer::checkCoverage(ipa_building_msgs::CheckCoverageRequest&
 			field_of_view, request.coverage_radius, request.check_for_footprint, request.check_number_of_coverages,
 			coverage_map, number_of_coverage_image);
 
+	std::cout << "2" << std::endl;
 	// convert the map with the covered area back to the sensor_msgs format
 	ros::Time now = ros::Time::now();
 	cv_bridge::CvImage cv_image;
 	cv_image.header.stamp = now;
-	cv_image.encoding = "mono8";
+	cv_image.encoding = sensor_msgs::image_encodings::MONO8;	// "mono8"
 	cv_image.image = coverage_map;
 	cv_image.toImageMsg(response.coverage_map);
 
@@ -52,10 +54,12 @@ bool CoverageCheckServer::checkCoverage(ipa_building_msgs::CheckCoverageRequest&
 	{
 		cv_bridge::CvImage number_image;
 		number_image.header.stamp = now;
-		number_image.encoding = "32SC1";
+		number_image.encoding = sensor_msgs::image_encodings::TYPE_32SC1;	//"32SC1";
 		number_image.image = number_of_coverage_image;
 		number_image.toImageMsg(response.number_of_coverage_image);
 	}
+
+	std::cout << "3" << std::endl;
 
 	return return_value;
 }

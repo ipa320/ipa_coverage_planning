@@ -373,6 +373,7 @@ public:
 
 	bool getCoverageImageCallback(ipa_building_msgs::CheckCoverage::Request &req, ipa_building_msgs::CheckCoverage::Response &res)
 	{
+		std::cout << "req.input_map.encoding:" << req.input_map.encoding << std::endl;
 		std::cout << "CoverageMonitor::getCoverageImageCallback." << std::endl;
 
 		// insert path to request message
@@ -391,9 +392,10 @@ public:
 		CoverageCheckServer coverage_checker;
 		coverage_checker.checkCoverage(req, res);
 
+		std::cout << "res.coverage_map.encoding=" << res.coverage_map.encoding << std::endl;
 		// simplify returned coverage_map (remove room pixels [255] and remap the covered pixels from 127 to 255)
 		cv_bridge::CvImagePtr cv_ptr_obj;
-		cv_ptr_obj = cv_bridge::toCvCopy(res.coverage_map, sensor_msgs::image_encodings::MONO8);
+		cv_ptr_obj = cv_bridge::toCvCopy(res.coverage_map, res.coverage_map.encoding);	//sensor_msgs::image_encodings::MONO8);
 		cv::Mat coverage_map = cv_ptr_obj->image;
 
 		for (int v=0; v<coverage_map.rows; ++v)
