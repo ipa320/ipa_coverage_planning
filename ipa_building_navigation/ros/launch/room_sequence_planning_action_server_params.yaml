@@ -26,7 +26,7 @@ planning_method: 2
 
 # max A* path length between two rooms that are assigned to the same clique, in [m] (only applies to CheckpointBasedPlanning (2) problem_setting)
 # double
-max_clique_path_length: 12.0
+max_clique_path_length: 1200.0
 
 # maximal nodes in one clique for one trolley position (only applies to CheckpointBasedPlanning (2) problem_setting)
 # int
