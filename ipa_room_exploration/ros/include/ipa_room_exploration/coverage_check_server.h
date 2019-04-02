@@ -30,8 +30,7 @@ protected:
 	// function to draw the covered areas into the given map, when checking for the field of view, done by doing a raycasting between the
 	// fov origin and the fov
 	void drawSeenPoints(cv::Mat& reachable_areas_map, const std::vector<cv::Point3d>& robot_poses,
-			const std::vector<Eigen::Matrix<float, 2, 1>>& field_of_view_points, const Eigen::Matrix<float, 2, 1> raycasting_corner_1,
-			const Eigen::Matrix<float, 2, 1> raycasting_corner_2, const float map_resolution, const cv::Point2d map_origin,
+			const std::vector<Eigen::Matrix<float, 2, 1>>& field_of_view_points, const float map_resolution, const cv::Point2d map_origin,
 			cv::Mat* number_of_coverages_image=NULL);
 
 	// function to draw the covered ares into the given map, when checking for the robot footprint, done by simply drawing the footprint

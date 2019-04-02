@@ -37,10 +37,8 @@ bool CoverageCheckServer::checkCoverage(ipa_building_msgs::CheckCoverageRequest&
 
 	cv::Mat coverage_map, number_of_coverage_image;
 	bool return_value = checkCoverage(map, request.map_resolution, cv::Point2d(request.map_origin.position.x, request.map_origin.position.y), path,
-			field_of_view, request.coverage_radius, request.check_for_footprint, request.check_number_of_coverages,
-			coverage_map, number_of_coverage_image);
+			field_of_view, request.coverage_radius, request.check_for_footprint, request.check_number_of_coverages, coverage_map, number_of_coverage_image);
 
-	std::cout << "2" << std::endl;
 	// convert the map with the covered area back to the sensor_msgs format
 	ros::Time now = ros::Time::now();
 	cv_bridge::CvImage cv_image;
@@ -59,76 +57,12 @@ bool CoverageCheckServer::checkCoverage(ipa_building_msgs::CheckCoverageRequest&
 		number_image.toImageMsg(response.number_of_coverage_image);
 	}
 
-	std::cout << "3" << std::endl;
-
 	return return_value;
 }
 bool CoverageCheckServer::checkCoverage(const cv::Mat& map, const float map_resolution, const cv::Point2d& map_origin, const std::vector<cv::Point3d>& path,
 		const std::vector<Eigen::Matrix<float, 2, 1> >& field_of_view, const float coverage_radius, const bool check_for_footprint, const bool check_number_of_coverages,
 		cv::Mat& coverage_map, cv::Mat& number_of_coverage_image)
 {
-	// When checking for the field of view, find two points behind the end of the fov to get raycasting goals. These two points span
-	// a line behind the fov, that provides the raycasting goals. By designing it this way, it is guaranteed to cover the whole fov with
-	// this procedure. The raycasting allows to check if the view was blocked by an obstacle and thus not the whole given fov-polygon has
-	// to be drawn into the map.
-	//		Get points that define the edge-points of the line the raycasting should go to, by computing the intersection of two
-	//		lines: the line defined by the robot pose and the fov-point that spans the highest angle and a line parallel to the
-	//		front side of the fov with an offset.
-	Eigen::Matrix<float, 2, 1> corner_point_1, corner_point_2;
-	if(check_for_footprint==false)
-	{
-		// todo: replace this definition by a circle around the robot center with radius=largest fov point distance, define visibility sectors on that circle given by the fov points
-		// to increase the general applicability to arbitrary fov definitions
-
-		// get angles between robot_pose and fov-corners in relative coordinates to find the edge that spans the largest angle with
-		// the robot-center --> the raycasting goals at least have to cover this angle
-		float dot = field_of_view[0].transpose()*field_of_view[1];
-		float abs = field_of_view[0].norm()*field_of_view[1].norm();
-		float quotient = dot/abs;
-		if(quotient > 1) // prevent errors resulting from round errors
-			quotient = 1;
-		else if(quotient < -1)
-			quotient = -1;
-		float angle_1 = std::acos(quotient);
-		dot = field_of_view[2].transpose()*field_of_view[3];
-		abs = field_of_view[2].norm()*field_of_view[3].norm();
-		quotient = dot/abs;
-		if(quotient > 1) // prevent errors resulting from round errors
-			quotient = 1;
-		else if(quotient < -1)
-			quotient = -1;
-		float angle_2 = std::acos(dot/abs);
-
-		if(angle_1 > angle_2) // do a line crossing s.t. the corners are guaranteed to be after the fov
-		{
-			float border_distance = 7;
-			Eigen::Matrix<float, 2, 1> pose_to_fov_edge_vector_1 = field_of_view[0];
-			Eigen::Matrix<float, 2, 1> pose_to_fov_edge_vector_2 = field_of_view[1];
-
-			// get vectors showing the directions for for the lines from pose to edge of fov
-			Eigen::Matrix<float, 2, 1> normed_fov_vector_1 = field_of_view[0]/field_of_view[0].norm();
-			Eigen::Matrix<float, 2, 1> normed_fov_vector_2 = field_of_view[1]/field_of_view[1].norm();
-
-			// get the offset point after the end of the fov
-			Eigen::Matrix<float, 2, 1> offset_point_after_fov = field_of_view[2];
-			offset_point_after_fov(1, 0) = offset_point_after_fov(1, 0) + border_distance;
-
-			// find the parameters for the two different intersections (for each corner point)
-			float first_edge_parameter = (pose_to_fov_edge_vector_1(1, 0)/pose_to_fov_edge_vector_1(0, 0) * (field_of_view[0](0, 0) - offset_point_after_fov(0, 0)) + offset_point_after_fov(1, 0) - field_of_view[0](1, 0))/( pose_to_fov_edge_vector_1(1, 0)/pose_to_fov_edge_vector_1(0, 0) * (field_of_view[3](0, 0) - field_of_view[2](0, 0)) - (field_of_view[3](1, 0) - field_of_view[2](1, 0)) );
-			float second_edge_parameter = (pose_to_fov_edge_vector_2(1, 0)/pose_to_fov_edge_vector_2(0, 0) * (field_of_view[1](0, 0) - offset_point_after_fov(0, 0)) + offset_point_after_fov(1, 0) - field_of_view[1](1, 0))/( pose_to_fov_edge_vector_2(1, 0)/pose_to_fov_edge_vector_2(0, 0) * (field_of_view[3](0, 0) - field_of_view[2](0, 0)) - (field_of_view[3](1, 0) - field_of_view[2](1, 0)) );
-
-			// use the line equation and found parameters to actually find the corners
-			corner_point_1 = first_edge_parameter * (field_of_view[3] - field_of_view[2]) + offset_point_after_fov;
-			corner_point_2 = second_edge_parameter * (field_of_view[3] - field_of_view[2]) + offset_point_after_fov;
-		}
-		else
-		{
-			// follow the lines to the farthest points and go a little longer, this ensures that the whole fov is covered
-			corner_point_1 = 1.3 * field_of_view[2];
-			corner_point_2 = 1.3 * field_of_view[3];
-		}
-	}
-
 	// create a map that stores the number of coverages during the execution, if wanted
 	cv::Mat* image_pointer = NULL;
 	if(check_number_of_coverages==true)
@@ -143,7 +77,7 @@ bool CoverageCheckServer::checkCoverage(const cv::Mat& map, const float map_reso
 	if(check_for_footprint==false)
 	{
 		ROS_INFO("Checking coverage for fov.");
-		drawSeenPoints(coverage_map, path, field_of_view, corner_point_1, corner_point_2, map_resolution, map_origin, image_pointer);
+		drawSeenPoints(coverage_map, path, field_of_view, map_resolution, map_origin, image_pointer);
 	}
 	else
 	{
@@ -159,15 +93,83 @@ bool CoverageCheckServer::checkCoverage(const cv::Mat& map, const float map_reso
 // Function to draw the seen points into the given map, that shows the positions the robot can actually reach. This is done by
 // going trough all given robot-poses and calculate where the field of view has been. The field of view is given in the relative
 // not rotated case, meaning to be in the robot-frame, where x_robot shows into the direction of the front and the y_robot axis
-// along its left side. The function then calculates the field_of_view_points in the global frame by using the given robot pose.
+// along its left side. The function then calculates the field_of_view in the global frame by using the given robot pose.
 // After this the function does a raycasting to check if the field of view has been blocked by an obstacle and couldn't see
 // what's behind it. This ensures that no Point is wrongly classified as seen.
 void CoverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std::vector<cv::Point3d>& robot_poses,
-			const std::vector<Eigen::Matrix<float, 2, 1> >& field_of_view_points, const Eigen::Matrix<float, 2, 1> raycasting_corner_1,
-			const Eigen::Matrix<float, 2, 1> raycasting_corner_2, const float map_resolution, const cv::Point2d map_origin,
+			const std::vector<Eigen::Matrix<float, 2, 1> >& field_of_view, const float map_resolution, const cv::Point2d map_origin,
 			cv::Mat* number_of_coverages_image)
 {
 	const float map_resolution_inverse = 1./map_resolution;
+
+	Eigen::Matrix<float, 2, 1> fov_origin;	// the mounting position of the camera with fov given in robot base coordinates, in [m] todo: make param
+	fov_origin << 0.f, 0.f;
+
+	// check if fov_origin is
+
+
+	// When checking for the field of view, find two points behind the end of the fov to get raycasting goals. These two points span
+	// a line behind the fov, that provides the raycasting goals. By designing it this way, it is guaranteed to cover the whole fov with
+	// this procedure. The raycasting allows to check if the view was blocked by an obstacle and thus not the whole given fov-polygon has
+	// to be drawn into the map.
+	//		Get points that define the edge-points of the line the raycasting should go to, by computing the intersection of two
+	//		lines: the line defined by the robot pose and the fov-point that spans the highest angle and a line parallel to the
+	//		front side of the fov with an offset.
+	Eigen::Matrix<float, 2, 1> corner_point_1, corner_point_2;
+	// todo: replace this definition by a circle around the robot center with radius=largest fov point distance, define visibility sectors on that circle given by the fov points
+	// to increase the general applicability to arbitrary fov definitions
+
+	// get angles between robot_pose and fov-corners in relative coordinates to find the edge that spans the largest angle with
+	// the robot-center --> the raycasting goals at least have to cover this angle
+	float dot = field_of_view[0].transpose()*field_of_view[1];
+	float abs = field_of_view[0].norm()*field_of_view[1].norm();
+	float quotient = dot/abs;
+	if(quotient > 1) // prevent errors resulting from round errors
+		quotient = 1;
+	else if(quotient < -1)
+		quotient = -1;
+	float angle_1 = std::acos(quotient);
+	dot = field_of_view[2].transpose()*field_of_view[3];
+	abs = field_of_view[2].norm()*field_of_view[3].norm();
+	quotient = dot/abs;
+	if(quotient > 1) // prevent errors resulting from round errors
+		quotient = 1;
+	else if(quotient < -1)
+		quotient = -1;
+	float angle_2 = std::acos(dot/abs);
+
+	if(angle_1 > angle_2) // do a line crossing s.t. the corners are guaranteed to be after the fov
+	{
+		float border_distance = 7;
+		Eigen::Matrix<float, 2, 1> pose_to_fov_edge_vector_1 = field_of_view[0];
+		Eigen::Matrix<float, 2, 1> pose_to_fov_edge_vector_2 = field_of_view[1];
+
+		// get vectors showing the directions for for the lines from pose to edge of fov
+		Eigen::Matrix<float, 2, 1> normed_fov_vector_1 = field_of_view[0]/field_of_view[0].norm();
+		Eigen::Matrix<float, 2, 1> normed_fov_vector_2 = field_of_view[1]/field_of_view[1].norm();
+
+		// get the offset point after the end of the fov
+		Eigen::Matrix<float, 2, 1> offset_point_after_fov = field_of_view[2];
+		offset_point_after_fov(1, 0) = offset_point_after_fov(1, 0) + border_distance;
+
+		// find the parameters for the two different intersections (for each corner point)
+		float first_edge_parameter = (pose_to_fov_edge_vector_1(1, 0)/pose_to_fov_edge_vector_1(0, 0) * (field_of_view[0](0, 0) - offset_point_after_fov(0, 0)) + offset_point_after_fov(1, 0) - field_of_view[0](1, 0))/( pose_to_fov_edge_vector_1(1, 0)/pose_to_fov_edge_vector_1(0, 0) * (field_of_view[3](0, 0) - field_of_view[2](0, 0)) - (field_of_view[3](1, 0) - field_of_view[2](1, 0)) );
+		float second_edge_parameter = (pose_to_fov_edge_vector_2(1, 0)/pose_to_fov_edge_vector_2(0, 0) * (field_of_view[1](0, 0) - offset_point_after_fov(0, 0)) + offset_point_after_fov(1, 0) - field_of_view[1](1, 0))/( pose_to_fov_edge_vector_2(1, 0)/pose_to_fov_edge_vector_2(0, 0) * (field_of_view[3](0, 0) - field_of_view[2](0, 0)) - (field_of_view[3](1, 0) - field_of_view[2](1, 0)) );
+
+		// use the line equation and found parameters to actually find the corners
+		corner_point_1 = first_edge_parameter * (field_of_view[3] - field_of_view[2]) + offset_point_after_fov;
+		corner_point_2 = second_edge_parameter * (field_of_view[3] - field_of_view[2]) + offset_point_after_fov;
+	}
+	else
+	{
+		// follow the lines to the farthest points and go a little longer, this ensures that the whole fov is covered
+		corner_point_1 = 1.3 * field_of_view[2];
+		corner_point_2 = 1.3 * field_of_view[3];
+	}
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
 
 	// go trough each given robot pose
 	for(std::vector<cv::Point3d>::const_iterator current_pose = robot_poses.begin(); current_pose != robot_poses.end(); ++current_pose)
@@ -182,38 +184,37 @@ void CoverageCheckServer::drawSeenPoints(cv::Mat& reachable_areas_map, const std
 		std::vector<cv::Point> transformed_fov_points;
 		Eigen::Matrix<float, 2, 1> pose_as_matrix;
 		pose_as_matrix << current_pose->x, current_pose->y;
-		for(size_t point = 0; point < field_of_view_points.size(); ++point)
+		for(size_t point = 0; point < field_of_view.size(); ++point)
 		{
 			// linear transformation
-			Eigen::Matrix<float, 2, 1> transformed_fov_point = pose_as_matrix + R * field_of_view_points[point];
+			Eigen::Matrix<float, 2, 1> transformed_fov_point = pose_as_matrix + R * field_of_view[point];
 
-			// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel
-			// values
+			// save the transformed point as cv::Point, also check if map borders are satisfied and transform it into pixel values
 			cv::Point current_point = cv::Point((transformed_fov_point(0, 0) - map_origin.x)*map_resolution_inverse, (transformed_fov_point(1, 0) - map_origin.y)*map_resolution_inverse);
 			current_point.x = std::max(current_point.x, 0);
 			current_point.y = std::max(current_point.y, 0);
-			current_point.x = std::min(current_point.x, reachable_areas_map.cols);
-			current_point.y = std::min(current_point.y, reachable_areas_map.rows);
+			current_point.x = std::min(current_point.x, reachable_areas_map.cols-1);
+			current_point.y = std::min(current_point.y, reachable_areas_map.rows-1);
 			transformed_fov_points.push_back(current_point);
 //			std::cout << current_point << std::endl;
 		}
 //		std::cout << std::endl;
 
 		// transform corners for raycasting
-		Eigen::Matrix<float, 2, 1> transformed_corner_1 = pose_as_matrix + R * raycasting_corner_1;
-		Eigen::Matrix<float, 2, 1> transformed_corner_2 = pose_as_matrix + R * raycasting_corner_2;
+		Eigen::Matrix<float, 2, 1> transformed_corner_1 = pose_as_matrix + R * corner_point_1;
+		Eigen::Matrix<float, 2, 1> transformed_corner_2 = pose_as_matrix + R * corner_point_2;
 
 		// convert to openCV format
 		cv::Point transformed_corner_cv_1 = cv::Point((transformed_corner_1(0, 0) - map_origin.x)*map_resolution_inverse, (transformed_corner_1(1, 0) - map_origin.y)*map_resolution_inverse);
 		transformed_corner_cv_1.x = std::max(transformed_corner_cv_1.x, 0);
 		transformed_corner_cv_1.y = std::max(transformed_corner_cv_1.y, 0);
-		transformed_corner_cv_1.x = std::min(transformed_corner_cv_1.x, reachable_areas_map.cols);
-		transformed_corner_cv_1.y = std::min(transformed_corner_cv_1.y, reachable_areas_map.rows);
+		transformed_corner_cv_1.x = std::min(transformed_corner_cv_1.x, reachable_areas_map.cols-1);
+		transformed_corner_cv_1.y = std::min(transformed_corner_cv_1.y, reachable_areas_map.rows-1);
 		cv::Point transformed_corner_cv_2 = cv::Point((transformed_corner_2(0, 0) - map_origin.x)*map_resolution_inverse, (transformed_corner_2(1, 0) - map_origin.y)*map_resolution_inverse);
 		transformed_corner_cv_2.x = std::max(transformed_corner_cv_2.x, 0);
 		transformed_corner_cv_2.y = std::max(transformed_corner_cv_2.y, 0);
-		transformed_corner_cv_2.x = std::min(transformed_corner_cv_2.x, reachable_areas_map.cols);
-		transformed_corner_cv_2.y = std::min(transformed_corner_cv_2.y, reachable_areas_map.rows);
+		transformed_corner_cv_2.x = std::min(transformed_corner_cv_2.x, reachable_areas_map.cols-1);
+		transformed_corner_cv_2.y = std::min(transformed_corner_cv_2.y, reachable_areas_map.rows-1);
 
 		// raycast the field of view to look what areas actually have been seen
 		// get points between the edge-points to get goals for raycasting
