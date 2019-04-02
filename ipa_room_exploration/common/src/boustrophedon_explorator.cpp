@@ -97,63 +97,13 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		optimal_order = tsp_solver.solveGeneticTSP(rotated_room_map, polygon_centers, 1.0, 0.0, map_resolution, start_cell_index, 0);
 	}
 
-	// todo: we are using an alternative ordering here
+	// todo: we are using an alternative ordering here, which visits the cells in a more obvious fashion to the human observer (though it is not optimal)
 	optimal_order.clear();
 	std::multimap<int, int> y_coordinate_ordering;		// <y-coordinate of room centers, index>
 	for (size_t i=0; i<polygon_centers.size(); ++i)
 		y_coordinate_ordering.insert(std::pair<int, int>(polygon_centers[i].y, (int)i));
 	for (std::multimap<int,int>::iterator it=y_coordinate_ordering.begin(); it!=y_coordinate_ordering.end(); ++it)
 		optimal_order.push_back(it->second);
-
-	// todo:
-	/* for office_i_furniture
-	 * ######################################################################################
-Dynamic reconfigure request:
-room_exploration/path_planning_algorithm_ = 2
-room_exploration/map_correction_closing_neighborhood_size_ = 2
-room_exploration/return_path_ = 1
-room_exploration/execute_path_ = 0
-room_exploration/goal_eps_ = 1
-room_exploration/use_dyn_goal_eps_ = 0
-room_exploration/interrupt_navigation_publishing_ = 0
-room_exploration/revisit_areas_ = 0
-room_exploration/left_sections_min_area = 0.01
-room_exploration/global_costmap_topic_ = /move_base/global_costmap/costmap
-room_exploration/coverage_check_service_name_ = /room_exploration/coverage_check_server/coverage_check
-room_exploration/map_frame_ = map
-room_exploration/camera_frame_ = base_link
-room_exploration/min_cell_area_ = 10
-room_exploration/path_eps_ = 2
-Areas not seen after the initial execution of the path will NOT be revisited.
-######################################################################################
-[ INFO] [1519523920.077200823]: *****Room Exploration action server*****
-map origin: [0, 0] m       map resolution: 0.05 m/cell
-robot radius: 0.3 m   (6 px)
-starting point: (50.1, 38.75) m   ([1002, 774] px)
-planning mode: planning coverage path with robot's field of view
-### room area = 127.48 m^2
-label_of_biggest_room=1
-fitting_circle_radius: 0.48 m
-center point: [0.67, 0] m
-grid size: 0.678822 m   (13.5764 px)
-[ INFO] [1519523920.162183557]: Planning the boustrophedon path trough the room.
-RoomRotator::computeRoomRotationMatrix: main rotation angle: 1.5956
-[ INFO] [1519523922.218494769]: Found the cells in the given map.
-GeneticTSPSolver::solveGeneticTSP: Constructing distance matrix...
-DistanceMatrix::constructDistanceMatrix: Constructing distance matrix...
-
-Distance matrix created in 4031.06 ms
-[ INFO] [1519523926.458899711]: Starting to get the paths for each cell, number of cells: 85
-Boustrophedon grid_spacing_as_int=13
-RoomRotator::computeRoomRotationMatrix: main rotation angle: 0.0906599
-RoomRotator::computeRoomRotationMatrix: main rotation angle: 3.1113
-RoomRotator::computeRoomRotationMatrix: main rotation angle: 0
-[room_exploration/room_exploration_server-2] process has died [pid 5197, exit code -11, cmd /home/rmb/git/care-o-bot-indigo/devel/lib/ipa_room_exploration/room_exploration_server __name:=room_exploration_server __log:=/home/rmb/.ros/log/db62699a-19ce-11e8-9c01-001999feeb3d/room_exploration-room_exploration_server-2.log].
-log file: /home/rmb/.ros/log/db62699a-19ce-11e8-9c01-001999feeb3d/room_exploration-room_exploration_server-2*.log
-[room_exploration/room_exploration_server-2] restarting process
-process[room_exploration/room_exploration_server-2]: started with pid [7061]
-#
-	 */
 
 	// go trough the cells [in optimal visiting order] and determine the boustrophedon paths
 	ROS_INFO("Starting to get the paths for each cell, number of cells: %d", (int)cell_polygons.size());
