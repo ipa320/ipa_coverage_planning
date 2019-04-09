@@ -627,7 +627,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// [optionally] execute the path
 	if(execute_path_ == true)
 	{
-		navigateExplorationPath(exploration_path, goal->field_of_view, goal->coverage_radius, fitting_circle_center_point_in_meter.norm(),
+		navigateExplorationPath(exploration_path, goal->field_of_view, goal->field_of_view_origin, goal->coverage_radius, fitting_circle_center_point_in_meter.norm(),
 					map_resolution, goal->map_origin, grid_spacing_in_pixel, room_map.rows * map_resolution);
 		ROS_INFO("Explored room.");
 	}
@@ -702,8 +702,9 @@ void RoomExplorationServer::downsampleTrajectory(const std::vector<geometry_msgs
 
 
 void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_msgs::Pose2D>& exploration_path,
-		const std::vector<geometry_msgs::Point32>& field_of_view, const double coverage_radius, const double distance_robot_fov_middlepoint,
-		const float map_resolution, const geometry_msgs::Pose& map_origin, const double grid_spacing_in_pixel, const double map_height)
+		const std::vector<geometry_msgs::Point32>& field_of_view, const geometry_msgs::Point32& field_of_view_origin,
+		const double coverage_radius, const double distance_robot_fov_middlepoint, const float map_resolution,
+		const geometry_msgs::Pose& map_origin, const double grid_spacing_in_pixel, const double map_height)
 {
 	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
 	// 1. publish navigation goals
@@ -788,6 +789,7 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 		coverage_request.input_map = *service_image;
 		coverage_request.path = robot_poses;
 		coverage_request.field_of_view = field_of_view;
+		coverage_request.field_of_view_origin = field_of_view_origin;
 		coverage_request.coverage_radius = coverage_radius;
 		coverage_request.map_origin = map_origin;
 		coverage_request.map_resolution = map_resolution;
