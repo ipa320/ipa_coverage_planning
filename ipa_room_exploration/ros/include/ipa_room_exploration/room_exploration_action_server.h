@@ -107,6 +107,8 @@
 #include <ipa_room_exploration/energy_functional_explorator.h>
 #include <ipa_room_exploration/voronoi.hpp>
 #include <ipa_room_exploration/room_rotator.h>
+#include <ipa_room_exploration/coverage_check_server.h>
+
 
 #define PI 3.14159265359
 

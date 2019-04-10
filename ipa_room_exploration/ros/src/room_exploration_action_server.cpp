@@ -776,61 +776,74 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 
 		// 3. draw the seen positions so the server can check what points haven't been seen
 		std::cout << "checking coverage using the coverage_check_server" << std::endl;
-		cv::Mat seen_positions_map;
-		// define the request for the coverage check
-		ipa_building_msgs::CheckCoverageRequest coverage_request;
-		ipa_building_msgs::CheckCoverageResponse coverage_response;
-		// fill request
-		sensor_msgs::ImageConstPtr service_image;
-		cv_bridge::CvImage cv_image;
-		cv_image.encoding = "mono8";
-		cv_image.image = costmap_as_mat;
-		service_image = cv_image.toImageMsg();
-		coverage_request.input_map = *service_image;
-		coverage_request.path = robot_poses;
-		coverage_request.field_of_view = field_of_view;
-		coverage_request.field_of_view_origin = field_of_view_origin;
-		coverage_request.coverage_radius = coverage_radius;
-		coverage_request.map_origin = map_origin;
-		coverage_request.map_resolution = map_resolution;
-		coverage_request.check_number_of_coverages = false;
-		std::cout << "filled service request for the coverage check" << std::endl;
-		if(planning_mode_ == PLAN_FOR_FOV)
+		cv::Mat coverage_map, number_of_coverage_image;
+		// use the coverage check server to check which areas have been seen
+		//   --> convert path to cv format
+		std::vector<cv::Point3d> path;
+		for (size_t i=0; i<robot_poses.size(); ++i)
+			path.push_back(cv::Point3d(robot_poses[i].x, robot_poses[i].y, robot_poses[i].theta));
+		//   --> convert field of view to Eigen format
+		std::vector<Eigen::Matrix<float, 2, 1> > fov;
+		for(size_t i = 0; i < field_of_view.size(); ++i)
 		{
-			coverage_request.check_for_footprint = false;
-			// send request
-			if(ros::service::call(coverage_check_service_name_, coverage_request, coverage_response) == true)
-			{
-				std::cout << "got the service response" << std::endl;
-				cv_bridge::CvImagePtr cv_ptr_obj;
-				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.coverage_map, sensor_msgs::image_encodings::MONO8);
-				seen_positions_map = cv_ptr_obj->image;
-			}
-			else
-			{
-				ROS_WARN("Coverage check failed, is the coverage_check_server running?");
-				room_exploration_server_.setAborted();
-				return;
-			}
+			Eigen::Matrix<float, 2, 1> current_vector;
+			current_vector << field_of_view[i].x, field_of_view[i].y;
+			fov.push_back(current_vector);
+		}
+		//   --> convert field of view origin to Eigen format
+		Eigen::Matrix<float, 2, 1> fov_origin;
+		fov_origin <<field_of_view_origin.x, field_of_view_origin.y;
+		//   --> call coverage checker
+		CoverageCheckServer coverage_checker;
+		if (coverage_checker.checkCoverage(costmap_as_mat, map_resolution, cv::Point2d(map_origin.position.x, map_origin.position.y),
+				path, fov, fov_origin, coverage_radius, (planning_mode_==PLAN_FOR_FOOTPRINT), false, coverage_map, number_of_coverage_image) == true)
+		{
+			std::cout << "got the service response" << std::endl;
 		}
 		else
 		{
-			coverage_request.check_for_footprint = true;
-			// send request
-			if(ros::service::call(coverage_check_service_name_, coverage_request, coverage_response) == true)
-			{
-				std::cout << "got the service response" << std::endl;
-				cv_bridge::CvImagePtr cv_ptr_obj;
-				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.coverage_map, sensor_msgs::image_encodings::MONO8);
-				seen_positions_map = cv_ptr_obj->image;
-			}
-			else
-			{
-				ROS_WARN("Coverage check failed, is the coverage_check_server running?");
-				room_exploration_server_.setAborted();
-				return;
-			}
+			ROS_WARN("Coverage check failed, is the coverage_check_server running?");
+			room_exploration_server_.setAborted();
+			return;
 		}
+
+//		// service interface - can be deleted
+//		// define the request for the coverage check
+//		ipa_building_msgs::CheckCoverageRequest coverage_request;
+//		ipa_building_msgs::CheckCoverageResponse coverage_response;
+//		// fill request
+//		sensor_msgs::ImageConstPtr service_image;
+//		cv_bridge::CvImage cv_image;
+//		cv_image.encoding = "mono8";
+//		cv_image.image = costmap_as_mat;
+//		service_image = cv_image.toImageMsg();
+//		coverage_request.input_map = *service_image;
+//		coverage_request.map_resolution = map_resolution;
+//		coverage_request.map_origin = map_origin;
+//		coverage_request.path = robot_poses;
+//		coverage_request.field_of_view = field_of_view;
+//		coverage_request.field_of_view_origin = field_of_view_origin;
+//		coverage_request.coverage_radius = coverage_radius;
+//		coverage_request.check_number_of_coverages = false;
+//		std::cout << "filled service request for the coverage check" << std::endl;
+//		if(planning_mode_ == PLAN_FOR_FOV)
+//			coverage_request.check_for_footprint = false;
+//		else
+//			coverage_request.check_for_footprint = true;
+//		// send request
+//		if(ros::service::call(coverage_check_service_name_, coverage_request, coverage_response) == true)
+//		{
+//			std::cout << "got the service response" << std::endl;
+//			cv_bridge::CvImagePtr cv_ptr_obj;
+//			cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.coverage_map, sensor_msgs::image_encodings::MONO8);
+//			coverage_map = cv_ptr_obj->image;
+//		}
+//		else
+//		{
+//			ROS_WARN("Coverage check failed, is the coverage_check_server running?");
+//			room_exploration_server_.setAborted();
+//			return;
+//		}
 
 		// testing, parameter to show
 //		cv::namedWindow("initially seen areas", cv::WINDOW_NORMAL);
@@ -839,15 +852,15 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 //		cv::waitKey();
 
 		// apply a binary filter on the image, making the drawn seen areas black
-		cv::threshold(seen_positions_map, seen_positions_map, 150, 255, cv::THRESH_BINARY);
+		cv::threshold(coverage_map, coverage_map, 150, 255, cv::THRESH_BINARY);
 
-		// ***************** IV. Find left areas and lay a grid over it, then plan a path trough all grids s.t. they can be covered by the fov. *****************
+		// ***************** IV. Find leftover areas and lay a grid over it, then plan a path trough all grids s.t. they can be covered by the fov. *****************
 		// 1. find regions with an area that is bigger than a defined value, which have not been seen by the fov.
 		// 	  hierarchy[{0,1,2,3}]={next contour (same level), previous contour (same level), child contour, parent contour}
 		// 	  child-contour = 1 if it has one, = -1 if not, same for parent_contour
 		std::vector < std::vector<cv::Point> > left_areas, areas_to_revisit;
 		std::vector < cv::Vec4i > hierarchy;
-		cv::findContours(seen_positions_map, left_areas, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
+		cv::findContours(coverage_map, left_areas, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
 
 		// find valid regions
 		for(size_t area = 0; area < left_areas.size(); ++area)
@@ -955,10 +968,9 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 		ConcordeTSPSolver tsp_solver;
 		std::vector<int> revisiting_order = tsp_solver.solveConcordeTSP(costmap_as_mat, area_centers, 0.25, 0.0, map_resolution, min_index, 0);
 
-		// 5. go to each center and use the map_accessability_server to find a robot pose around it s.t. it can be covered
-		//	  by the fov
-		double pi_8 = PI/8;
-		std::string perimeter_service_name = "/room_exploration/map_accessibility_analysis/map_perimeter_accessibility_check";	// todo: replace with library interface
+		// 5. go to each center and use the map_accessability_server to find a robot pose around it s.t. it can be covered by the field of view or robot center
+		const double pi_8 = PI/8;
+		const std::string perimeter_service_name = "/room_exploration/map_accessibility_analysis/map_perimeter_accessibility_check";
 	//	robot_poses.clear();
 		for(size_t center = 0; center < revisiting_order.size(); ++center)
 		{
@@ -980,8 +992,6 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 				check_request.radius = 0.0;
 				check_request.rotational_sampling_step = 2.0*PI;
 			}
-
-
 			std::cout << "checking center: " << std::endl << current_center << "radius: " << check_request.radius << std::endl;
 
 			// send request
@@ -995,7 +1005,7 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 			}
 			else
 			{
-				// TODO: return areas that were not visible on radius
+				// todo: return areas that were not visible on radius
 				std::cout << "center not reachable on perimeter" << std::endl;
 			}
 		}
@@ -1055,7 +1065,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 //	ros::Duration sleep_rate(0.1);
 	tf::TransformListener listener;
 	tf::StampedTransform transform;
-	ros::Duration sleep_duration(0.15); // TODO: param
+	ros::Duration sleep_duration(0.15); // todo: param
 	bool near_pos;
 	do
 	{
@@ -1111,11 +1121,10 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 		center.y = map_oriented_pose.y + relative_vector.y;
 
 		// check for another robot pose to reach the desired fov-position
-		std::string perimeter_service_name = "/room_exploration/map_accessibility_analysis/map_perimeter_accessibility_check";	// todo: replace with library interface
+		const std::string perimeter_service_name = "/room_exploration/map_accessibility_analysis/map_perimeter_accessibility_check";
 		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Response response;
 		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
 		check_request.center = center;
-
 		if(planning_mode_ == PLAN_FOR_FOV)
 		{
 			check_request.radius = robot_to_fov_middlepoint_distance;

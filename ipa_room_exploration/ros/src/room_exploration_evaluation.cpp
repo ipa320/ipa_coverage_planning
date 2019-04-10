@@ -91,6 +91,7 @@
 #include <ipa_building_msgs/CheckCoverage.h>
 #include <ipa_building_navigation/A_star_pathplanner.h>
 #include <ipa_room_exploration/fov_to_robot_mapper.h>
+#include <ipa_room_exploration/coverage_check_server.h>
 
 #include <time.h>
 #include <sys/time.h>
@@ -1180,54 +1181,85 @@ public:
 			if(paths[room].size()==0 || (paths[room][0].x==-1 && paths[room][0].y==-1))
 				continue;
 
-			// map that has the seen areas drawn in
-			cv::Mat seen_positions_map, number_of_coverages_map;
+			// map that has the covered areas drawn in
+			cv::Mat coverage_map, number_of_coverage_image;
 
-			// use the provided server to check which areas have been seen
-			ipa_building_msgs::CheckCoverageRequest coverage_request;
-			ipa_building_msgs::CheckCoverageResponse coverage_response;
-			// fill request
-			std::string coverage_service_name = "/room_exploration/coverage_check_server/coverage_check";		// todo: generalize coverage checker and implement lib interface
-		//	cv::Mat eroded_room_map;
-		//	cv::erode(data.room_maps_[room], eroded_room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
-			sensor_msgs::ImageConstPtr service_image;
-			cv_bridge::CvImage cv_image;
-			cv_image.encoding = "mono8";
-			cv_image.image = data.room_maps_[room];	//eroded_room_map;
-			service_image = cv_image.toImageMsg();
-			coverage_request.input_map = *service_image;
-			coverage_request.path = interpolated_paths[room];
-			coverage_request.field_of_view = data.fov_points_;
-			coverage_request.field_of_view_origin = data.fov_origin_;
-			coverage_request.coverage_radius = data.coverage_radius_;
-			coverage_request.map_origin = data.map_origin_;
-			coverage_request.map_resolution = data.map_resolution_;
-			if (data.planning_mode_ == FOOTPRINT)
-				coverage_request.check_for_footprint = true;
-			else if (data.planning_mode_ == FIELD_OF_VIEW)
-				coverage_request.check_for_footprint = false;
-			coverage_request.check_number_of_coverages = true;
-			// send request
-			if(ros::service::call(coverage_service_name, coverage_request, coverage_response)==true)
+			// use the coverage check server to check which areas have been seen
+			//   --> convert path to cv format
+			std::vector<cv::Point3d> path;
+			for (size_t i=0; i<interpolated_paths[room].size(); ++i)
+				path.push_back(cv::Point3d(interpolated_paths[room][i].x, interpolated_paths[room][i].y, interpolated_paths[room][i].theta));
+			//   --> convert field of view to Eigen format
+			std::vector<Eigen::Matrix<float, 2, 1> > field_of_view;
+			for(size_t i = 0; i < data.fov_points_.size(); ++i)
 			{
-				cv_bridge::CvImagePtr cv_ptr_obj;
-				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.coverage_map, sensor_msgs::image_encodings::MONO8);
-				seen_positions_map = cv_ptr_obj->image;
-
-				for (int v=0; v<seen_positions_map.rows; ++v)
-					for (int u=0; u<seen_positions_map.cols; ++u)
-						if (seen_positions_map.at<uchar>(v,u)==127)
+				Eigen::Matrix<float, 2, 1> current_vector;
+				current_vector << data.fov_points_[i].x, data.fov_points_[i].y;
+				field_of_view.push_back(current_vector);
+			}
+			//   --> convert field of view origin to Eigen format
+			Eigen::Matrix<float, 2, 1> fov_origin;
+			fov_origin << data.fov_origin_.x, data.fov_origin_.y;
+			//   --> call coverage checker
+			CoverageCheckServer coverage_checker;
+			if (coverage_checker.checkCoverage(data.room_maps_[room], data.map_resolution_, cv::Point2d(data.map_origin_.position.x, data.map_origin_.position.y),
+					path, field_of_view, fov_origin, data.coverage_radius_, (data.planning_mode_==FOOTPRINT), true, coverage_map, number_of_coverage_image) == true)
+			{
+				for (int v=0; v<coverage_map.rows; ++v)
+					for (int u=0; u<coverage_map.cols; ++u)
+						if (coverage_map.at<uchar>(v,u)==127)
 							map_coverage.at<uchar>(v,u)=208;
-
-				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.number_of_coverage_image, sensor_msgs::image_encodings::TYPE_32SC1);
-				number_of_coverages_map = cv_ptr_obj->image;
 			}
 			else
 			{
 				ROS_INFO("Error when calling the coverage check server.");
 			}
-			// todo: error handling necessary?
-//				cv::imshow("seen", seen_positions_map);
+
+			// service interface - can be deleted
+//			// use the coverage check server to check which areas have been seen
+//			ipa_building_msgs::CheckCoverageRequest coverage_request;
+//			ipa_building_msgs::CheckCoverageResponse coverage_response;
+//			// fill request
+//			std::string coverage_service_name = "/room_exploration/coverage_check_server/coverage_check";
+//		//	cv::Mat eroded_room_map;
+//		//	cv::erode(data.room_maps_[room], eroded_room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
+//			sensor_msgs::ImageConstPtr service_image;
+//			cv_bridge::CvImage cv_image;
+//			cv_image.encoding = "mono8";
+//			cv_image.image = data.room_maps_[room];	//eroded_room_map;
+//			service_image = cv_image.toImageMsg();
+//			coverage_request.map_resolution = data.map_resolution_;
+//			coverage_request.input_map = *service_image;
+//			coverage_request.map_origin = data.map_origin_;
+//			coverage_request.path = interpolated_paths[room];
+//			coverage_request.field_of_view = data.fov_points_;
+//			coverage_request.field_of_view_origin = data.fov_origin_;
+//			coverage_request.coverage_radius = data.coverage_radius_;
+//			if (data.planning_mode_ == FOOTPRINT)
+//				coverage_request.check_for_footprint = true;
+//			else if (data.planning_mode_ == FIELD_OF_VIEW)
+//				coverage_request.check_for_footprint = false;
+//			coverage_request.check_number_of_coverages = true;
+//			// send request
+//			if(ros::service::call(coverage_service_name, coverage_request, coverage_response)==true)
+//			{
+//				cv_bridge::CvImagePtr cv_ptr_obj;
+//				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.coverage_map, sensor_msgs::image_encodings::MONO8);
+//				coverage_map = cv_ptr_obj->image;
+//
+//				for (int v=0; v<coverage_map.rows; ++v)
+//					for (int u=0; u<coverage_map.cols; ++u)
+//						if (coverage_map.at<uchar>(v,u)==127)
+//							map_coverage.at<uchar>(v,u)=208;
+//
+//				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.number_of_coverage_image, sensor_msgs::image_encodings::TYPE_32SC1);
+//				number_of_coverages_image = cv_ptr_obj->image;
+//			}
+//			else
+//			{
+//				ROS_INFO("Error when calling the coverage check server.");
+//			}
+//				cv::imshow("seen", coverage_map);
 //				cv::waitKey();
 
 			// get the area of the whole room
@@ -1236,8 +1268,8 @@ public:
 			room_areas.push_back(room_area);
 
 			// get the covered area of the room
-			cv::threshold(seen_positions_map, seen_positions_map, 150, 255, cv::THRESH_BINARY); // covered area drawn in as 127 --> find still white pixels
-			const int not_covered_pixels = cv::countNonZero(seen_positions_map);
+			cv::threshold(coverage_map, coverage_map, 150, 255, cv::THRESH_BINARY); // covered area drawn in as 127 --> find still white pixels
+			const int not_covered_pixels = cv::countNonZero(coverage_map);
 			const double not_covered_area = data.map_resolution_ * data.map_resolution_ * (double) not_covered_pixels;
 
 			// get and save the percentage of coverage
@@ -1246,10 +1278,10 @@ public:
 
 			// check how often pixels have been covered
 			double average_coverage_number = 0.0, coverage_number_deviation = 0.0;
-			for(size_t u=0; u<number_of_coverages_map.rows; ++u)
-				for(size_t v=0; v<number_of_coverages_map.cols; ++v)
-					if(number_of_coverages_map.at<int>(u,v)!=0)
-						numbers_of_coverages.push_back(number_of_coverages_map.at<int>(u,v));
+			for(size_t u=0; u<number_of_coverage_image.rows; ++u)
+				for(size_t v=0; v<number_of_coverage_image.cols; ++v)
+					if(number_of_coverage_image.at<int>(u,v)!=0)
+						numbers_of_coverages.push_back(number_of_coverage_image.at<int>(u,v));
 		}
 		// create the map with the drawn in path and coverage areas
 		map_path_coverage = map.clone();
@@ -1258,7 +1290,7 @@ public:
 			for (int u=0; u<path_map.cols; ++u)
 			{
 				if (map_coverage.at<uchar>(v,u)==255)
-					map_path_coverage.at<uchar>(v,u) = 176;		// left over uncovered areas
+					map_path_coverage.at<uchar>(v,u) = 176;		// leftover uncovered areas
 				if (path_map.at<uchar>(v,u)==127 || path_map.at<uchar>(v,u)==196)
 					map_path_coverage.at<uchar>(v,u) = path_map.at<uchar>(v,u);
 			}
