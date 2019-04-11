@@ -166,15 +166,19 @@ protected:
 
 	// parameters specific to the grid point explorator
 	int tsp_solver_;	// indicates which TSP solver should be used
-						//1 = Nearest Neighbor
-						//2 = Genetic solver
-						//3 = Concorde solver
+						//   1 = Nearest Neighbor
+						//   2 = Genetic solver
+						//   3 = Concorde solver
 	int64_t tsp_solver_timeout_;	// a sophisticated solver like Concorde or Genetic can be interrupted if it does not find a solution within this time, in [s], and then falls back to the nearest neighbor solver
 
 	// parameters specific for the boustrophedon explorator
 	double min_cell_area_;			// minimal area a cell can have, when using the boustrophedon explorator
 	double path_eps_;		// the distance between points when generating a path
 	double grid_obstacle_offset_;	// in [m], the additional offset of the grid to obstacles, i.e. allows to displace the grid by more than the standard half_grid_size from obstacles
+	int cell_visiting_order_;		// cell visiting order
+									//   1 = optimal visiting order of the cells determined as TSP problem
+									//   2 = alternative ordering from left to right (measured on y-coordinates of the cells), visits the cells in a more obvious fashion to the human observer (though it is not optimal)
+
 
 	// parameters specific for the neural network explorator, see "A Neural Network Approach to Complete Coverage Path Planning" from Simon X. Yang and Chaomin Luo
 	double step_size_; // step size for integrating the state dynamics

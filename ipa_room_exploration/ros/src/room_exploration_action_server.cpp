@@ -71,7 +71,7 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	// Parameters
 	std::cout << "\n--------------------------\nRoom Exploration Parameters:\n--------------------------\n";
 	node_handle_.param("room_exploration_algorithm", room_exploration_algorithm_, 1);
-	std::cout << "room_exploration/room_exploration_algorithm = " << room_exploration_algorithm_ << std::endl << std::endl;
+	std::cout << "room_exploration/room_exploration_algorithm = " << room_exploration_algorithm_ << std::endl;
 	node_handle_.param("display_trajectory", display_trajectory_, false);
 	std::cout << "room_exploration/display_trajectory = " << display_trajectory_ << std::endl;
 
@@ -140,6 +140,8 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
 		node_handle_.param("grid_obstacle_offset", grid_obstacle_offset_, 0.0);
 		std::cout << "room_exploration/grid_obstacle_offset_ = " << grid_obstacle_offset_ << std::endl;
+		node_handle_.param("cell_visiting_order", cell_visiting_order_, 1);
+		std::cout << "room_exploration/cell_visiting_order = " << cell_visiting_order_ << std::endl;
 	}
 	else if(room_exploration_algorithm_ == 3) // set neural network explorator parameters
 	{
@@ -190,6 +192,8 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
 		node_handle_.param("grid_obstacle_offset", grid_obstacle_offset_, 0.0);
 		std::cout << "room_exploration/grid_obstacle_offset_ = " << grid_obstacle_offset_ << std::endl;
+		node_handle_.param("cell_visiting_order", cell_visiting_order_, 1);
+		std::cout << "room_exploration/cell_visiting_order = " << cell_visiting_order_ << std::endl;
 	}
 
 	if(revisit_areas_ == true)
@@ -261,6 +265,8 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
 		grid_obstacle_offset_ = config.grid_obstacle_offset;
 		std::cout << "room_exploration/grid_obstacle_offset_ = " << grid_obstacle_offset_ << std::endl;
+		cell_visiting_order_ = config.cell_visiting_order;
+		std::cout << "room_exploration/cell_visiting_order = " << cell_visiting_order_ << std::endl;
 	}
 	else if(room_exploration_algorithm_ == 3) // set neural network explorator parameters
 	{
@@ -311,6 +317,8 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
 		grid_obstacle_offset_ = config.grid_obstacle_offset;
 		std::cout << "room_exploration/grid_obstacle_offset_ = " << grid_obstacle_offset_ << std::endl;
+		cell_visiting_order_ = config.cell_visiting_order;
+		std::cout << "room_exploration/cell_visiting_order = " << cell_visiting_order_ << std::endl;
 	}
 
 	if(revisit_areas_ == true)
@@ -420,9 +428,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	{
 		// plan path
 		if(planning_mode_ == PLAN_FOR_FOV)
-			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, false, fitting_circle_center_point_in_meter, min_cell_area_);
+			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, cell_visiting_order_, false, fitting_circle_center_point_in_meter, min_cell_area_);
 		else
-			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, true, zero_vector, min_cell_area_);
+			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, cell_visiting_order_, true, zero_vector, min_cell_area_);
 	}
 	else if(room_exploration_algorithm_ == 3) // use neural network explorator
 	{
@@ -547,9 +555,9 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	{
 		// plan path
 		if(planning_mode_ == PLAN_FOR_FOV)
-			boustrophedon_variant_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, false, fitting_circle_center_point_in_meter, min_cell_area_);
+			boustrophedon_variant_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, cell_visiting_order_, false, fitting_circle_center_point_in_meter, min_cell_area_);
 		else
-			boustrophedon_variant_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, true, zero_vector, min_cell_area_);
+			boustrophedon_variant_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, cell_visiting_order_, true, zero_vector, min_cell_area_);
 	}
 
 	// display finally planned path

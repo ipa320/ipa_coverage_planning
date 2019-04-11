@@ -112,6 +112,8 @@ double RoomRotator::computeRoomRotationMatrix(const cv::Mat& room_map, cv::Mat& 
 // the map (room_map, CV_8UC1) is black (0) at impassable areas and white (255) on drivable areas
 double RoomRotator::computeRoomMainDirection(const cv::Mat& room_map, const double map_resolution)
 {
+	const double map_resolution_inverse = 1./map_resolution;
+
 	// compute Hough transform on edge image of the map
 	cv::Mat edge_map;
 	cv::Canny(room_map, edge_map, 50, 150, 3);
@@ -119,7 +121,7 @@ double RoomRotator::computeRoomMainDirection(const cv::Mat& room_map, const doub
 	double min_line_length = 1.0;	// in [m]
 	for (; min_line_length > 0.1; min_line_length -= 0.2)
 	{
-		cv::HoughLinesP(edge_map, lines, 1, CV_PI/180, min_line_length/map_resolution, min_line_length/map_resolution, 1.5*min_line_length/map_resolution);
+		cv::HoughLinesP(edge_map, lines, 1, CV_PI/180, min_line_length*map_resolution_inverse, min_line_length*map_resolution_inverse, 1.5*min_line_length*map_resolution_inverse);
 		cv::Mat room_hough = edge_map.clone();
 		for (size_t i=0; i<lines.size(); ++i)
 		{

@@ -63,6 +63,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <iostream>
 #include <vector>
+#include <map>
+#include <set>
 #include <cmath>
 #include <string>
 
@@ -85,16 +87,19 @@
 
 // Class that is used to store cells and obstacles in a certain manner. For this the vertexes are stored as points and
 // the edges are stored as vectors in a counter-clockwise manner. The constructor becomes a set of respectively sorted
-// points and computes the vectors out of them. Additionally the visible center of the polygon gets computed, to
-// simplify the visiting order later, by using a meanshift algorithm.
+// points and computes the vectors out of them. Additionally the accessible/visible center of the polygon gets computed,
+// to simplify the visiting order later, by using a meanshift algorithm.
 class GeneralizedPolygon
 {
 protected:
 	// vertexes
 	std::vector<cv::Point> vertices_;
 
-	// center
+	// accessible center: a central point inside the polygon with maximum distance to walls
 	cv::Point center_;
+
+	// center of bounding rectangle of polygon, may be located outside the polygon, i.e. in an inaccessible area
+	cv::Point bounding_box_center_;
 
 	// min/max coordinates
 	int max_x_, min_x_, max_y_, min_y_;
@@ -123,6 +128,9 @@ public:
 				min_y_ = vertices_[point].y;
 		}
 
+		bounding_box_center_.x = (min_x_+max_x_)/2;
+		bounding_box_center_.y = (min_y_+max_y_)/2;
+
 		// compute visible center
 		MeanShift2D ms;
 		cv::Mat room = cv::Mat::zeros(max_y_+10, max_x_+10, CV_8UC1);
@@ -147,6 +155,11 @@ public:
 	cv::Point getCenter() const
 	{
 		return center_;
+	}
+
+	cv::Point getBoundingBoxCenter() const
+	{
+		return bounding_box_center_;
 	}
 
 	std::vector<cv::Point> getVertices() const
@@ -178,6 +191,24 @@ public:
 struct BoustrophedonHorizontalLine
 {
 	cv::Point left_corner_, right_corner_;
+};
+
+// Structure for saving several properties of cells
+struct BoustrophedonCell
+{
+	typedef std::set<boost::shared_ptr<BoustrophedonCell> > BoustrophedonCellSet;
+	typedef std::set<boost::shared_ptr<BoustrophedonCell> >::iterator BoustrophedonCellSetIterator;
+
+	int label;				// label id of the cell
+	double area;			// area of the cell, in [pixel^2]
+	BoustrophedonCellSet neighbors;		// pointer to neighboring cells
+
+	BoustrophedonCell(const int label_p, const double area_p)
+	{
+		label = label_p;
+		area = area_p;
+	}
+
 };
 
 
@@ -214,6 +245,11 @@ protected:
 	virtual void computeCellDecomposition(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
 			std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
 
+	// merges cells after a cell decomposition according to various criteria, e.g. too small cells are merged with their largest neighboring cell
+	void mergeCells(cv::Mat& cell_map, const double min_cell_area);
+
+	void mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_labels, std::map<int, boost::shared_ptr<BoustrophedonCell> >& cell_index_mapping, const double min_cell_area);
+
 	// this function corrects obstacles that are one pixel width at 45deg angle, i.e. a 2x2 pixel neighborhood with [0, 255, 255, 0] or [255, 0, 0, 255]
 	void correctThinWalls(cv::Mat& room_map);
 
@@ -231,6 +267,8 @@ protected:
 	void downsamplePathReverse(const std::vector<cv::Point>& original_path, std::vector<cv::Point>& downsampled_path,
 			cv::Point& robot_pos, const double path_eps);
 
+	void printCells(std::map<int, boost::shared_ptr<BoustrophedonCell> >& cell_index_mapping);
+
 public:
 	// constructor
 	BoustrophedonExplorer();
@@ -239,9 +277,11 @@ public:
 	// with free space drawn white (255) and obstacles as black (0). It returns a series of 2D poses that show to which positions
 	// the robot should drive at.
 	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
-				const cv::Point starting_position, const cv::Point2d map_origin,
-				const double grid_spacing_in_pixel, const double grid_obstacle_offset, const double path_eps, const bool plan_for_footprint,
+				const cv::Point starting_position, const cv::Point2d map_origin, const double grid_spacing_in_pixel,
+				const double grid_obstacle_offset, const double path_eps, const int cell_visiting_order, const bool plan_for_footprint,
 				const Eigen::Matrix<float, 2, 1> robot_to_fov_vector, const double min_cell_area);
+
+	enum CellVisitingOrder {OPTIMAL_TSP=1, LEFT_TO_RIGHT=2};
 };
 
 
