@@ -208,14 +208,16 @@ struct BoustrophedonCell
 	typedef std::set<boost::shared_ptr<BoustrophedonCell> > BoustrophedonCellSet;
 	typedef std::set<boost::shared_ptr<BoustrophedonCell> >::iterator BoustrophedonCellSetIterator;
 
-	int label;				// label id of the cell
-	double area;			// area of the cell, in [pixel^2]
-	BoustrophedonCellSet neighbors;		// pointer to neighboring cells
+	int label_;				// label id of the cell
+	double area_;			// area of the cell, in [pixel^2]
+	cv::Rect bounding_box_;		// bounding box of the cell
+	BoustrophedonCellSet neighbors_;		// pointer to neighboring cells
 
-	BoustrophedonCell(const int label_p, const double area_p)
+	BoustrophedonCell(const int label, const double area, const cv::Rect& bounding_box)
 	{
-		label = label_p;
-		area = area_p;
+		label_ = label;
+		area_ = area;
+		bounding_box_ = bounding_box;
 	}
 
 };
@@ -243,24 +245,26 @@ protected:
 	// rotates the original map for a good axis alignment and divides it into Morse cells
 	// the functions tries two axis alignments with 90deg rotation difference and chooses the one with the lower number of cells
 	void findBestCellDecomposition(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
-			cv::Mat& R, cv::Rect& bbox, cv::Mat& rotated_room_map,
+			const int min_cell_width, cv::Mat& R, cv::Rect& bbox, cv::Mat& rotated_room_map,
 			std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
 
 	// rotates the original map for a good axis alignment and divides it into Morse cells
 	// @param rotation_offset can be used to put an offset to the computed rotation for good axis alignment, in [rad]
 	void computeCellDecompositionWithRotation(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
-			const double rotation_offset, cv::Mat& R, cv::Rect& bbox, cv::Mat& rotated_room_map,
+			const int min_cell_width, const double rotation_offset, cv::Mat& R, cv::Rect& bbox, cv::Mat& rotated_room_map,
 			std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
 
 	// divides the provided map into Morse cells
 	virtual void computeCellDecomposition(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
-			std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
+			const int min_cell_width, std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
 
-	// merges cells after a cell decomposition according to various criteria, e.g. too small cells are merged with their largest neighboring cell
+	// merges cells after a cell decomposition according to various criteria, e.g. too small (area) or too thin (width or height) cells
+	// are merged with their largest neighboring cell.
 	// returns the number of cells after merging
-	int mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_labels, const double min_cell_area);
+	int mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_labels, const double min_cell_area, const int min_cell_width);
 
-	void mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_labels, std::map<int, boost::shared_ptr<BoustrophedonCell> >& cell_index_mapping, const double min_cell_area);
+	void mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_labels, std::map<int, boost::shared_ptr<BoustrophedonCell> >& cell_index_mapping, const double min_cell_area,
+			const int min_cell_width);
 
 	// this function corrects obstacles that are one pixel width at 45deg angle, i.e. a 2x2 pixel neighborhood with [0, 255, 255, 0] or [255, 0, 0, 255]
 	void correctThinWalls(cv::Mat& room_map);

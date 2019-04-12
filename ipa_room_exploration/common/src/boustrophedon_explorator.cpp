@@ -50,6 +50,9 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 		const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector, const double min_cell_area)
 {
 	ROS_INFO("Planning the boustrophedon path trough the room.");
+	const int grid_spacing_as_int = (int)std::floor(grid_spacing_in_pixel); // convert fov-radius to int
+	const int half_grid_spacing_as_int = (int)std::floor(0.5*grid_spacing_in_pixel); // convert fov-radius to int
+	const int min_cell_width = half_grid_spacing_as_int + grid_obstacle_offset/map_resolution;
 
 	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
 	// *********************** II. Sweep a slice trough the map and mark the found cell boundaries. ***********************
@@ -59,7 +62,7 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	cv::Mat rotated_room_map;
 	std::vector<GeneralizedPolygon> cell_polygons;
 	std::vector<cv::Point> polygon_centers;
-	computeCellDecompositionWithRotation(room_map, map_resolution, min_cell_area, 0., R, bbox, rotated_room_map, cell_polygons, polygon_centers);
+	computeCellDecompositionWithRotation(room_map, map_resolution, min_cell_area, min_cell_width, 0., R, bbox, rotated_room_map, cell_polygons, polygon_centers);
 	// does not work so well: findBestCellDecomposition(room_map, map_resolution, min_cell_area, R, bbox, rotated_room_map, cell_polygons, polygon_centers);
 
 	ROS_INFO("Found the cells in the given map.");
@@ -116,8 +119,6 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 
 	// go trough the cells [in optimal visiting order] and determine the boustrophedon paths
 	ROS_INFO("Starting to get the paths for each cell, number of cells: %d", (int)cell_polygons.size());
-	const int grid_spacing_as_int = (int)std::floor(grid_spacing_in_pixel); // convert fov-radius to int
-	const int half_grid_spacing_as_int = (int)std::floor(0.5*grid_spacing_in_pixel); // convert fov-radius to int
 	std::cout << "Boustrophedon grid_spacing_as_int=" << grid_spacing_as_int << std::endl;
 	cv::Point robot_pos = rotated_starting_point;	// point that keeps track of the last point after the boustrophedon path in each cell
 	std::vector<cv::Point2f> fov_middlepoint_path;	// this is the trajectory of centers of the robot footprint or the field of view
@@ -196,7 +197,7 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 
 
 void BoustrophedonExplorer::findBestCellDecomposition(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
-		cv::Mat& R, cv::Rect& bbox, cv::Mat& rotated_room_map,
+		const int min_cell_width, cv::Mat& R, cv::Rect& bbox, cv::Mat& rotated_room_map,
 		std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers)
 {
 	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
@@ -207,8 +208,8 @@ void BoustrophedonExplorer::findBestCellDecomposition(const cv::Mat& room_map, c
 	cv::Mat rotated_room_map_1, rotated_room_map_2;
 	std::vector<GeneralizedPolygon> cell_polygons_1, cell_polygons_2;
 	std::vector<cv::Point> polygon_centers_1, polygon_centers_2;
-	computeCellDecompositionWithRotation(room_map, map_resolution, min_cell_area, 0., R_1, bbox_1, rotated_room_map_1, cell_polygons_1, polygon_centers_1);
-	computeCellDecompositionWithRotation(room_map, map_resolution, min_cell_area, 90./180.*CV_PI, R_2, bbox_2, rotated_room_map_2, cell_polygons_2, polygon_centers_2);
+	computeCellDecompositionWithRotation(room_map, map_resolution, min_cell_area, min_cell_width, 0., R_1, bbox_1, rotated_room_map_1, cell_polygons_1, polygon_centers_1);
+	computeCellDecompositionWithRotation(room_map, map_resolution, min_cell_area, min_cell_width, 90./180.*CV_PI, R_2, bbox_2, rotated_room_map_2, cell_polygons_2, polygon_centers_2);
 
 	// select the cell decomposition with good axis alignment which produces less cells
 	if (cell_polygons_1.size() <= cell_polygons_2.size())
@@ -230,7 +231,7 @@ void BoustrophedonExplorer::findBestCellDecomposition(const cv::Mat& room_map, c
 }
 
 void BoustrophedonExplorer::computeCellDecompositionWithRotation(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
-		const double rotation_offset, cv::Mat& R, cv::Rect& bbox, cv::Mat& rotated_room_map,
+		const int min_cell_width, const double rotation_offset, cv::Mat& R, cv::Rect& bbox, cv::Mat& rotated_room_map,
 		std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers)
 {
 	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
@@ -256,11 +257,11 @@ void BoustrophedonExplorer::computeCellDecompositionWithRotation(const cv::Mat& 
 
 	// *********************** II. Sweep a slice trough the map and mark the found cell boundaries. ***********************
 	// *********************** III. Find the separated cells. ***********************
-	computeCellDecomposition(rotated_room_map, map_resolution, min_cell_area, cell_polygons, polygon_centers);
+	computeCellDecomposition(rotated_room_map, map_resolution, min_cell_area, min_cell_width, cell_polygons, polygon_centers);
 }
 
 void BoustrophedonExplorer::computeCellDecomposition(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
-		std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers)
+		const int min_cell_width, std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers)
 {
 	// *********************** II. Sweep a slice trough the map and mark the found cell boundaries. ***********************
 	// create a map copy to mark the cell boundaries
@@ -442,7 +443,7 @@ void BoustrophedonExplorer::computeCellDecomposition(const cv::Mat& room_map, co
 
 	// *********************** II.b) merge too small cells into bigger cells ***********************
 	cv::Mat cell_map_labels;
-	const int number_of_cells = mergeCells(cell_map, cell_map_labels, min_cell_area);
+	const int number_of_cells = mergeCells(cell_map, cell_map_labels, min_cell_area, min_cell_width);
 
 	// *********************** III. Find the separated cells. ***********************
 	std::vector<std::vector<cv::Point> > cells;
@@ -482,7 +483,7 @@ void BoustrophedonExplorer::computeCellDecomposition(const cv::Mat& room_map, co
 	}
 }
 
-int BoustrophedonExplorer::mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_labels, const double min_cell_area)
+int BoustrophedonExplorer::mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_labels, const double min_cell_area, const int min_cell_width)
 {
 	// label all cells
 	//   --> create a label map with 0=walls/obstacles, -1=cell borders, 1,2,3,4...=cell labels
@@ -504,9 +505,9 @@ int BoustrophedonExplorer::mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_label
 				continue;
 
 			// fill each cell with a unique id
-			cv::Rect rect;
-			const double area = cv::floodFill(cell_map_labels, cv::Point(u,v), label_index, &rect, 0, 0, 4);
-			cell_index_mapping[label_index] = boost::shared_ptr<BoustrophedonCell>(new BoustrophedonCell(label_index, area));
+			cv::Rect bounding_box;
+			const double area = cv::floodFill(cell_map_labels, cv::Point(u,v), label_index, &bounding_box, 0, 0, 4);
+			cell_index_mapping[label_index] = boost::shared_ptr<BoustrophedonCell>(new BoustrophedonCell(label_index, area, bounding_box));
 			label_index++;
 			if (label_index == INT_MAX)
 				std::cout << "WARN: BoustrophedonExplorer::mergeCells: label_index exceeds range of int." << std::endl;
@@ -525,15 +526,15 @@ int BoustrophedonExplorer::mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_label
 				const int label_right = cell_map_labels.at<int>(v,u+1);
 				if (label_left>0 && label_right>0)
 				{
-					cell_index_mapping[label_left]->neighbors.insert(cell_index_mapping[label_right]);
-					cell_index_mapping[label_right]->neighbors.insert(cell_index_mapping[label_left]);
+					cell_index_mapping[label_left]->neighbors_.insert(cell_index_mapping[label_right]);
+					cell_index_mapping[label_right]->neighbors_.insert(cell_index_mapping[label_left]);
 				}
 				const int label_up = cell_map_labels.at<int>(v-1,u);
 				const int label_down = cell_map_labels.at<int>(v+1,u);
 				if (label_up>0 && label_down>0)
 				{
-					cell_index_mapping[label_up]->neighbors.insert(cell_index_mapping[label_down]);
-					cell_index_mapping[label_down]->neighbors.insert(cell_index_mapping[label_up]);
+					cell_index_mapping[label_up]->neighbors_.insert(cell_index_mapping[label_down]);
+					cell_index_mapping[label_down]->neighbors_.insert(cell_index_mapping[label_up]);
 				}
 			}
 		}
@@ -545,14 +546,14 @@ int BoustrophedonExplorer::mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_label
 #endif
 
 	// iteratively merge cells
-	mergeCells(cell_map, cell_map_labels, cell_index_mapping, min_cell_area);
+	mergeCells(cell_map, cell_map_labels, cell_index_mapping, min_cell_area, min_cell_width);
 
 	// re-assign area labels to 1,2,3,4,...
 	int new_cell_label = 1;
 	for (std::map<int, boost::shared_ptr<BoustrophedonCell> >::iterator itc=cell_index_mapping.begin(); itc!=cell_index_mapping.end(); ++itc, ++new_cell_label)
 		for (int v=0; v<cell_map_labels.rows; ++v)
 			for (int u=0; u<cell_map_labels.cols; ++u)
-				if (cell_map_labels.at<int>(v,u)==itc->second->label)
+				if (cell_map_labels.at<int>(v,u)==itc->second->label_)
 					cell_map_labels.at<int>(v,u) = new_cell_label;
 
 	std::cout << "INFO: BoustrophedonExplorer::mergeCells: " << cell_index_mapping.size() << " cells remaining after merging." << std::endl;
@@ -560,21 +561,24 @@ int BoustrophedonExplorer::mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_label
 }
 
 void BoustrophedonExplorer::mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_labels, std::map<int, boost::shared_ptr<BoustrophedonCell> >& cell_index_mapping,
-		const double min_cell_area)
+		const double min_cell_area, const int min_cell_width)
 {
 	// iteratively merge cells
 	// merge small cells below min_cell_area with their largest neighboring cell
 	std::multimap<double, boost::shared_ptr<BoustrophedonCell> > area_to_region_id_mapping;		// maps the area of each cell --> to the respective cell
 	for (std::map<int, boost::shared_ptr<BoustrophedonCell> >::iterator itc=cell_index_mapping.begin(); itc!=cell_index_mapping.end(); ++itc)
-		area_to_region_id_mapping.insert(std::pair<double, boost::shared_ptr<BoustrophedonCell> >(itc->second->area, itc->second));
+		area_to_region_id_mapping.insert(std::pair<double, boost::shared_ptr<BoustrophedonCell> >(itc->second->area_, itc->second));
 	for (std::multimap<double, boost::shared_ptr<BoustrophedonCell> >::iterator it=area_to_region_id_mapping.begin(); it!=area_to_region_id_mapping.end();)
 	{
 		// abort if no cells below min_cell_area remain unmerged into bigger cells
-		if (it->first >= min_cell_area)
-			break;
+		if (it->first >= min_cell_area && it->second->bounding_box_.width >= min_cell_width && it->second->bounding_box_.height >= min_cell_width)
+		{
+			++it;
+			continue;
+		}
 
 		// skip segments which have no neighbors
-		if (it->second->neighbors.size() == 0)
+		if (it->second->neighbors_.size() == 0)
 		{
 			std::cout << "WARN: BoustrophedonExplorer::mergeCells: skipping small cell without neighbors." << std::endl;
 			++it;
@@ -584,8 +588,8 @@ void BoustrophedonExplorer::mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_labe
 		// determine the largest neighboring cell
 		const BoustrophedonCell& small_cell = *(it->second);
 		std::multimap<double, boost::shared_ptr<BoustrophedonCell>, std::greater<double> > area_sorted_neighbors;
-		for (BoustrophedonCell::BoustrophedonCellSetIterator itn = small_cell.neighbors.begin(); itn != small_cell.neighbors.end(); ++itn)
-			area_sorted_neighbors.insert(std::pair<double, boost::shared_ptr<BoustrophedonCell> >((*itn)->area, *itn));
+		for (BoustrophedonCell::BoustrophedonCellSetIterator itn = small_cell.neighbors_.begin(); itn != small_cell.neighbors_.end(); ++itn)
+			area_sorted_neighbors.insert(std::pair<double, boost::shared_ptr<BoustrophedonCell> >((*itn)->area_, *itn));
 		BoustrophedonCell& large_cell = *(area_sorted_neighbors.begin()->second);
 
 		// merge the cells
@@ -594,46 +598,46 @@ void BoustrophedonExplorer::mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_labe
 		for (int v=0; v<cell_map.rows; ++v)
 			for (int u=0; u<cell_map.cols; ++u)
 				if (cell_map.at<uchar>(v,u) == BORDER_PIXEL_VALUE &&
-						((cell_map_labels.at<int>(v,u-1)==small_cell.label && cell_map_labels.at<int>(v,u+1)==large_cell.label) ||
-						(cell_map_labels.at<int>(v,u-1)==large_cell.label && cell_map_labels.at<int>(v,u+1)==small_cell.label) ||
-						(cell_map_labels.at<int>(v-1,u)==small_cell.label && cell_map_labels.at<int>(v+1,u)==large_cell.label) ||
-						(cell_map_labels.at<int>(v-1,u)==large_cell.label && cell_map_labels.at<int>(v+1,u)==small_cell.label)))
+						((cell_map_labels.at<int>(v,u-1)==small_cell.label_ && cell_map_labels.at<int>(v,u+1)==large_cell.label_) ||
+						(cell_map_labels.at<int>(v,u-1)==large_cell.label_ && cell_map_labels.at<int>(v,u+1)==small_cell.label_) ||
+						(cell_map_labels.at<int>(v-1,u)==small_cell.label_ && cell_map_labels.at<int>(v+1,u)==large_cell.label_) ||
+						(cell_map_labels.at<int>(v-1,u)==large_cell.label_ && cell_map_labels.at<int>(v+1,u)==small_cell.label_)))
 				{
 					cell_map.at<uchar>(v,u) = 255;
-					cell_map_labels.at<int>(v,u) = large_cell.label;
-					large_cell.area += 1;
+					cell_map_labels.at<int>(v,u) = large_cell.label_;
+					large_cell.area_ += 1;
 				}
 		//   --> update old label in cell_map_labels
 		for (int v=0; v<cell_map_labels.rows; ++v)
 			for (int u=0; u<cell_map_labels.cols; ++u)
-				if (cell_map_labels.at<int>(v,u) == small_cell.label)
-					cell_map_labels.at<int>(v,u) = large_cell.label;
+				if (cell_map_labels.at<int>(v,u) == small_cell.label_)
+					cell_map_labels.at<int>(v,u) = large_cell.label_;
 		//   --> update large_cell
-		large_cell.area += small_cell.area;
-		for (BoustrophedonCell::BoustrophedonCellSetIterator itn = large_cell.neighbors.begin(); itn != large_cell.neighbors.end(); ++itn)
-			if ((*itn)->label == small_cell.label)
+		large_cell.area_ += small_cell.area_;
+		for (BoustrophedonCell::BoustrophedonCellSetIterator itn = large_cell.neighbors_.begin(); itn != large_cell.neighbors_.end(); ++itn)
+			if ((*itn)->label_ == small_cell.label_)
 			{
-				large_cell.neighbors.erase(itn);
+				large_cell.neighbors_.erase(itn);
 				break;
 			}
-		for (BoustrophedonCell::BoustrophedonCellSetIterator itn = small_cell.neighbors.begin(); itn != small_cell.neighbors.end(); ++itn)
-			if ((*itn)->label != large_cell.label)
-				large_cell.neighbors.insert(*itn);
+		for (BoustrophedonCell::BoustrophedonCellSetIterator itn = small_cell.neighbors_.begin(); itn != small_cell.neighbors_.end(); ++itn)
+			if ((*itn)->label_ != large_cell.label_)
+				large_cell.neighbors_.insert(*itn);
 
 		// clean all references to small_cell
-		cell_index_mapping.erase(small_cell.label);
+		cell_index_mapping.erase(small_cell.label_);
 		for (std::map<int, boost::shared_ptr<BoustrophedonCell> >::iterator itc=cell_index_mapping.begin(); itc!=cell_index_mapping.end(); ++itc)
-			for (BoustrophedonCell::BoustrophedonCellSetIterator itn = itc->second->neighbors.begin(); itn != itc->second->neighbors.end(); ++itn)
-				if ((*itn)->label == small_cell.label)
+			for (BoustrophedonCell::BoustrophedonCellSetIterator itn = itc->second->neighbors_.begin(); itn != itc->second->neighbors_.end(); ++itn)
+				if ((*itn)->label_ == small_cell.label_)
 				{
-					(*itn)->label = large_cell.label;
+					(*itn)->label_ = large_cell.label_;
 					break;
 				}
 
 		// update area_to_region_id_mapping
 		area_to_region_id_mapping.clear();
 		for (std::map<int, boost::shared_ptr<BoustrophedonCell> >::iterator itc=cell_index_mapping.begin(); itc!=cell_index_mapping.end(); ++itc)
-			area_to_region_id_mapping.insert(std::pair<double, boost::shared_ptr<BoustrophedonCell> >(itc->second->area, itc->second));
+			area_to_region_id_mapping.insert(std::pair<double, boost::shared_ptr<BoustrophedonCell> >(itc->second->area_, itc->second));
 		it = area_to_region_id_mapping.begin();
 
 #ifdef DEBUG_VISUALIZATION
@@ -665,9 +669,9 @@ void BoustrophedonExplorer::mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_labe
 					int new_label = -1;
 					for (std::multimap<double, boost::shared_ptr<BoustrophedonCell> >::reverse_iterator it=area_to_region_id_mapping.rbegin(); it!=area_to_region_id_mapping.rend(); ++it)
 					{
-						if (neighbor_labels.find(it->second->label) != neighbor_labels.end())
+						if (neighbor_labels.find(it->second->label_) != neighbor_labels.end())
 						{
-							cell_map_labels.at<int>(v,u) = it->second->label;
+							cell_map_labels.at<int>(v,u) = it->second->label_;
 							break;
 						}
 					}
@@ -996,9 +1000,9 @@ void BoustrophedonExplorer::printCells(std::map<int, boost::shared_ptr<Boustroph
 	std::cout << "---\n";
 	for (std::map<int, boost::shared_ptr<BoustrophedonCell> >::iterator itc=cell_index_mapping.begin(); itc!=cell_index_mapping.end(); ++itc)
 	{
-		std::cout << itc->first << ": l=" << itc->second->label << "   a=" << itc->second->area << "   n=";
-		for (BoustrophedonCell::BoustrophedonCellSetIterator its=itc->second->neighbors.begin(); its!=itc->second->neighbors.end(); ++its)
-			std::cout << (*its)->label << ", ";
+		std::cout << itc->first << ": l=" << itc->second->label_ << "   a=" << itc->second->area_ << "   n=";
+		for (BoustrophedonCell::BoustrophedonCellSetIterator its=itc->second->neighbors_.begin(); its!=itc->second->neighbors_.end(); ++its)
+			std::cout << (*its)->label_ << ", ";
 		std::cout << std::endl;
 	}
 }
