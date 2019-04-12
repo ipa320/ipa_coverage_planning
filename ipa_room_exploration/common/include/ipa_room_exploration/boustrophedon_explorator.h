@@ -104,6 +104,9 @@ protected:
 	// min/max coordinates
 	int max_x_, min_x_, max_y_, min_y_;
 
+	// area of the polygon (cell number), in [pixel^2]
+	double area_;
+
 public:
 	// constructor
 	GeneralizedPolygon(const std::vector<cv::Point>& vertices, const double map_resolution)
@@ -135,6 +138,7 @@ public:
 		MeanShift2D ms;
 		cv::Mat room = cv::Mat::zeros(max_y_+10, max_x_+10, CV_8UC1);
 		cv::drawContours(room, std::vector<std::vector<cv::Point> >(1,vertices), -1, cv::Scalar(255), CV_FILLED);
+		area_ = cv::countNonZero(room);
 		cv::Mat distance_map; //variable for the distance-transformed map, type: CV_32FC1
 		cv::distanceTransform(room, distance_map, CV_DIST_L2, 5);
 		// find point set with largest distance to obstacles
@@ -152,6 +156,11 @@ public:
 		center_.y = room_center[1];
 	}
 
+	std::vector<cv::Point> getVertices() const
+	{
+		return vertices_;
+	}
+
 	cv::Point getCenter() const
 	{
 		return center_;
@@ -162,9 +171,9 @@ public:
 		return bounding_box_center_;
 	}
 
-	std::vector<cv::Point> getVertices() const
+	double getArea() const
 	{
-		return vertices_;
+		return area_;
 	}
 
 	void drawPolygon(cv::Mat& image, const cv::Scalar& color) const
@@ -248,7 +257,8 @@ protected:
 			std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
 
 	// merges cells after a cell decomposition according to various criteria, e.g. too small cells are merged with their largest neighboring cell
-	void mergeCells(cv::Mat& cell_map, const double min_cell_area);
+	// returns the number of cells after merging
+	int mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_labels, const double min_cell_area);
 
 	void mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_labels, std::map<int, boost::shared_ptr<BoustrophedonCell> >& cell_index_mapping, const double min_cell_area);
 
