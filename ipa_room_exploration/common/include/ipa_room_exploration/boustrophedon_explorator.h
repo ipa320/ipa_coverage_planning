@@ -255,16 +255,21 @@ protected:
 			std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
 
 	// divides the provided map into Morse cells
-	virtual void computeCellDecomposition(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
+	void computeCellDecomposition(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
 			const int min_cell_width, std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
 
-	// merges cells after a cell decomposition according to various criteria, e.g. too small (area) or too thin (width or height) cells
-	// are merged with their largest neighboring cell.
+	// merges cells after a cell decomposition according to various criteria specified in function @mergeCellsSelection
 	// returns the number of cells after merging
 	int mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_labels, const double min_cell_area, const int min_cell_width);
 
-	void mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_labels, std::map<int, boost::shared_ptr<BoustrophedonCell> >& cell_index_mapping, const double min_cell_area,
-			const int min_cell_width);
+	// implements the selection criterion for cell merging, in this case: too small (area) or too thin (width or height) cells
+	// are merged with their largest neighboring cell.
+	void mergeCellsSelection(cv::Mat& cell_map, cv::Mat& cell_map_labels, std::map<int, boost::shared_ptr<BoustrophedonCell> >& cell_index_mapping,
+			const double min_cell_area, const int min_cell_width);
+
+	// executes the merger of minor cell into major cell
+	void mergeTwoCells(cv::Mat& cell_map, cv::Mat& cell_map_labels, const BoustrophedonCell& minor_cell, BoustrophedonCell& major_cell,
+			std::map<int, boost::shared_ptr<BoustrophedonCell> >& cell_index_mapping);
 
 	// this function corrects obstacles that are one pixel width at 45deg angle, i.e. a 2x2 pixel neighborhood with [0, 255, 255, 0] or [255, 0, 0, 255]
 	void correctThinWalls(cv::Mat& room_map);
@@ -305,9 +310,9 @@ class BoustrophedonVariantExplorer : public BoustrophedonExplorer
 {
 protected:
 
-	// computes a suitable cell decomposition for the given room_map
-	void computeCellDecomposition(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
-			std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
+	// implements the selection criterion for cell merging, in this case: only large cells with different major axis are not merged.
+	void mergeCellsSelection(cv::Mat& cell_map, cv::Mat& cell_map_labels, std::map<int, boost::shared_ptr<BoustrophedonCell> >& cell_index_mapping,
+			const double min_cell_area, const int min_cell_width);
 
 public:
 	BoustrophedonVariantExplorer() {};
