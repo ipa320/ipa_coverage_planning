@@ -1444,9 +1444,9 @@ public:
 		else // use the map accessibility server to find another accessible target pose
 		{
 			const MapAccessibilityAnalysis::Pose target_pose_px_copy(target_pose_px.x, target_pose_px.y, target_pose_px.theta);
-			if (data.planning_mode_ == FOOTPRINT)
+			if (data.planning_mode_ == FOOTPRINT || (fov_circle_center_point_in_px.x==0 && fov_circle_center_point_in_px.y==0))	// if the fov center is at the robot center it behaves like footprint planning
 			{
-				const int max_radius = cvRound(1.55*data.coverage_radius_/data.map_resolution_);	// in [pixel]
+				const int max_radius = std::max(1, cvRound(1.55*data.coverage_radius_/data.map_resolution_));	// in [pixel]
 				// check circles with growing radius around the desired point until a dislocation of data.coverage_radius_ would be exceeded
 				for (double radius=1; radius<=max_radius && found_next==false; ++radius)
 				{
@@ -1473,7 +1473,6 @@ public:
 			}
 			else if (data.planning_mode_ == FIELD_OF_VIEW)
 			{
-				// todo: check if this now works correctly for arbitrary center offsets
 				// get the desired FoV-center position
 				MapAccessibilityAnalysis::Pose fov_center_px;		// in [px,px,rad]
 				fov_center_px.x = (target_pose_px_copy.x + std::cos(target_pose_px_copy.orientation)*fov_circle_center_point_in_px.x - std::sin(target_pose_px_copy.orientation)*fov_circle_center_point_in_px.y);
@@ -1481,6 +1480,9 @@ public:
 				fov_center_px.y = (target_pose_px_copy.y + std::sin(target_pose_px_copy.orientation)*fov_circle_center_point_in_px.x + std::cos(target_pose_px_copy.orientation)*fov_circle_center_point_in_px.y);
 				//fov_center_px.y = (fov_center_px.y-data.map_origin_.position.y) / data.map_resolution_;
 				fov_center_px.orientation = target_pose_px_copy.orientation;
+
+				std::cout << "target_pose_px_copy: " << target_pose_px_copy.x << ", " << target_pose_px_copy.y << ", " << target_pose_px_copy.orientation << std::endl;
+				std::cout << "fov_center_px: " << fov_center_px.x << ", " << fov_center_px.y << ", " << fov_center_px.orientation << std::endl;
 
 				const double optimal_distance_to_fov_center = cv::norm(fov_circle_center_point_in_px);
 				for (double factor_add=0.; factor_add<0.45 && found_next==false; factor_add*=-1.)
