@@ -229,6 +229,8 @@ protected:
 	// pathplanner to check for the next nearest locations
 	AStarPlanner path_planner_;
 
+	static const uchar BORDER_PIXEL_VALUE = 25;
+
 	// rotates the original map for a good axis alignment and divides it into Morse cells
 	// the functions tries two axis alignments with 90deg rotation difference and chooses the one with the lower number of cells
 	void findBestCellDecomposition(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,

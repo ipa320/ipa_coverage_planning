@@ -270,25 +270,27 @@ void BoustrophedonExplorer::computeCellDecomposition(const cv::Mat& room_map, co
 
 	// find smallest y-value for that a white pixel occurs, to set initial y value and find initial number of segments
 	size_t y_start = 0;
-	int n_start = 0;
 	bool found = false, obstacle = false;
+	int previous_number_of_segments = 0;
+	std::vector<int> previous_obstacles_end_x;		// keep track of the end points of obstacles
 	for(size_t y=0; y<room_map.rows; ++y)
 	{
 		for(size_t x=0; x<room_map.cols; ++x)
 		{
-			if(room_map.at<uchar>(y,x) == 255 && found == false)
+			if(found == false && room_map.at<uchar>(y,x) == 255)
 			{
 				y_start = y;
 				found = true;
 			}
 			else if(found == true && obstacle == false && room_map.at<uchar>(y,x) == 0)
 			{
-				++n_start;
+				++previous_number_of_segments;
 				obstacle = true;
 			}
 			else if(found == true && obstacle == true && room_map.at<uchar>(y,x) == 255)
 			{
 				obstacle = false;
+				previous_obstacles_end_x.push_back(x);
 			}
 		}
 
@@ -297,17 +299,18 @@ void BoustrophedonExplorer::computeCellDecomposition(const cv::Mat& room_map, co
 	}
 
 	// sweep trough the map and detect critical points
-	int previous_number_of_segments = n_start;
 	for(size_t y=y_start+1; y<room_map.rows; ++y) // start at y_start+1 because we know number of segments at y_start
 	{
 		int number_of_segments = 0; // int to count how many segments at the current slice are
+		std::vector<int> current_obstacles_start_x;
+		std::vector<int> current_obstacles_end_x;
 		bool obstacle_hit = false; // bool to check if the line currently hit an obstacle, s.t. not all black pixels trigger an event
 		bool hit_white_pixel = false; // bool to check if a white pixel has been hit at the current slice, to start the slice at the first white pixel
 
 		// count number of segments within this row
 		for(size_t x=0; x<room_map.cols; ++x)
 		{
-			if(room_map.at<uchar>(y,x) == 255 && hit_white_pixel == false)
+			if(hit_white_pixel == false && room_map.at<uchar>(y,x) == 255)
 				hit_white_pixel = true;
 			else if(hit_white_pixel == true)
 			{
@@ -315,31 +318,45 @@ void BoustrophedonExplorer::computeCellDecomposition(const cv::Mat& room_map, co
 				{
 					++number_of_segments;
 					obstacle_hit = true;
+					current_obstacles_start_x.push_back(x);
 				}
 				else if(obstacle_hit == true && room_map.at<uchar>(y,x) == 255) // check for leaving obstacle
 				{
 					obstacle_hit = false;
+					current_obstacles_end_x.push_back(x);
 				}
 			}
+		}
+
+		// if the number of segments did not change, check whether the position of segments has changed so that there is a gap between them
+		bool segment_shift_detected = false;
+		if (previous_number_of_segments == number_of_segments && current_obstacles_start_x.size() == previous_obstacles_end_x.size()+1)
+		{
+			for (size_t i=0; i<previous_obstacles_end_x.size(); ++i)
+				if (current_obstacles_start_x[i] > previous_obstacles_end_x[i])
+				{
+					segment_shift_detected = true;
+					break;
+				}
 		}
 
 		// reset hit_white_pixel to use this Boolean later
 		hit_white_pixel = false;
 
 		// check if number of segments has changed --> event occurred
-		if(previous_number_of_segments < number_of_segments) // IN event
+		if(previous_number_of_segments < number_of_segments || segment_shift_detected == true) // IN event (or shift)
 		{
 			// check the current slice again for critical points
 			for(int x=0; x<room_map.cols; ++x)
 			{
-				if(room_map.at<uchar>(y,x) == 255 && hit_white_pixel == false)
+				if(hit_white_pixel == false && room_map.at<uchar>(y,x) == 255)
 					hit_white_pixel = true;
 				else if(hit_white_pixel == true && room_map.at<uchar>(y,x) == 0)
 				{
 					// check over black pixel for other black pixels, if none occur a critical point is found
 					bool critical_point = true;
 					for(int dx=-1; dx<=1; ++dx)
-						if(room_map.at<uchar>(y-1,x+dx) == 0)
+						if(room_map.at<uchar>(y-1,std::max(0,std::min(x+dx, room_map.cols-1))) == 0)
 							critical_point = false;
 
 					// if a critical point is found mark the separation, note that this algorithm goes left and right
@@ -348,20 +365,22 @@ void BoustrophedonExplorer::computeCellDecomposition(const cv::Mat& room_map, co
 					if(critical_point == true)
 					{
 						// to the left until a black pixel is hit
-						for(int dx=-1; x+dx>0; --dx)
+						for(int dx=-1; x+dx>=0; --dx)
 						{
-							if(cell_map.at<uchar>(y,x+dx) == 255)
-								cell_map.at<uchar>(y,x+dx) = 25;
-							else if(cell_map.at<uchar>(y,x+dx) == 0)
+							uchar& val = cell_map.at<uchar>(y,x+dx);
+							if(val == 255 && cell_map.at<uchar>(y-1,x+dx) == 255)
+								val = BORDER_PIXEL_VALUE;
+							else if(val == 0)
 								break;
 						}
 
 						// to the right until a black pixel is hit
 						for(int dx=1; x+dx<room_map.cols; ++dx)
 						{
-							if(cell_map.at<uchar>(y,x+dx) == 255)
-								cell_map.at<uchar>(y,x+dx) = 25;
-							else if(cell_map.at<uchar>(y,x+dx) == 0)
+							uchar& val = cell_map.at<uchar>(y,x+dx);
+							if(val == 255 && cell_map.at<uchar>(y-1,x+dx) == 255)
+								val = BORDER_PIXEL_VALUE;
+							else if(val == 0)
 								break;
 						}
 					}
@@ -380,7 +399,7 @@ void BoustrophedonExplorer::computeCellDecomposition(const cv::Mat& room_map, co
 					// check over black pixel for other black pixels, if none occur a critical point is found
 					bool critical_point = true;
 					for(int dx=-1; dx<=1; ++dx)
-						if(room_map.at<uchar>(y,std::min(x+dx, room_map.cols-1)) == 0) // check at side after obstacle
+						if(room_map.at<uchar>(y,std::max(0,std::min(x+dx, room_map.cols-1))) == 0) // check at side after obstacle
 							critical_point = false;
 
 					// if a critical point is found mark the separation, note that this algorithm goes left and right
@@ -388,21 +407,25 @@ void BoustrophedonExplorer::computeCellDecomposition(const cv::Mat& room_map, co
 					// behind other obstacles on the same y-value as the critical point
 					if(critical_point == true)
 					{
+						const int ym2 = std::max(0,(int)y-2);
+
 						// to the left until a black pixel is hit
-						for(int dx=-1; x+dx>0; --dx)
+						for(int dx=-1; x+dx>=0; --dx)
 						{
-							if(cell_map.at<uchar>(y-1,x+dx) == 255)
-								cell_map.at<uchar>(y-1,x+dx) = 25;
-							else if(cell_map.at<uchar>(y-1,x+dx) == 0)
+							uchar& val = cell_map.at<uchar>(y-1,x+dx);
+							if(val == 255 && cell_map.at<uchar>(ym2,x+dx) == 255)
+								val = BORDER_PIXEL_VALUE;
+							else if(val == 0)
 								break;
 						}
 
 						// to the right until a black pixel is hit
 						for(int dx=1; x+dx<room_map.cols; ++dx)
 						{
-							if(cell_map.at<uchar>(y-1,x+dx) == 255)
-								cell_map.at<uchar>(y-1,x+dx) = 25;
-							else if(cell_map.at<uchar>(y-1,x+dx) == 0)
+							uchar& val = cell_map.at<uchar>(y-1,x+dx);
+							if(val == 255 && cell_map.at<uchar>(ym2,x+dx) == 255)
+								val = BORDER_PIXEL_VALUE;
+							else if(val == 0)
 								break;
 						}
 					}
@@ -410,8 +433,9 @@ void BoustrophedonExplorer::computeCellDecomposition(const cv::Mat& room_map, co
 			}
 		}
 
-		// save the found number of segments
+		// save the found number of segments and the obstacle end points
 		previous_number_of_segments = number_of_segments;
+		previous_obstacles_end_x = current_obstacles_end_x;
 	}
 
 #ifdef DEBUG_VISUALIZATION
@@ -421,10 +445,10 @@ void BoustrophedonExplorer::computeCellDecomposition(const cv::Mat& room_map, co
 	// *********************** II.b) merge too small cells into bigger cells ***********************
 	mergeCells(cell_map, min_cell_area);
 
-	// reset cell_map borders to 0 (was 25 before) for cv::findContours to work correctly
+	// reset cell_map borders to 0 (was BORDER_PIXEL_VALUE before) for cv::findContours to work correctly
 	for (int v=0; v<cell_map.rows; ++v)
 		for (int u=0; u<cell_map.cols; ++u)
-			if (cell_map.at<uchar>(v,u) == 25)
+			if (cell_map.at<uchar>(v,u) == BORDER_PIXEL_VALUE)
 				cell_map.at<uchar>(v,u) = 0;
 
 	// *********************** III. Find the separated cells. ***********************
@@ -464,7 +488,7 @@ void BoustrophedonExplorer::mergeCells(cv::Mat& cell_map, const double min_cell_
 	//   --> re-assign the cell borders with -1
 	for (int v=0; v<cell_map_labels.rows; ++v)
 		for (int u=0; u<cell_map_labels.cols; ++u)
-			if (cell_map_labels.at<int>(v,u) == 25*256)
+			if (cell_map_labels.at<int>(v,u) == BORDER_PIXEL_VALUE*256)
 				cell_map_labels.at<int>(v,u) = -1;
 	//   --> flood fill cell regions with unique id labels
 	std::map<int, boost::shared_ptr<BoustrophedonCell> > cell_index_mapping;		// maps each cell label --> to the cell object
@@ -479,7 +503,7 @@ void BoustrophedonExplorer::mergeCells(cv::Mat& cell_map, const double min_cell_
 
 			// fill each cell with a unique id
 			cv::Rect rect;
-			const double area = cv::floodFill(cell_map_labels, cv::Point(u,v), label_index, &rect, 0, 0, 8);
+			const double area = cv::floodFill(cell_map_labels, cv::Point(u,v), label_index, &rect, 0, 0, 4);
 			cell_index_mapping[label_index] = boost::shared_ptr<BoustrophedonCell>(new BoustrophedonCell(label_index, area));
 			label_index++;
 			if (label_index == INT_MAX)
@@ -512,12 +536,13 @@ void BoustrophedonExplorer::mergeCells(cv::Mat& cell_map, const double min_cell_
 			}
 		}
 	}
-#ifdef DEBUG_VISUALIZATION
+//#ifdef DEBUG_VISUALIZATION
 	printCells(cell_index_mapping);
 	cv::imshow("cell_map",cell_map);
 	cv::waitKey();
-#endif
+//#endif
 
+	// iteratively merge cells
 	mergeCells(cell_map, cell_map_labels, cell_index_mapping, min_cell_area);
 
 	std::cout << "INFO: BoustrophedonExplorer::computeCellDecomposition: " << cell_index_mapping.size() << " cells remaining after merging." << std::endl;
@@ -558,7 +583,7 @@ void BoustrophedonExplorer::mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_labe
 		//   --> remove border from maps
 		for (int v=0; v<cell_map.rows; ++v)
 			for (int u=0; u<cell_map.cols; ++u)
-				if (cell_map.at<uchar>(v,u) == 25 &&
+				if (cell_map.at<uchar>(v,u) == BORDER_PIXEL_VALUE &&
 						((cell_map_labels.at<int>(v,u-1)==small_cell.label && cell_map_labels.at<int>(v,u+1)==large_cell.label) ||
 						(cell_map_labels.at<int>(v,u-1)==large_cell.label && cell_map_labels.at<int>(v,u+1)==small_cell.label) ||
 						(cell_map_labels.at<int>(v-1,u)==small_cell.label && cell_map_labels.at<int>(v+1,u)==large_cell.label) ||
@@ -591,7 +616,7 @@ void BoustrophedonExplorer::mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_labe
 			for (BoustrophedonCell::BoustrophedonCellSetIterator itn = itc->second->neighbors.begin(); itn != itc->second->neighbors.end(); ++itn)
 				if ((*itn)->label == small_cell.label)
 				{
-					itc->second->neighbors.erase(itn);
+					(*itn)->label = large_cell.label;
 					break;
 				}
 
@@ -601,12 +626,15 @@ void BoustrophedonExplorer::mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_labe
 			area_to_region_id_mapping.insert(std::pair<double, boost::shared_ptr<BoustrophedonCell> >(itc->second->area, itc->second));
 		it = area_to_region_id_mapping.begin();
 
-#ifdef DEBUG_VISUALIZATION
+//#ifdef DEBUG_VISUALIZATION
 		printCells(cell_index_mapping);
 		cv::imshow("cell_map",cell_map);
 		cv::waitKey();
-#endif
+//#endif
 	}
+
+	// label remaining border pixels with label of largest neighboring region label
+	// todo:
 }
 
 void BoustrophedonExplorer::correctThinWalls(cv::Mat& room_map)
@@ -923,6 +951,7 @@ void BoustrophedonExplorer::downsamplePathReverse(const std::vector<cv::Point>& 
 
 void BoustrophedonExplorer::printCells(std::map<int, boost::shared_ptr<BoustrophedonCell> >& cell_index_mapping)
 {
+	std::cout << "---\n";
 	for (std::map<int, boost::shared_ptr<BoustrophedonCell> >::iterator itc=cell_index_mapping.begin(); itc!=cell_index_mapping.end(); ++itc)
 	{
 		std::cout << itc->first << ": l=" << itc->second->label << "   a=" << itc->second->area << "   n=";
