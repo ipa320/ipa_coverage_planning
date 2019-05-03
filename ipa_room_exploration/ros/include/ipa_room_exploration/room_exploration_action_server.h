@@ -107,6 +107,8 @@
 #include <ipa_room_exploration/energy_functional_explorator.h>
 #include <ipa_room_exploration/voronoi.hpp>
 #include <ipa_room_exploration/room_rotator.h>
+#include <ipa_room_exploration/coverage_check_server.h>
+
 
 #define PI 3.14159265359
 
@@ -164,15 +166,19 @@ protected:
 
 	// parameters specific to the grid point explorator
 	int tsp_solver_;	// indicates which TSP solver should be used
-						//1 = Nearest Neighbor
-						//2 = Genetic solver
-						//3 = Concorde solver
+						//   1 = Nearest Neighbor
+						//   2 = Genetic solver
+						//   3 = Concorde solver
 	int64_t tsp_solver_timeout_;	// a sophisticated solver like Concorde or Genetic can be interrupted if it does not find a solution within this time, in [s], and then falls back to the nearest neighbor solver
 
 	// parameters specific for the boustrophedon explorator
 	double min_cell_area_;			// minimal area a cell can have, when using the boustrophedon explorator
 	double path_eps_;		// the distance between points when generating a path
 	double grid_obstacle_offset_;	// in [m], the additional offset of the grid to obstacles, i.e. allows to displace the grid by more than the standard half_grid_size from obstacles
+	int cell_visiting_order_;		// cell visiting order
+									//   1 = optimal visiting order of the cells determined as TSP problem
+									//   2 = alternative ordering from left to right (measured on y-coordinates of the cells), visits the cells in a more obvious fashion to the human observer (though it is not optimal)
+
 
 	// parameters specific for the neural network explorator, see "A Neural Network Approach to Complete Coverage Path Planning" from Simon X. Yang and Chaomin Luo
 	double step_size_; // step size for integrating the state dynamics
@@ -207,8 +213,8 @@ protected:
 
 
 	// excute the planned trajectory and drive to unexplored areas after moving along the computed path
-	void navigateExplorationPath(const std::vector<geometry_msgs::Pose2D>& exploration_path,
-			const std::vector<geometry_msgs::Point32>& field_of_view, const double coverage_radius, const double distance_robot_fov_middlepoint,
+	void navigateExplorationPath(const std::vector<geometry_msgs::Pose2D>& exploration_path, const std::vector<geometry_msgs::Point32>& field_of_view,
+			const geometry_msgs::Point32& field_of_view_origin, const double coverage_radius, const double distance_robot_fov_middlepoint,
 			const float map_resolution, const geometry_msgs::Pose& map_origin, const double grid_spacing_in_pixel, const double map_height);
 
 	// function to publish a navigation goal, it returns true if the goal could be reached

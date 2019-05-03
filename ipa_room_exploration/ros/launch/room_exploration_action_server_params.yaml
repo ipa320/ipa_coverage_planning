@@ -97,7 +97,7 @@ tsp_solver_timeout: 600
 # min area a cell must have to be determined for the path generation
 # [pixel^2]
 # double
-min_cell_area: 10.0
+min_cell_area: 200.0      #10.0
 
 # distance between two points when generating the (line) path
 # [pixel], where one pixel is the size of one cell in the navigation grid map
@@ -107,8 +107,13 @@ path_eps: 6.0
 # the additional offset of the grid to obstacles, i.e. allows to displace the grid by more than the standard half_grid_size from obstacles
 # [m]
 # double
-grid_obstacle_offset: 0.25
+grid_obstacle_offset: 0.101        #0.251
 
+# cell visiting order
+#   1 = the optimal visiting order of the cells is determined as TSP problem
+#   2 = alternative ordering from left to right (measured on y-coordinates of the cells), visits the cells in a more obvious fashion to the human observer (though it is not optimal)
+# int
+cell_visiting_order: 2
 
 # parameters specific for the neural network explorator, see "A Neural Network Approach to Complete Coverage Path Planning" from Simon X. Yang and Chaomin Luo
 # =====================================================

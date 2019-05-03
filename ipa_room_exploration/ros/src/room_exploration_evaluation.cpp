@@ -91,6 +91,7 @@
 #include <ipa_building_msgs/CheckCoverage.h>
 #include <ipa_building_navigation/A_star_pathplanner.h>
 #include <ipa_room_exploration/fov_to_robot_mapper.h>
+#include <ipa_room_exploration/coverage_check_server.h>
 
 #include <time.h>
 #include <sys/time.h>
@@ -182,7 +183,8 @@ struct ExplorationData
 	geometry_msgs::Pose2D robot_start_position_;
 	double robot_radius_;	// [m], effective robot radius, taking the enlargement of the costmap into account, in [meter]
 	double coverage_radius_;	// [m], radius that is used to plan the coverage planning for the robot and not the field of view, assuming that the part that needs to cover everything (e.g. the cleaning part) can be represented by a fitting circle (e.g. smaller than the actual part to ensure coverage), in [meter]
-	std::vector<geometry_msgs::Point32> fov_points_;	// [m]
+	std::vector<geometry_msgs::Point32> fov_points_;	// [m], the points that define the field of view of the robot, relative to the robot center (x-axis points to robot's front side, y-axis points to robot's left side, z-axis upwards), in [meter]
+	geometry_msgs::Point32 fov_origin_;		// [m], the mounting position of the camera spanning the field of view, relative to the robot center (x-axis points to robot's front side, y-axis points to robot's left side, z-axis upwards), in [meter]
 	enum PlanningMode planning_mode_;	// 1 = plans a path for coverage with the robot footprint, 2 = plans a path for coverage with the robot's field of view
 	double robot_speed_; // [m/s]
 	double robot_rotation_speed_; // [rad/s]
@@ -204,8 +206,8 @@ struct ExplorationData
 
 	// set data used in this evaluation
 	ExplorationData(const std::string map_name, const cv::Mat floor_plan, const float map_resolution, const double robot_radius,
-			const double coverage_radius, const std::vector<geometry_msgs::Point32>& fov_points, const int planning_mode,
-			const double robot_speed, const double robot_rotation_speed)
+			const double coverage_radius, const std::vector<geometry_msgs::Point32>& fov_points, const geometry_msgs::Point32& fov_origin,
+			const int planning_mode, const double robot_speed, const double robot_rotation_speed)
 	{
 		map_name_ = map_name;
 		floor_plan_ = floor_plan;
@@ -215,6 +217,7 @@ struct ExplorationData
 		robot_radius_ = robot_radius;
 		coverage_radius_ = coverage_radius;
 		fov_points_ = fov_points;
+		fov_origin_ = fov_origin;
 		planning_mode_ = (PlanningMode)planning_mode;
 		robot_speed_ = robot_speed;
 		robot_rotation_speed_ = robot_rotation_speed;
@@ -269,8 +272,8 @@ public:
 
 	ExplorationEvaluation(ros::NodeHandle& nh, const std::string& test_map_path, const std::vector<std::string>& map_names, const float map_resolution,
 			const std::string& data_storage_path, const double robot_radius, const double coverage_radius,
-			const std::vector<geometry_msgs::Point32>& fov_points, const int planning_mode, const std::vector<int>& exploration_algorithms,
-			const double robot_speed, const double robot_rotation_speed, bool do_path_planning=true, bool do_evaluation=true)
+			const std::vector<geometry_msgs::Point32>& fov_points, const geometry_msgs::Point32& fov_origin, const int planning_mode,
+			const std::vector<int>& exploration_algorithms, const double robot_speed, const double robot_rotation_speed, bool do_path_planning=true, bool do_evaluation=true)
 	: node_handle_(nh)
 	{
 		// 1. create all needed configurations
@@ -297,7 +300,7 @@ public:
 			}
 
 			// create evaluation data
-			evaluation_data.push_back(ExplorationData(map_names[image_index], map, map_resolution, robot_radius, coverage_radius, fov_points,
+			evaluation_data.push_back(ExplorationData(map_names[image_index], map, map_resolution, robot_radius, coverage_radius, fov_points, fov_origin,
 					planning_mode, robot_speed, robot_rotation_speed));
 		}
 		// get the room maps for each evaluation data
@@ -582,6 +585,7 @@ public:
 		goal.robot_radius = evaluation_data.robot_radius_;
 		goal.coverage_radius = evaluation_data.coverage_radius_;
 		goal.field_of_view = evaluation_data.fov_points_;
+		goal.field_of_view_origin = evaluation_data.fov_origin_;
 		goal.planning_mode = evaluation_data.planning_mode_;
 		goal.starting_position = evaluation_data.robot_start_position_;
 		ac_exp.sendGoal(goal);
@@ -1177,54 +1181,85 @@ public:
 			if(paths[room].size()==0 || (paths[room][0].x==-1 && paths[room][0].y==-1))
 				continue;
 
-			// map that has the seen areas drawn in
-			cv::Mat seen_positions_map, number_of_coverages_map;
+			// map that has the covered areas drawn in
+			cv::Mat coverage_map, number_of_coverage_image;
 
-			// use the provided server to check which areas have been seen
-			ipa_building_msgs::CheckCoverageRequest coverage_request;
-			ipa_building_msgs::CheckCoverageResponse coverage_response;
-			// fill request
-			std::string coverage_service_name = "/room_exploration/coverage_check_server/coverage_check";		// todo: generalize coverage checker and implement lib interface
-			// todo: generalize fov coverage check with an outer raycasting circle
-		//	cv::Mat eroded_room_map;
-		//	cv::erode(data.room_maps_[room], eroded_room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
-			sensor_msgs::ImageConstPtr service_image;
-			cv_bridge::CvImage cv_image;
-			cv_image.encoding = "mono8";
-			cv_image.image = data.room_maps_[room];	//eroded_room_map;
-			service_image = cv_image.toImageMsg();
-			coverage_request.input_map = *service_image;
-			coverage_request.path = interpolated_paths[room];
-			coverage_request.field_of_view = data.fov_points_;
-			coverage_request.coverage_radius = data.coverage_radius_;
-			coverage_request.map_origin = data.map_origin_;
-			coverage_request.map_resolution = data.map_resolution_;
-			if (data.planning_mode_ == FOOTPRINT)
-				coverage_request.check_for_footprint = true;
-			else if (data.planning_mode_ == FIELD_OF_VIEW)
-				coverage_request.check_for_footprint = false;
-			coverage_request.check_number_of_coverages = true;
-			// send request
-			if(ros::service::call(coverage_service_name, coverage_request, coverage_response)==true)
+			// use the coverage check server to check which areas have been seen
+			//   --> convert path to cv format
+			std::vector<cv::Point3d> path;
+			for (size_t i=0; i<interpolated_paths[room].size(); ++i)
+				path.push_back(cv::Point3d(interpolated_paths[room][i].x, interpolated_paths[room][i].y, interpolated_paths[room][i].theta));
+			//   --> convert field of view to Eigen format
+			std::vector<Eigen::Matrix<float, 2, 1> > field_of_view;
+			for(size_t i = 0; i < data.fov_points_.size(); ++i)
 			{
-				cv_bridge::CvImagePtr cv_ptr_obj;
-				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.coverage_map, sensor_msgs::image_encodings::MONO8);
-				seen_positions_map = cv_ptr_obj->image;
-
-				for (int v=0; v<seen_positions_map.rows; ++v)
-					for (int u=0; u<seen_positions_map.cols; ++u)
-						if (seen_positions_map.at<uchar>(v,u)==127)
+				Eigen::Matrix<float, 2, 1> current_vector;
+				current_vector << data.fov_points_[i].x, data.fov_points_[i].y;
+				field_of_view.push_back(current_vector);
+			}
+			//   --> convert field of view origin to Eigen format
+			Eigen::Matrix<float, 2, 1> fov_origin;
+			fov_origin << data.fov_origin_.x, data.fov_origin_.y;
+			//   --> call coverage checker
+			CoverageCheckServer coverage_checker;
+			if (coverage_checker.checkCoverage(data.room_maps_[room], data.map_resolution_, cv::Point2d(data.map_origin_.position.x, data.map_origin_.position.y),
+					path, field_of_view, fov_origin, data.coverage_radius_, (data.planning_mode_==FOOTPRINT), true, coverage_map, number_of_coverage_image) == true)
+			{
+				for (int v=0; v<coverage_map.rows; ++v)
+					for (int u=0; u<coverage_map.cols; ++u)
+						if (coverage_map.at<uchar>(v,u)==127)
 							map_coverage.at<uchar>(v,u)=208;
-
-				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.number_of_coverage_image, sensor_msgs::image_encodings::TYPE_32SC1);
-				number_of_coverages_map = cv_ptr_obj->image;
 			}
 			else
 			{
 				ROS_INFO("Error when calling the coverage check server.");
 			}
-			// todo: error handling necessary?
-//				cv::imshow("seen", seen_positions_map);
+
+			// service interface - can be deleted
+//			// use the coverage check server to check which areas have been seen
+//			ipa_building_msgs::CheckCoverageRequest coverage_request;
+//			ipa_building_msgs::CheckCoverageResponse coverage_response;
+//			// fill request
+//			std::string coverage_service_name = "/room_exploration/coverage_check_server/coverage_check";
+//		//	cv::Mat eroded_room_map;
+//		//	cv::erode(data.room_maps_[room], eroded_room_map, cv::Mat(), cv::Point(-1, -1), robot_radius_in_pixel);
+//			sensor_msgs::ImageConstPtr service_image;
+//			cv_bridge::CvImage cv_image;
+//			cv_image.encoding = "mono8";
+//			cv_image.image = data.room_maps_[room];	//eroded_room_map;
+//			service_image = cv_image.toImageMsg();
+//			coverage_request.map_resolution = data.map_resolution_;
+//			coverage_request.input_map = *service_image;
+//			coverage_request.map_origin = data.map_origin_;
+//			coverage_request.path = interpolated_paths[room];
+//			coverage_request.field_of_view = data.fov_points_;
+//			coverage_request.field_of_view_origin = data.fov_origin_;
+//			coverage_request.coverage_radius = data.coverage_radius_;
+//			if (data.planning_mode_ == FOOTPRINT)
+//				coverage_request.check_for_footprint = true;
+//			else if (data.planning_mode_ == FIELD_OF_VIEW)
+//				coverage_request.check_for_footprint = false;
+//			coverage_request.check_number_of_coverages = true;
+//			// send request
+//			if(ros::service::call(coverage_service_name, coverage_request, coverage_response)==true)
+//			{
+//				cv_bridge::CvImagePtr cv_ptr_obj;
+//				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.coverage_map, sensor_msgs::image_encodings::MONO8);
+//				coverage_map = cv_ptr_obj->image;
+//
+//				for (int v=0; v<coverage_map.rows; ++v)
+//					for (int u=0; u<coverage_map.cols; ++u)
+//						if (coverage_map.at<uchar>(v,u)==127)
+//							map_coverage.at<uchar>(v,u)=208;
+//
+//				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.number_of_coverage_image, sensor_msgs::image_encodings::TYPE_32SC1);
+//				number_of_coverages_image = cv_ptr_obj->image;
+//			}
+//			else
+//			{
+//				ROS_INFO("Error when calling the coverage check server.");
+//			}
+//				cv::imshow("seen", coverage_map);
 //				cv::waitKey();
 
 			// get the area of the whole room
@@ -1233,8 +1268,8 @@ public:
 			room_areas.push_back(room_area);
 
 			// get the covered area of the room
-			cv::threshold(seen_positions_map, seen_positions_map, 150, 255, cv::THRESH_BINARY); // covered area drawn in as 127 --> find still white pixels
-			const int not_covered_pixels = cv::countNonZero(seen_positions_map);
+			cv::threshold(coverage_map, coverage_map, 150, 255, cv::THRESH_BINARY); // covered area drawn in as 127 --> find still white pixels
+			const int not_covered_pixels = cv::countNonZero(coverage_map);
 			const double not_covered_area = data.map_resolution_ * data.map_resolution_ * (double) not_covered_pixels;
 
 			// get and save the percentage of coverage
@@ -1243,10 +1278,10 @@ public:
 
 			// check how often pixels have been covered
 			double average_coverage_number = 0.0, coverage_number_deviation = 0.0;
-			for(size_t u=0; u<number_of_coverages_map.rows; ++u)
-				for(size_t v=0; v<number_of_coverages_map.cols; ++v)
-					if(number_of_coverages_map.at<int>(u,v)!=0)
-						numbers_of_coverages.push_back(number_of_coverages_map.at<int>(u,v));
+			for(size_t u=0; u<number_of_coverage_image.rows; ++u)
+				for(size_t v=0; v<number_of_coverage_image.cols; ++v)
+					if(number_of_coverage_image.at<int>(u,v)!=0)
+						numbers_of_coverages.push_back(number_of_coverage_image.at<int>(u,v));
 		}
 		// create the map with the drawn in path and coverage areas
 		map_path_coverage = map.clone();
@@ -1255,7 +1290,7 @@ public:
 			for (int u=0; u<path_map.cols; ++u)
 			{
 				if (map_coverage.at<uchar>(v,u)==255)
-					map_path_coverage.at<uchar>(v,u) = 176;		// left over uncovered areas
+					map_path_coverage.at<uchar>(v,u) = 176;		// leftover uncovered areas
 				if (path_map.at<uchar>(v,u)==127 || path_map.at<uchar>(v,u)==196)
 					map_path_coverage.at<uchar>(v,u) = path_map.at<uchar>(v,u);
 			}
@@ -1409,9 +1444,9 @@ public:
 		else // use the map accessibility server to find another accessible target pose
 		{
 			const MapAccessibilityAnalysis::Pose target_pose_px_copy(target_pose_px.x, target_pose_px.y, target_pose_px.theta);
-			if (data.planning_mode_ == FOOTPRINT)
+			if (data.planning_mode_ == FOOTPRINT || (fov_circle_center_point_in_px.x==0 && fov_circle_center_point_in_px.y==0))	// if the fov center is at the robot center it behaves like footprint planning
 			{
-				const int max_radius = cvRound(1.55*data.coverage_radius_/data.map_resolution_);	// in [pixel]
+				const int max_radius = std::max(1, cvRound(1.55*data.coverage_radius_/data.map_resolution_));	// in [pixel]
 				// check circles with growing radius around the desired point until a dislocation of data.coverage_radius_ would be exceeded
 				for (double radius=1; radius<=max_radius && found_next==false; ++radius)
 				{
@@ -1438,7 +1473,6 @@ public:
 			}
 			else if (data.planning_mode_ == FIELD_OF_VIEW)
 			{
-				// todo: check if this now works correctly for arbitrary center offsets
 				// get the desired FoV-center position
 				MapAccessibilityAnalysis::Pose fov_center_px;		// in [px,px,rad]
 				fov_center_px.x = (target_pose_px_copy.x + std::cos(target_pose_px_copy.orientation)*fov_circle_center_point_in_px.x - std::sin(target_pose_px_copy.orientation)*fov_circle_center_point_in_px.y);
@@ -1446,6 +1480,9 @@ public:
 				fov_center_px.y = (target_pose_px_copy.y + std::sin(target_pose_px_copy.orientation)*fov_circle_center_point_in_px.x + std::cos(target_pose_px_copy.orientation)*fov_circle_center_point_in_px.y);
 				//fov_center_px.y = (fov_center_px.y-data.map_origin_.position.y) / data.map_resolution_;
 				fov_center_px.orientation = target_pose_px_copy.orientation;
+
+				std::cout << "target_pose_px_copy: " << target_pose_px_copy.x << ", " << target_pose_px_copy.y << ", " << target_pose_px_copy.orientation << std::endl;
+				std::cout << "fov_center_px: " << fov_center_px.x << ", " << fov_center_px.y << ", " << fov_center_px.orientation << std::endl;
 
 				const double optimal_distance_to_fov_center = cv::norm(fov_circle_center_point_in_px);
 				for (double factor_add=0.; factor_add<0.45 && found_next==false; factor_add*=-1.)
@@ -1559,43 +1596,43 @@ int main(int argc, char **argv)
 	map_names.push_back("lab_ipa");
 	map_names.push_back("lab_c_scan");
 	map_names.push_back("Freiburg52_scan");
-	map_names.push_back("Freiburg79_scan");
-	map_names.push_back("lab_b_scan");
-	map_names.push_back("lab_intel");
-	map_names.push_back("Freiburg101_scan");
-	map_names.push_back("lab_d_scan");
-	map_names.push_back("lab_f_scan");
-	map_names.push_back("lab_a_scan");
-	map_names.push_back("NLB");
-	map_names.push_back("office_a");
-	map_names.push_back("office_b");
-	map_names.push_back("office_c");
-	map_names.push_back("office_d");
-	map_names.push_back("office_e");
-	map_names.push_back("office_f");
-	map_names.push_back("office_g");
-	map_names.push_back("office_h");
-	map_names.push_back("office_i");
-	map_names.push_back("lab_ipa_furnitures");
-	map_names.push_back("lab_c_scan_furnitures");
-	map_names.push_back("Freiburg52_scan_furnitures");
-	map_names.push_back("Freiburg79_scan_furnitures");
-	map_names.push_back("lab_b_scan_furnitures");
-	map_names.push_back("lab_intel_furnitures");
-	map_names.push_back("Freiburg101_scan_furnitures");
-	map_names.push_back("lab_d_scan_furnitures");
-	map_names.push_back("lab_f_scan_furnitures");
-	map_names.push_back("lab_a_scan_furnitures");
-	map_names.push_back("NLB_furnitures");
-	map_names.push_back("office_a_furnitures");
-	map_names.push_back("office_b_furnitures");
-	map_names.push_back("office_c_furnitures");
-	map_names.push_back("office_d_furnitures");
-	map_names.push_back("office_e_furnitures");
-	map_names.push_back("office_f_furnitures");
-	map_names.push_back("office_g_furnitures");
-	map_names.push_back("office_h_furnitures");
-	map_names.push_back("office_i_furnitures");
+//	map_names.push_back("Freiburg79_scan");
+//	map_names.push_back("lab_b_scan");
+//	map_names.push_back("lab_intel");
+//	map_names.push_back("Freiburg101_scan");
+//	map_names.push_back("lab_d_scan");
+//	map_names.push_back("lab_f_scan");
+//	map_names.push_back("lab_a_scan");
+//	map_names.push_back("NLB");
+//	map_names.push_back("office_a");
+//	map_names.push_back("office_b");
+//	map_names.push_back("office_c");
+//	map_names.push_back("office_d");
+//	map_names.push_back("office_e");
+//	map_names.push_back("office_f");
+//	map_names.push_back("office_g");
+//	map_names.push_back("office_h");
+//	map_names.push_back("office_i");
+//	map_names.push_back("lab_ipa_furnitures");
+//	map_names.push_back("lab_c_scan_furnitures");
+//	map_names.push_back("Freiburg52_scan_furnitures");
+//	map_names.push_back("Freiburg79_scan_furnitures");
+//	map_names.push_back("lab_b_scan_furnitures");
+//	map_names.push_back("lab_intel_furnitures");
+//	map_names.push_back("Freiburg101_scan_furnitures");
+//	map_names.push_back("lab_d_scan_furnitures");
+//	map_names.push_back("lab_f_scan_furnitures");
+//	map_names.push_back("lab_a_scan_furnitures");
+//	map_names.push_back("NLB_furnitures");
+//	map_names.push_back("office_a_furnitures");
+//	map_names.push_back("office_b_furnitures");
+//	map_names.push_back("office_c_furnitures");
+//	map_names.push_back("office_d_furnitures");
+//	map_names.push_back("office_e_furnitures");
+//	map_names.push_back("office_f_furnitures");
+//	map_names.push_back("office_g_furnitures");
+//	map_names.push_back("office_h_furnitures");
+//	map_names.push_back("office_i_furnitures");
 
 	std::vector<int> exploration_algorithms;
 //	exploration_algorithms.push_back(1);	// grid point exploration
@@ -1635,7 +1672,10 @@ int main(int argc, char **argv)
 	fov_points[2].y = -0.3;
 	fov_points[3].x = 0.3;
 	fov_points[3].y = 0.3;
-	int planning_mode = 1;	// footprint planning
+	int planning_mode = 2;	// footprint planning
+	geometry_msgs::Point32 fov_origin;
+	fov_origin.x = 0.;
+	fov_origin.y = 0.;
 
 	const double robot_radius = 0.3;		// [m]
 	const double coverage_radius = 0.3;		// [m]
@@ -1643,8 +1683,8 @@ int main(int argc, char **argv)
 	const double robot_rotation_speed = 0.52;	// [rad/s]
 	const float map_resolution = 0.05;		// [m/cell]
 
-	ExplorationEvaluation ev(nh, test_map_path, map_names, map_resolution, data_storage_path, robot_radius, coverage_radius, fov_points, planning_mode,
-			exploration_algorithms, robot_speed, robot_rotation_speed, true, true);
+	ExplorationEvaluation ev(nh, test_map_path, map_names, map_resolution, data_storage_path, robot_radius, coverage_radius, fov_points, fov_origin,
+			planning_mode, exploration_algorithms, robot_speed, robot_rotation_speed, true, true);
 	ros::shutdown();
 
 	//exit
