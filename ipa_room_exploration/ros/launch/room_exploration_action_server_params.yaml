@@ -94,7 +94,7 @@ tsp_solver_timeout: 600
 
 # parameters specific for the boustrophedon explorator
 # ====================================================
-# min area a cell must have to be determined for the path generation
+# min area a boustrophedon cell (i.e. a boustrophedon region of the map) must have to be determined for the path generation
 # [pixel^2]
 # double
 min_cell_area: 200.0      #10.0
@@ -107,7 +107,7 @@ path_eps: 6.0
 # the additional offset of the grid to obstacles, i.e. allows to displace the grid by more than the standard half_grid_size from obstacles
 # [m]
 # double
-grid_obstacle_offset: 0.101        #0.251
+grid_obstacle_offset: 0.251     #0.101        #0.251
 
 # cell visiting order
 #   1 = the optimal visiting order of the cells is determined as TSP problem
