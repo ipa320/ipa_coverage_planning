@@ -52,7 +52,7 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	ROS_INFO("Planning the boustrophedon path trough the room.");
 	const int grid_spacing_as_int = (int)std::floor(grid_spacing_in_pixel); // convert fov-radius to int
 	const int half_grid_spacing_as_int = (int)std::floor(0.5*grid_spacing_in_pixel); // convert fov-radius to int
-	const int min_cell_width = half_grid_spacing_as_int + grid_obstacle_offset/map_resolution;
+	const int min_cell_width = half_grid_spacing_as_int + 2.*grid_obstacle_offset/map_resolution;
 
 	// *********************** I. Find the main directions of the map and rotate it in this manner. ***********************
 	// *********************** II. Sweep a slice trough the map and mark the found cell boundaries. ***********************
@@ -570,7 +570,7 @@ void BoustrophedonExplorer::mergeCellsSelection(cv::Mat& cell_map, cv::Mat& cell
 		area_to_region_id_mapping.insert(std::pair<double, boost::shared_ptr<BoustrophedonCell> >(itc->second->area_, itc->second));
 	for (std::multimap<double, boost::shared_ptr<BoustrophedonCell> >::iterator it=area_to_region_id_mapping.begin(); it!=area_to_region_id_mapping.end();)
 	{
-		// abort if no cells below min_cell_area remain unmerged into bigger cells
+		// skip if segment is large enough (area and side length criteria)
 		if (it->first >= min_cell_area && it->second->bounding_box_.width >= min_cell_width && it->second->bounding_box_.height >= min_cell_width)
 		{
 			++it;

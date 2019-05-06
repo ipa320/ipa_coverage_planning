@@ -297,7 +297,7 @@ public:
 		if ((max_y - min_y - 2*grid_obstacle_offset) < grid_spacing)
 			y = min_y + 0.5 * (max_y - min_y);
 		else
-			y = min_y + half_grid_spacing + grid_obstacle_offset;
+			y = min_y + half_grid_spacing + grid_obstacle_offset;		// todo: - half_grid_spacing?
 		// loop through the vertical grid lines with regular grid spacing
 		for (; y<max_y+half_grid_spacing-grid_obstacle_offset; y += grid_spacing)		// we use max_y+half_grid_spacing as upper bound to cover the bottom-most line as well
 		{
@@ -421,20 +421,12 @@ public:
 				if (line.has_two_valid_lines == true)
 				{
 					cleaned_line.has_two_valid_lines = true;
-					// copy as much data as possible into the upper line (and remove from the lower)
 					for (size_t i=0; i<line.upper_line.size(); ++i)
 					{
 						if (line.upper_line[i]!=invalid_point)
-						{
-							cleaned_line.upper_line.push_back(line.upper_line[i]);		// keep the upper_line as is
-							if (line.lower_line[i]!=invalid_point)		// store the second valid point at this location in lower_line
-								cleaned_line.lower_line.push_back(line.lower_line[i]);
-						}
-						else	// the upper_line does not contain a valid point
-						{
-							if (line.lower_line[i]!=invalid_point)		// move the valid point from lower to upper line
-								cleaned_line.upper_line.push_back(line.lower_line[i]);
-						}
+							cleaned_line.upper_line.push_back(line.upper_line[i]);
+						if (line.lower_line[i]!=invalid_point)
+							cleaned_line.lower_line.push_back(line.lower_line[i]);
 					}
 				}
 				else	// 3. there is just one valid line that needs to be merged from lower_line and upper_line
