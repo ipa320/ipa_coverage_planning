@@ -12,7 +12,7 @@ room_exploration_algorithm: 8
 
 # display final trajectory plan step by step
 # bool
-display_trajectory: false
+display_trajectory: true
 
 
 # map correction
@@ -107,13 +107,13 @@ path_eps: 6.0
 # the additional offset of the grid to obstacles, i.e. allows to displace the grid by more than the standard half_grid_size from obstacles
 # [m]
 # double
-grid_obstacle_offset: 0.01     #0.101        #0.251
+grid_obstacle_offset: 0.251     #0.101        #0.251
 
 # maximal allowed shift off the ideal boustrophedon track to both sides for avoiding obstacles on track
 # setting max_deviation_from_track=grid_spacing is usually a good choice
 # for negative values (e.g. max_deviation_from_track: -1) max_deviation_from_track is automatically set to grid_spacing
 # [pixel]
-max_deviation_from_track: -1
+max_deviation_from_track: 0
 
 # cell visiting order
 #   1 = the optimal visiting order of the cells is determined as TSP problem
