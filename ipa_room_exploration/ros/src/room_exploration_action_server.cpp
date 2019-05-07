@@ -132,7 +132,7 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		std::cout << "room_exploration/tsp_solver_timeout = " << tsp_solver_timeout_ << std::endl;
 
 	}
-	else if(room_exploration_algorithm_ == 2) // set boustrophedon exploration parameters
+	else if ((room_exploration_algorithm_ == 2) || (room_exploration_algorithm_ == 8)) // set boustrophedon (variant) exploration parameters
 	{
 		node_handle_.param("min_cell_area", min_cell_area_, 10.0);
 		std::cout << "room_exploration/min_cell_area_ = " << min_cell_area_ << std::endl;
@@ -140,10 +140,12 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
 		node_handle_.param("grid_obstacle_offset", grid_obstacle_offset_, 0.0);
 		std::cout << "room_exploration/grid_obstacle_offset_ = " << grid_obstacle_offset_ << std::endl;
+		node_handle_.param("max_deviation_from_track", max_deviation_from_track_, -1);
+		std::cout << "room_exploration/max_deviation_from_track_ = " << max_deviation_from_track_ << std::endl;
 		node_handle_.param("cell_visiting_order", cell_visiting_order_, 1);
 		std::cout << "room_exploration/cell_visiting_order = " << cell_visiting_order_ << std::endl;
 	}
-	else if(room_exploration_algorithm_ == 3) // set neural network explorator parameters
+	else if (room_exploration_algorithm_ == 3) // set neural network explorator parameters
 	{
 		node_handle_.param("step_size", step_size_, 0.008);
 		std::cout << "room_exploration/step_size_ = " << step_size_ << std::endl;
@@ -160,14 +162,14 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		node_handle_.param("delta_theta_weight", delta_theta_weight_, 0.15);
 		std::cout << "room_exploration/delta_theta_weight_ = " << delta_theta_weight_ << std::endl;
 	}
-	else if(room_exploration_algorithm_ == 4) // set convexSPP explorator parameters
+	else if (room_exploration_algorithm_ == 4) // set convexSPP explorator parameters
 	{
 		node_handle_.param("cell_size", cell_size_, 0);
 		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
 		node_handle_.param("delta_theta", delta_theta_, 1.570796);
 		std::cout << "room_exploration/delta_theta = " << delta_theta_ << std::endl;
 	}
-	else if(room_exploration_algorithm_ == 5) // set flowNetwork explorator parameters
+	else if (room_exploration_algorithm_ == 5) // set flowNetwork explorator parameters
 	{
 		node_handle_.param("curvature_factor", curvature_factor_, 1.1);
 		std::cout << "room_exploration/curvature_factor = " << curvature_factor_ << std::endl;
@@ -178,25 +180,14 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		node_handle_.param("path_eps", path_eps_, 3.0);
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
 	}
-	else if(room_exploration_algorithm_ == 6) // set energyfunctional explorator parameters
+	else if (room_exploration_algorithm_ == 6) // set energyfunctional explorator parameters
 	{
 	}
-	else if(room_exploration_algorithm_ == 7) // set voronoi explorator parameters
+	else if (room_exploration_algorithm_ == 7) // set voronoi explorator parameters
 	{
-	}
-	else if(room_exploration_algorithm_ == 8) // set boustrophedon variant exploration parameters
-	{
-		node_handle_.param("min_cell_area", min_cell_area_, 10.0);
-		std::cout << "room_exploration/min_cell_area_ = " << min_cell_area_ << std::endl;
-		node_handle_.param("path_eps", path_eps_, 2.0);
-		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
-		node_handle_.param("grid_obstacle_offset", grid_obstacle_offset_, 0.0);
-		std::cout << "room_exploration/grid_obstacle_offset_ = " << grid_obstacle_offset_ << std::endl;
-		node_handle_.param("cell_visiting_order", cell_visiting_order_, 1);
-		std::cout << "room_exploration/cell_visiting_order = " << cell_visiting_order_ << std::endl;
 	}
 
-	if(revisit_areas_ == true)
+	if (revisit_areas_ == true)
 		ROS_INFO("Areas not seen after the initial execution of the path will be revisited.");
 	else
 		ROS_INFO("Areas not seen after the initial execution of the path will NOT be revisited.");
@@ -257,7 +248,7 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		tsp_solver_timeout_ = config.tsp_solver_timeout;
 		std::cout << "room_exploration/tsp_solver_timeout_ = " << tsp_solver_timeout_ << std::endl;
 	}
-	else if(room_exploration_algorithm_ == 2) // set boustrophedon exploration parameters
+	else if ((room_exploration_algorithm_ == 2) || (room_exploration_algorithm_ == 8)) // set boustrophedon (variant) exploration parameters
 	{
 		min_cell_area_ = config.min_cell_area;
 		std::cout << "room_exploration/min_cell_area_ = " << min_cell_area_ << std::endl;
@@ -265,10 +256,12 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
 		grid_obstacle_offset_ = config.grid_obstacle_offset;
 		std::cout << "room_exploration/grid_obstacle_offset_ = " << grid_obstacle_offset_ << std::endl;
+		max_deviation_from_track_ = config.max_deviation_from_track;
+		std::cout << "room_exploration/max_deviation_from_track_ = " << max_deviation_from_track_ << std::endl;
 		cell_visiting_order_ = config.cell_visiting_order;
 		std::cout << "room_exploration/cell_visiting_order = " << cell_visiting_order_ << std::endl;
 	}
-	else if(room_exploration_algorithm_ == 3) // set neural network explorator parameters
+	else if (room_exploration_algorithm_ == 3) // set neural network explorator parameters
 	{
 		step_size_ = config.step_size;
 		std::cout << "room_exploration/step_size_ = " << step_size_ << std::endl;
@@ -285,14 +278,14 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		delta_theta_weight_ = config.delta_theta_weight;
 		std::cout << "room_exploration/delta_theta_weight_ = " << delta_theta_weight_ << std::endl;
 	}
-	else if(room_exploration_algorithm_ == 4) // set convexSPP explorator parameters
+	else if (room_exploration_algorithm_ == 4) // set convexSPP explorator parameters
 	{
 		cell_size_ = config.cell_size;
 		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
 		delta_theta_ = config.delta_theta;
 		std::cout << "room_exploration/delta_theta_ = " << delta_theta_ << std::endl;
 	}
-	else if(room_exploration_algorithm_ == 5) // set flowNetwork explorator parameters
+	else if (room_exploration_algorithm_ == 5) // set flowNetwork explorator parameters
 	{
 		curvature_factor_ = config.curvature_factor;
 		std::cout << "room_exploration/delta_theta_ = " << delta_theta_ << std::endl;
@@ -303,25 +296,15 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		path_eps_ = config.path_eps;
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
 	}
-	else if(room_exploration_algorithm_ == 6) // set energyFunctional explorator parameters
+	else if (room_exploration_algorithm_ == 6) // set energyFunctional explorator parameters
 	{
 	}
-	else if(room_exploration_algorithm_ == 7) // set voronoi explorator parameters
+	else if (room_exploration_algorithm_ == 7) // set voronoi explorator parameters
 	{
-	}
-	else if(room_exploration_algorithm_ == 8) // set boustrophedon variant exploration parameters
-	{
-		min_cell_area_ = config.min_cell_area;
-		std::cout << "room_exploration/min_cell_area_ = " << min_cell_area_ << std::endl;
-		path_eps_ = config.path_eps;
-		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
-		grid_obstacle_offset_ = config.grid_obstacle_offset;
-		std::cout << "room_exploration/grid_obstacle_offset_ = " << grid_obstacle_offset_ << std::endl;
-		cell_visiting_order_ = config.cell_visiting_order;
-		std::cout << "room_exploration/cell_visiting_order = " << cell_visiting_order_ << std::endl;
 	}
 
-	if(revisit_areas_ == true)
+
+	if (revisit_areas_ == true)
 		std::cout << "Areas not seen after the initial execution of the path will be revisited." << std::endl;
 	else
 		std::cout << "Areas not seen after the initial execution of the path will NOT be revisited." << std::endl;
@@ -416,7 +399,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	Eigen::Matrix<float, 2, 1> zero_vector;
 	zero_vector << 0, 0;
 	std::vector<geometry_msgs::Pose2D> exploration_path;
-	if(room_exploration_algorithm_ == 1) // use grid point explorator
+	if (room_exploration_algorithm_ == 1) // use grid point explorator
 	{
 		// plan path
 		if(planning_mode_ == PLAN_FOR_FOV)
@@ -424,15 +407,15 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		else
 			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel), true, zero_vector, tsp_solver_, tsp_solver_timeout_);
 	}
-	else if(room_exploration_algorithm_ == 2) // use boustrophedon explorator
+	else if (room_exploration_algorithm_ == 2) // use boustrophedon explorator
 	{
 		// plan path
 		if(planning_mode_ == PLAN_FOR_FOV)
-			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, cell_visiting_order_, false, fitting_circle_center_point_in_meter, min_cell_area_);
+			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, cell_visiting_order_, false, fitting_circle_center_point_in_meter, min_cell_area_, max_deviation_from_track_);
 		else
-			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, cell_visiting_order_, true, zero_vector, min_cell_area_);
+			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, cell_visiting_order_, true, zero_vector, min_cell_area_, max_deviation_from_track_);
 	}
-	else if(room_exploration_algorithm_ == 3) // use neural network explorator
+	else if (room_exploration_algorithm_ == 3) // use neural network explorator
 	{
 		neural_network_explorator_.setParameters(A_, B_, D_, E_, mu_, step_size_, delta_theta_weight_);
 		// plan path
@@ -441,7 +424,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		else
 			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, true, zero_vector, false);
 	}
-	else if(room_exploration_algorithm_ == 4) // use convexSPP explorator
+	else if (room_exploration_algorithm_ == 4) // use convexSPP explorator
 	{
 		// plan coverage path
 		if(planning_mode_ == PLAN_FOR_FOV)
@@ -449,21 +432,21 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		else
 			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, delta_theta_, fov_corners_meter, zero_vector, goal->coverage_radius, 7, true);
 	}
-	else if(room_exploration_algorithm_ == 5) // use flow network explorator
+	else if (room_exploration_algorithm_ == 5) // use flow network explorator
 	{
 		if(planning_mode_ == PLAN_FOR_FOV)
 			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, fitting_circle_center_point_in_meter, grid_spacing_in_pixel, false, path_eps_, curvature_factor_, max_distance_factor_);
 		else
 			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, zero_vector, grid_spacing_in_pixel, true, path_eps_, curvature_factor_, max_distance_factor_);
 	}
-	else if(room_exploration_algorithm_ == 6) // use energy functional explorator
+	else if (room_exploration_algorithm_ == 6) // use energy functional explorator
 	{
 		if(planning_mode_ == PLAN_FOR_FOV)
 			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, false, fitting_circle_center_point_in_meter);
 		else
 			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, true, zero_vector);
 	}
-	else if(room_exploration_algorithm_ == 7) // use voronoi explorator
+	else if (room_exploration_algorithm_ == 7) // use voronoi explorator
 	{
 		// create a usable occupancyGrid map out of the given room map
 		nav_msgs::OccupancyGrid room_gridmap;
@@ -551,13 +534,13 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			}
 		}
 	}
-	else if(room_exploration_algorithm_ == 8) // use boustrophedon variant explorator
+	else if (room_exploration_algorithm_ == 8) // use boustrophedon variant explorator
 	{
 		// plan path
 		if(planning_mode_ == PLAN_FOR_FOV)
-			boustrophedon_variant_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, cell_visiting_order_, false, fitting_circle_center_point_in_meter, min_cell_area_);
+			boustrophedon_variant_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, cell_visiting_order_, false, fitting_circle_center_point_in_meter, min_cell_area_, max_deviation_from_track_);
 		else
-			boustrophedon_variant_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, cell_visiting_order_, true, zero_vector, min_cell_area_);
+			boustrophedon_variant_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, cell_visiting_order_, true, zero_vector, min_cell_area_, max_deviation_from_track_);
 	}
 
 	// display finally planned path

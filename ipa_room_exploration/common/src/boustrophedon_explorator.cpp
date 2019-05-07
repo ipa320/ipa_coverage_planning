@@ -47,7 +47,7 @@ BoustrophedonExplorer::BoustrophedonExplorer()
 void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path,
 		const float map_resolution, const cv::Point starting_position, const cv::Point2d map_origin,
 		const double grid_spacing_in_pixel, const double grid_obstacle_offset, const double path_eps, const int cell_visiting_order,
-		const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector, const double min_cell_area)
+		const bool plan_for_footprint, const Eigen::Matrix<float, 2, 1> robot_to_fov_vector, const double min_cell_area, const int max_deviation_from_track)
 {
 	ROS_INFO("Planning the boustrophedon path trough the room.");
 	const int grid_spacing_as_int = (int)std::floor(grid_spacing_in_pixel); // convert fov-radius to int
@@ -124,8 +124,8 @@ void BoustrophedonExplorer::getExplorationPath(const cv::Mat& room_map, std::vec
 	std::vector<cv::Point2f> fov_middlepoint_path;	// this is the trajectory of centers of the robot footprint or the field of view
 	for(size_t cell=0; cell<cell_polygons.size(); ++cell)
 	{
-		computeBoustrophedonPath(rotated_room_map, map_resolution, cell_polygons[optimal_order[cell]],
-				fov_middlepoint_path, robot_pos, grid_spacing_as_int, half_grid_spacing_as_int, path_eps, grid_obstacle_offset/map_resolution);
+		computeBoustrophedonPath(rotated_room_map, map_resolution, cell_polygons[optimal_order[cell]], fov_middlepoint_path,
+				robot_pos, grid_spacing_as_int, half_grid_spacing_as_int, path_eps, max_deviation_from_track, grid_obstacle_offset/map_resolution);
 	}
 
 	// transform the calculated path back to the originally rotated map and create poses with an angle
@@ -705,7 +705,7 @@ void BoustrophedonExplorer::correctThinWalls(cv::Mat& room_map)
 
 void BoustrophedonExplorer::computeBoustrophedonPath(const cv::Mat& room_map, const float map_resolution, const GeneralizedPolygon& cell,
 		std::vector<cv::Point2f>& fov_middlepoint_path, cv::Point& robot_pos,
-		const int grid_spacing_as_int, const int half_grid_spacing_as_int, const double path_eps, const int grid_obstacle_offset)
+		const int grid_spacing_as_int, const int half_grid_spacing_as_int, const double path_eps, const int max_deviation_from_track, const int grid_obstacle_offset)
 {
 	// get a map that has only the current cell drawn in
 	//	Remark:	single cells are obstacle free so it is sufficient to use the cell to check if a position can be reached during the
@@ -756,8 +756,8 @@ void BoustrophedonExplorer::computeBoustrophedonPath(const cv::Mat& room_map, co
 
 	// compute the basic Boustrophedon grid lines
 	BoustrophedonGrid grid_lines;
-	GridGenerator::generateBoustrophedonGrid(rotated_cell_map, rotated_inflated_cell_map, -1, grid_lines, cv::Vec4i(0, 0, 0, 0), //cv::Vec4i(min_x, max_x, min_y, max_y),
-			grid_spacing_as_int, half_grid_spacing_as_int, path_eps/*grid_spacing_as_int*/, grid_obstacle_offset);		//1);
+	GridGenerator::generateBoustrophedonGrid(rotated_cell_map, rotated_inflated_cell_map, -1, grid_lines, cv::Vec4i(-1, -1, -1, -1), //cv::Vec4i(min_x, max_x, min_y, max_y),
+			grid_spacing_as_int, half_grid_spacing_as_int, 1, max_deviation_from_track);
 
 #ifdef DEBUG_VISUALIZATION
 	cv::Mat rotated_cell_map_disp = rotated_cell_map.clone();
