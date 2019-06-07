@@ -198,7 +198,7 @@ void convexSPPExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	std::vector<cv::Point> cell_centers_rotated, cell_centers;	// in [pixels]
 	cv::Mat inflated_rotated_room_map;
 	BoustrophedonGrid grid_lines;
-	GridGenerator::generateBoustrophedonGrid(rotated_room_map, inflated_rotated_room_map, half_cell_size, grid_lines, cv::Vec4i(0, 0, 0, 0),
+	GridGenerator::generateBoustrophedonGrid(rotated_room_map, inflated_rotated_room_map, half_cell_size, grid_lines, cv::Vec4i(-1, -1, -1, -1),
 			cell_size_pixel, half_cell_size, cell_size_pixel);
 	// convert grid points format
 	for (BoustrophedonGrid::iterator line=grid_lines.begin(); line!=grid_lines.end(); ++line)

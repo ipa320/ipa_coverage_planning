@@ -261,6 +261,13 @@ double AStarPlanner::planPath(const cv::Mat& map, const cv::Point& start_point, 
 		return path_length;
 	}
 
+	// check for valid coordinates of start and end points
+	if (start_point.x < 0 || start_point.x >= map.cols || start_point.y < 0 || start_point.y >= map.rows ||
+			end_point.x < 0 || end_point.x >= map.cols || end_point.y < 0 || end_point.y >= map.rows)
+	{
+		return 1e100;
+	}
+
 	cv::Mat downsampled_map;
 	downsampleMap(map, downsampled_map, downsampling_factor, robot_radius, map_resolution);
 

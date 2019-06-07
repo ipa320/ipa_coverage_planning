@@ -112,7 +112,7 @@ void GridPointExplorator::getExplorationPath(const cv::Mat& room_map, std::vecto
 	// compute the basic Boustrophedon grid lines
 	cv::Mat inflated_rotated_room_map;
 	BoustrophedonGrid grid_lines;
-	GridGenerator::generateBoustrophedonGrid(rotated_room_map, inflated_rotated_room_map, half_cell_size, grid_lines, cv::Vec4i(0, 0, 0, 0),
+	GridGenerator::generateBoustrophedonGrid(rotated_room_map, inflated_rotated_room_map, half_cell_size, grid_lines, cv::Vec4i(-1, -1, -1, -1),
 			cell_size, half_cell_size, cell_size-1);		// using cell_size-1 instead of cell_size for grid_spacing_horizontal helps
 															// the TSP planner to avoid unnecessary rotations by following a preferred direction
 	// convert grid points format

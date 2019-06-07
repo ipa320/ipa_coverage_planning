@@ -71,7 +71,7 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 	// Parameters
 	std::cout << "\n--------------------------\nRoom Exploration Parameters:\n--------------------------\n";
 	node_handle_.param("room_exploration_algorithm", room_exploration_algorithm_, 1);
-	std::cout << "room_exploration/room_exploration_algorithm = " << room_exploration_algorithm_ << std::endl << std::endl;
+	std::cout << "room_exploration/room_exploration_algorithm = " << room_exploration_algorithm_ << std::endl;
 	node_handle_.param("display_trajectory", display_trajectory_, false);
 	std::cout << "room_exploration/display_trajectory = " << display_trajectory_ << std::endl;
 
@@ -132,7 +132,7 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		std::cout << "room_exploration/tsp_solver_timeout = " << tsp_solver_timeout_ << std::endl;
 
 	}
-	else if(room_exploration_algorithm_ == 2) // set boustrophedon exploration parameters
+	else if ((room_exploration_algorithm_ == 2) || (room_exploration_algorithm_ == 8)) // set boustrophedon (variant) exploration parameters
 	{
 		node_handle_.param("min_cell_area", min_cell_area_, 10.0);
 		std::cout << "room_exploration/min_cell_area_ = " << min_cell_area_ << std::endl;
@@ -140,8 +140,12 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
 		node_handle_.param("grid_obstacle_offset", grid_obstacle_offset_, 0.0);
 		std::cout << "room_exploration/grid_obstacle_offset_ = " << grid_obstacle_offset_ << std::endl;
+		node_handle_.param("max_deviation_from_track", max_deviation_from_track_, -1);
+		std::cout << "room_exploration/max_deviation_from_track_ = " << max_deviation_from_track_ << std::endl;
+		node_handle_.param("cell_visiting_order", cell_visiting_order_, 1);
+		std::cout << "room_exploration/cell_visiting_order = " << cell_visiting_order_ << std::endl;
 	}
-	else if(room_exploration_algorithm_ == 3) // set neural network explorator parameters
+	else if (room_exploration_algorithm_ == 3) // set neural network explorator parameters
 	{
 		node_handle_.param("step_size", step_size_, 0.008);
 		std::cout << "room_exploration/step_size_ = " << step_size_ << std::endl;
@@ -158,14 +162,14 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		node_handle_.param("delta_theta_weight", delta_theta_weight_, 0.15);
 		std::cout << "room_exploration/delta_theta_weight_ = " << delta_theta_weight_ << std::endl;
 	}
-	else if(room_exploration_algorithm_ == 4) // set convexSPP explorator parameters
+	else if (room_exploration_algorithm_ == 4) // set convexSPP explorator parameters
 	{
 		node_handle_.param("cell_size", cell_size_, 0);
 		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
 		node_handle_.param("delta_theta", delta_theta_, 1.570796);
 		std::cout << "room_exploration/delta_theta = " << delta_theta_ << std::endl;
 	}
-	else if(room_exploration_algorithm_ == 5) // set flowNetwork explorator parameters
+	else if (room_exploration_algorithm_ == 5) // set flowNetwork explorator parameters
 	{
 		node_handle_.param("curvature_factor", curvature_factor_, 1.1);
 		std::cout << "room_exploration/curvature_factor = " << curvature_factor_ << std::endl;
@@ -176,23 +180,14 @@ RoomExplorationServer::RoomExplorationServer(ros::NodeHandle nh, std::string nam
 		node_handle_.param("path_eps", path_eps_, 3.0);
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
 	}
-	else if(room_exploration_algorithm_ == 6) // set energyfunctional explorator parameters
+	else if (room_exploration_algorithm_ == 6) // set energyfunctional explorator parameters
 	{
 	}
-	else if(room_exploration_algorithm_ == 7) // set voronoi explorator parameters
+	else if (room_exploration_algorithm_ == 7) // set voronoi explorator parameters
 	{
-	}
-	else if(room_exploration_algorithm_ == 8) // set boustrophedon variant exploration parameters
-	{
-		node_handle_.param("min_cell_area", min_cell_area_, 10.0);
-		std::cout << "room_exploration/min_cell_area_ = " << min_cell_area_ << std::endl;
-		node_handle_.param("path_eps", path_eps_, 2.0);
-		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
-		node_handle_.param("grid_obstacle_offset", grid_obstacle_offset_, 0.0);
-		std::cout << "room_exploration/grid_obstacle_offset_ = " << grid_obstacle_offset_ << std::endl;
 	}
 
-	if(revisit_areas_ == true)
+	if (revisit_areas_ == true)
 		ROS_INFO("Areas not seen after the initial execution of the path will be revisited.");
 	else
 		ROS_INFO("Areas not seen after the initial execution of the path will NOT be revisited.");
@@ -253,7 +248,7 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		tsp_solver_timeout_ = config.tsp_solver_timeout;
 		std::cout << "room_exploration/tsp_solver_timeout_ = " << tsp_solver_timeout_ << std::endl;
 	}
-	else if(room_exploration_algorithm_ == 2) // set boustrophedon exploration parameters
+	else if ((room_exploration_algorithm_ == 2) || (room_exploration_algorithm_ == 8)) // set boustrophedon (variant) exploration parameters
 	{
 		min_cell_area_ = config.min_cell_area;
 		std::cout << "room_exploration/min_cell_area_ = " << min_cell_area_ << std::endl;
@@ -261,8 +256,12 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
 		grid_obstacle_offset_ = config.grid_obstacle_offset;
 		std::cout << "room_exploration/grid_obstacle_offset_ = " << grid_obstacle_offset_ << std::endl;
+		max_deviation_from_track_ = config.max_deviation_from_track;
+		std::cout << "room_exploration/max_deviation_from_track_ = " << max_deviation_from_track_ << std::endl;
+		cell_visiting_order_ = config.cell_visiting_order;
+		std::cout << "room_exploration/cell_visiting_order = " << cell_visiting_order_ << std::endl;
 	}
-	else if(room_exploration_algorithm_ == 3) // set neural network explorator parameters
+	else if (room_exploration_algorithm_ == 3) // set neural network explorator parameters
 	{
 		step_size_ = config.step_size;
 		std::cout << "room_exploration/step_size_ = " << step_size_ << std::endl;
@@ -279,14 +278,14 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		delta_theta_weight_ = config.delta_theta_weight;
 		std::cout << "room_exploration/delta_theta_weight_ = " << delta_theta_weight_ << std::endl;
 	}
-	else if(room_exploration_algorithm_ == 4) // set convexSPP explorator parameters
+	else if (room_exploration_algorithm_ == 4) // set convexSPP explorator parameters
 	{
 		cell_size_ = config.cell_size;
 		std::cout << "room_exploration/cell_size_ = " << cell_size_ << std::endl;
 		delta_theta_ = config.delta_theta;
 		std::cout << "room_exploration/delta_theta_ = " << delta_theta_ << std::endl;
 	}
-	else if(room_exploration_algorithm_ == 5) // set flowNetwork explorator parameters
+	else if (room_exploration_algorithm_ == 5) // set flowNetwork explorator parameters
 	{
 		curvature_factor_ = config.curvature_factor;
 		std::cout << "room_exploration/delta_theta_ = " << delta_theta_ << std::endl;
@@ -297,23 +296,15 @@ void RoomExplorationServer::dynamic_reconfigure_callback(ipa_room_exploration::R
 		path_eps_ = config.path_eps;
 		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
 	}
-	else if(room_exploration_algorithm_ == 6) // set energyFunctional explorator parameters
+	else if (room_exploration_algorithm_ == 6) // set energyFunctional explorator parameters
 	{
 	}
-	else if(room_exploration_algorithm_ == 7) // set voronoi explorator parameters
+	else if (room_exploration_algorithm_ == 7) // set voronoi explorator parameters
 	{
-	}
-	else if(room_exploration_algorithm_ == 8) // set boustrophedon variant exploration parameters
-	{
-		min_cell_area_ = config.min_cell_area;
-		std::cout << "room_exploration/min_cell_area_ = " << min_cell_area_ << std::endl;
-		path_eps_ = config.path_eps;
-		std::cout << "room_exploration/path_eps_ = " << path_eps_ << std::endl;
-		grid_obstacle_offset_ = config.grid_obstacle_offset;
-		std::cout << "room_exploration/grid_obstacle_offset_ = " << grid_obstacle_offset_ << std::endl;
 	}
 
-	if(revisit_areas_ == true)
+
+	if (revisit_areas_ == true)
 		std::cout << "Areas not seen after the initial execution of the path will be revisited." << std::endl;
 	else
 		std::cout << "Areas not seen after the initial execution of the path will NOT be revisited." << std::endl;
@@ -408,7 +399,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	Eigen::Matrix<float, 2, 1> zero_vector;
 	zero_vector << 0, 0;
 	std::vector<geometry_msgs::Pose2D> exploration_path;
-	if(room_exploration_algorithm_ == 1) // use grid point explorator
+	if (room_exploration_algorithm_ == 1) // use grid point explorator
 	{
 		// plan path
 		if(planning_mode_ == PLAN_FOR_FOV)
@@ -416,15 +407,15 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		else
 			grid_point_planner.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, std::floor(grid_spacing_in_pixel), true, zero_vector, tsp_solver_, tsp_solver_timeout_);
 	}
-	else if(room_exploration_algorithm_ == 2) // use boustrophedon explorator
+	else if (room_exploration_algorithm_ == 2) // use boustrophedon explorator
 	{
 		// plan path
 		if(planning_mode_ == PLAN_FOR_FOV)
-			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, false, fitting_circle_center_point_in_meter, min_cell_area_);
+			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, cell_visiting_order_, false, fitting_circle_center_point_in_meter, min_cell_area_, max_deviation_from_track_);
 		else
-			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, true, zero_vector, min_cell_area_);
+			boustrophedon_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, cell_visiting_order_, true, zero_vector, min_cell_area_, max_deviation_from_track_);
 	}
-	else if(room_exploration_algorithm_ == 3) // use neural network explorator
+	else if (room_exploration_algorithm_ == 3) // use neural network explorator
 	{
 		neural_network_explorator_.setParameters(A_, B_, D_, E_, mu_, step_size_, delta_theta_weight_);
 		// plan path
@@ -433,7 +424,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		else
 			neural_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, true, zero_vector, false);
 	}
-	else if(room_exploration_algorithm_ == 4) // use convexSPP explorator
+	else if (room_exploration_algorithm_ == 4) // use convexSPP explorator
 	{
 		// plan coverage path
 		if(planning_mode_ == PLAN_FOR_FOV)
@@ -441,21 +432,21 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 		else
 			convex_SPP_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, delta_theta_, fov_corners_meter, zero_vector, goal->coverage_radius, 7, true);
 	}
-	else if(room_exploration_algorithm_ == 5) // use flow network explorator
+	else if (room_exploration_algorithm_ == 5) // use flow network explorator
 	{
 		if(planning_mode_ == PLAN_FOR_FOV)
 			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, fitting_circle_center_point_in_meter, grid_spacing_in_pixel, false, path_eps_, curvature_factor_, max_distance_factor_);
 		else
 			flow_network_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, cell_size_, zero_vector, grid_spacing_in_pixel, true, path_eps_, curvature_factor_, max_distance_factor_);
 	}
-	else if(room_exploration_algorithm_ == 6) // use energy functional explorator
+	else if (room_exploration_algorithm_ == 6) // use energy functional explorator
 	{
 		if(planning_mode_ == PLAN_FOR_FOV)
 			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, false, fitting_circle_center_point_in_meter);
 		else
 			energy_functional_explorator_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, true, zero_vector);
 	}
-	else if(room_exploration_algorithm_ == 7) // use voronoi explorator
+	else if (room_exploration_algorithm_ == 7) // use voronoi explorator
 	{
 		// create a usable occupancyGrid map out of the given room map
 		nav_msgs::OccupancyGrid room_gridmap;
@@ -543,13 +534,13 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 			}
 		}
 	}
-	else if(room_exploration_algorithm_ == 8) // use boustrophedon variant explorator
+	else if (room_exploration_algorithm_ == 8) // use boustrophedon variant explorator
 	{
 		// plan path
 		if(planning_mode_ == PLAN_FOR_FOV)
-			boustrophedon_variant_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, false, fitting_circle_center_point_in_meter, min_cell_area_);
+			boustrophedon_variant_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, cell_visiting_order_, false, fitting_circle_center_point_in_meter, min_cell_area_, max_deviation_from_track_);
 		else
-			boustrophedon_variant_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, true, zero_vector, min_cell_area_);
+			boustrophedon_variant_explorer_.getExplorationPath(room_map, exploration_path, map_resolution, starting_position, map_origin, grid_spacing_in_pixel, grid_obstacle_offset_, path_eps_, cell_visiting_order_, true, zero_vector, min_cell_area_, max_deviation_from_track_);
 	}
 
 	// display finally planned path
@@ -627,7 +618,7 @@ void RoomExplorationServer::exploreRoom(const ipa_building_msgs::RoomExploration
 	// [optionally] execute the path
 	if(execute_path_ == true)
 	{
-		navigateExplorationPath(exploration_path, goal->field_of_view, goal->coverage_radius, fitting_circle_center_point_in_meter.norm(),
+		navigateExplorationPath(exploration_path, goal->field_of_view, goal->field_of_view_origin, goal->coverage_radius, fitting_circle_center_point_in_meter.norm(),
 					map_resolution, goal->map_origin, grid_spacing_in_pixel, room_map.rows * map_resolution);
 		ROS_INFO("Explored room.");
 	}
@@ -702,8 +693,9 @@ void RoomExplorationServer::downsampleTrajectory(const std::vector<geometry_msgs
 
 
 void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_msgs::Pose2D>& exploration_path,
-		const std::vector<geometry_msgs::Point32>& field_of_view, const double coverage_radius, const double distance_robot_fov_middlepoint,
-		const float map_resolution, const geometry_msgs::Pose& map_origin, const double grid_spacing_in_pixel, const double map_height)
+		const std::vector<geometry_msgs::Point32>& field_of_view, const geometry_msgs::Point32& field_of_view_origin,
+		const double coverage_radius, const double distance_robot_fov_middlepoint, const float map_resolution,
+		const geometry_msgs::Pose& map_origin, const double grid_spacing_in_pixel, const double map_height)
 {
 	// ***************** III. Navigate trough all points and save the robot poses to check what regions have been seen *****************
 	// 1. publish navigation goals
@@ -775,60 +767,74 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 
 		// 3. draw the seen positions so the server can check what points haven't been seen
 		std::cout << "checking coverage using the coverage_check_server" << std::endl;
-		cv::Mat seen_positions_map;
-		// define the request for the coverage check
-		ipa_building_msgs::CheckCoverageRequest coverage_request;
-		ipa_building_msgs::CheckCoverageResponse coverage_response;
-		// fill request
-		sensor_msgs::ImageConstPtr service_image;
-		cv_bridge::CvImage cv_image;
-		cv_image.encoding = "mono8";
-		cv_image.image = costmap_as_mat;
-		service_image = cv_image.toImageMsg();
-		coverage_request.input_map = *service_image;
-		coverage_request.path = robot_poses;
-		coverage_request.field_of_view = field_of_view;
-		coverage_request.coverage_radius = coverage_radius;
-		coverage_request.map_origin = map_origin;
-		coverage_request.map_resolution = map_resolution;
-		coverage_request.check_number_of_coverages = false;
-		std::cout << "filled service request for the coverage check" << std::endl;
-		if(planning_mode_ == PLAN_FOR_FOV)
+		cv::Mat coverage_map, number_of_coverage_image;
+		// use the coverage check server to check which areas have been seen
+		//   --> convert path to cv format
+		std::vector<cv::Point3d> path;
+		for (size_t i=0; i<robot_poses.size(); ++i)
+			path.push_back(cv::Point3d(robot_poses[i].x, robot_poses[i].y, robot_poses[i].theta));
+		//   --> convert field of view to Eigen format
+		std::vector<Eigen::Matrix<float, 2, 1> > fov;
+		for(size_t i = 0; i < field_of_view.size(); ++i)
 		{
-			coverage_request.check_for_footprint = false;
-			// send request
-			if(ros::service::call(coverage_check_service_name_, coverage_request, coverage_response) == true)
-			{
-				std::cout << "got the service response" << std::endl;
-				cv_bridge::CvImagePtr cv_ptr_obj;
-				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.coverage_map, sensor_msgs::image_encodings::MONO8);
-				seen_positions_map = cv_ptr_obj->image;
-			}
-			else
-			{
-				ROS_WARN("Coverage check failed, is the coverage_check_server running?");
-				room_exploration_server_.setAborted();
-				return;
-			}
+			Eigen::Matrix<float, 2, 1> current_vector;
+			current_vector << field_of_view[i].x, field_of_view[i].y;
+			fov.push_back(current_vector);
+		}
+		//   --> convert field of view origin to Eigen format
+		Eigen::Matrix<float, 2, 1> fov_origin;
+		fov_origin <<field_of_view_origin.x, field_of_view_origin.y;
+		//   --> call coverage checker
+		CoverageCheckServer coverage_checker;
+		if (coverage_checker.checkCoverage(costmap_as_mat, map_resolution, cv::Point2d(map_origin.position.x, map_origin.position.y),
+				path, fov, fov_origin, coverage_radius, (planning_mode_==PLAN_FOR_FOOTPRINT), false, coverage_map, number_of_coverage_image) == true)
+		{
+			std::cout << "got the service response" << std::endl;
 		}
 		else
 		{
-			coverage_request.check_for_footprint = true;
-			// send request
-			if(ros::service::call(coverage_check_service_name_, coverage_request, coverage_response) == true)
-			{
-				std::cout << "got the service response" << std::endl;
-				cv_bridge::CvImagePtr cv_ptr_obj;
-				cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.coverage_map, sensor_msgs::image_encodings::MONO8);
-				seen_positions_map = cv_ptr_obj->image;
-			}
-			else
-			{
-				ROS_WARN("Coverage check failed, is the coverage_check_server running?");
-				room_exploration_server_.setAborted();
-				return;
-			}
+			ROS_WARN("Coverage check failed, is the coverage_check_server running?");
+			room_exploration_server_.setAborted();
+			return;
 		}
+
+//		// service interface - can be deleted
+//		// define the request for the coverage check
+//		ipa_building_msgs::CheckCoverageRequest coverage_request;
+//		ipa_building_msgs::CheckCoverageResponse coverage_response;
+//		// fill request
+//		sensor_msgs::ImageConstPtr service_image;
+//		cv_bridge::CvImage cv_image;
+//		cv_image.encoding = "mono8";
+//		cv_image.image = costmap_as_mat;
+//		service_image = cv_image.toImageMsg();
+//		coverage_request.input_map = *service_image;
+//		coverage_request.map_resolution = map_resolution;
+//		coverage_request.map_origin = map_origin;
+//		coverage_request.path = robot_poses;
+//		coverage_request.field_of_view = field_of_view;
+//		coverage_request.field_of_view_origin = field_of_view_origin;
+//		coverage_request.coverage_radius = coverage_radius;
+//		coverage_request.check_number_of_coverages = false;
+//		std::cout << "filled service request for the coverage check" << std::endl;
+//		if(planning_mode_ == PLAN_FOR_FOV)
+//			coverage_request.check_for_footprint = false;
+//		else
+//			coverage_request.check_for_footprint = true;
+//		// send request
+//		if(ros::service::call(coverage_check_service_name_, coverage_request, coverage_response) == true)
+//		{
+//			std::cout << "got the service response" << std::endl;
+//			cv_bridge::CvImagePtr cv_ptr_obj;
+//			cv_ptr_obj = cv_bridge::toCvCopy(coverage_response.coverage_map, sensor_msgs::image_encodings::MONO8);
+//			coverage_map = cv_ptr_obj->image;
+//		}
+//		else
+//		{
+//			ROS_WARN("Coverage check failed, is the coverage_check_server running?");
+//			room_exploration_server_.setAborted();
+//			return;
+//		}
 
 		// testing, parameter to show
 //		cv::namedWindow("initially seen areas", cv::WINDOW_NORMAL);
@@ -837,15 +843,15 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 //		cv::waitKey();
 
 		// apply a binary filter on the image, making the drawn seen areas black
-		cv::threshold(seen_positions_map, seen_positions_map, 150, 255, cv::THRESH_BINARY);
+		cv::threshold(coverage_map, coverage_map, 150, 255, cv::THRESH_BINARY);
 
-		// ***************** IV. Find left areas and lay a grid over it, then plan a path trough all grids s.t. they can be covered by the fov. *****************
+		// ***************** IV. Find leftover areas and lay a grid over it, then plan a path trough all grids s.t. they can be covered by the fov. *****************
 		// 1. find regions with an area that is bigger than a defined value, which have not been seen by the fov.
 		// 	  hierarchy[{0,1,2,3}]={next contour (same level), previous contour (same level), child contour, parent contour}
 		// 	  child-contour = 1 if it has one, = -1 if not, same for parent_contour
 		std::vector < std::vector<cv::Point> > left_areas, areas_to_revisit;
 		std::vector < cv::Vec4i > hierarchy;
-		cv::findContours(seen_positions_map, left_areas, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
+		cv::findContours(coverage_map, left_areas, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
 
 		// find valid regions
 		for(size_t area = 0; area < left_areas.size(); ++area)
@@ -953,10 +959,9 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 		ConcordeTSPSolver tsp_solver;
 		std::vector<int> revisiting_order = tsp_solver.solveConcordeTSP(costmap_as_mat, area_centers, 0.25, 0.0, map_resolution, min_index, 0);
 
-		// 5. go to each center and use the map_accessability_server to find a robot pose around it s.t. it can be covered
-		//	  by the fov
-		double pi_8 = PI/8;
-		std::string perimeter_service_name = "/room_exploration/map_accessibility_analysis/map_perimeter_accessibility_check";	// todo: replace with library interface
+		// 5. go to each center and use the map_accessability_server to find a robot pose around it s.t. it can be covered by the field of view or robot center
+		const double pi_8 = PI/8;
+		const std::string perimeter_service_name = "/room_exploration/map_accessibility_analysis/map_perimeter_accessibility_check";
 	//	robot_poses.clear();
 		for(size_t center = 0; center < revisiting_order.size(); ++center)
 		{
@@ -978,8 +983,6 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 				check_request.radius = 0.0;
 				check_request.rotational_sampling_step = 2.0*PI;
 			}
-
-
 			std::cout << "checking center: " << std::endl << current_center << "radius: " << check_request.radius << std::endl;
 
 			// send request
@@ -993,7 +996,7 @@ void RoomExplorationServer::navigateExplorationPath(const std::vector<geometry_m
 			}
 			else
 			{
-				// TODO: return areas that were not visible on radius
+				// todo: return areas that were not visible on radius
 				std::cout << "center not reachable on perimeter" << std::endl;
 			}
 		}
@@ -1053,7 +1056,7 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 //	ros::Duration sleep_rate(0.1);
 	tf::TransformListener listener;
 	tf::StampedTransform transform;
-	ros::Duration sleep_duration(0.15); // TODO: param
+	ros::Duration sleep_duration(0.15); // todo: param
 	bool near_pos;
 	do
 	{
@@ -1109,11 +1112,10 @@ bool RoomExplorationServer::publishNavigationGoal(const geometry_msgs::Pose2D& n
 		center.y = map_oriented_pose.y + relative_vector.y;
 
 		// check for another robot pose to reach the desired fov-position
-		std::string perimeter_service_name = "/room_exploration/map_accessibility_analysis/map_perimeter_accessibility_check";	// todo: replace with library interface
+		const std::string perimeter_service_name = "/room_exploration/map_accessibility_analysis/map_perimeter_accessibility_check";
 		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Response response;
 		cob_map_accessibility_analysis::CheckPerimeterAccessibility::Request check_request;
 		check_request.center = center;
-
 		if(planning_mode_ == PLAN_FOR_FOV)
 		{
 			check_request.radius = robot_to_fov_middlepoint_distance;

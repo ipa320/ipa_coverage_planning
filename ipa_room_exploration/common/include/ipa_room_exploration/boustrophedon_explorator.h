@@ -63,6 +63,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <iostream>
 #include <vector>
+#include <map>
+#include <set>
 #include <cmath>
 #include <string>
 
@@ -85,19 +87,25 @@
 
 // Class that is used to store cells and obstacles in a certain manner. For this the vertexes are stored as points and
 // the edges are stored as vectors in a counter-clockwise manner. The constructor becomes a set of respectively sorted
-// points and computes the vectors out of them. Additionally the visible center of the polygon gets computed, to
-// simplify the visiting order later, by using a meanshift algorithm.
+// points and computes the vectors out of them. Additionally the accessible/visible center of the polygon gets computed,
+// to simplify the visiting order later, by using a meanshift algorithm.
 class GeneralizedPolygon
 {
 protected:
 	// vertexes
 	std::vector<cv::Point> vertices_;
 
-	// center
+	// accessible center: a central point inside the polygon with maximum distance to walls
 	cv::Point center_;
+
+	// center of bounding rectangle of polygon, may be located outside the polygon, i.e. in an inaccessible area
+	cv::Point bounding_box_center_;
 
 	// min/max coordinates
 	int max_x_, min_x_, max_y_, min_y_;
+
+	// area of the polygon (cell number), in [pixel^2]
+	double area_;
 
 public:
 	// constructor
@@ -123,10 +131,14 @@ public:
 				min_y_ = vertices_[point].y;
 		}
 
+		bounding_box_center_.x = (min_x_+max_x_)/2;
+		bounding_box_center_.y = (min_y_+max_y_)/2;
+
 		// compute visible center
 		MeanShift2D ms;
 		cv::Mat room = cv::Mat::zeros(max_y_+10, max_x_+10, CV_8UC1);
 		cv::drawContours(room, std::vector<std::vector<cv::Point> >(1,vertices), -1, cv::Scalar(255), CV_FILLED);
+		area_ = cv::countNonZero(room);
 		cv::Mat distance_map; //variable for the distance-transformed map, type: CV_32FC1
 		cv::distanceTransform(room, distance_map, CV_DIST_L2, 5);
 		// find point set with largest distance to obstacles
@@ -144,14 +156,24 @@ public:
 		center_.y = room_center[1];
 	}
 
+	std::vector<cv::Point> getVertices() const
+	{
+		return vertices_;
+	}
+
 	cv::Point getCenter() const
 	{
 		return center_;
 	}
 
-	std::vector<cv::Point> getVertices() const
+	cv::Point getBoundingBoxCenter() const
 	{
-		return vertices_;
+		return bounding_box_center_;
+	}
+
+	double getArea() const
+	{
+		return area_;
 	}
 
 	void drawPolygon(cv::Mat& image, const cv::Scalar& color) const
@@ -180,6 +202,26 @@ struct BoustrophedonHorizontalLine
 	cv::Point left_corner_, right_corner_;
 };
 
+// Structure for saving several properties of cells
+struct BoustrophedonCell
+{
+	typedef std::set<boost::shared_ptr<BoustrophedonCell> > BoustrophedonCellSet;
+	typedef std::set<boost::shared_ptr<BoustrophedonCell> >::iterator BoustrophedonCellSetIterator;
+
+	int label_;				// label id of the cell
+	double area_;			// area of the cell, in [pixel^2]
+	cv::Rect bounding_box_;		// bounding box of the cell
+	BoustrophedonCellSet neighbors_;		// pointer to neighboring cells
+
+	BoustrophedonCell(const int label, const double area, const cv::Rect& bounding_box)
+	{
+		label_ = label;
+		area_ = area;
+		bounding_box_ = bounding_box;
+	}
+
+};
+
 
 // Class that generates a room exploration path by using the morse cellular decomposition method, proposed by
 //
@@ -198,21 +240,36 @@ protected:
 	// pathplanner to check for the next nearest locations
 	AStarPlanner path_planner_;
 
+	static const uchar BORDER_PIXEL_VALUE = 25;
+
 	// rotates the original map for a good axis alignment and divides it into Morse cells
 	// the functions tries two axis alignments with 90deg rotation difference and chooses the one with the lower number of cells
 	void findBestCellDecomposition(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
-			cv::Mat& R, cv::Rect& bbox, cv::Mat& rotated_room_map,
+			const int min_cell_width, cv::Mat& R, cv::Rect& bbox, cv::Mat& rotated_room_map,
 			std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
 
 	// rotates the original map for a good axis alignment and divides it into Morse cells
 	// @param rotation_offset can be used to put an offset to the computed rotation for good axis alignment, in [rad]
 	void computeCellDecompositionWithRotation(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
-			const double rotation_offset, cv::Mat& R, cv::Rect& bbox, cv::Mat& rotated_room_map,
+			const int min_cell_width, const double rotation_offset, cv::Mat& R, cv::Rect& bbox, cv::Mat& rotated_room_map,
 			std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
 
 	// divides the provided map into Morse cells
-	virtual void computeCellDecomposition(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
-			std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
+	void computeCellDecomposition(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
+			const int min_cell_width, std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
+
+	// merges cells after a cell decomposition according to various criteria specified in function @mergeCellsSelection
+	// returns the number of cells after merging
+	int mergeCells(cv::Mat& cell_map, cv::Mat& cell_map_labels, const double min_cell_area, const int min_cell_width);
+
+	// implements the selection criterion for cell merging, in this case: too small (area) or too thin (width or height) cells
+	// are merged with their largest neighboring cell.
+	void mergeCellsSelection(cv::Mat& cell_map, cv::Mat& cell_map_labels, std::map<int, boost::shared_ptr<BoustrophedonCell> >& cell_index_mapping,
+			const double min_cell_area, const int min_cell_width);
+
+	// executes the merger of minor cell into major cell
+	void mergeTwoCells(cv::Mat& cell_map, cv::Mat& cell_map_labels, const BoustrophedonCell& minor_cell, BoustrophedonCell& major_cell,
+			std::map<int, boost::shared_ptr<BoustrophedonCell> >& cell_index_mapping);
 
 	// this function corrects obstacles that are one pixel width at 45deg angle, i.e. a 2x2 pixel neighborhood with [0, 255, 255, 0] or [255, 0, 0, 255]
 	void correctThinWalls(cv::Mat& room_map);
@@ -220,7 +277,7 @@ protected:
 	// computes the Boustrophedon path pattern for a single cell
 	void computeBoustrophedonPath(const cv::Mat& room_map, const float map_resolution, const GeneralizedPolygon& cell,
 			std::vector<cv::Point2f>& fov_middlepoint_path, cv::Point& robot_pos,
-			const int grid_spacing_as_int, const int half_grid_spacing_as_int, const double path_eps, const int grid_obstacle_offset=0);
+			const int grid_spacing_as_int, const int half_grid_spacing_as_int, const double path_eps, const int max_deviation_from_track, const int grid_obstacle_offset=0);
 
 	// downsamples a given path original_path to waypoint distances of path_eps and appends the resulting path to downsampled_path
 	void downsamplePath(const std::vector<cv::Point>& original_path, std::vector<cv::Point>& downsampled_path,
@@ -231,6 +288,8 @@ protected:
 	void downsamplePathReverse(const std::vector<cv::Point>& original_path, std::vector<cv::Point>& downsampled_path,
 			cv::Point& robot_pos, const double path_eps);
 
+	void printCells(std::map<int, boost::shared_ptr<BoustrophedonCell> >& cell_index_mapping);
+
 public:
 	// constructor
 	BoustrophedonExplorer();
@@ -239,9 +298,11 @@ public:
 	// with free space drawn white (255) and obstacles as black (0). It returns a series of 2D poses that show to which positions
 	// the robot should drive at.
 	void getExplorationPath(const cv::Mat& room_map, std::vector<geometry_msgs::Pose2D>& path, const float map_resolution,
-				const cv::Point starting_position, const cv::Point2d map_origin,
-				const double grid_spacing_in_pixel, const double grid_obstacle_offset, const double path_eps, const bool plan_for_footprint,
-				const Eigen::Matrix<float, 2, 1> robot_to_fov_vector, const double min_cell_area);
+				const cv::Point starting_position, const cv::Point2d map_origin, const double grid_spacing_in_pixel,
+				const double grid_obstacle_offset, const double path_eps, const int cell_visiting_order, const bool plan_for_footprint,
+				const Eigen::Matrix<float, 2, 1> robot_to_fov_vector, const double min_cell_area, const int max_deviation_from_track);
+
+	enum CellVisitingOrder {OPTIMAL_TSP=1, LEFT_TO_RIGHT=2};
 };
 
 
@@ -249,9 +310,9 @@ class BoustrophedonVariantExplorer : public BoustrophedonExplorer
 {
 protected:
 
-	// computes a suitable cell decomposition for the given room_map
-	void computeCellDecomposition(const cv::Mat& room_map, const float map_resolution, const double min_cell_area,
-			std::vector<GeneralizedPolygon>& cell_polygons, std::vector<cv::Point>& polygon_centers);
+	// implements the selection criterion for cell merging, in this case: only large cells with different major axis are not merged.
+	void mergeCellsSelection(cv::Mat& cell_map, cv::Mat& cell_map_labels, std::map<int, boost::shared_ptr<BoustrophedonCell> >& cell_index_mapping,
+			const double min_cell_area, const int min_cell_width);
 
 public:
 	BoustrophedonVariantExplorer() {};

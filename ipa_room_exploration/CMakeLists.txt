@@ -96,6 +96,7 @@ INCLUDE_DIRS
 	common/include
 	ros/include
 LIBRARIES
+	libcoverage_check_server
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
 DEPENDS
@@ -156,6 +157,7 @@ target_link_libraries(room_exploration_server
 	${Cgl_LIBRARIES}
 	${Cbc-lib_LIBRARIES}
 	${GUROBI_LIBRARIES}
+	libcoverage_check_server
 )
 add_dependencies(room_exploration_server
 	${catkin_EXPORTED_TARGETS}
@@ -219,6 +221,7 @@ add_executable(room_exploration_evaluation
 target_link_libraries(room_exploration_evaluation
 	${catkin_LIBRARIES} 
 	${OpenCV_LIBS}
+	libcoverage_check_server
 )
 add_dependencies(room_exploration_evaluation 
 	${catkin_EXPORTED_TARGETS}

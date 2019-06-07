@@ -182,6 +182,9 @@ int main(int argc, char **argv)
 //	fov_points[3].x = 0.3;
 //	fov_points[3].y = 0.3;
 //	int planning_mode = 1;	// footprint planning
+	geometry_msgs::Point32 fov_origin;
+	fov_origin.x = 0.;
+	fov_origin.y = 0.;
 
 	ipa_building_msgs::RoomExplorationGoal goal;
 	goal.input_map = labeling;
@@ -190,6 +193,7 @@ int main(int argc, char **argv)
 	goal.robot_radius = robot_radius; // turtlebot, used for sim 0.177, 0.4
 	goal.coverage_radius = coverage_radius;
 	goal.field_of_view = fov_points;
+	goal.field_of_view_origin = fov_origin;
 	goal.starting_position = starting_position;
 	goal.planning_mode = planning_mode;
 	ac.sendGoal(goal);
