@@ -492,6 +492,7 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 	{
 		// pass through segmentation: takes a map which is already separated into unconnected areas and returns these as the resulting segmentation in the format of this program
 		// todo: closing operation explicitly for bad maps --> needs parameterization
+		//original_img.convertTo(segmented_map, CV_32SC1, 256, 0);		// occupied space = 0, free space = 65280
 		cv::Mat original_img_eroded, temp;
 		cv::erode(original_img, temp, cv::Mat(), cv::Point(-1, -1), 3);
 		cv::dilate(temp, original_img_eroded, cv::Mat(), cv::Point(-1, -1), 3);
