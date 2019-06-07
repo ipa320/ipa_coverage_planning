@@ -269,6 +269,13 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 
 		}
 	}
+	if (room_segmentation_algorithm_ == 99) //set passthrough parameters
+	{
+		node_handle_.param("room_area_factor_upper_limit_passthrough", room_upper_limit_passthrough_, 47.0);
+		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_passthrough_ << std::endl;
+		node_handle_.param("room_area_factor_lower_limit_passthrough", room_lower_limit_passthrough_, 0.8);
+		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_passthrough_ << std::endl;
+	}
 	node_handle_.param("display_segmented_map", display_segmented_map_, false);
 	std::cout << "room_segmentation/display_segmented_map_ = " << display_segmented_map_ << std::endl;
 	node_handle_.param("publish_segmented_map", publish_segmented_map_, false);
@@ -353,6 +360,14 @@ void RoomSegmentationServer::dynamic_reconfigure_callback(ipa_room_segmentation:
 		std::cout << "room_segmentation/min_voronoi_random_field_node_distance = " << min_voronoi_random_field_node_distance_ << std::endl;
 		std::cout << "room_segmentation/max_voronoi_random_field_inference_iterations = " << max_voronoi_random_field_inference_iterations_ << std::endl;
 		std::cout << "room_segmentation/max_area_for_merging = " << max_area_for_merging_ << std::endl;
+	}
+	if (room_segmentation_algorithm_ == 99)	//set passthrough parameters
+	{
+		room_upper_limit_passthrough_ = config.room_area_upper_limit_passthrough;
+		room_lower_limit_passthrough_ = config.room_area_lower_limit_passthrough;
+
+		std::cout << "room_segmentation/room_area_factor_upper_limit = " << room_upper_limit_passthrough_ << std::endl;
+		std::cout << "room_segmentation/room_area_factor_lower_limit = " << room_lower_limit_passthrough_ << std::endl;
 	}
 	display_segmented_map_ = config.display_segmented_map;
 	std::cout << "room_segmentation/display_segmented_map = " << display_segmented_map_ << std::endl;
@@ -497,7 +512,25 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 				// fill each room area with a unique id
 				cv::Rect rect;
 				cv::floodFill(segmented_map, cv::Point(x,y), label_index, &rect, 0, 0, 8);
-				label_index++;
+
+				// determine filled area
+				double area = 0;
+				for (int v = 0; v < segmented_map.rows; v++)
+					for (int u = 0; u < segmented_map.cols; u++)
+						if (segmented_map.at<int>(v,u)==label_index)
+							area += 1.;
+				area = map_resolution * map_resolution * area;	// convert from cells to m^2
+
+				// exclude too small and too big rooms
+				if (area < room_lower_limit_passthrough_ || area > room_upper_limit_passthrough_)
+				{
+					for (int v = 0; v < segmented_map.rows; v++)
+						for (int u = 0; u < segmented_map.cols; u++)
+							if (segmented_map.at<int>(v,u)==label_index)
+								segmented_map.at<int>(v,u) = 0;
+				}
+				else
+					label_index++;
 			}
 		}
 		std::cout << "Labeled " << label_index-1 << " segments." << std::endl;

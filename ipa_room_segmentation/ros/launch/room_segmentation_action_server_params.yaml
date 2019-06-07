@@ -4,6 +4,7 @@
 # 3 = Voronoi segmentation
 # 4 = semantic segmentation
 # 5 = voronoi random field segmentation
+# 99 = passthrough segmentation
 # int
 room_segmentation_algorithm: 3
 
@@ -39,6 +40,10 @@ room_area_factor_lower_limit_semantic: 1.0
 #Voronoi random field segmentation: 1000000.0 - 1.53 (means the max/min area a connected classified region is allowed to have)
 room_area_upper_limit_voronoi_random: 1000000.0
 room_area_lower_limit_voronoi_random: 1.53
+
+#Passthrough
+room_area_factor_upper_limit_passthrough: 1000000.0        #120.0
+room_area_factor_lower_limit_passthrough: 1.0
 
 #parameters for the voronoi segmentation that specify the neighborhood for critical Point extraction and the distance between critical Points. 
 voronoi_neighborhood_index: 280         #larger value sets a larger neighborhood for searching critical points --> int
