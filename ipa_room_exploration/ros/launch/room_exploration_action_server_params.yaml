@@ -12,7 +12,7 @@ room_exploration_algorithm: 8
 
 # display final trajectory plan step by step
 # bool
-display_trajectory: true
+display_trajectory: false
 
 
 # map correction
