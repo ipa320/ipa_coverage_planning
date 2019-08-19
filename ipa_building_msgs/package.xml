@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>ipa_building_msgs</name>
+  <version>0.2.0</version>
+
+  <description>
+     This package contains common message type definitions for building navigation tasks such as floor plan segmentation into rooms or the optimal trajectory through rooms of a building.
+  </description>
+
+  <license>LGPL for academic and non-commercial use; for commercial use, please contact Fraunhofer IPA</license>
+
+  <maintainer email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</maintainer>
+  <author>Richard Bormann</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>message_generation</build_depend>
+  <exec_depend>message_runtime</exec_depend>
+
+  <depend>actionlib</depend>
+  <depend>actionlib_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+
+</package>
+

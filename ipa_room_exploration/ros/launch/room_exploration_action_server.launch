@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<launch>
+
+	<!-- room exploration server node -->
+	<node ns="room_exploration" pkg="ipa_room_exploration" type="room_exploration_server" name="room_exploration_server" output="screen" respawn="true" respawn_delay="2">
+		<rosparam command="load" file="$(find ipa_room_exploration)/ros/launch/room_exploration_action_server_params.yaml"/>
+	</node>
+
+	<!-- ACTIVATE IF NEEDED: run cob_map_accessibility_analysis_server -->
+	<!-- include file="$(find ipa_room_exploration)/ros/launch/cob_map_accessibility_analysis.launch"/-->
+
+	<!-- NOT NECESSARY ANYMORE: using direct library interface now, run coverage_check_server -->
+	<!-- include file="$(find ipa_room_exploration)/ros/launch/coverage_check_server.launch"/-->
+
+</launch>

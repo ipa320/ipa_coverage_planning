@@ -1,0 +1,166 @@
+# this variable selects the algorithm for room exploration
+# 1 = grid point explorator
+# 2 = boustrophedon explorator
+# 3 = neural network explorator
+# 4 = convexSPP explorator
+# 5 = flowNetwork explorator
+# 6 = energyFunctional explorator
+# 7 = voronoi explorator
+# 8 = boustrophedon variant explorator
+# int
+room_exploration_algorithm: 8
+
+# display final trajectory plan step by step
+# bool
+display_trajectory: false
+
+
+# map correction
+# ==============
+# Applies a closing operation to neglect inaccessible areas and map errors/artifacts if the map_correction_closing_neighborhood_size parameter is larger than 0.
+# The parameter then specifies the iterations (or neighborhood size) of that closing operation.
+# int
+map_correction_closing_neighborhood_size: 2
+
+
+# parameters specific to the navigation of the robot along the computed coverage trajectory
+# =========================================================================================
+# boolean used to determine if the server should return the computed coverage path in the response message
+# bool
+return_path: true
+
+# boolean used to determine whether the server should navigate the robot along the computed coverage path
+# bool
+execute_path: false
+
+# min distance between the robot and the published navigation goal before the next goal in the path gets published
+# hack for slow turtle sim (publish new goals already when close to goal, then takes some time to command new goal)
+# can be turned off (0) when used with real robot
+# double
+# [pixel], where one pixel is the size of one cell in the navigation grid map
+goal_eps: 0.0     #0.35
+
+# use a dynamic goal distance criterion: the larger the path's curvature, the more accurate the navigation.
+# Use 'goal_eps' param as maximum distance on straight paths and zero distance (accurate goal approaching) on 90° curves.
+# bool
+use_dyn_goal_eps: false
+
+# variable that interrupts the publishing of navigation goals as long as needed, e.g. when during the execution of the coverage path
+# a trash bin is found and one wants to empty it directly and resume the path later.
+# bool
+interrupt_navigation_publishing: false
+
+# this variable turns the functionality on/off to revisit areas that haven't been seen during the execution of the coverage path,
+# due to uncertainties or dynamic obstacles
+# bool
+revisit_areas: false
+
+# minimal area of not seen sections that they are revisited after the first run through the room
+# double
+# [m^2]
+left_sections_min_area: 0.01
+
+# name of the global costmap topic
+# string
+global_costmap_topic: "/move_base/global_costmap/costmap"
+
+# name of the service to call for a coverage check of the driven trajectory
+# string
+coverage_check_service_name: "/room_exploration/coverage_check_server/coverage_check"
+
+# string that carries the name of the map frame, used for tracking of the robot
+# string
+map_frame: "map"
+
+# string that carries the name of the camera frame, that is in the same kinematic chain as the map_frame and shows the camera pose
+# string
+camera_frame: "base_link"
+
+
+# parameters specific to the grid point explorator
+# =================================================
+# indicates which TSP solver should be used
+#   1 = Nearest Neighbor (often 10-15% longer paths than Concorde but computes by orders faster and considering traveling time (path length and rotations) it is often the fastest of all)
+#   2 = Genetic solver (slightly shorter than Nearest Neighbor)
+#   3 = Concorde solver (usually gives the shortest path while computing the longest)
+# int
+tsp_solver: 1
+
+# a sophisticated solver like Concorde or Genetic can be interrupted if it does not find a solution within this time, in [s],
+# and then falls back to the nearest neighbor solver
+# int [s]
+tsp_solver_timeout: 600
+
+
+# parameters specific for the boustrophedon explorator
+# ====================================================
+# min area a boustrophedon cell (i.e. a boustrophedon region of the map) must have to be determined for the path generation
+# [pixel^2]
+# double
+min_cell_area: 200.0      #10.0
+
+# distance between two points when generating the (line) path
+# [pixel], where one pixel is the size of one cell in the navigation grid map
+# double
+path_eps: 6.0
+
+# the additional offset of the grid to obstacles, i.e. allows to displace the grid by more than the standard half_grid_size from obstacles
+# [m]
+# double
+grid_obstacle_offset: 0.251     #0.101        #0.251
+
+# maximal allowed shift off the ideal boustrophedon track to both sides for avoiding obstacles on track
+# setting max_deviation_from_track=grid_spacing is usually a good choice
+# for negative values (e.g. max_deviation_from_track: -1) max_deviation_from_track is automatically set to grid_spacing
+# [pixel]
+max_deviation_from_track: 0
+
+# cell visiting order
+#   1 = the optimal visiting order of the cells is determined as TSP problem
+#   2 = alternative ordering from left to right (measured on y-coordinates of the cells), visits the cells in a more obvious fashion to the human observer (though it is not optimal)
+# int
+cell_visiting_order: 2
+
+# parameters specific for the neural network explorator, see "A Neural Network Approach to Complete Coverage Path Planning" from Simon X. Yang and Chaomin Luo
+# =====================================================
+# step size for integrating the state dynamics
+step_size: 0.008
+# decaying parameter that pulls the activity of a neuron closer to zero, larger value means faster decreasing
+A: 17
+# increasing parameter that tries to increase the activity of a neuron when it's not too big already, higher value means a higher desired value and a faster increasing at the beginning
+B: 5
+# decreasing parameter when the neuron is labeled as obstacle, higher value means faster decreasing
+D: 7
+# external input parameter of one neuron that is used in the dynamics corresponding to if it is an obstacle or uncleaned/cleaned, E>>B
+E: 80
+# parameter to set the importance of the states of neighboring neurons to the dynamics, higher value means higher influence
+mu: 1.03
+# parameter to set the importance of the traveling direction from the previous step and the next step, a higher value means that the robot should turn less
+delta_theta_weight: 0.15
+
+# parameters specific for the convexSPP explorator
+# ================================================
+# size of one cell when discretizing the free space, smaller value means a more detailed discretization
+# in [pixel], where one pixel is the size of one cell in the navigation grid map
+# (if set to 0 or smaller, the cell size is automatically determined with the largest possible value)
+# (this parameter is only relevant to the algorithms #4 = convexSPP explorator, #5 = flowNetwork explorator,
+#  the other methods utilize the computed optimal maximum grid size)
+# int
+cell_size: 0       #4      #7
+
+# angular sampling step when creating possible sensing poses, in [rad]
+# double
+delta_theta: 0.78539816339      #1.570796
+
+# parameters specific for the flowNetwork explorator
+# ==================================================
+# factor, an arc can be longer than a straight arc, higher values allow more arcs to be considered in the optimization problem
+# Important: if too small, maybe the problem becomes infeasible and the optimizer won't work correctly
+curvature_factor: 1.1
+
+# factor, an arc can be longer than the maximal distance of the room, which is determined by the min/max coordinates that are set in the goal
+max_distance_factor: 1.0
+
+# cell_size: see # parameters specific for the convexSPP explorator
+
+# path_eps: see # parameters specific for the boustrophedon explorator

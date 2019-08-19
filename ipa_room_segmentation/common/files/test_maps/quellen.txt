@@ -1,0 +1,8 @@
+radish
+
+http://www.google.de/imgres?imgurl=http%3A%2F%2Frobotang.co.nz%2Fassets%2FUploads%2Frobots%2Fplayer-plugins%2F_resampled%2Fgmapping.png&imgrefurl=http%3A%2F%2Frobotang.co.nz%2Fprojects%2Frobotics%2Fcustom-player-plugins%2F&h=433&w=541&tbnid=VFJNeto0bLSuqM%3A&zoom=1&docid=XBYXusUqjIUDAM&ei=HZZ1VbeoJaTLyAPNk4CYBg&tbm=isch&client=ubuntu&iact=rc&uact=3&dur=221&page=1&start=0&ndsp=38&ved=0CDAQrQMwBQ
+
+http://www.google.de/imgres?imgurl=http%3A%2F%2Fanswers.opencv.org%2Fupfiles%2F14146035044346141.jpg&imgrefurl=http%3A%2F%2Fanswers.opencv.org%2Fquestion%2F45891%2Fkeypoint-matching-on-occupancy-grid-maps%2F&h=317&w=875&tbnid=T5zLu9yaL0R2-M%3A&zoom=1&docid=iTnCfNd-Jk67dM&ei=n5Z1Vcz0K-GtygO6koL4Dw&tbm=isch&client=ubuntu&iact=rc&uact=3&dur=232&page=7&start=304&ndsp=51&ved=0CDUQrQMwEDisAg
+
+
+

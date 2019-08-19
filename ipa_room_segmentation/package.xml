@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<package format="2">
+	<name>ipa_room_segmentation</name>
+	<version>0.1.0</version>
+	<description>
+		Segmentation procedures for dividing floor maps into single rooms or areas.
+		It contains four different algorithms for doing this:
+			1. A morphological algorithm, which provides morphological operations on the map and finds the room-like areas with opencv. (common/src/morphological_segmentation.cpp)
+			2. A distance-transformation based algorithm, which first produces a distance-transformed map using opencv, then takes a variable threshold over the map, coloring everything
+			   above it white, and finds the areas of the rooms in the threshold-map. (common/src/distance_segmentation.cpp)
+			3. A voronoi-based algorithm, which produces a generalized voronoi-diagram in the map, finds critical Points in a epsilon-neighborhood on the graph and partion the map with the
+			   borders trough this critical Points. (common/src/vornoi_segmentation.cpp)
+			4. A semantic-labeling algorithm, which calculates simple single-valued features for a given Position and classifies to which class (room, hallway) this Position belongs using
+			   Ada-Boost from opencv. (common/src/semantic_segmentation.cpp)
+			5. A mix of the semantic-labeling and the voronoi-based algorithm, called voronoi-random-fields. It creates a conditional-random-field out of a pruned generalized Voronoi-graph
+			   and uses the weak-responses of the AdaBoost classifiers to find the best labels for each node. Advantage of this over the semantic labeling is that it can take care of
+			   neighbor-relations, which allows to detect doorways, as well as rooms and hallways. (common/src/voronoi_random_field_segmentation.cpp)
+		For more detailed descriptions see the corresponding files. This algorithms often uses OpenCV, so it's very important for these algorithms.
+	</description>
+	<author email="florian.jordan@ipa.fraunhofer.de">Florian Jordan</author>
+	<maintainer email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</maintainer>
+	<license>LGPL for academic and non-commercial use; for commercial use, please contact Fraunhofer IPA</license>
+	<url>http://wiki.ros.org/ipa_room_segmentation</url>
+
+	<buildtool_depend>catkin</buildtool_depend>
+	
+	<depend>actionlib</depend>
+	<depend>cv_bridge</depend>
+	<depend>dynamic_reconfigure</depend>
+	<depend>ipa_building_msgs</depend>
+	<depend>libdlib</depend>
+	<depend>libopencv-dev</depend>
+	<depend>nav_msgs</depend>
+	<depend>opengm</depend>
+	<depend>roscpp</depend>
+	<depend>roslib</depend>
+	<depend>sensor_msgs</depend>
+
+</package>

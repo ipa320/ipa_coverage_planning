@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<package format="2">
+	<name>ipa_building_navigation</name>
+	<version>0.1.0</version>
+	<description>
+		This package plans the navigation trough the building in the autopnp-scenario. It has the following parts/functions:
+			1. An A-star pathplanning-algorithm, which finds the shortest way between two Points in a given map. The map should be a gridmap as a OpenCV 8bit grayscale image with 0 as obstacle
+			   and 255 as reachable area. 
+			2. TSP-solving functions, which solve the TSP-Problem for a given, segmented map. The segmented map comes from the functions in the pakage ipa_room_segmentation with the 				   corresponding roomcenters. These centers need to be visited in minimal time, so a TSP-Solver is applied. There are following algorithms for this implemented:
+				I. nearest-neighbor: This algorithm takes the current Point and goes to the nearest neighbor, the distance is given by the A-star pathplanner. 
+				II. genetic-solver: This algorithm takes the path from the nearest-neighbor solver and improves it using evolutional methods. For this the given path is seen as parent, 					    which gets 7 children. These children have been mutated, meaning that the path of the parent has been changed randomly. The Mutations can be random switching of 					    centerorder or inverting random parts of the path. After these children has been made the function calculates the length of the path, using the results from the A-star 					    pathplanner, and compares the children and the parent (so 8 paths). The shortest path is chosen and becomes the new parent. This step is done at least 42 times and then 					    the algorithm checks, if the pathlength hasn't changed in the last 10 steps, if so the path is close to the optimal solution.
+				III. The Concorde-TSP-solver: The TSP-solving-library Concorde is used. See http://www.math.uwaterloo.ca/tsp/concorde/index.html for further information. 
+	</description>
+	<author email="florian.jordan@ipa.fraunhofer.de">Florian Jordan</author>
+	<maintainer email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</maintainer>
+	<license>LGPL for academic and non-commercial use; for commercial use, please contact Fraunhofer IPA</license>
+	<url>http://ros.org/wiki/ipa_building_navigation</url>
+
+	<buildtool_depend>catkin</buildtool_depend>
+	
+	<depend>actionlib</depend>
+	<depend>boost</depend>
+	<depend>cv_bridge</depend>
+	<depend>dynamic_reconfigure</depend>
+	<depend>geometry_msgs</depend>
+	<depend>ipa_building_msgs</depend>
+	<depend>libconcorde_tsp_solver</depend>
+	<depend>libopencv-dev</depend>
+	<depend>message_generation</depend>
+	<depend>roscpp</depend>
+	<depend>roslib</depend>
+	<depend>sensor_msgs</depend>
+	<depend>visualization_msgs</depend>
+
+</package>

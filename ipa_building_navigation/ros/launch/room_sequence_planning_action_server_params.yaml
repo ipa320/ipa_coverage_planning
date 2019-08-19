@@ -1,0 +1,53 @@
+# TSP Solver
+# ==========
+# indicates which TSP solver should be used
+#   1 = Nearest Neighbor
+#   2 = Genetic solver
+#   3 = Concorde solver
+# int
+tsp_solver: 3
+
+# Problem Setting
+# ===============
+# problem setting of the sequence planning problem
+#   1 = SimpleOrderPlanning (plan the optimal order of a simple set of locations)
+#   2 = CheckpointBasedPlanning (two-stage planning that creates local cliques of locations (= checkpoints) and determines
+#                                the optimal order through the members of each clique as well as the optimal order through the cliques)
+# int
+problem_setting: 2
+
+# Checkpoint-based Sequence Planning Specifics
+# ============================================
+# method that is used to plan the trolley positions (only applies to CheckpointBasedPlanning (2) problem_setting)
+#   1 = drag the trolley if it is too far away from next room
+#   2 = put rooms together in groups and calculate a corresponding trolley positions
+# int
+planning_method: 2
+
+# max A* path length between two rooms that are assigned to the same clique, in [m] (only applies to CheckpointBasedPlanning (2) problem_setting)
+# double
+max_clique_path_length: 1200.0
+
+# maximal nodes in one clique for one trolley position (only applies to CheckpointBasedPlanning (2) problem_setting)
+# int
+maximum_clique_size: 9001
+
+# General Settings
+# ================
+# the map may be downsampled during computations (e.g. of A* path lengths) in order to speed up the algorithm,
+# range of the factor [0 < factor <= 1] 
+# if set to 1 the map will have original size, if set to 0 the algorithm won't work
+# double
+map_downsampling_factor: 0.25
+
+# boolean to tell the sequence planner if it should check the given room centers for accessibility from the starting position
+# bool
+check_accessibility_of_rooms: true
+
+# boolean to tell the server if the map with the sequence drawn in should be returned
+# bool
+return_sequence_map: false
+
+# displays the map with paths upon service call (only if return_sequence_map=true)
+# bool
+display_map: false

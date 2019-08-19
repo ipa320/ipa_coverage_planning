@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+
+	<!--	-->
+	<node ns="room_exploration" pkg="ipa_room_exploration" type="room_exploration_evaluation" name="room_exploration_evaluation" output="screen"/>
+
+</launch>

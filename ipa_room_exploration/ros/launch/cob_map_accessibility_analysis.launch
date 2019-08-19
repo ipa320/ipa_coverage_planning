@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+
+	<!-- start map accessibility analysis -->
+	<node ns="room_exploration" pkg="cob_map_accessibility_analysis" type="map_accessibility_analysis_server" name="map_accessibility_analysis" output="log">	<!-- ns=namespace (arbitrary), type=name of executable, name=node name (arbitrary) -->
+	<!--launch-prefix="/usr/bin/gdb"-->
+		<rosparam command="load" file="$(find ipa_room_exploration)/ros/launch/cob_map_accessibility_analysis_params.yaml"/>
+		<remap from="~map" to="/map"/>
+		<remap from="~obstacles" to="/move_base/global_costmap/obstacles"/>
+		<remap from="~inflated_obstacles" to="/move_base/local_costmap/inflated_obstacles"/>
+	</node>
+
+
+</launch>

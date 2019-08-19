@@ -1,0 +1,2 @@
+geometry_msgs/Polygon room_min_max		# first point provides the minimum (x,y)-coordinate values of the rooms, second point provides the maximum (x,y)-coordinate values of the rooms
+geometry_msgs/Point32 room_center		# provides the (x,y)-coordinate values of the room centers

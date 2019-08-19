@@ -1,0 +1,19 @@
+# name of the map coordinate system
+# string
+map_frame: "map"
+
+# name of the robot base frame
+# string
+robot_frame: "base_link"
+
+# radius of the circular coverage device, in [m]
+# double
+coverage_radius: 0.25
+
+# the offset of the coverage circle from the robot center, [x,y,z] in [m]
+# double[3]
+coverage_circle_offset_transform: [0.29035, -0.114, 0.]
+
+# the robot trajectory is only recorded if this is true, usually it should be false on startup (can also be set from dynamic reconfigure)
+# bool
+robot_trajectory_recording_active: false

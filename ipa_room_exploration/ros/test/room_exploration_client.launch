@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<launch>
+
+	<arg name="env_pack" default="$(find cob_default_env_config)" />
+	<arg name="robot_env" default="$(optenv ROBOT_ENV !!NO_ROBOT_ENV_SET!!)"/>
+	<arg name="robot_radius" default="0.5"/>
+	<arg name="coverage_radius" default="0.5"/>
+	<arg name="use_test_maps" default="true"/>
+
+	<!--  -->
+	<node ns="room_exploration" pkg="ipa_room_exploration" type="room_exploration_client" name="room_exploration_client" output="screen">
+		<rosparam file="$(arg env_pack)/envs/$(arg robot_env)/map.yaml" command="load" />
+		<param name="env_pack" value="$(arg env_pack)"/>
+		<param name="robot_env" value="$(arg robot_env)"/>
+		<param name="robot_radius" value="$(arg robot_radius)"/>
+		<param name="coverage_radius" value="$(arg coverage_radius)"/>
+		<param name="use_test_maps" value="$(arg use_test_maps)"/>
+	</node>
+
+
+</launch>

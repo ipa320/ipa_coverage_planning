@@ -1,0 +1,17 @@
+# goal definition
+sensor_msgs/Image input_map 				# floor plan map [mono8 format], 0=obstacle or unknown, 255=free space 
+float32 map_resolution						# the resolution of the map in [meter/cell]
+geometry_msgs/Pose map_origin				# the origin of the map in [meter]
+ipa_building_msgs/RoomInformation[] room_information_in_pixel		# room data (min/max coordinates, center coordinates) measured in pixels
+float64 robot_radius						# the robot footprint radius [m], used for excluding areas from path planning that could not be visited by the robot
+geometry_msgs/Pose robot_start_coordinate	# current robot location (used to determine the closest checkpoint in the sequence of checkpoints) [in meter]
+
+---
+
+# result definition
+ipa_building_msgs/RoomSequence[] checkpoints			# sequence of checkpoints, should be ordered in optimized traveling salesman sequence
+														# (checkpoint = a clique of rooms close [in terms of robot driving distance] to each other,
+														#               and a central [in terms of rooms in the group] checkpoint location)
+sensor_msgs/Image sequence_map							# map that has the calculated sequence drawn in
+---
+#feedback definition

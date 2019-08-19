@@ -1,0 +1,60 @@
+# this variable selects the algorithm for room segmentation
+# 1 = morphological segmentation
+# 2 = distance segmentation
+# 3 = Voronoi segmentation
+# 4 = semantic segmentation
+# 5 = voronoi random field segmentation
+# 99 = passthrough segmentation
+# int
+room_segmentation_algorithm: 3
+
+# displays the segmented map upon service call
+# bool
+display_segmented_map: false
+
+# publishes the segmented map as grid map upon service call
+# bool
+publish_segmented_map: true
+
+# train the semantic segmentation and the voronoi random field segmentation
+train_semantic: false
+train_vrf: false
+
+# room area factor-> Set the limitation of area of the room -------> in [m^2]
+#morphological segmentation: 47.0 - 0.8 (means the room area after eroding/shrinking s.t. too small/big contours are not treated as rooms)
+room_area_factor_upper_limit_morphological: 47.0
+room_area_factor_lower_limit_morphological: 0.8
+
+#distance segmentation: 163.0 - 0.35 (means the room area after decreasing the boundary for the binary filter s.t. too small/big contours are not treated as rooms)
+room_area_factor_upper_limit_distance: 163.0
+room_area_factor_lower_limit_distance: 0.35
+
+#Voronoi segmentation: 120.0 - 1.53 (means the max/min area that an area separated by critical lines is allowed to have)
+room_area_factor_upper_limit_voronoi: 1000000.0        #120.0
+room_area_factor_lower_limit_voronoi: 0.1              #1.53
+
+#Semantic Segmentation: 23.0 - 1.0 (means the max/min area a connected classified region is allowed to have)
+room_area_factor_upper_limit_semantic: 1000000.0 # if you choose this value small (i.e 23.0) then too big hallway contours are randomly separated into smaller regions using a watershed algorithm, which can look bad
+room_area_factor_lower_limit_semantic: 1.0
+
+#Voronoi random field segmentation: 1000000.0 - 1.53 (means the max/min area a connected classified region is allowed to have)
+room_area_upper_limit_voronoi_random: 1000000.0
+room_area_lower_limit_voronoi_random: 1.53
+
+#Passthrough
+room_area_factor_upper_limit_passthrough: 1000000.0        #120.0
+room_area_factor_lower_limit_passthrough: 1.0
+
+#parameters for the voronoi segmentation that specify the neighborhood for critical Point extraction and the distance between critical Points. 
+voronoi_neighborhood_index: 280         #larger value sets a larger neighborhood for searching critical points --> int
+max_iterations: 150                     #sets the maximal number of iterations to search for a neighborhood, also used for the vrf segmentation --> int
+min_critical_point_distance_factor: 0.5 #1.6 #minimal distance factor between two critical points before one of it gets eliminated --> double
+max_area_for_merging: 12.5              #maximal area [m²] of a room that should be merged with its surrounding rooms, also used for the voronoi random field segmentation
+
+#parameters for the voronoi random field segmentation that specify the size of the neighborhood generated on the Voronoi graph, the minimal
+#size this neighborhood can have, how far base nodes for each node on the graph need to be apart and how many iterations the inference 
+#max. should do
+voronoi_random_field_epsilon_for_neighborhood: 5    #larger value sets larger neighborhood, concentrated in a node of the conditional random field --> int
+min_neighborhood_size: 4                            #min size of the above mentioned neighborhood --> int
+min_voronoi_random_field_node_distance: 7.0         #min distance the base nodes for each crf node need to be apart --> double
+max_voronoi_random_field_inference_iterations: 9000 #max number of iterations the inference algorithm should do --> int

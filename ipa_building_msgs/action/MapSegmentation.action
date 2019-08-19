@@ -1,0 +1,39 @@
+# Map Segmentation action
+# Provides interface to get the segmented map
+
+# goal definition
+sensor_msgs/Image input_map				# the action server need a map as a input image to segment it, IMPORTANT: The algorithm needs a black and white 8bit single-channel image (format 8UC1), which is 0 (black) for obstacles and 255 (white) for free space
+float32 map_resolution					# the resolution of the map in [meter/cell]
+geometry_msgs/Pose map_origin			# the origin of the map in [meter]
+bool return_format_in_pixel				# return room data (see below) in [pixel]
+bool return_format_in_meter				# return room data (see below) in [meter]
+float32 robot_radius					# in [meter]; if this variable is set to a value greater than 0, the room centers are chosen at locations that are reachable from neighboring rooms (i.e. not inside the legs of a table surrounded by chairs)
+int32 room_segmentation_algorithm		# optionally overrides the parameterized segmentation method (if -1 it just takes the preset)
+										#  0 = take the preset (parameterized) method
+										#  1 = MorphologicalSegmentation
+										#  2 = DistanceSegmentation
+										#  3 = VoronoiSegmentation
+										#  4 = SemanticSegmentation
+										#  5 = RandomFieldSegmentation
+										# 99 = PassThrough (just get a pre-segmented map into the right output format)
+
+---
+
+# result definition
+sensor_msgs/Image segmented_map			# the action server returns a map segmented into rooms which carry the segment number in every pixel cell, format 32SC1, room labels from 1 to N, room with label i -> access to room_information_in_pixel[i-1]
+float32 map_resolution					# the resolution of the segmented map in [meter/cell]
+geometry_msgs/Pose map_origin			# the origin of the segmented map in [meter]
+# for the following data: value in pixel can be obtained when the value of [return_format_in_pixel] from goal definition is true
+# the computed room centers are not the centroids of the room cells (which could be located outside of the rooms)
+# but accessible map pixels located within the center of the largest free space in the room
+ipa_building_msgs/RoomInformation[] room_information_in_pixel		# room data (min/max coordinates, center coordinates) measured in pixels
+# for the following data: value in meter can be obtained when the value of [return_format_in_meter] from goal definition is true
+# the computed room centers are not the centroids of the room cells (which could be located outside of the rooms)
+# but accessible map pixels located within the center of the largest free space in the room
+ipa_building_msgs/RoomInformation[] room_information_in_meter		# room data (min/max coordinates, center coordinates) measured in meters
+# if wanted the 5th algorithm (vrf) can return single points labeled as a doorway
+geometry_msgs/Point32[] doorway_points
+
+---
+
+#feedback definition

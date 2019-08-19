@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<package format="2">
+	<name>ipa_room_exploration</name>
+	<version>0.1.2</version>
+	<description>
+		This package plans the navigation in a room such that the floor of this room gets inspected completely for dirt.
+	</description>
+	<author email="florian.jordan@ipa.fraunhofer.de">Florian Jordan</author>
+	<maintainer email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</maintainer>
+	<license>LGPL for academic and non-commercial use; for commercial use, please contact Fraunhofer IPA</license>
+	<url>http://ros.org/wiki/ipa_room_exploration</url>
+
+	<buildtool_depend>catkin</buildtool_depend>
+
+
+	<depend>angles</depend>
+	<depend>boost</depend>
+	<depend>cmake_modules</depend>
+	<depend>cob_map_accessibility_analysis</depend>
+	<depend>coinor-libcbc-dev</depend>
+	<depend>coinor-libcbc3</depend>
+	<depend>coinor-libcgl-dev</depend>
+	<depend>coinor-libclp-dev</depend>
+	<depend>coinor-libcoinutils-dev</depend>
+	<depend>coinor-libosi-dev</depend>
+	<depend>cv_bridge</depend>
+	<depend>dynamic_reconfigure</depend>
+	<!--depend>eigen</depend-->
+	<depend>eigen_conversions</depend>
+	<depend>geometry_msgs</depend>
+	<depend>ipa_building_msgs</depend>
+	<depend>ipa_building_navigation</depend>
+	<depend>laser_geometry</depend>
+	<depend>libconcorde_tsp_solver</depend>
+	<depend>libopencv-dev</depend>
+	<depend>move_base_msgs</depend>
+	<depend>nav_msgs</depend>
+	<depend>roscpp</depend>
+	<depend>roslib</depend>
+	<depend>sensor_msgs</depend>
+	<depend>std_msgs</depend>
+	<depend>std_srvs</depend>
+	<depend>tf</depend>
+	<depend>visualization_msgs</depend>
+
+</package>

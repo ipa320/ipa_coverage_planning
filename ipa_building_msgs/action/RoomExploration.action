@@ -1,0 +1,24 @@
+# Room Exploration action
+# sends an occupancy grid map of a room to the server, which plans a path trough it to cover or inspect the whole room by a device or camera
+
+# goal definition
+sensor_msgs/Image input_map				# the action server needs a map as a input image to segment it,
+										# IMPORTANT: The algorithm needs a black and white 8bit single-channel image (format 8UC1), which is 0 (black) for obstacles and 255 (white) for free space
+										#            todo: the image needs to be vertically mirrored compared to the map in RViz for using right coordinate systems
+										#                  OccupancyGrid map = origin lower left corner, image = origin upper left corner
+										#            todo: take the OccupanyGrid message here instead to avoid confusion and deal with map coordinates in server
+float32 map_resolution					# the resolution of the map in [meter/cell]
+geometry_msgs/Pose map_origin			# the origin of the map in [meter], NOTE: rotations are not supported for now
+float32 robot_radius					# effective robot radius, taking the enlargement of the costmap into account, in [meter]
+float32 coverage_radius					# radius that is used to plan the coverage planning for the robot and not the field of view, assuming that the part that needs to cover everything (e.g. the cleaning part) can be represented by a fitting circle (e.g. smaller than the actual part to ensure coverage), in [meter]
+geometry_msgs/Point32[] field_of_view	# the 4 points that define the field of view of the robot, relatively to the robot coordinate system (with x pointing forwards and y pointing to the left), in [meter]
+geometry_msgs/Point32 field_of_view_origin	# the mounting position of the camera spanning the field of view, relative to the robot center (x-axis points to robot's front side, y-axis points to robot's left side, z-axis upwards), in [meter]
+geometry_msgs/Pose2D starting_position	# starting pose of the robot in the room coordinate system [meter,meter,rad]
+int32 planning_mode						# 1 = plans a path for coverage with the robot footprint, 2 = plans a path for coverage with the robot's field of view
+
+---
+# result definition
+geometry_msgs/Pose2D[] coverage_path			# when the server should return the coverage path, this is done returning the points in an array that shows the order of visiting
+geometry_msgs/PoseStamped[] coverage_path_pose_stamped			# (same content as coverage_path but different format) when the server should return the coverage path, this is done returning the points in an array that shows the order of visiting
+---
+# feedback definition

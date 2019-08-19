@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<launch>
+
+
+	<!--  -->
+	<node ns="room_segmentation" pkg="ipa_room_segmentation" type="room_segmentation_server" name="room_segmentation_server" output="screen" respawn="true" respawn_delay="2">
+		<rosparam command="load" file="$(find ipa_room_segmentation)/ros/launch/room_segmentation_action_server_params.yaml"/>
+		
+		<!-- Parameters for Semantic segmentation -->
+		<!-- list of files containing maps with room labels for training the semantic segmentation -->
+		<rosparam param="semantic_training_maps_room_file_list" subst_value="true">["$(find ipa_room_segmentation)/common/files/training_maps/lab_ipa_room_training_map.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/lab_d_room_training_map.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/Freiburg52_scan_room_training.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/Freiburg52_scan_furnitures_room_training.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/lab_intel_furnitures_room_training_map.png"]</rosparam>
+
+		<!-- list of files containing maps with hallway labels for training the semantic segmentation -->
+		<rosparam param="semantic_training_maps_hallway_file_list" subst_value="true">["$(find ipa_room_segmentation)/common/files/training_maps/lab_ipa_hallway_training_map.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/lab_a_hallway_training_map.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/Freiburg52_scan_hallway_training.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/Freiburg52_scan_furnitures_hallway_training.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/lab_intel_hallway_training_map.png"]</rosparam>
+
+		<!-- Parameters for VRF segmentation -->
+		<!-- list of files containing the original maps for training the VRF segmentation -->
+		<rosparam param="vrf_original_maps_file_list" subst_value="true">["$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/original_maps/Fr52_original.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/original_maps/Fr101_original.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/original_maps/lab_intel_original.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/original_maps/lab_d_furnitures_original.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/original_maps/lab_ipa_original.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/original_maps/NLB_original.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/original_maps/office_e_original.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/original_maps/office_h_original.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/original_maps/lab_c_furnitures_original.png"]</rosparam>
+		
+		<!-- list of files containing the labeled maps for training the VRF segmentation -->
+		<rosparam param="vrf_training_maps_file_list" subst_value="true">["$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/training_maps/training_Fr52.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/training_maps/training_Fr101.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/training_maps/training_intel.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/training_maps/training_lab_d_furniture.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/training_maps/training_lab_ipa.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/training_maps/training_NLB_furniture.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/training_maps/training_office_e.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/training_maps/training_office_h.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/training_maps/training_lab_c_furnitures.png"]</rosparam>
+		
+		<!-- list of files containing the Voronoi maps for training the VRF segmentation - these files are optional for training and just yield a speedup -->
+		<rosparam param="vrf_voronoi_maps_file_list" subst_value="true">["$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/voronoi_maps/Fr52_voronoi.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/voronoi_maps/Fr101_voronoi.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/voronoi_maps/lab_intel_voronoi.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/voronoi_maps/lab_d_furnitures_voronoi.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/voronoi_maps/lab_ipa_voronoi.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/voronoi_maps/NLB_voronoi.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/voronoi_maps/office_e_voronoi.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/voronoi_maps/office_h_voronoi.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/voronoi_maps/lab_c_furnitures_voronoi.png"]</rosparam>
+
+		<!-- list of files containing the Voronoi node maps for training the VRF segmentation - these files are optional for training and just yield a speedup -->
+		<rosparam param="vrf_voronoi_node_maps_file_list" subst_value="true">["$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/Fr52_voronoi_nodes.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/Fr101_voronoi_nodes.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/lab_intel_voronoi_nodes.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/lab_d_furnitures_voronoi_nodes.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/lab_ipa_voronoi_nodes.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/NLB_voronoi_nodes.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/office_e_voronoi_nodes.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/office_h_voronoi_nodes.png",
+"$(find ipa_room_segmentation)/common/files/training_maps/voronoi_random_field_training/voronoi_node_maps/lab_c_furnitures_voronoi_nodes.png"]</rosparam>
+	</node>
+
+</launch>
