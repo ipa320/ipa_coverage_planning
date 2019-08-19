@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package>
+	<name>ipa_coverage_planning</name>
+	<version>0.1.0</version>
+	<description>This meta-package includes open source software for efficient coverage (cleaning, inspection, ...) of buildings.</description>
+	<license>LGPL for academic and non-commercial use; for commercial use, please contact Fraunhofer IPA</license>
+	<!--url type="website">http://ros.org/wiki/autopnp</url-->
+	<!-- <url type="bugtracker"></url> -->
+	<author email="florian.jordan@ipa.fraunhofer.de">Florian Jordan</author>
+	<maintainer email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</maintainer>
+
+	<buildtool_depend>catkin</buildtool_depend>
+
+	<run_depend>ipa_building_msgs</run_depend>
+	<run_depend>ipa_building_navigation</run_depend>
+	<run_depend>ipa_room_exploration</run_depend>
+	<run_depend>ipa_room_segmentation</run_depend>
+
+	<export>
+		<metapackage/>
+	</export>
+</package>
