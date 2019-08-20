@@ -148,7 +148,7 @@ add_dependencies(TSP_evaluation ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXP
 ## Install ##
 #############
 # Mark executables and/or libraries for installation
-install(TARGETS room_sequence_planning_server room_sequence_planning_client #a_star_tester tester
+install(TARGETS tsp_solvers room_sequence_planning_server room_sequence_planning_client #a_star_tester tester
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
