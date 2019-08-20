@@ -1,0 +1,26 @@
+language: generic
+services:
+  - docker
+
+notifications:
+  email:
+    on_success: change
+    on_failure: always
+env:
+  global:
+    - ROS_REPO=ros
+  matrix:
+    - ROS_DISTRO=indigo UPSTREAM_WORKSPACE=file
+    - ROS_DISTRO=indigo UPSTREAM_WORKSPACE=debian
+    - ROS_DISTRO=kinetic UPSTREAM_WORKSPACE=file
+    - ROS_DISTRO=kinetic UPSTREAM_WORKSPACE=debian
+    - ROS_DISTRO=melodic UPSTREAM_WORKSPACE=file
+    - ROS_DISTRO=melodic UPSTREAM_WORKSPACE=debian
+matrix:
+  allow_failures:
+    - env: ROS_DISTRO=melodic UPSTREAM_WORKSPACE=debian
+install:
+  - git clone https://github.com/ros-industrial/industrial_ci.git .ci_config
+script:
+  - .ci_config/travis.sh
+#  - ./travis.sh  # Enable this when you have a package-local script 
