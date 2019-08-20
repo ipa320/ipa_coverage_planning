@@ -6,7 +6,6 @@ set(catkin_RUN_PACKAGES
 	cv_bridge
 	geometry_msgs
 	ipa_building_msgs
-	libconcorde_tsp_solver
 	roscpp
 	roslib
 	sensor_msgs

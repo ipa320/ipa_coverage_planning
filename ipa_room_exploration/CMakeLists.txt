@@ -12,7 +12,6 @@ set(catkin_RUN_PACKAGES
 	ipa_building_msgs
 	ipa_building_navigation
 	laser_geometry
-	libconcorde_tsp_solver
 	move_base_msgs
 	nav_msgs
 	roscpp
