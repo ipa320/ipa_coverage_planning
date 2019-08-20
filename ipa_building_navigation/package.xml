@@ -24,7 +24,7 @@
 	<depend>dynamic_reconfigure</depend>
 	<depend>geometry_msgs</depend>
 	<depend>ipa_building_msgs</depend>
-	<depend>libconcorde_tsp_solver</depend>
+        <!--depend>libconcorde_tsp_solver</depend-->
 	<depend>libopencv-dev</depend>
 	<depend>message_generation</depend>
 	<depend>roscpp</depend>
