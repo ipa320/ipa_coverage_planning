@@ -18,9 +18,6 @@ set(catkin_BUILD_PACKAGES
 	dynamic_reconfigure
 )
 
-# build with c++11
-add_compile_options(-std=c++11)
-
 ## Find catkin macros and libraries
 find_package(catkin REQUIRED COMPONENTS
 	${catkin_BUILD_PACKAGES}

@@ -6,7 +6,6 @@ set(catkin_RUN_PACKAGES
 	cv_bridge
 	geometry_msgs
 	ipa_building_msgs
-	libconcorde_tsp_solver
 	roscpp
 	roslib
 	sensor_msgs
@@ -17,9 +16,6 @@ set(catkin_BUILD_PACKAGES
 	${catkin_RUN_PACKAGES}
 	dynamic_reconfigure
 )
-
-# build with c++11
-add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 find_package(catkin REQUIRED COMPONENTS
@@ -151,7 +147,7 @@ add_dependencies(TSP_evaluation ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXP
 ## Install ##
 #############
 # Mark executables and/or libraries for installation
-install(TARGETS room_sequence_planning_server room_sequence_planning_client #a_star_tester tester
+install(TARGETS tsp_solvers room_sequence_planning_server room_sequence_planning_client #a_star_tester tester
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

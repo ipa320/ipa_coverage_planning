@@ -31,7 +31,7 @@
 	<depend>ipa_building_msgs</depend>
 	<depend>ipa_building_navigation</depend>
 	<depend>laser_geometry</depend>
-	<depend>libconcorde_tsp_solver</depend>
+        <!--depend>libconcorde_tsp_solver</depend-->
 	<depend>libopencv-dev</depend>
 	<depend>move_base_msgs</depend>
 	<depend>nav_msgs</depend>

@@ -12,7 +12,6 @@ set(catkin_RUN_PACKAGES
 	ipa_building_msgs
 	ipa_building_navigation
 	laser_geometry
-	libconcorde_tsp_solver
 	move_base_msgs
 	nav_msgs
 	roscpp
@@ -28,9 +27,6 @@ set(catkin_BUILD_PACKAGES
 	${catkin_RUN_PACKAGES}
 	dynamic_reconfigure
 )
-
-# build with c++11
-add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 find_package(catkin REQUIRED COMPONENTS

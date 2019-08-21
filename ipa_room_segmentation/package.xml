@@ -25,6 +25,7 @@
 	<buildtool_depend>catkin</buildtool_depend>
 	
 	<depend>actionlib</depend>
+	<depend>boost</depend>
 	<depend>cv_bridge</depend>
 	<depend>dynamic_reconfigure</depend>
 	<depend>ipa_building_msgs</depend>
