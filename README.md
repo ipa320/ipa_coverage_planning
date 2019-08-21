@@ -1,4 +1,5 @@
 # ipa_coverage_planning
+Algorithms for floor plan segmentation and systematic coverage driving patterns
 
 ## ROS Distro Support
 
