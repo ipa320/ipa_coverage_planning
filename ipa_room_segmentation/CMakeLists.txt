@@ -55,6 +55,7 @@ INCLUDE_DIRS
 	common/include
 	ros/include
 LIBRARIES
+        ${PROJECT_NAME}
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
 DEPENDS
@@ -149,7 +150,7 @@ add_dependencies(evaluation
 ## Install ##
 #############
 ## Mark executables and/or libraries for installation
-install(TARGETS   room_segmentation_server   room_segmentation_client   evaluation
+install(TARGETS ${PROJECT_NAME}  room_segmentation_server   room_segmentation_client   evaluation
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
