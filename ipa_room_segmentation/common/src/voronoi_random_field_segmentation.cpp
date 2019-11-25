@@ -1228,10 +1228,10 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 		if (boost::filesystem::exists(boost::filesystem::path(filename_room)) == false)
 			boost::filesystem::copy_file(filename_room_default, filename_room);
 #if CV_MAJOR_VERSION == 2
-		room_boost_.load(filename_room.c_str());
+    room_boost_.load<cv::ml::Boost>(filename_room.c_str());
 #else
 		//room_boost_->load<cv::ml::Boost>(filename_room.c_str());
-		room_boost_->load(filename_room.c_str());
+    room_boost_->load<cv::ml::Boost>(filename_room.c_str());
 #endif
 
 		std::string filename_hallway = classifier_storage_path + "vrf_hallway_boost.xml";
@@ -1239,10 +1239,10 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 		if (boost::filesystem::exists(boost::filesystem::path(filename_hallway)) == false)
 			boost::filesystem::copy_file(filename_hallway_default, filename_hallway);
 #if CV_MAJOR_VERSION == 2
-		hallway_boost_.load(filename_hallway.c_str());
+    hallway_boost_.load<cv::ml::Boost>(filename_hallway.c_str());
 #else
 		//hallway_boost_->load<cv::ml::Boost>(filename_hallway.c_str());
-		hallway_boost_->load(filename_hallway.c_str());
+    hallway_boost_->load<cv::ml::Boost>(filename_hallway.c_str());
 #endif
 
 		std::string filename_doorway = classifier_storage_path + "vrf_doorway_boost.xml";
@@ -1250,10 +1250,10 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 		if (boost::filesystem::exists(boost::filesystem::path(filename_doorway)) == false)
 			boost::filesystem::copy_file(filename_doorway_default, filename_doorway);
 #if CV_MAJOR_VERSION == 2
-		doorway_boost_.load(filename_doorway.c_str());
+    doorway_boost_.load<cv::ml::Boost>(filename_doorway.c_str());
 #else
 		//doorway_boost_->load<cv::ml::Boost>(filename_doorway.c_str());
-		doorway_boost_->load(filename_doorway.c_str());
+    doorway_boost_->load<cv::ml::Boost>(filename_doorway.c_str());
 #endif
 
 		// set the trained-Boolean true to only load parameters once

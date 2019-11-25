@@ -233,9 +233,9 @@ void AdaboostClassifier::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat& s
 		if (boost::filesystem::exists(boost::filesystem::path(filename_room)) == false)
 			boost::filesystem::copy_file(filename_room_default, filename_room);
 #if CV_MAJOR_VERSION == 2
-		room_boost_.load(filename_room.c_str());
+    room_boost_.load<cv::ml::Boost>(filename_room.c_str());
 #else
-		room_boost_->load(filename_room.c_str());
+    room_boost_->load<cv::ml::Boost>(filename_room.c_str());
 #endif
 
 		std::string filename_hallway = classifier_storage_path + "semantic_hallway_boost.xml";
@@ -243,9 +243,9 @@ void AdaboostClassifier::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat& s
 		if (boost::filesystem::exists(boost::filesystem::path(filename_hallway)) == false)
 			boost::filesystem::copy_file(filename_hallway_default, filename_hallway);
 #if CV_MAJOR_VERSION == 2
-		hallway_boost_.load(filename_hallway.c_str());
+    hallway_boost_.load<cv::ml::Boost>(filename_hallway.c_str());
 #else
-		hallway_boost_->load(filename_hallway.c_str());
+    hallway_boost_->load<cv::ml::Boost>(filename_hallway.c_str());
 #endif
 
 		trained_ = true;
