@@ -62,6 +62,7 @@
 #include <boost/filesystem.hpp>
 
 #include <ipa_room_segmentation/timer.h>
+#include <ipa_room_segmentation/cv_boost_loader.h>
 
 // This function is the optimization function L(w) = -1 * sum(i)(log(p(y_i|MB(y_i, w), x)) + ((w - w_r)^T (w - w_r)) / 2 * sigma^2)
 // to find the optimal weights for the given prelabeled map. to find these the function has to be minimized.
@@ -1227,34 +1228,19 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 		std::string filename_room_default = classifier_default_path + "vrf_room_boost.xml";
 		if (boost::filesystem::exists(boost::filesystem::path(filename_room)) == false)
 			boost::filesystem::copy_file(filename_room_default, filename_room);
-#if CV_MAJOR_VERSION == 2
-		room_boost_.load(filename_room.c_str());
-#else
-		//room_boost_->load<cv::ml::Boost>(filename_room.c_str());
-		room_boost_->load(filename_room.c_str());
-#endif
+		loadBoost(room_boost_,filename_room);
 
 		std::string filename_hallway = classifier_storage_path + "vrf_hallway_boost.xml";
 		std::string filename_hallway_default = classifier_default_path + "vrf_hallway_boost.xml";
 		if (boost::filesystem::exists(boost::filesystem::path(filename_hallway)) == false)
 			boost::filesystem::copy_file(filename_hallway_default, filename_hallway);
-#if CV_MAJOR_VERSION == 2
-		hallway_boost_.load(filename_hallway.c_str());
-#else
-		//hallway_boost_->load<cv::ml::Boost>(filename_hallway.c_str());
-		hallway_boost_->load(filename_hallway.c_str());
-#endif
+		loadBoost(hallway_boost_,filename_hallway);
 
 		std::string filename_doorway = classifier_storage_path + "vrf_doorway_boost.xml";
 		std::string filename_doorway_default = classifier_default_path + "vrf_doorway_boost.xml";
 		if (boost::filesystem::exists(boost::filesystem::path(filename_doorway)) == false)
 			boost::filesystem::copy_file(filename_doorway_default, filename_doorway);
-#if CV_MAJOR_VERSION == 2
-		doorway_boost_.load(filename_doorway.c_str());
-#else
-		//doorway_boost_->load<cv::ml::Boost>(filename_doorway.c_str());
-		doorway_boost_->load(filename_doorway.c_str());
-#endif
+		loadBoost(doorway_boost_,filename_doorway);
 
 		// set the trained-Boolean true to only load parameters once
 		trained_boost_ = true;

@@ -91,6 +91,7 @@ add_executable(room_segmentation_server
 	common/src/room_class.cpp
 	common/src/voronoi_random_field_segmentation.cpp
 	common/src/clique_class.cpp
+	common/src/cv_boost_loader.cpp
 	common/src/voronoi_random_field_features.cpp)
 target_compile_options(room_segmentation_server PRIVATE ${OpenMP_FLAGS})
 add_dependencies(room_segmentation_server
