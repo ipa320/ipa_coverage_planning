@@ -2,6 +2,7 @@
 
 #include <ipa_room_segmentation/wavefront_region_growing.h>
 #include <ipa_room_segmentation/contains.h>
+#include <ipa_room_segmentation/cv_boost_loader.h>
 
 #include <ipa_room_segmentation/timer.h>
 
@@ -232,21 +233,13 @@ void AdaboostClassifier::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat& s
 		std::string filename_room_default = classifier_default_path + "semantic_room_boost.xml";
 		if (boost::filesystem::exists(boost::filesystem::path(filename_room)) == false)
 			boost::filesystem::copy_file(filename_room_default, filename_room);
-#if CV_MAJOR_VERSION == 2
-    room_boost_.load(filename_room.c_str());
-#else
-    room_boost_->load<cv::ml::Boost>(filename_room.c_str());
-#endif
+		loadBoost(room_boost_, filename_room);
 
 		std::string filename_hallway = classifier_storage_path + "semantic_hallway_boost.xml";
 		std::string filename_hallway_default = classifier_default_path + "semantic_hallway_boost.xml";
 		if (boost::filesystem::exists(boost::filesystem::path(filename_hallway)) == false)
 			boost::filesystem::copy_file(filename_hallway_default, filename_hallway);
-#if CV_MAJOR_VERSION == 2
-    hallway_boost_.load(filename_hallway.c_str());
-#else
-    hallway_boost_->load<cv::ml::Boost>(filename_hallway.c_str());
-#endif
+		loadBoost(hallway_boost_,filename_hallway);
 
 		trained_ = true;
 		ROS_INFO("Loaded training results.");
