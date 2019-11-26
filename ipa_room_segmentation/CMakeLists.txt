@@ -94,6 +94,7 @@ add_library(${PROJECT_NAME}
 	common/src/room_class.cpp
 	common/src/voronoi_random_field_segmentation.cpp
 	common/src/clique_class.cpp
+	common/src/cv_boost_loader.cpp
 	common/src/voronoi_random_field_features.cpp
 )
 target_link_libraries(${PROJECT_NAME}

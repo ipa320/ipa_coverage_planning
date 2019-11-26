@@ -56,7 +56,7 @@
  * If not, see <http://www.gnu.org/licenses/>.
  *
  ****************************************************************/
-
+#pragma once
 #include "ros/ros.h"
 
 #include <opencv2/opencv.hpp>
