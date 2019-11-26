@@ -14,9 +14,6 @@ find_package(catkin REQUIRED COMPONENTS
 	std_msgs
 )
 
-# build with c++11
-add_compile_options(-std=c++11)
-
 #######################################
 ## Declare ROS messages and services ##
 #######################################

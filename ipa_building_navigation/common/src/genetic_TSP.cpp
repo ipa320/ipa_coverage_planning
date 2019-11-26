@@ -214,7 +214,7 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& path_length_Ma
 	if(path_length_Matrix.rows > 2) //check if graph has at least three members, if not the algorithm won't work properly
 	{
 		bool changed_path = false; //this variable checks if the path has been changed in the mutation process
-		int changeing_counter = const_generations_number_; //this variable is a counter for how many times a path has been the same
+		int changing_counter = const_generations_number_; //this variable is a counter for how many times a path has been the same
 
 		int number_of_generations = 0;
 
@@ -236,14 +236,14 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& path_length_Ma
 			{
 				if (changed_path)
 				{
-					changeing_counter = const_generations_number_; //reset the counting-variable
+					changing_counter = const_generations_number_; //reset the counting-variable
 				}
 				else
 				{
-					changeing_counter -= 1; //decrease the counting-variable by 1
+					changing_counter -= 1; //decrease the counting-variable by 1
 				}
 			}
-		} while (changeing_counter > 0 || number_of_generations < min_number_of_generations_);
+		} while (changing_counter > 0 || number_of_generations < min_number_of_generations_);
 	}
 
 	//return the calculated path without the last node (same as start node)
