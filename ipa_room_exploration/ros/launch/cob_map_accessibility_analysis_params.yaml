@@ -4,11 +4,11 @@ approach_path_accessibility_check: true
 
 # link name of the map in tf
 # string
-map_link_name: "/map"
+map_link_name: "map"
 
 # link name of the robot base in tf
 # string
-robot_base_link_name: "/base_footprint"
+robot_base_link_name: "base_footprint"
 
 # update rate for incoming messages about obstacles (provided in [Hz])
 # double

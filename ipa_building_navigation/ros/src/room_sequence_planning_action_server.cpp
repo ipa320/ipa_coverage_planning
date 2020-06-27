@@ -632,7 +632,7 @@ void RoomSequencePlanningServer::publishSequenceVisualization(const std::vector<
 		// prepare clique center circle message
 		visualization_msgs::Marker circle;
 		// Set the frame ID and timestamp.  See the TF tutorials for information on these.
-		circle.header.frame_id = "/map";
+		circle.header.frame_id = "map";
 		circle.header.stamp = ros::Time::now();
 		// Set the namespace and id for this marker.  This serves to create a unique ID
 		// Any marker sent with the same namespace and id will overwrite the old one
@@ -665,7 +665,7 @@ void RoomSequencePlanningServer::publishSequenceVisualization(const std::vector<
 		// prepare clique center text message
 		visualization_msgs::Marker text;
 		// Set the frame ID and timestamp.  See the TF tutorials for information on these.
-		text.header.frame_id = "/map";
+		text.header.frame_id = "map";
 		text.header.stamp = ros::Time::now();
 		// Set the namespace and id for this marker.  This serves to create a unique ID
 		// Any marker sent with the same namespace and id will overwrite the old one
@@ -703,7 +703,7 @@ void RoomSequencePlanningServer::publishSequenceVisualization(const std::vector<
 		{
 			visualization_msgs::Marker arrow;
 			// Set the frame ID and timestamp.  See the TF tutorials for information on these.
-			arrow.header.frame_id = "/map";
+			arrow.header.frame_id = "map";
 			arrow.header.stamp = ros::Time::now();
 			// Set the namespace and id for this marker.  This serves to create a unique ID
 			// Any marker sent with the same namespace and id will overwrite the old one
@@ -754,7 +754,7 @@ void RoomSequencePlanningServer::publishSequenceVisualization(const std::vector<
 			// prepare room center circle message
 			visualization_msgs::Marker circle;
 			// Set the frame ID and timestamp.  See the TF tutorials for information on these.
-			circle.header.frame_id = "/map";
+			circle.header.frame_id = "map";
 			circle.header.stamp = ros::Time::now();
 			// Set the namespace and id for this marker.  This serves to create a unique ID
 			// Any marker sent with the same namespace and id will overwrite the old one
@@ -787,7 +787,7 @@ void RoomSequencePlanningServer::publishSequenceVisualization(const std::vector<
 			// prepare room center text message
 			visualization_msgs::Marker text;
 			// Set the frame ID and timestamp.  See the TF tutorials for information on these.
-			text.header.frame_id = "/map";
+			text.header.frame_id = "map";
 			text.header.stamp = ros::Time::now();
 			// Set the namespace and id for this marker.  This serves to create a unique ID
 			// Any marker sent with the same namespace and id will overwrite the old one
@@ -823,7 +823,7 @@ void RoomSequencePlanningServer::publishSequenceVisualization(const std::vector<
 			// prepare room center to clique center line message
 			visualization_msgs::Marker arrow;
 			// Set the frame ID and timestamp.  See the TF tutorials for information on these.
-			arrow.header.frame_id = "/map";
+			arrow.header.frame_id = "map";
 			arrow.header.stamp = ros::Time::now();
 			// Set the namespace and id for this marker.  This serves to create a unique ID
 			// Any marker sent with the same namespace and id will overwrite the old one

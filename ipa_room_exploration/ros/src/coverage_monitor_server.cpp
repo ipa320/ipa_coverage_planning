@@ -126,7 +126,7 @@ public:
 		// prepare coverage_marker_msg message
 		visualization_msgs::Marker coverage_marker_msg;
 		// Set the frame ID and timestamp.  See the TF tutorials for information on these.
-		coverage_marker_msg.header.frame_id = "/map";
+		coverage_marker_msg.header.frame_id = "map";
 		coverage_marker_msg.header.stamp = ros::Time::now();
 		// Set the namespace and id for this marker.  This serves to create a unique ID
 		// Any marker sent with the same namespace and id will overwrite the old one
@@ -160,7 +160,7 @@ public:
 		// prepare computed_trajectory_marker_msg message
 		visualization_msgs::Marker computed_trajectory_marker_msg;
 		// Set the frame ID and timestamp.  See the TF tutorials for information on these.
-		computed_trajectory_marker_msg.header.frame_id = "/map";
+		computed_trajectory_marker_msg.header.frame_id = "map";
 		computed_trajectory_marker_msg.header.stamp = ros::Time::now();
 		// Set the namespace and id for this marker.  This serves to create a unique ID
 		// Any marker sent with the same namespace and id will overwrite the old one
@@ -193,7 +193,7 @@ public:
 		// prepare commanded_trajectory_marker_msg message
 		visualization_msgs::Marker commanded_trajectory_marker_msg;
 		// Set the frame ID and timestamp.  See the TF tutorials for information on these.
-		commanded_trajectory_marker_msg.header.frame_id = "/map";
+		commanded_trajectory_marker_msg.header.frame_id = "map";
 		commanded_trajectory_marker_msg.header.stamp = ros::Time::now();
 		// Set the namespace and id for this marker.  This serves to create a unique ID
 		// Any marker sent with the same namespace and id will overwrite the old one
