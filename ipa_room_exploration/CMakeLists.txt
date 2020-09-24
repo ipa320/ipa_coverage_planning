@@ -132,7 +132,7 @@ include_directories(
 )
 
 ### package library
-add_library(${PROJECT_NAME}
+add_library(${PROJECT_NAME} STATIC
         common/src/grid_point_explorator.cpp
         common/src/boustrophedon_explorator.cpp
         common/src/neural_network_explorator.cpp

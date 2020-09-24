@@ -89,7 +89,7 @@ add_dependencies(tsp_solvers
 )
 
 # package library
-add_library(${PROJECT_NAME}
+add_library(${PROJECT_NAME} STATIC
     common/src/maximal_clique_finder.cpp
     common/src/set_cover_solver.cpp
     common/src/trolley_position_finder.cpp

@@ -78,7 +78,7 @@ include_directories(
 )
 
 # library of the created algorithms
-add_library(${PROJECT_NAME}
+add_library(${PROJECT_NAME} STATIC
 	common/src/distance_segmentation.cpp
 	common/src/morphological_segmentation.cpp
 	common/src/abstract_voronoi_segmentation.cpp
