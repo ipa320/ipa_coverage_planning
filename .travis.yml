@@ -18,7 +18,6 @@ env:
     - ROS_DISTRO=melodic UPSTREAM_WORKSPACE=debian
 matrix:
   allow_failures:
-    - env: ROS_DISTRO=melodic UPSTREAM_WORKSPACE=file
     - env: ROS_DISTRO=melodic UPSTREAM_WORKSPACE=debian
 install:
   - git clone https://github.com/ros-industrial/industrial_ci.git .ci_config
