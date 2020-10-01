@@ -23,7 +23,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 generate_dynamic_reconfigure_options(
-  cfg/BuildingNavigation.cfg
+	cfg/BuildingNavigation.cfg
 )
 
 find_package(OpenCV REQUIRED)
@@ -44,7 +44,7 @@ INCLUDE_DIRS
 	common/include
 	ros/include
 LIBRARIES
-        ${PROJECT_NAME}
+	${PROJECT_NAME}
 	tsp_solvers
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
@@ -90,27 +90,27 @@ add_dependencies(tsp_solvers
 
 # package library
 add_library(${PROJECT_NAME} STATIC
-    common/src/maximal_clique_finder.cpp
-    common/src/set_cover_solver.cpp
-    common/src/trolley_position_finder.cpp
+	common/src/maximal_clique_finder.cpp
+	common/src/set_cover_solver.cpp
+	common/src/trolley_position_finder.cpp
 )
 target_link_libraries(${PROJECT_NAME}
-    ${catkin_LIBRARIES}
-    ${OpenCV_LIBRARIES}
-    ${Boost_LIBRARIES}
+	${catkin_LIBRARIES}
+	${OpenCV_LIBRARIES}
+	${Boost_LIBRARIES}
 )
 add_dependencies(${PROJECT_NAME}
-        ${catkin_EXPORTED_TARGETS}
-        ${${PROJECT_NAME}_EXPORTED_TARGETS}
+	${catkin_EXPORTED_TARGETS}
+	${${PROJECT_NAME}_EXPORTED_TARGETS}
 )
 
 # action provider
 add_executable(room_sequence_planning_server
-        ros/src/room_sequence_planning_action_server.cpp
-        )
+	ros/src/room_sequence_planning_action_server.cpp
+	)
 target_link_libraries(room_sequence_planning_server
 	tsp_solvers
-        ${PROJECT_NAME}
+	${PROJECT_NAME}
 	${catkin_LIBRARIES}
 	${OpenCV_LIBRARIES}
 	${Boost_LIBRARIES}

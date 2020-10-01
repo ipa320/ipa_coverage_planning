@@ -24,7 +24,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 generate_dynamic_reconfigure_options(
-  cfg/RoomSegmentation.cfg
+	cfg/RoomSegmentation.cfg
 )
 
 find_package(OpenCV REQUIRED)
@@ -52,7 +52,7 @@ INCLUDE_DIRS
 	common/include
 	ros/include
 LIBRARIES
-        ${PROJECT_NAME}
+	${PROJECT_NAME}
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
 DEPENDS

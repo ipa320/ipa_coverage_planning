@@ -93,7 +93,7 @@ INCLUDE_DIRS
 	common/include
 	ros/include
 LIBRARIES
-        ${PROJECT_NAME}
+	${PROJECT_NAME}
 	libcoverage_check_server
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
@@ -133,31 +133,31 @@ include_directories(
 
 ### package library
 add_library(${PROJECT_NAME} STATIC
-        common/src/grid_point_explorator.cpp
-        common/src/boustrophedon_explorator.cpp
-        common/src/neural_network_explorator.cpp
-        common/src/convex_sensor_placement_explorator.cpp
-        common/src/energy_functional_explorator.cpp
-        common/src/flow_network_explorator.cpp
-        common/src/room_rotator.cpp
-        common/src/meanshift2d.cpp
+	common/src/grid_point_explorator.cpp
+	common/src/boustrophedon_explorator.cpp
+	common/src/neural_network_explorator.cpp
+	common/src/convex_sensor_placement_explorator.cpp
+	common/src/energy_functional_explorator.cpp
+	common/src/flow_network_explorator.cpp
+	common/src/room_rotator.cpp
+	common/src/meanshift2d.cpp
 )
 target_link_libraries(${PROJECT_NAME}
-        ${catkin_LIBRARIES}
-        ${OpenCV_LIBS}
-        ${Boost_LIBRARIES}
-        ${CoinUtils_LIBRARIES}
-        ${OsiClp_LIBRARIES}
-        ${Clp_LIBRARIES}
-        ${Osi_LIBRARIES}
-        ${Cgl_LIBRARIES}
-        ${Cbc-lib_LIBRARIES}
-        ${GUROBI_LIBRARIES}
-        libcoverage_check_server
+	${catkin_LIBRARIES}
+	${OpenCV_LIBS}
+	${Boost_LIBRARIES}
+	${CoinUtils_LIBRARIES}
+	${OsiClp_LIBRARIES}
+	${Clp_LIBRARIES}
+	${Osi_LIBRARIES}
+	${Cgl_LIBRARIES}
+	${Cbc-lib_LIBRARIES}
+	${GUROBI_LIBRARIES}
+	libcoverage_check_server
 )
 add_dependencies(${PROJECT_NAME}
-        ${catkin_EXPORTED_TARGETS}
-        ${${PROJECT_NAME}_EXPORTED_TARGETS}
+	${catkin_EXPORTED_TARGETS}
+	${${PROJECT_NAME}_EXPORTED_TARGETS}
 )
 
 ### room exploration action server, note: order of linking the Coin-Or packages important
@@ -166,10 +166,10 @@ add_executable(room_exploration_server
 	ros/src/fov_to_robot_mapper.cpp
 )
 target_link_libraries(room_exploration_server
-	${catkin_LIBRARIES} 
+	${catkin_LIBRARIES}
 	${OpenCV_LIBS}
 	${Boost_LIBRARIES}
-        ${PROJECT_NAME}
+	${PROJECT_NAME}
 	libcoverage_check_server
 )
 add_dependencies(room_exploration_server
