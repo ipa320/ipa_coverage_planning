@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(ipa_room_exploration)
 
+# build with c++11
 add_compile_options(-std=c++11)
 
 set(catkin_RUN_PACKAGES
@@ -95,6 +96,7 @@ INCLUDE_DIRS
 	common/include
 	ros/include
 LIBRARIES
+	${PROJECT_NAME}
 	libcoverage_check_server
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
@@ -132,9 +134,8 @@ include_directories(
 	${Cbc-lib_INCLUDE_DIRS}
 )
 
-### room exploration action server, note: order of linking the Coin-Or packages important
-add_executable(room_exploration_server
-	ros/src/room_exploration_action_server.cpp
+### package library
+add_library(${PROJECT_NAME} STATIC
 	common/src/grid_point_explorator.cpp
 	common/src/boustrophedon_explorator.cpp
 	common/src/neural_network_explorator.cpp
@@ -143,10 +144,9 @@ add_executable(room_exploration_server
 	common/src/flow_network_explorator.cpp
 	common/src/room_rotator.cpp
 	common/src/meanshift2d.cpp
-	ros/src/fov_to_robot_mapper.cpp
 )
-target_link_libraries(room_exploration_server
-	${catkin_LIBRARIES} 
+target_link_libraries(${PROJECT_NAME}
+	${catkin_LIBRARIES}
 	${OpenCV_LIBS}
 	${Boost_LIBRARIES}
 	${CoinUtils_LIBRARIES}
@@ -156,6 +156,23 @@ target_link_libraries(room_exploration_server
 	${Cgl_LIBRARIES}
 	${Cbc-lib_LIBRARIES}
 	${GUROBI_LIBRARIES}
+	libcoverage_check_server
+)
+add_dependencies(${PROJECT_NAME}
+	${catkin_EXPORTED_TARGETS}
+	${${PROJECT_NAME}_EXPORTED_TARGETS}
+)
+
+### room exploration action server, note: order of linking the Coin-Or packages important
+add_executable(room_exploration_server
+	ros/src/room_exploration_action_server.cpp
+	ros/src/fov_to_robot_mapper.cpp
+)
+target_link_libraries(room_exploration_server
+	${catkin_LIBRARIES}
+	${OpenCV_LIBS}
+	${Boost_LIBRARIES}
+	${PROJECT_NAME}
 	libcoverage_check_server
 )
 add_dependencies(room_exploration_server
@@ -232,7 +249,7 @@ add_dependencies(room_exploration_evaluation
 ## Install ##
 #############
 # Mark executables and/or libraries for installation
-install(TARGETS room_exploration_server room_exploration_client
+install(TARGETS ${PROJECT_NAME} room_exploration_server room_exploration_client
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

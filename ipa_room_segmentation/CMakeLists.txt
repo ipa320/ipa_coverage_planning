@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(ipa_room_segmentation)
 
+# build with c++11
+add_compile_options(-std=c++11)
+
 set(catkin_RUN_PACKAGES
 	actionlib
 	cv_bridge
@@ -24,7 +27,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 generate_dynamic_reconfigure_options(
-  cfg/RoomSegmentation.cfg
+	cfg/RoomSegmentation.cfg
 )
 
 find_package(OpenCV REQUIRED)
@@ -52,6 +55,7 @@ INCLUDE_DIRS
 	common/include
 	ros/include
 LIBRARIES
+	${PROJECT_NAME}
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
 DEPENDS
@@ -76,9 +80,8 @@ include_directories(
 	${Boost_INCLUDE_DIRS}
 )
 
-### segmentation action server: see room_segmentation_action_server_params.yaml to change the used method
-add_executable(room_segmentation_server
-	ros/src/room_segmentation_server.cpp
+# library of the created algorithms
+add_library(${PROJECT_NAME} STATIC
 	common/src/distance_segmentation.cpp
 	common/src/morphological_segmentation.cpp
 	common/src/abstract_voronoi_segmentation.cpp
@@ -92,17 +95,34 @@ add_executable(room_segmentation_server
 	common/src/voronoi_random_field_segmentation.cpp
 	common/src/clique_class.cpp
 	common/src/cv_boost_loader.cpp
-	common/src/voronoi_random_field_features.cpp)
+	common/src/voronoi_random_field_features.cpp
+)
+target_link_libraries(${PROJECT_NAME}
+	${catkin_LIBRARIES}
+	${OpenCV_LIBRARIES}
+	${Boost_LIBRARIES}
+)
+add_dependencies(${PROJECT_NAME}
+	${catkin_EXPORTED_TARGETS}
+	${${PROJECT_NAME}_EXPORTED_TARGETS}
+)
+
+### segmentation action server: see room_segmentation_action_server_params.yaml to change the used method
+add_executable(room_segmentation_server
+	ros/src/room_segmentation_server.cpp
+	)
 target_compile_options(room_segmentation_server PRIVATE ${OpenMP_FLAGS})
 add_dependencies(room_segmentation_server
 	${catkin_EXPORTED_TARGETS}
+	${PROJECT_NAME}
 	${${PROJECT_NAME}_EXPORTED_TARGETS}
 )
 target_link_libraries(room_segmentation_server
 	${catkin_LIBRARIES}
 	${Boost_LIBRARIES}
 	${OpenMP_LIBS}
-	${OpenCV_LIBRARIES})
+	${OpenCV_LIBRARIES}
+	${PROJECT_NAME})
 
 ### client for testing purpose
 add_executable(room_segmentation_client ros/src/room_segmentation_client.cpp)
@@ -131,7 +151,7 @@ add_dependencies(evaluation
 ## Install ##
 #############
 ## Mark executables and/or libraries for installation
-install(TARGETS   room_segmentation_server   room_segmentation_client   evaluation
+install(TARGETS ${PROJECT_NAME}  room_segmentation_server   room_segmentation_client   evaluation
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

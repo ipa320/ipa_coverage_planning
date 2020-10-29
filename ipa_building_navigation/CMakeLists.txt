@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(ipa_building_navigation)
 
+# build with c++11
+add_compile_options(-std=c++11)
+
 set(catkin_RUN_PACKAGES
 	actionlib
 	cv_bridge
@@ -23,7 +26,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 generate_dynamic_reconfigure_options(
-  cfg/BuildingNavigation.cfg
+	cfg/BuildingNavigation.cfg
 )
 
 find_package(OpenCV REQUIRED)
@@ -44,6 +47,7 @@ INCLUDE_DIRS
 	common/include
 	ros/include
 LIBRARIES
+	${PROJECT_NAME}
 	tsp_solvers
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
@@ -87,15 +91,29 @@ add_dependencies(tsp_solvers
 	${${PROJECT_NAME}_EXPORTED_TARGETS}
 )
 
-# action provider
-add_executable(room_sequence_planning_server
-	ros/src/room_sequence_planning_action_server.cpp
+# package library
+add_library(${PROJECT_NAME} STATIC
 	common/src/maximal_clique_finder.cpp
 	common/src/set_cover_solver.cpp
 	common/src/trolley_position_finder.cpp
 )
+target_link_libraries(${PROJECT_NAME}
+	${catkin_LIBRARIES}
+	${OpenCV_LIBRARIES}
+	${Boost_LIBRARIES}
+)
+add_dependencies(${PROJECT_NAME}
+	${catkin_EXPORTED_TARGETS}
+	${${PROJECT_NAME}_EXPORTED_TARGETS}
+)
+
+# action provider
+add_executable(room_sequence_planning_server
+	ros/src/room_sequence_planning_action_server.cpp
+	)
 target_link_libraries(room_sequence_planning_server
 	tsp_solvers
+	${PROJECT_NAME}
 	${catkin_LIBRARIES}
 	${OpenCV_LIBRARIES}
 	${Boost_LIBRARIES}
@@ -147,7 +165,7 @@ add_dependencies(TSP_evaluation ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXP
 ## Install ##
 #############
 # Mark executables and/or libraries for installation
-install(TARGETS tsp_solvers room_sequence_planning_server room_sequence_planning_client #a_star_tester tester
+install(TARGETS ${PROJECT_NAME} tsp_solvers room_sequence_planning_server room_sequence_planning_client #a_star_tester tester
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

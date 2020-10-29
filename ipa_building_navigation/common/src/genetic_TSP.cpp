@@ -4,10 +4,11 @@
 #include <boost/chrono.hpp>
 
 //Default constructor
-GeneticTSPSolver::GeneticTSPSolver()
+GeneticTSPSolver::GeneticTSPSolver(int min_number_of_gens, int const_generations)
 : abort_computation_(false)
 {
-
+	min_number_of_generations_ = min_number_of_gens;
+	const_generations_number_ = const_generations;
 }
 
 void GeneticTSPSolver::distance_matrix_thread(DistanceMatrix& distance_matrix_computation, cv::Mat& distance_matrix,
@@ -213,7 +214,7 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& path_length_Ma
 	if(path_length_Matrix.rows > 2) //check if graph has at least three members, if not the algorithm won't work properly
 	{
 		bool changed_path = false; //this variable checks if the path has been changed in the mutation process
-		int changeing_counter = 100; //this variable is a counter for how many times a path has been the same
+		int changing_counter = const_generations_number_; //this variable is a counter for how many times a path has been the same
 
 		int number_of_generations = 0;
 
@@ -231,18 +232,18 @@ std::vector<int> GeneticTSPSolver::solveGeneticTSP(const cv::Mat& path_length_Ma
 				current_generation_paths.push_back(mutatePath(calculated_path));
 			}
 			calculated_path = getBestPath(current_generation_paths, path_length_Matrix, changed_path); //get the best path of this generation
-			if (number_of_generations >= 2300) //when a specified amount of steps have been done the algorithm checks if the last paths didn't change
+			if (number_of_generations >= min_number_of_generations_) //when a specified amount of steps have been done the algorithm checks if the last paths didn't change
 			{
 				if (changed_path)
 				{
-					changeing_counter = 100; //reset the counting-variable
+					changing_counter = const_generations_number_; //reset the counting-variable
 				}
 				else
 				{
-					changeing_counter -= 1; //decrease the counting-variable by 1
+					changing_counter -= 1; //decrease the counting-variable by 1
 				}
 			}
-		} while (changeing_counter > 0 || number_of_generations < 2300);
+		} while (changing_counter > 0 || number_of_generations < min_number_of_generations_);
 	}
 
 	//return the calculated path without the last node (same as start node)

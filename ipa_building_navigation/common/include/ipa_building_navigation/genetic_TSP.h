@@ -54,9 +54,16 @@ protected:
 
 	bool abort_computation_;
 
+	//indicates how many generations shall be at least taken in order to optimize the given path
+	int min_number_of_generations_;
+
+	//indicates the amount of generations for which the path shouldn't have changed in order to stop the
+	//optimization
+	int const_generations_number_;
+
 public:
 	//constructor
-	GeneticTSPSolver();
+	GeneticTSPSolver(int min_number_of_gens=2300, int const_generations=100);
 
 	void abortComputation();
 
