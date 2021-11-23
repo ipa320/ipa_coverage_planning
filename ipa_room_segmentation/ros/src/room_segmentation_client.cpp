@@ -218,7 +218,11 @@ int main(int argc, char **argv)
 			for(size_t i = 0; i < result_seg->room_information_in_pixel.size(); ++i)
 			{
 				cv::Point current_center (result_seg->room_information_in_pixel[i].room_center.x, result_seg->room_information_in_pixel[i].room_center.y);
+#if CV_MAJOR_VERSION<=3
 				cv::circle(colour_segmented_map, current_center, 2, CV_RGB(0,0,255), CV_FILLED);
+#else
+				cv::circle(colour_segmented_map, current_center, 2, CV_RGB(0,0,255), cv::FILLED);
+#endif
 			}
 
 			cv::imshow("segmentation", colour_segmented_map);

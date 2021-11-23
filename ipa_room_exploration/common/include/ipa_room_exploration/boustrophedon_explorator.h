@@ -137,10 +137,18 @@ public:
 		// compute visible center
 		MeanShift2D ms;
 		cv::Mat room = cv::Mat::zeros(max_y_+10, max_x_+10, CV_8UC1);
+#if CV_MAJOR_VERSION<=3
 		cv::drawContours(room, std::vector<std::vector<cv::Point> >(1,vertices), -1, cv::Scalar(255), CV_FILLED);
+#else
+		cv::drawContours(room, std::vector<std::vector<cv::Point> >(1,vertices), -1, cv::Scalar(255), cv::FILLED);
+#endif
 		area_ = cv::countNonZero(room);
 		cv::Mat distance_map; //variable for the distance-transformed map, type: CV_32FC1
+#if CV_MAJOR_VERSION<=3
 		cv::distanceTransform(room, distance_map, CV_DIST_L2, 5);
+#else
+		cv::distanceTransform(room, distance_map, cv::DIST_L2, 5);
+#endif
 		// find point set with largest distance to obstacles
 		double min_val = 0., max_val = 0.;
 		cv::minMaxLoc(distance_map, &min_val, &max_val);
@@ -180,7 +188,11 @@ public:
 	{
 		// draw polygon in an black image with necessary size
 		cv::Mat black_image = cv::Mat(max_y_+10, max_x_+10, CV_8UC1, cv::Scalar(0));
+#if CV_MAJOR_VERSION<=3
 		cv::drawContours(black_image, std::vector<std::vector<cv::Point> >(1,vertices_), -1, color, CV_FILLED);
+#else
+		cv::drawContours(black_image, std::vector<std::vector<cv::Point> >(1,vertices_), -1, color, cv::FILLED);
+#endif
 
 		// assign drawn map
 		image = black_image.clone();

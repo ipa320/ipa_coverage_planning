@@ -310,7 +310,11 @@ void computeFOVCenterAndRadius(const std::vector<Eigen::Matrix<float, 2, 1> >& f
 	}
 	cv::fillPoly(fov_image, polygon_array, cv::Scalar(255));
 	cv::Mat fov_distance_transform;
+#if CV_MAJOR_VERSION<=3
 	cv::distanceTransform(fov_image, fov_distance_transform, CV_DIST_L2, CV_DIST_MASK_PRECISE);
+#else
+	cv::distanceTransform(fov_image, fov_distance_transform, cv::DIST_L2, cv::DIST_MASK_PRECISE);
+#endif
 
 	// determine the point(s) with maximum distance to the rim of the field of view, if multiple points apply, take the one closest to the center
 	float max_dist_val = 0.;

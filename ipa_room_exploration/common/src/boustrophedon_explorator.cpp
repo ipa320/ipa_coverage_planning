@@ -451,7 +451,11 @@ void BoustrophedonExplorer::computeCellDecomposition(const cv::Mat& room_map, co
 	{
 		cv::Mat cell_copy(cell_map_labels == i);
 		std::vector<std::vector<cv::Point> > cellsi;
+#if CV_MAJOR_VERSION<=3
 		cv::findContours(cell_copy, cellsi, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+#else
+		cv::findContours(cell_copy, cellsi, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+#endif
 		cells.insert(cells.end(), cellsi.begin(), cellsi.end());
 	}
 

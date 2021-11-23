@@ -729,7 +729,11 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 		}
 //		cv::Mat disp = segmented_map.clone();
 		for (size_t index = 0; index < room_centers_x_values.size(); ++index)
+#if CV_MAJOR_VERSION<=3
 			cv::circle(color_segmented_map, cv::Point(room_centers_x_values[index], room_centers_y_values[index]), 2, cv::Scalar(256), CV_FILLED);
+#else
+			cv::circle(color_segmented_map, cv::Point(room_centers_x_values[index], room_centers_y_values[index]), 2, cv::Scalar(256), cv::FILLED);
+#endif
 
 		cv::imshow("segmentation", color_segmented_map);
 		cv::waitKey();

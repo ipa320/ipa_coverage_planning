@@ -43,7 +43,11 @@ void MorphologicalSegmentation::segmentMap(const cv::Mat& map_to_be_labeled, cv:
 		//hierarchy[{0,1,2,3}]={next contour (same level), previous contour (same level), child contour, parent contour}
 		//child-contour = 1 if it has one, = -1 if not, same for parent_contour
 		std::vector < cv::Vec4i > hierarchy;
+#if CV_MAJOR_VERSION<=3
 		cv::findContours(contour_map, temporary_contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE);
+#else
+		cv::findContours(contour_map, temporary_contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
+#endif
 		if (temporary_contours.size() != 0)
 		{
 			//check every contour if it fullfills the criteria of a room
@@ -68,7 +72,11 @@ void MorphologicalSegmentation::segmentMap(const cv::Mat& map_to_be_labeled, cv:
 						//save contour for later drawing in map
 						saved_contours.push_back(temporary_contours[current_contour]);
 						//make region black if room found --> region doesn't need to be looked at anymore
+#if CV_MAJOR_VERSION<=3
 						cv::drawContours(temporary_map_to_find_rooms, temporary_contours, current_contour, cv::Scalar(0), CV_FILLED, 8, hierarchy, 2);
+#else
+						cv::drawContours(temporary_map_to_find_rooms, temporary_contours, current_contour, cv::Scalar(0), cv::FILLED, 8, hierarchy, 2);
+#endif
 					}
 				}
 			}
@@ -91,7 +99,11 @@ void MorphologicalSegmentation::segmentMap(const cv::Mat& map_to_be_labeled, cv:
 			if (!contains(already_used_coloures, fill_colour) || draw_counter > 250)
 			{
 				//if colour is unique draw Contour in map
+#if CV_MAJOR_VERSION<=3
 				cv::drawContours(segmented_map, saved_contours, idx, fill_colour, CV_FILLED);
+#else
+				cv::drawContours(segmented_map, saved_contours, idx, fill_colour, cv::FILLED);
+#endif
 				already_used_coloures.push_back(fill_colour); //add colour to used coloures
 				drawn = true;
 			}

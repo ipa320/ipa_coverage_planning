@@ -322,8 +322,13 @@ void AdaboostClassifier::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat& s
 
 	//find the contours, which are labeled as a room
 	cv::threshold(temporary_map, temporary_map, 120, 255, cv::THRESH_BINARY); //find rooms (value = 150)
+#if CV_MAJOR_VERSION<=3
 	cv::findContours(temporary_map, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
 	cv::drawContours(blured_image_for_thresholding, contours, -1, cv::Scalar(0), CV_FILLED); //make the found regions at the original map black, because they have been looked at already
+#else
+	cv::findContours(temporary_map, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_NONE);
+	cv::drawContours(blured_image_for_thresholding, contours, -1, cv::Scalar(0), cv::FILLED); //make the found regions at the original map black, because they have been looked at already
+#endif
 
 	//only take rooms that are large enough and that are not a hole-contour
 	for (int c = 0; c < contours.size(); c++)
@@ -339,7 +344,11 @@ void AdaboostClassifier::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat& s
 	temporary_map = blured_image_for_thresholding.clone();
 
 	cv::threshold(temporary_map, temporary_map, 90, 255, cv::THRESH_BINARY); //find hallways (value = 100)
+#if CV_MAJOR_VERSION<=3
 	cv::findContours(temporary_map, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
+#else
+	cv::findContours(temporary_map, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_NONE);
+#endif
 	//if the hallway-contours are too big split them into smaller regions, also don't take too small regions
 	for (int contour_counter = 0; contour_counter < contours.size(); contour_counter++)
 	{
@@ -348,7 +357,11 @@ void AdaboostClassifier::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat& s
 			//Generate a black map to draw the hallway-contour in. Then use this map to ckeck if the generated random Points
 			// are inside the contour.
 			cv::Mat contour_Map = cv::Mat::zeros(temporary_map.rows, temporary_map.cols, CV_8UC1);
+#if CV_MAJOR_VERSION<=3
 			cv::drawContours(contour_Map, contours, contour_counter, cv::Scalar(255), CV_FILLED);
+#else
+			cv::drawContours(contour_Map, contours, contour_counter, cv::Scalar(255), cv::FILLED);
+#endif
 			cv::erode(contour_Map, contour_Map, cv::Mat(), cv::Point(-1,-1), 10);
 			//center-counter so enough centers could be found
 			int center_counter = 0;
@@ -376,7 +389,11 @@ void AdaboostClassifier::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat& s
 					cv::Scalar fill_colour(rand() % 52224 + 13056);
 					if (!contains(already_used_colors, fill_colour))
 					{
+#if CV_MAJOR_VERSION<=3
 						cv::circle(temporary_Map_to_wavefront, temporary_watershed_centers[current_center], 2, fill_colour, CV_FILLED);
+#else
+						cv::circle(temporary_Map_to_wavefront, temporary_watershed_centers[current_center], 2, fill_colour, cv::FILLED);
+#endif
 						already_used_colors.push_back(fill_colour);
 						coloured = true;
 					}
@@ -422,7 +439,11 @@ void AdaboostClassifier::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat& s
 			cv::Scalar fill_colour(rand() % 52224 + 13056);
 			if (!contains(already_used_colors, fill_colour))
 			{
+#if CV_MAJOR_VERSION<=3
 				cv::drawContours(segmented_map, saved_room_contours, room, fill_colour, CV_FILLED);
+#else
+				cv::drawContours(segmented_map, saved_room_contours, room, fill_colour, cv::FILLED);
+#endif
 				already_used_colors.push_back(fill_colour);
 				coloured = true;
 			}
@@ -439,7 +460,11 @@ void AdaboostClassifier::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat& s
 			cv::Scalar fill_colour(rand() % 52224 + 13056);
 			if (!contains(already_used_colors, fill_colour) || loop_counter > 250)
 			{
+#if CV_MAJOR_VERSION<=3
 				cv::drawContours(segmented_map, saved_hallway_contours, hallway, fill_colour, CV_FILLED);
+#else
+				cv::drawContours(segmented_map, saved_hallway_contours, hallway, fill_colour, cv::FILLED);
+#endif
 				already_used_colors.push_back(fill_colour);
 				coloured = true;
 			}
