@@ -1005,7 +1005,11 @@ public:
 			for(size_t i = 0; i < result_seg->room_information_in_pixel.size(); ++i)
 			{
 				cv::Point current_center (result_seg->room_information_in_pixel[i].room_center.x, result_seg->room_information_in_pixel[i].room_center.y);
+#if CV_MAJOR_VERSION<=3
 				cv::circle(colour_segmented_map, current_center, 2, CV_RGB(0,0,255), CV_FILLED);
+#else
+				cv::circle(colour_segmented_map, current_center, 2, CV_RGB(0,0,255), cv::FILLED);
+#endif
 			}
 			// color image in unique colour to show the segmentation
 			if (cv::imwrite(segmented_map_filename.c_str(), colour_segmented_map) == false)
@@ -1017,7 +1021,11 @@ public:
 			cv::Mat sequence_map = cv_ptr_seq->image;
 			// draw in trash bins
 			for (size_t i=0; i<evaluation_data.trash_bin_locations_.size(); ++i)
+#if CV_MAJOR_VERSION<=3
 				cv::circle(sequence_map, evaluation_data.trash_bin_locations_[i], 2, CV_RGB(128,0,255), CV_FILLED);
+#else
+				cv::circle(sequence_map, evaluation_data.trash_bin_locations_[i], 2, CV_RGB(128,0,255), cv::FILLED);
+#endif
 			if (cv::imwrite(sequence_map_filename.c_str(), sequence_map) == false)
 				ROS_ERROR("Error on writing file '%s'", sequence_map_filename.c_str());
 			std::string sequence_detail_map_filename = lower_path + evaluation_data.map_name_ + "_sequence_detail.png";
@@ -1396,7 +1404,11 @@ public:
 				for(size_t i = 0; i < result_seg->room_information_in_pixel.size(); ++i)
 				{
 					cv::Point current_center (result_seg->room_information_in_pixel[i].room_center.x, result_seg->room_information_in_pixel[i].room_center.y);
+#if CV_MAJOR_VERSION<=3
 					cv::circle(colour_segmented_map, current_center, 2, CV_RGB(0,0,255), CV_FILLED);
+#else
+					cv::circle(colour_segmented_map, current_center, 2, CV_RGB(0,0,255), cv::FILLED);
+#endif
 				}
 				// color image in unique colour to show the segmentation
 				if (cv::imwrite(segmented_map_filename.c_str(), colour_segmented_map) == false)
@@ -1408,7 +1420,11 @@ public:
 				cv::Mat sequence_map = cv_ptr_seq->image;
 				// draw in trash bins
 				for (size_t i=0; i<evaluation_data.trash_bin_locations_.size(); ++i)
+#if CV_MAJOR_VERSION<=3
 					cv::circle(sequence_map, evaluation_data.trash_bin_locations_[i], 2, CV_RGB(128,0,255), CV_FILLED);
+#else
+					cv::circle(sequence_map, evaluation_data.trash_bin_locations_[i], 2, CV_RGB(128,0,255), cv::FILLED);
+#endif
 				if (cv::imwrite(sequence_map_filename.c_str(), sequence_map) == false)
 					ROS_ERROR("Error on writing file '%s'", sequence_map_filename.c_str());
 				std::string sequence_detail_map_filename = lower_path + evaluation_data.map_name_ + "_sequence_detail.png";
@@ -1795,7 +1811,11 @@ public:
 				for(size_t i = 0; i < result_seg->room_information_in_pixel.size(); ++i)
 				{
 					cv::Point current_center (result_seg->room_information_in_pixel[i].room_center.x, result_seg->room_information_in_pixel[i].room_center.y);
+#if CV_MAJOR_VERSION<=3
 					cv::circle(colour_segmented_map, current_center, 2, CV_RGB(0,0,255), CV_FILLED);
+#else
+					cv::circle(colour_segmented_map, current_center, 2, CV_RGB(0,0,255), cv::FILLED);
+#endif
 				}
 				// color image in unique colour to show the segmentation
 				if (cv::imwrite(segmented_map_filename.c_str(), colour_segmented_map) == false)
@@ -1807,7 +1827,11 @@ public:
 				cv::Mat sequence_map = cv_ptr_seq->image;
 				// draw in trash bins
 				for (size_t i=0; i<evaluation_data.trash_bin_locations_.size(); ++i)
+#if CV_MAJOR_VERSION<=3
 					cv::circle(sequence_map, evaluation_data.trash_bin_locations_[i], 2, CV_RGB(128,0,255), CV_FILLED);
+#else
+					cv::circle(sequence_map, evaluation_data.trash_bin_locations_[i], 2, CV_RGB(128,0,255), cv::FILLED);
+#endif
 				if (cv::imwrite(sequence_map_filename.c_str(), sequence_map) == false)
 					ROS_ERROR("Error on writing file '%s'", sequence_map_filename.c_str());
 				std::string sequence_detail_map_filename = lower_path + evaluation_data.map_name_ + "_sequence_detail.png";
