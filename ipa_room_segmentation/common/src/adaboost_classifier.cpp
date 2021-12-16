@@ -24,118 +24,139 @@ AdaboostClassifier::AdaboostClassifier()
 }
 
 void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_training_maps, const std::vector<cv::Mat>& hallway_training_maps,
-		const std::string& classifier_storage_path)
+		const std::string& classifier_storage_path, bool load_features)
 {
 	//**************************Training-Algorithm for the AdaBoost-classifiers*****************************
 	//This Alogrithm trains two AdaBoost-classifiers from OpenCV. It takes the given training maps and finds the Points
 	//that are labeled as a room/hallway and calculates the features defined in ipa_room_segmentation/features.h.
 	//Then these vectors are put in a format that OpenCV expects for the classifiers and then they are trained.
-	std::vector<float> labels_for_hallways, labels_for_rooms;
+	std::vector<int> labels_for_hallways, labels_for_rooms;
 	std::vector<std::vector<float> > hallway_features, room_features;
 	std::vector<double> temporary_beams;
 	std::vector<float> temporary_features;
+	cv::Mat hallway_labels_mat, room_labels_mat;
+	cv::Mat hallway_features_mat, room_features_mat;
 	std::cout << "Starting to train the algorithm." << std::endl;
 	std::cout << "number of room training maps: " << room_training_maps.size() << std::endl;
 	std::cout << "number of hallway training maps: " << hallway_training_maps.size() << std::endl;
 	//Get the labels for every training point. 1.0 means it belongs to a room and -1.0 means it belongs to a hallway
-	LaserScannerFeatures lsf;
-	for(size_t map = 0; map < room_training_maps.size(); ++map)
+	// if not loading precomputed features, compute them here
+	if(load_features==false)
 	{
-		for (int y = 0; y < room_training_maps[map].rows; y++)
+		LaserScannerFeatures lsf;
+		for(size_t map = 0; map < room_training_maps.size(); ++map)
 		{
-			for (int x = 0; x < room_training_maps[map].cols; x++)
+			for (int y = 0; y < room_training_maps[map].rows; y++)
 			{
-				if (room_training_maps[map].at<unsigned char>(y, x) != 0)
+				for (int x = 0; x < room_training_maps[map].cols; x++)
 				{
-					//check for label of each Pixel (if it belongs to rooms the label is 1, otherwise it is -1)
-					if (room_training_maps[map].at<unsigned char>(y, x) > 250)
+					if (room_training_maps[map].at<unsigned char>(y, x) != 0)
 					{
-						labels_for_rooms.push_back(-1.0);
+						//check for label of each Pixel (if it belongs to rooms the label is 1, otherwise it is -1)
+						if (room_training_maps[map].at<unsigned char>(y, x) > 250)
+						{
+							labels_for_rooms.push_back(-1);
+						}
+						else
+						{
+							labels_for_rooms.push_back(1);
+						}
+						//simulate the beams and features for every position and save it
+						raycasting_.raycasting(room_training_maps[map], cv::Point(x, y), temporary_beams);
+						cv::Mat features;
+						lsf.get_features(temporary_beams, angles_for_simulation_, cv::Point(x, y), features);
+						temporary_features.resize(features.cols);
+						for (int i=0; i<features.cols; ++i)
+							temporary_features[i] = features.at<float>(0,i);
+						room_features.push_back(temporary_features);
+						temporary_features.clear();
 					}
-					else
-					{
-						labels_for_rooms.push_back(1.0);
-					}
-					//simulate the beams and features for every position and save it
-					raycasting_.raycasting(room_training_maps[map], cv::Point(x, y), temporary_beams);
-					cv::Mat features;
-					lsf.get_features(temporary_beams, angles_for_simulation_, cv::Point(x, y), features);
-					temporary_features.resize(features.cols);
-					for (int i=0; i<features.cols; ++i)
-						temporary_features[i] = features.at<float>(0,i);
-					room_features.push_back(temporary_features);
-					temporary_features.clear();
 				}
 			}
+			std::cout << "done one room map" << std::endl;
 		}
-		std::cout << "done one room map" << std::endl;
-	}
 
-	for(size_t map = 0; map < hallway_training_maps.size(); ++map)
-	{
-		for (int y = 0; y < hallway_training_maps[map].rows; y++)
+		for(size_t map = 0; map < hallway_training_maps.size(); ++map)
 		{
-			for (int x = 0; x < hallway_training_maps[map].cols; x++)
+			for (int y = 0; y < hallway_training_maps[map].rows; y++)
 			{
-				if (hallway_training_maps[map].at<unsigned char>(y, x) != 0)
+				for (int x = 0; x < hallway_training_maps[map].cols; x++)
 				{
-					//check for label of each Pixel (if it belongs to hallways the label is 1, otherwise it is -1)
-					if (hallway_training_maps[map].at<unsigned char>(y, x) > 250)
+					if (hallway_training_maps[map].at<unsigned char>(y, x) != 0)
 					{
-						labels_for_hallways.push_back(-1.0);
+						//check for label of each Pixel (if it belongs to hallways the label is 1, otherwise it is -1)
+						if (hallway_training_maps[map].at<unsigned char>(y, x) > 250)
+						{
+							labels_for_hallways.push_back(-1);
+						}
+						else
+						{
+							labels_for_hallways.push_back(1);
+						}
+						//simulate the beams and features for every position and save it
+						raycasting_.raycasting(hallway_training_maps[map], cv::Point(x, y), temporary_beams);
+						cv::Mat features;
+						lsf.get_features(temporary_beams, angles_for_simulation_, cv::Point(x, y), features);
+						temporary_features.resize(features.cols);
+						for (int i=0; i<features.cols; ++i)
+							temporary_features[i] = features.at<float>(0,i);
+						hallway_features.push_back(temporary_features);
+						temporary_features.clear();
 					}
-					else
-					{
-						labels_for_hallways.push_back(1.0);
-					}
-					//simulate the beams and features for every position and save it
-					raycasting_.raycasting(hallway_training_maps[map], cv::Point(x, y), temporary_beams);
-					cv::Mat features;
-					lsf.get_features(temporary_beams, angles_for_simulation_, cv::Point(x, y), features);
-					temporary_features.resize(features.cols);
-					for (int i=0; i<features.cols; ++i)
-						temporary_features[i] = features.at<float>(0,i);
-					hallway_features.push_back(temporary_features);
-					temporary_features.clear();
 				}
 			}
+			std::cout << "done one hallway map" << std::endl;
 		}
-		std::cout << "done one hallway map" << std::endl;
-	}
 
-	//save the found labels and features in Matrices --> hallway
-	cv::Mat hallway_labels_mat(labels_for_hallways.size(), 1, CV_32FC1);
-	cv::Mat hallway_features_mat(hallway_features.size(), lsf.get_feature_count(), CV_32FC1);
-	for (int i = 0; i < labels_for_hallways.size(); i++)
-	{
-		hallway_labels_mat.at<float>(i, 0) = labels_for_hallways[i];
-		for (int f = 0; f < hallway_features[i].size(); f++)
+		//save the found labels and features in Matrices --> hallway
+		hallway_labels_mat = cv::Mat(labels_for_hallways);
+		hallway_features_mat = cv::Mat(hallway_features.size(), lsf.get_feature_count(), CV_32FC1);
+		for (int i = 0; i < labels_for_hallways.size(); i++)
 		{
-			hallway_features_mat.at<float>(i, f) = (float) hallway_features[i][f];
+	//		hallway_labels_mat.at<float>(i, 0) = labels_for_hallways[i];
+			for (int f = 0; f < hallway_features[i].size(); f++)
+			{
+				hallway_features_mat.at<float>(i, f) = (float) hallway_features[i][f];
+			}
 		}
-	}
-	//save the found labels and features in Matrices --> rooms
-	cv::Mat room_labels_mat(labels_for_rooms.size(), 1, CV_32FC1);
-	cv::Mat room_features_mat(room_features.size(), lsf.get_feature_count(), CV_32FC1);
-	for (int i = 0; i < labels_for_rooms.size(); i++)
-	{
-		room_labels_mat.at<float>(i, 0) = labels_for_rooms[i];
-		for (int f = 0; f < room_features[i].size(); f++)
+		//save the found labels and features in Matrices --> rooms
+		room_labels_mat = cv::Mat(labels_for_rooms);
+		room_features_mat = cv::Mat(room_features.size(), lsf.get_feature_count(), CV_32FC1);
+		for (int i = 0; i < labels_for_rooms.size(); i++)
 		{
-			room_features_mat.at<float>(i, f) = (float) room_features[i][f];
+	//		room_labels_mat.at<float>(i, 0) = labels_for_rooms[i];
+			for (int f = 0; f < room_features[i].size(); f++)
+			{
+				room_features_mat.at<float>(i, f) = (float) room_features[i][f];
+			}
 		}
-	}
 
-//	// save feature data to file
-//	cv::FileStorage fs("room_segmentation/_features.yml", cv::FileStorage::WRITE);
-//	if (fs.isOpened())
-//	{
-//		fs << "hallway_features_mat" << hallway_features_mat;
-//		fs << "hallway_labels_mat" << hallway_labels_mat;
-//		fs << "room_features_mat" << room_features_mat;
-//		fs << "room_labels_mat" << room_labels_mat;
-//	}
-//	fs.release();
+	//	// save feature data to file
+		cv::FileStorage fs(classifier_storage_path+"_features.yml", cv::FileStorage::WRITE);
+		if (fs.isOpened())
+		{
+			fs << "hallway_features_mat" << hallway_features_mat;
+			fs << "hallway_labels_mat" << hallway_labels_mat;
+			fs << "room_features_mat" << room_features_mat;
+			fs << "room_labels_mat" << room_labels_mat;
+		}
+		fs.release();
+	}
+	else
+	{
+		// load the feature data from file
+		cv::FileStorage fs(classifier_storage_path+"_features.yml", cv::FileStorage::READ);
+		std::cout << "Loading feature data from file: " << classifier_storage_path+"_features.yml" << std::endl;
+		if (fs.isOpened())
+		{
+			fs["hallway_features_mat"] >> hallway_features_mat;
+			fs["hallway_labels_mat"] >> hallway_labels_mat;
+			fs["room_features_mat"] >> room_features_mat;
+			fs["room_labels_mat"] >> room_labels_mat;
+		}
+		std::cout << "Loaded features data" << std::endl;
+		fs.release();
+	}
 
 	// check if path for storing classifier models exists
 	boost::filesystem::path storage_path(classifier_storage_path);
@@ -157,12 +178,13 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 	hallway_boost_.save(filename_hallway.c_str(), "boost");
 #else
 	// Train a boost classifier
-	hallway_boost_->create();
-	hallway_boost_->setBoostType(cv::ml::Boost::DISCRETE);
+	hallway_boost_= cv::ml::Boost::create();;
+	hallway_boost_->setBoostType(cv::ml::Boost::REAL);
 	hallway_boost_->setWeakCount(350);
 	hallway_boost_->setWeightTrimRate(0);
 	hallway_boost_->setMaxDepth(2);
 	hallway_boost_->setUseSurrogates(false);
+	hallway_boost_->setPriors(cv::Mat());
 	hallway_boost_->train(hallway_features_mat, cv::ml::ROW_SAMPLE, hallway_labels_mat);
 	//save the trained booster
 	hallway_boost_->save(filename_hallway.c_str());
@@ -178,12 +200,14 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 	room_boost_.save(filename_room.c_str(), "boost");
 #else
 	// Train a boost classifier
-	room_boost_->create();
-	room_boost_->setBoostType(cv::ml::Boost::DISCRETE);
+	room_boost_ = cv::ml::Boost::create();
+	room_boost_->setBoostType(cv::ml::Boost::REAL);
 	room_boost_->setWeakCount(350);
 	room_boost_->setWeightTrimRate(0);
 	room_boost_->setMaxDepth(2);
 	room_boost_->setUseSurrogates(false);
+	room_boost_->setPriors(cv::Mat());
+	room_boost_->train(room_features_mat, cv::ml::ROW_SAMPLE, room_labels_mat);
 	//save the trained booster
 	room_boost_->save(filename_room.c_str());
 #endif
@@ -264,8 +288,8 @@ void AdaboostClassifier::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat& s
 				float room_sum = room_boost_.predict(features_mat, cv::Mat(), cv::Range::all(), false, true);
 				float hallway_sum = hallway_boost_.predict(features_mat, cv::Mat(), cv::Range::all(), false, true);
 #else
-				float room_sum = room_boost_->predict(features_mat, cv::Mat(), cv::ml::Boost::RAW_OUTPUT);
-				float hallway_sum = hallway_boost_->predict(features_mat, cv::Mat(), cv::ml::Boost::RAW_OUTPUT);
+				float room_sum = room_boost_->predict(features_mat, cv::noArray(), cv::ml::Boost::PREDICT_SUM);
+				float hallway_sum = hallway_boost_->predict(features_mat, cv::noArray(), cv::ml::Boost::PREDICT_SUM);
 #endif
 				//get the certanity-values for each class (it shows the probability that it belongs to the given class)
 				double room_certanity = (std::exp((double) room_sum)) / (std::exp(-1 * (double) room_sum) + std::exp((double) room_sum));

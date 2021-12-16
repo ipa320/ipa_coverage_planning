@@ -3,7 +3,7 @@
 
 
 	<!--  -->
-	<node ns="room_segmentation" pkg="ipa_room_segmentation" type="room_segmentation_server" name="room_segmentation_server" output="screen" respawn="true" respawn_delay="2">
+	<node ns="room_segmentation" pkg="ipa_room_segmentation" type="room_segmentation_server" name="room_segmentation_server" output="screen" respawn="false" respawn_delay="2">
 		<rosparam command="load" file="$(find ipa_room_segmentation)/ros/launch/room_segmentation_action_server_params.yaml"/>
 		
 		<!-- Parameters for Semantic segmentation -->

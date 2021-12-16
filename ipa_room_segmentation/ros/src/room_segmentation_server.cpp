@@ -74,6 +74,8 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 	// parameters to check if the algorithms need to be trained (not part of dynamic reconfigure)
 	node_handle_.param("train_semantic", train_semantic_, false);
 	std::cout << "room_segmentation/train_semantic_ = " << train_semantic_ << std::endl;
+	node_handle_.param("load_semantic_features", load_semantic_features_, false);
+	std::cout << "room_segmentation/load_semantic_features = " << load_semantic_features_ << std::endl;
 	node_handle_.param("train_vrf", train_vrf_, false);
 	std::cout << "room_segmentation/train_vrf_ = " << train_vrf_ << std::endl;
 
@@ -168,7 +170,7 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 			}
 
 			//train the algorithm
-			semantic_segmentation.trainClassifiers(room_training_maps, hallway_training_maps, classifier_path);
+			semantic_segmentation.trainClassifiers(room_training_maps, hallway_training_maps, classifier_path, load_semantic_features_);
 
 		}
 	}
