@@ -178,7 +178,7 @@ void AdaboostClassifier::trainClassifiers(const std::vector<cv::Mat>& room_train
 	hallway_boost_.save(filename_hallway.c_str(), "boost");
 #else
 	// Train a boost classifier
-	hallway_boost_= cv::ml::Boost::create();;
+	hallway_boost_ = cv::ml::Boost::create();
 	hallway_boost_->setBoostType(cv::ml::Boost::REAL);
 	hallway_boost_->setWeakCount(350);
 	hallway_boost_->setWeightTrimRate(0);
