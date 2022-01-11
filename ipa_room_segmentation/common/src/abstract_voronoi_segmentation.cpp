@@ -127,8 +127,13 @@ void AbstractVoronoiSegmentation::createVoronoiGraph(cv::Mat& map_for_voronoi_ge
 
 	//get contours of the map
 	cv::Mat temp = map_to_draw_voronoi_in.clone();
+#if CV_MAJOR_VERSION<=3
 	cv::findContours(temp, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
 	cv::drawContours(map_to_draw_voronoi_in, contours, -1, cv::Scalar(255), CV_FILLED);
+#else
+	cv::findContours(temp, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_NONE);
+	cv::drawContours(map_to_draw_voronoi_in, contours, -1, cv::Scalar(255), cv::FILLED);
+#endif
 
 	//put every point of the map-contours into the Delaunay-generator of OpenCV
 	for (int current_contour = 0; current_contour < contours.size(); current_contour++)

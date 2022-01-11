@@ -30,7 +30,11 @@ void DistanceSegmentation::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat&
 	//1. Get the distance-transformed map and make it an 8-bit single-channel image
 	cv::erode(temporary_map, temporary_map, cv::Mat());
 	cv::Mat distance_map;	//variable for the distance-transformed map, type: CV_32FC1
+#if CV_MAJOR_VERSION<=3
 	cv::distanceTransform(temporary_map, distance_map, CV_DIST_L2, 5);
+#else
+	cv::distanceTransform(temporary_map, distance_map, cv::DIST_L2, 5);
+#endif
 	cv::convertScaleAbs(distance_map, distance_map);	// conversion to 8 bit image
 
 	//2. Threshold the map and find the contours of the rooms. Change the threshold and repeat steps until last possible threshold.
@@ -44,7 +48,11 @@ void DistanceSegmentation::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat&
 		contours.clear();
 		hierarchy.clear();
 		cv::threshold(distance_map, thresh_map, current_threshold, 255, cv::THRESH_BINARY);
+#if CV_MAJOR_VERSION<=3
 		cv::findContours(thresh_map, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
+#else
+		cv::findContours(thresh_map, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_NONE);
+#endif
 
 		//Get the number of large enough regions to be a room. Only check non-holes.
 		//Energy function: -(x-a)^2 + b, where x is the current area, a is the optimal area and b is a factor to make the function zero at x=0
@@ -103,7 +111,11 @@ void DistanceSegmentation::segmentMap(const cv::Mat& map_to_be_labeled, cv::Mat&
 	{
 		if(hierarchy_saver[current_hole][3] == 1)
 		{
+#if CV_MAJOR_VERSION<=3
 			cv::drawContours(segmented_map, hole_contour_saver, current_hole, cv::Scalar(0), CV_FILLED);
+#else
+			cv::drawContours(segmented_map, hole_contour_saver, current_hole, cv::Scalar(0), cv::FILLED);
+#endif
 		}
 	}
 	//spread the colors to the white pixels

@@ -67,7 +67,11 @@ void RoomRotator::rotateRoom(const cv::Mat& room_map, cv::Mat& rotated_room_map,
 
 	// apply a binary filter to create a binary image, also use a closing operator to smooth the output (the rotation might produce
 	// black pixels reaching into the white area that were not there before, causing new, wrong cells to open)
+#if CV_MAJOR_VERSION<=3
 	cv::threshold(rotated_room_map, rotated_room_map, 127, 255, CV_THRESH_BINARY);
+#else
+	cv::threshold(rotated_room_map, rotated_room_map, 127, 255, cv::THRESH_BINARY);
+#endif
 // this should not be used because it removes smaller obstacles like thin walls from the room and hence lets a planner generate paths through walls
 //	cv::dilate(rotated_room_map, rotated_room_map, cv::Mat(), cv::Point(-1,-1), 1);
 //	cv::erode(rotated_room_map, rotated_room_map, cv::Mat(), cv::Point(-1,-1), 1);

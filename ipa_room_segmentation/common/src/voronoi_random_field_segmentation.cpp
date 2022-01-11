@@ -486,7 +486,7 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 	std::cout << "starting to train the Boost Classifiers." << std::endl;
 
 	// vectors that store the given labels and features for each point (order: room-hallway-doorway)
-	std::vector< std::vector<float> > labels_for_classes(number_of_classes_);
+	std::vector< std::vector<int> > labels_for_classes(number_of_classes_);
 	std::vector< std::vector<double> > features_for_points;
 
 	// go trough each found clique and take the first point of the clique as current point
@@ -525,9 +525,9 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 			for(size_t current_class = 0; current_class < number_of_classes_; ++current_class)
 			{
 				if(current_labels_for_points[0] == possible_labels[current_class])
-					labels_for_classes[current_class].push_back(1.0);
+					labels_for_classes[current_class].push_back(1);
 				else
-					labels_for_classes[current_class].push_back(-1.0);
+					labels_for_classes[current_class].push_back(-1);
 			}
 		}
 	}
@@ -538,11 +538,10 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 	//
 	//*************room***************
 	//save the found labels and features in Matrices
-	cv::Mat room_labels_Mat(labels_for_classes[0].size(), 1, CV_32FC1);
+	cv::Mat room_labels_Mat(labels_for_classes[0]);
 	cv::Mat features_Mat(features_for_points.size(), vrf_feature_computer.getFeatureCount(), CV_32FC1);
 	for (int i = 0; i < labels_for_classes[0].size(); i++)
 	{
-		room_labels_Mat.at<float>(i, 0) = labels_for_classes[0][i];
 		for (int f = 0; f < vrf_feature_computer.getFeatureCount(); f++)
 		{
 			features_Mat.at<float>(i, f) = (float) features_for_points[i][f];
@@ -556,12 +555,13 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 	room_boost_.save(filename_room.c_str(), "boost");
 #else
 	// Train a boost classifier
-	room_boost_->create();
-	room_boost_->setBoostType(cv::ml::Boost::DISCRETE);
+	room_boost_ = cv::ml::Boost::create();
+	room_boost_->setBoostType(cv::ml::Boost::REAL);
 	room_boost_->setWeakCount(number_of_classifiers_);
 	room_boost_->setWeightTrimRate(0);
 	room_boost_->setMaxDepth(2);
 	room_boost_->setUseSurrogates(false);
+	room_boost_->setPriors(cv::Mat());
 	room_boost_->train(features_Mat, cv::ml::ROW_SAMPLE, room_labels_Mat);
 	//save the trained booster
 	room_boost_->save(filename_room.c_str());
@@ -571,9 +571,7 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 	//
 	//*************hallway***************
 	//save the found labels and features in Matrices
-	cv::Mat hallway_labels_Mat(labels_for_classes[1].size(), 1, CV_32FC1);
-	for (int i = 0; i < labels_for_classes[1].size(); i++)
-		hallway_labels_Mat.at<float>(i, 0) = labels_for_classes[1][i];
+	cv::Mat hallway_labels_Mat(labels_for_classes[1]);
 	std::string filename_hallway = classifier_storage_path + "vrf_hallway_boost.xml";
 #if CV_MAJOR_VERSION == 2
 	// Train a boost classifier
@@ -582,12 +580,13 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 	hallway_boost_.save(filename_hallway.c_str(), "boost");
 #else
 	// Train a boost classifier
-	hallway_boost_->create();
-	hallway_boost_->setBoostType(cv::ml::Boost::DISCRETE);
+	hallway_boost_ = cv::ml::Boost::create();
+	hallway_boost_->setBoostType(cv::ml::Boost::REAL);
 	hallway_boost_->setWeakCount(number_of_classifiers_);
 	hallway_boost_->setWeightTrimRate(0);
 	hallway_boost_->setMaxDepth(2);
 	hallway_boost_->setUseSurrogates(false);
+	hallway_boost_->setPriors(cv::Mat());
 	hallway_boost_->train(features_Mat, cv::ml::ROW_SAMPLE, hallway_labels_Mat);
 	//save the trained booster
 	hallway_boost_->save(filename_hallway.c_str());
@@ -597,9 +596,7 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 	//
 	//*************doorway***************
 	//save the found labels and features in Matrices
-	cv::Mat doorway_labels_Mat(labels_for_classes[2].size(), 1, CV_32FC1);
-	for (int i = 0; i < labels_for_classes[2].size(); i++)
-		doorway_labels_Mat.at<float>(i, 0) = labels_for_classes[2][i];
+	cv::Mat doorway_labels_Mat(labels_for_classes[2]);
 	std::string filename_doorway = classifier_storage_path + "vrf_doorway_boost.xml";
 #if CV_MAJOR_VERSION == 2
 	// Train a boost classifier
@@ -608,12 +605,13 @@ void VoronoiRandomFieldSegmentation::trainBoostClassifiers(const std::vector<cv:
 	doorway_boost_.save(filename_doorway.c_str(), "boost");
 #else
 	// Train a boost classifier
-	doorway_boost_->create();
-	doorway_boost_->setBoostType(cv::ml::Boost::DISCRETE);
+	doorway_boost_ = cv::ml::Boost::create();
+	doorway_boost_->setBoostType(cv::ml::Boost::REAL);
 	doorway_boost_->setWeakCount(number_of_classifiers_);
 	doorway_boost_->setWeightTrimRate(0);
 	doorway_boost_->setMaxDepth(2);
 	doorway_boost_->setUseSurrogates(false);
+	doorway_boost_->setPriors(cv::Mat());
 	doorway_boost_->train(features_Mat, cv::ml::ROW_SAMPLE, doorway_labels_Mat);
 	//save the trained booster
 	doorway_boost_->save(filename_doorway.c_str());
@@ -670,10 +668,15 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 		}
 
 		// Calculate the weak hypothesis by using the wanted classifier.
+#if CV_MAJOR_VERSION<=3
 		CvMat features = featuresMat;
 		cv::Mat weaker (1, number_of_classifiers_, CV_32F);
 		CvMat weak_hypothesis = weaker;	// Wanted from OpenCV to get the weak hypothesis from the
 										// separate weak classifiers.
+#else
+		cv::Mat features = featuresMat;
+		cv::Mat weaker (1, number_of_classifiers_, CV_32F);
+#endif
 
 		// For each point the classifier depends on the given label. If the point is labeled as a room the room-boost should be
 		// used and so on.
@@ -706,7 +709,11 @@ void VoronoiRandomFieldSegmentation::getAdaBoostFeatureVector(std::vector<double
 		// Write the weak hypothesis in the feature vector.
 		for(size_t f = 0; f < number_of_classifiers_; ++f)
 		{
+#if CV_MAJOR_VERSION<=3
 			temporary_feature_vector[f] = temporary_feature_vector[f] + (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
+#else
+			temporary_feature_vector[f] = temporary_feature_vector[f] + (double) weaker.at<float>(0, f);
+#endif
 		}
 	}
 
@@ -839,10 +846,15 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 		featuresMat.at<float>(0, f - 1) = (float) 1;
 
 	// Calculate the weak hypothesis by using the wanted classifier. The weak hypothesis is given by h_i(x) = w_i * f_i(x)
+#if CV_MAJOR_VERSION<=3
 	CvMat features = featuresMat;
 	cv::Mat weaker (1, number_of_classifiers_, CV_32F);
 	CvMat weak_hypothesis = weaker;	// Wanted from OpenCV to get the weak hypothesis from the
 									// separate weak classifiers.
+#else
+	cv::Mat features = featuresMat;
+	cv::Mat weaker(1, number_of_classifiers_, CV_32F);
+#endif
 
 	// Get weights for room, hallway and doorway classifier.
 #if CV_MAJOR_VERSION == 2
@@ -852,7 +864,11 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 #endif
 
 	for(size_t f = 0; f < number_of_classifiers_; ++f)
+#if CV_MAJOR_VERSION<=3
 		mean_weights[f] += (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
+#else
+		mean_weights[f] += (double) weaker.at<float>(0, f);
+#endif
 
 #if CV_MAJOR_VERSION == 2
 	hallway_boost_.predict(&features, 0, &weak_hypothesis);
@@ -861,7 +877,11 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 #endif
 
 	for(size_t f = 0; f < number_of_classifiers_; ++f)
+#if CV_MAJOR_VERSION<=3
 		mean_weights[f] *= (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
+#else
+		mean_weights[f] *= (double) weaker.at<float>(0, f);
+#endif
 
 #if CV_MAJOR_VERSION == 2
 	doorway_boost_.predict(&features, 0, &weak_hypothesis);
@@ -870,7 +890,11 @@ void VoronoiRandomFieldSegmentation::findConditionalWeights(std::vector< std::ve
 #endif
 
 	for(size_t f = 0; f < number_of_classifiers_; ++f)
+#if CV_MAJOR_VERSION<=3
 		mean_weights[f] *= (double) CV_MAT_ELEM(weak_hypothesis, float, 0, f);
+#else
+		mean_weights[f] *= (double) weaker.at<float>(0, f);
+#endif
 
 	// find the best weights --> minimize the defined function for the pseudo-likelihood
 	std::cout << "finding weights using Dlib" << std::endl;
@@ -966,7 +990,11 @@ void VoronoiRandomFieldSegmentation::trainAlgorithms(const std::vector<cv::Mat>&
 		// read in a fully labeled map (not only points) and generate current_nodes accordingly
 		// find the conditional random field nodes for the current map
 		cv::Mat distance_map; //distance-map of the original-map (used to check the distance of each point to nearest black pixel)
+#if CV_MAJOR_VERSION<=3
 		cv::distanceTransform(original_maps[current_map_index], distance_map, CV_DIST_L2, 5);
+#else
+		cv::distanceTransform(original_maps[current_map_index], distance_map, cv::DIST_L2, 5);
+#endif
 		cv::convertScaleAbs(distance_map, distance_map);
 
 		// find all nodes for the conditional random field
@@ -1293,7 +1321,11 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 
 	// get the distance transformed map, which shows the distance of every white pixel to the closest zero-pixel
 	cv::Mat distance_map; //distance-map of the original-map (used to check the distance of each point to nearest black pixel)
+#if CV_MAJOR_VERSION<=3
 	cv::distanceTransform(original_map, distance_map, CV_DIST_L2, 5);
+#else
+	cv::distanceTransform(original_map, distance_map, cv::DIST_L2, 5);
+#endif
 	cv::convertScaleAbs(distance_map, distance_map);
 
 	// find all nodes for the conditional random field
@@ -1305,10 +1337,18 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 	cv::Mat node_map = original_map.clone();
 	if(show_results == true)
 	{
+#if CV_MAJOR_VERSION<=3
 		cv::cvtColor(node_map, node_map, CV_GRAY2BGR);
+#else
+		cv::cvtColor(node_map, node_map, cv::COLOR_GRAY2BGR);
+#endif
 		for(std::set<cv::Point, cv_Point_comp>::iterator node = conditional_field_nodes.begin(); node != conditional_field_nodes.end(); ++node)
 		{
+#if CV_MAJOR_VERSION<=3
 			cv::circle(node_map, *node, 0, cv::Scalar(250,0,0), CV_FILLED);
+#else
+			cv::circle(node_map, *node, 0, cv::Scalar(250,0,0), cv::FILLED);
+#endif
 		}
 
 //		cv::imshow("nodes of the conditional random field", node_map);
@@ -1504,7 +1544,11 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 		for(std::set<cv::Point, cv_Point_comp>::iterator i = conditional_field_nodes.begin(); i != conditional_field_nodes.end(); ++i)
 		{
 			size_t distance = std::distance(conditional_field_nodes.begin(), i);
+#if CV_MAJOR_VERSION<=3
 			cv::circle(resulting_map, *i, 3, cv::Scalar(possible_labels[best_labels[distance]]), CV_FILLED);
+#else
+			cv::circle(resulting_map, *i, 3, cv::Scalar(possible_labels[best_labels[distance]]), cv::FILLED);
+#endif
 		}
 
 		cv::imshow("node-map", resulting_map);
@@ -1531,7 +1575,11 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 	// find the layout of the map and discretize it to get possible base points
 	std::vector < std::vector<cv::Point> > map_contours;
 	std::vector < cv::Vec4i > hierarchy;
+#if CV_MAJOR_VERSION<=3
 	cv::findContours(map_copy, map_contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
+#else
+	cv::findContours(map_copy, map_contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_NONE);
+#endif
 
 	timer.start();
 
@@ -1675,8 +1723,11 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 			}
 		}
 		// find the contours of the rooms/hallways
+#if CV_MAJOR_VERSION<=3
 		cv::findContours(temporary_map, map_contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE);
-
+#else
+		cv::findContours(temporary_map, map_contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_NONE);
+#endif
 
 		// save the contours that are not holes (check with hierarchy --> [{0,1,2,3}]={next contour (same level), previous contour (same level), child contour, parent contour})
 		//  --> save everything with hierarchy[3] == -1
@@ -1714,7 +1765,11 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 				//check if color has already been used
 				if (!contains(already_used_colors, fill_color) || loop_counter > 1000)
 				{
+#if CV_MAJOR_VERSION<=3
 					cv::drawContours(segmented_map, std::vector<std::vector<cv::Point> >(1,*current_contour), -1, fill_color, CV_FILLED);
+#else
+					cv::drawContours(segmented_map, std::vector<std::vector<cv::Point> >(1,*current_contour), -1, fill_color, cv::FILLED);
+#endif
 					already_used_colors.push_back(fill_color);
 					Room current_room(random_number); //add the current Contour as a room
 					for (int point = 0; point < current_contour->size(); point++) //add contour points to room
@@ -1728,7 +1783,11 @@ void VoronoiRandomFieldSegmentation::segmentMap(const cv::Mat& original_map, cv:
 		}
 		// draw too small segments white, to prevent that they are covered by large closed contours
 		if(room_area < room_area_factor_lower_limit)
+#if CV_MAJOR_VERSION<=3
 			cv::drawContours(segmented_map, std::vector<std::vector<cv::Point> >(1,*current_contour), -1, 255*256, CV_FILLED);
+#else
+			cv::drawContours(segmented_map, std::vector<std::vector<cv::Point> >(1,*current_contour), -1, 255*256, cv::FILLED);
+#endif
 	}
 
 	// Make black what has been black before (drawContours draws filled areas and might overwrite black holes).

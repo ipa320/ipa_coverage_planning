@@ -131,7 +131,11 @@ void CoverageCheckServer::drawCoveredPointsPolygon(cv::Mat& reachable_areas_map,
 		// draw current field of view in map
 		cv::Mat fov_mat = cv::Mat::zeros(reachable_areas_map.rows, reachable_areas_map.cols, reachable_areas_map.type());
 		std::vector<std::vector<cv::Point> > contours(1, transformed_fov_points);
+#if CV_MAJOR_VERSION<=3
 		cv::drawContours(fov_mat, contours, 0, cv::Scalar(255), CV_FILLED);
+#else
+		cv::drawContours(fov_mat, contours, 0, cv::Scalar(255), cv::FILLED);
+#endif
 
 		// check visibility for each pixel of the fov area
 		for (int v=0; v<fov_mat.rows; ++v)

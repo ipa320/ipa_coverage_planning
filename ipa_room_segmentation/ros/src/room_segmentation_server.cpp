@@ -74,6 +74,8 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 	// parameters to check if the algorithms need to be trained (not part of dynamic reconfigure)
 	node_handle_.param("train_semantic", train_semantic_, false);
 	std::cout << "room_segmentation/train_semantic_ = " << train_semantic_ << std::endl;
+	node_handle_.param("load_semantic_features", load_semantic_features_, false);
+	std::cout << "room_segmentation/load_semantic_features = " << load_semantic_features_ << std::endl;
 	node_handle_.param("train_vrf", train_vrf_, false);
 	std::cout << "room_segmentation/train_vrf_ = " << train_vrf_ << std::endl;
 
@@ -168,7 +170,7 @@ RoomSegmentationServer::RoomSegmentationServer(ros::NodeHandle nh, std::string n
 			}
 
 			//train the algorithm
-			semantic_segmentation.trainClassifiers(room_training_maps, hallway_training_maps, classifier_path);
+			semantic_segmentation.trainClassifiers(room_training_maps, hallway_training_maps, classifier_path, load_semantic_features_);
 
 		}
 	}
@@ -729,7 +731,11 @@ void RoomSegmentationServer::execute_segmentation_server(const ipa_building_msgs
 		}
 //		cv::Mat disp = segmented_map.clone();
 		for (size_t index = 0; index < room_centers_x_values.size(); ++index)
+#if CV_MAJOR_VERSION<=3
 			cv::circle(color_segmented_map, cv::Point(room_centers_x_values[index], room_centers_y_values[index]), 2, cv::Scalar(256), CV_FILLED);
+#else
+			cv::circle(color_segmented_map, cv::Point(room_centers_x_values[index], room_centers_y_values[index]), 2, cv::Scalar(256), cv::FILLED);
+#endif
 
 		cv::imshow("segmentation", color_segmented_map);
 		cv::waitKey();

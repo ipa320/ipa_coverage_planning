@@ -18,6 +18,7 @@ publish_segmented_map: true
 
 # train the semantic segmentation and the voronoi random field segmentation
 train_semantic: false
+load_semantic_features: false
 train_vrf: false
 
 # room area factor-> Set the limitation of area of the room -------> in [m^2]

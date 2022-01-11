@@ -309,7 +309,11 @@ void NeuralNetworkExplorator::getExplorationPath(const cv::Mat& room_map, std::v
 //		printing of the path computation
 		if(show_path_computation == true)
 		{
+#if CV_MAJOR_VERSION<=3
 			cv::circle(black_map, next_neuron->getPosition(), 2, cv::Scalar((visited_neurons*5)%250), CV_FILLED);
+#else
+			cv::circle(black_map, next_neuron->getPosition(), 2, cv::Scalar((visited_neurons*5)%250), cv::FILLED);
+#endif
 			cv::line(black_map, previous_neuron->getPosition(), next_neuron->getPosition(), cv::Scalar(128), 1);
 			cv::imshow("next_neuron", black_map);
 			cv::waitKey();

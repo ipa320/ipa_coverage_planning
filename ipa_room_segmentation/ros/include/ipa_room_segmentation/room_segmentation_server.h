@@ -103,6 +103,7 @@ protected:
 										// 99 = pass through segmentation
 
 	bool train_semantic_, train_vrf_; //Boolean to say if the algorithm needs to be trained
+	bool load_semantic_features_; //Boolean to say if the training of the semantic algorithm should load precomputed features
 
 	int voronoi_neighborhood_index_; //Variable for the Voronoi method that specifies the neighborhood that is looked at for critical Point extraction
 	int voronoi_random_field_epsilon_for_neighborhood_; //Variable that specifies the neighborhood for the vrf-segmentation.

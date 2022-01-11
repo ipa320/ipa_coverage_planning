@@ -14,11 +14,15 @@ env:
     - ROS_DISTRO=kinetic UPSTREAM_WORKSPACE=debian
     - ROS_DISTRO=melodic UPSTREAM_WORKSPACE=file
     - ROS_DISTRO=melodic UPSTREAM_WORKSPACE=debian
+    - ROS_DISTRO=noetic UPSTREAM_WORKSPACE=file
+    - ROS_DISTRO=noetic UPSTREAM_WORKSPACE=debian
+
 matrix:
   allow_failures:
     - env: ROS_DISTRO=kinetic UPSTREAM_WORKSPACE=file
     - env: ROS_DISTRO=kinetic UPSTREAM_WORKSPACE=debian
     - env: ROS_DISTRO=melodic UPSTREAM_WORKSPACE=debian
+    - env: ROS_DISTRO=noetic UPSTREAM_WORKSPACE=debian
 install:
   - git clone https://github.com/ros-industrial/industrial_ci.git .ci_config
 script:
