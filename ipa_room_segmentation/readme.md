@@ -1,3 +1,9 @@
+# ipa_room_segmentation
+Algorithms for floor plan segmentation.
+
+If you find this software useful in your work, please cite our corresponding paper:
+- R. Bormann, F. Jordan, W. Li, J. Hampp, and M. Hägele. Room Segmentation: Survey, Implementation, and Analysis. In Proceedings of the IEEE International Conference on Robotics and Automation (ICRA), 2016. https://ieeexplore.ieee.org/abstract/document/7487234 , https://publica.fraunhofer.de/entities/publication/0bf23149-75d5-4601-bfce-992d91698862/details
+
 # General Procedure
 
 1. Change the algorithm parameters in ros/launch/room_segmentation_action_server_params.yaml in ros/launch to the wanted algorithms and settings.
