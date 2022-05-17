@@ -1,7 +1,7 @@
 # ipa_room_exploration
 Algorithms for systematic coverage driving patterns.
 
-If you find this software useful in your work, please cite our corresponding papers:
+If you find this software useful in your work, please cite our corresponding paper:
 - R. Bormann, F. Jordan, J. Hampp, and M. Hägele. Indoor coverage path planning: Survey, implementation, analysis. In Proceedings of the IEEE International Conference on Robotics and Automation (ICRA), pages 1718–1725, May 2018. https://ieeexplore.ieee.org/abstract/document/8460566 , https://publica.fraunhofer.de/entities/publication/f537c15d-4cbe-4672-9d86-6e756a9ce71b/details
 
 # General Procedure
