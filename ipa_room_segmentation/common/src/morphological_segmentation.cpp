@@ -26,7 +26,7 @@ void MorphologicalSegmentation::segmentMap(const cv::Mat& map_to_be_labeled, cv:
 	//erode map a specified amount of times
 	std::vector < std::vector<cv::Point> > saved_contours; //saving variable for every contour that is between the upper and the lower limit
 	ROS_INFO("starting eroding");
-	for (int counter = 0; counter < 73; counter++)
+	for (int counter = 0; counter < 1000; counter++)
 	{
 		//erode the map one time
 		cv::Mat eroded_map;
@@ -80,6 +80,10 @@ void MorphologicalSegmentation::segmentMap(const cv::Mat& map_to_be_labeled, cv:
 					}
 				}
 			}
+		}
+		else
+		{
+			break;
 		}
 	}
 	//*******************draw contures in new map***********************
