@@ -1079,7 +1079,7 @@ public:
 				bool found_next = findAccessiblePose(inflated_map, current_pose_px, next_pose_px, data, fov_circle_center_point_in_px);
 				if(found_next==false)
 				{
-					std::cout << "   skipping next_pose_px=(" << next_pose_px.x << "," << next_pose_px.y << ") inaccessible from current_pose_px=(" << current_pose_px.x << "," << current_pose_px.y << ")" << std::endl;
+					std::cout << "   findAccessiblePose: skipping next_pose_px=(" << next_pose_px.x << "," << next_pose_px.y << ") inaccessible from current_pose_px=(" << current_pose_px.x << "," << current_pose_px.y << ")" << std::endl;
 					continue;	// if no accessible position could be found, go to next possible path point
 				}
 
@@ -1089,15 +1089,19 @@ public:
 				const cv::Point next_pose_px_pt(next_pose_px.x, next_pose_px.y);
 				// first query for direct current_pose_px_pt to next_pose_px_pt connection
 				double length_planner = generateDirectConnection(inflated_map, current_pose_px_pt, next_pose_px_pt, current_interpolated_path);
-				if (length_planner < 0.)  // kind of a hack: if there is no accessible connection between two points, try to find a path on the original (not inflated) map, this path could possibly not be driven by the robot in reality
-					length_planner = generateDirectConnection(map, current_pose_px_pt, next_pose_px_pt, current_interpolated_path);
+				//if (length_planner < 0.)  // kind of a hack: if there is no accessible connection between two points, try to find a path on the original (not inflated) map, this path could possibly not be driven by the robot in reality
+				//	length_planner = generateDirectConnection(map, current_pose_px_pt, next_pose_px_pt, current_interpolated_path);
 				// use A* if there is no direct connection
 				if (length_planner < 0.)
 					length_planner = path_planner.planPath(inflated_map, current_pose_px_pt, next_pose_px_pt, 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
-				// kind of a hack: if there is no accessible connection between two points, try to find a path on the original (not inflated) map, this path could possibly not be driven by the robot in reality
-				if (current_interpolated_path.size()==0)
-					length_planner = path_planner.planPath(map, current_pose_px_pt, next_pose_px_pt, 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
-				current_pathlength += (length_planner>1e90 || length_planner<0 ? cv::norm(cv::Point(next_pose_px.x-current_pose_px.x, next_pose_px.y-current_pose_px.y)) : length_planner);
+				//if (current_interpolated_path.size()==0)  // kind of a hack: if there is no accessible connection between two points, try to find a path on the original (not inflated) map, this path could possibly not be driven by the robot in reality
+				//	length_planner = path_planner.planPath(map, current_pose_px_pt, next_pose_px_pt, 1.0, 0.0, data.map_resolution_, 0, &current_interpolated_path);
+				if(length_planner>1e90 || length_planner<0)
+				{
+					std::cout << "   generateDirectConnection/path_planner.planPath: skipping next_pose_px=(" << next_pose_px.x << "," << next_pose_px.y << ") inaccessible from current_pose_px=(" << current_pose_px.x << "," << current_pose_px.y << ")" << std::endl;
+					continue;	// if no accessible position could be found, go to next possible path point
+				}
+				current_pathlength += length_planner;
 
 				// if there is any proper connection between the two points, just use the goal point as "path"
 				if (current_interpolated_path.size()<2)
