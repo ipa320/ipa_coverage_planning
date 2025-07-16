@@ -88,7 +88,7 @@ add_library(${PROJECT_NAME} STATIC
 	common/src/voronoi_segmentation.cpp
 	common/src/adaboost_classifier.cpp
 	common/src/wavefront_region_growing.cpp
-	common/src/contains.cpp common/src/features.cpp
+	common/src/features.cpp
 	common/src/raycasting.cpp
 	common/src/meanshift2d.cpp
 	common/src/room_class.cpp
