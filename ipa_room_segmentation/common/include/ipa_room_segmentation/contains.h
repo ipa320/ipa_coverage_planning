@@ -7,7 +7,16 @@
 #include <set>
 #include <math.h>
 
-bool contains(std::vector<cv::Scalar> vector, cv::Scalar element);
-bool contains(std::vector<cv::Point> vector, cv::Point element);
-bool contains(std::vector<int> vector, int element);
-bool contains(std::vector<std::vector<unsigned int> > vector, std::vector<unsigned int> element);
+template<typename T>
+bool contains(const std::vector<T>& vector, const T& element)
+{
+	//this functions checks, if the given element is in the given vector
+	if (!vector.empty())
+	{
+		return vector.end() != std::find(vector.begin(), vector.end(), element);
+	}
+	else
+	{
+		return false;
+	}
+}
